@@ -1,0 +1,98 @@
+site_name: OPX//77
+site_description: Documentation for the OPX//77 roleplay framework for OPEN//77.
+site_url: https://opx77-framework.github.io/opx77_doc/
+repo_url: https://github.com/opx77-framework/opx77_doc
+repo_name: opx77-framework/opx77_doc
+edit_uri: edit/main/docs/
+
+copyright: OPX//77 is an independent community project, not affiliated with or endorsed by CD PROJEKT RED.
+
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.instant
+    - navigation.tracking
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - search.highlight
+    - search.suggest
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: black
+      accent: amber
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: amber
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+plugins:
+  - search
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+extra_css:
+  - stylesheets/extra.css
+
+# --------------------------------------------------------------------------- #
+# NAVIGATION
+#
+# The seven pages under "Resources" are placeholders. Other agents write them.
+# Do not rename or move these paths -- they are the agreed contract:
+#
+#   docs/resources/opx77_core.md
+#   docs/resources/opx77_menu.md
+#   docs/resources/opx77_hud.md
+#   docs/resources/opx77_chat.md
+#   docs/resources/opx77_status.md
+#   docs/resources/opx77_weather.md
+#   docs/resources/opx77_elevators.md
+# --------------------------------------------------------------------------- #
+nav:
+  - Home: index.md
+  - Guide:
+      - Getting started: getting-started.md
+      - Architecture: architecture.md
+      - The Open77 platform: platform.md
+  - Resources:
+      - Overview: resources/index.md
+      - opx77_core: resources/opx77_core.md
+      - opx77_menu: resources/opx77_menu.md
+      - opx77_hud: resources/opx77_hud.md
+      - opx77_chat: resources/opx77_chat.md
+      - opx77_status: resources/opx77_status.md
+      - opx77_weather: resources/opx77_weather.md
+      - opx77_elevators: resources/opx77_elevators.md

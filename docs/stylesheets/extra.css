@@ -1,0 +1,20 @@
+/* OPX//77 — small accents on top of the Material theme. */
+
+:root {
+  --md-code-font: "JetBrains Mono", "Roboto Mono", ui-monospace, monospace;
+}
+
+/* Tables of exports and permissions read better full width and left aligned. */
+.md-typeset table:not([class]) {
+  display: table;
+  width: 100%;
+}
+
+.md-typeset table:not([class]) th {
+  font-weight: 700;
+}
+
+/* Keep inline code inside tables from wrapping mid-identifier. */
+.md-typeset table:not([class]) code {
+  white-space: nowrap;
+}
