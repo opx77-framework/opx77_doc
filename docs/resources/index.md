@@ -18,7 +18,7 @@ state; the rest are client-side services and surfaces that read it.
 Every export listed on these pages is **client-side**. The Open77 server
 runtime installs no export mechanism, so a server resource that needs data from
 another resource sends a net event to its own client half, which calls the
-export there. See [Architecture](../architecture.md) for the full contract.
+export there. See [the client export contract](../index.md#the-client-export-contract) for the full contract.
 
 Calls look like this, always inside a `CreateThread`, always checking both
 levels of failure:

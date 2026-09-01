@@ -155,51 +155,7 @@ with its position and the server starts anyway.
 
 Keep this list credential-free too.
 
-## 3. The manifest load-order rule
-
-Every resource has an `open77.lua` manifest. **Scripts load in manifest
-order**, and that order is the contract: a file publishes into the shared table
-and every file listed after it can read what was published.
-
-```lua
-resource "opx77_core"
-version "0.2.0"
-open77_version ">=0.0.1"
-auto_start true
-
-reload_policy "local"
-
-shared_script "shared/main.lua"   -- creates OPX
-shared_script "shared/result.lua" -- fills it in
--- ...
-client_script "client/exports.lua" -- last: publishing the surface claims
-                                   -- everything it reads
-```
-
-Two rules follow, and each has already cost somebody something:
-
-!!! failure "No `require` on files that are already in the manifest"
-
-    A file both listed in the manifest and loaded by `require` runs **twice** —
-    the manifest loader does not populate `require`'s cache. `require` is
-    confined to the resource anyway, so it could never have reached a library
-    living elsewhere.
-
-!!! failure "No globs in `server_script` / `client_script`"
-
-    `server_script` takes **one entry per line**. `server/**/*.lua` matches
-    nothing against flat files, and an empty glob prevents the entire resource
-    from starting — a failure mode that only appears after a rename. Every
-    shipped resource, official and OPX//77, lists its files one by one.
-
-Permissions are also declared in the manifest, and are explicit: nothing is
-granted implicitly. `opx77_core` asks for `network.events`, `database.access`,
-`players.life.read`, `players.life.kill`, `players.life.respawn`,
-`players.damage.apply` and `world.vehicles`, and deliberately does **not** ask
-for `world.props`, `world.elevators`, `combat.config`, `players.damage.read`
-or `players.disconnect`.
-
-### Reload policy
+## 3. Reload policy
 
 Each resource declares how a reload should be handled:
 

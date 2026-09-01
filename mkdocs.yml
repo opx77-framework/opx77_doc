@@ -83,10 +83,7 @@ extra_css:
 # --------------------------------------------------------------------------- #
 nav:
   - Home: index.md
-  - Guide:
-      - Getting started: getting-started.md
-      - Architecture: architecture.md
-      - The Open77 platform: platform.md
+  - Getting started: getting-started.md
   - Resources:
       - Overview: resources/index.md
       - opx77_core: resources/opx77_core.md
