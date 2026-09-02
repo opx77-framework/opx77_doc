@@ -37,7 +37,7 @@ candidate resource from starting at all.
 |---|---|---|
 | `opx77_core` | **No** | Everything. No characters, no money, no persistence, no entry gate. Nothing else in the set has a state to read. |
 | `opx77_menu` | Yes | Any resource that borrows the menu falls back. `opx77_elevators` answers `menu_not_running` and logs one line; the elevator itself still works from its exports. |
-| `opx77_hud` | Yes | Nothing is drawn on screen: no gauges, no money, no job, and no status strip. `opx77_status` still registers effects; nobody paints them. |
+| `opx77_hud` | Yes | Nothing is drawn on screen: no gauges, no money, no job, and no status strip. `opx77_status` still registers effects; nobody paints them. Cyberpunk's own HUD is left on, since this is the resource that hides it. |
 | `opx77_chat` | Yes | No chat box — and no way to type a command in game at all. A slash command never reaches this resource's *server* half, but its *client* half is what tokenises the line and hands it to the host's dispatcher, so without it every `RegisterCommand` in the set is reachable only from the OPEN//77 developer terminal and `startup.commands`. |
 | `opx77_status` | Yes | The HUD's status strip stays empty. The HUD draws everything else exactly as before. |
 | `opx77_weather` | Yes | The sky and clock are whatever the host defaults to. Nothing else reads this resource. |

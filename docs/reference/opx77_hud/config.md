@@ -1,6 +1,6 @@
 ---
 title: opx77_hud configuration
-description: The six keys in OPX_HUD_CONFIG that decide where the HUD sits, which blocks it builds and in what order, when a gauge hides itself, and the name of the /hud command.
+description: The seven keys in OPX_HUD_CONFIG that decide where the HUD sits, which blocks it builds and in what order, when a gauge hides itself, the name of the /hud command, and which of Cyberpunk's own HUD components are hidden.
 ---
 
 # Configuration
@@ -120,6 +120,66 @@ COMMAND = "hud"
 one informational line at startup. See [Commands](commands.md#no-command). The
 value is used verbatim in the usage line the server answers with, so renaming the
 command renames it everywhere.
+
+## VANILLA {#vanilla}
+
+Cyberpunk's own HUD, component by component. This resource draws the
+replacement, so it is also the resource that turns the original off — left
+alone, the two stack and the player reads their health off two bars that
+disagree while one of them animates.
+
+```lua
+VANILLA = {
+  minimap = false,
+  compass = false,
+  clock = false,
+  health = false,
+  stamina = false,
+  weapon = false, -- the weapon and its ammunition count, together
+  speedometer = false,
+}
+```
+
+**Type** `table<string, boolean> | false`
+
+The value is the visibility you want, not the change you want: `false` hides the
+component, `true` puts it back. A component with no line is left alone.
+`VANILLA = false` leaves the game's HUD entirely alone.
+
+| Written | Effect |
+|---|---|
+| `component = false` | Hidden at boot, and again whenever a character loads. |
+| `component = true` | Explicitly shown, overriding whatever the client had. |
+| *(line removed)* | Untouched. |
+| `VANILLA = false` | The whole feature is off; nothing is read and nothing is called. |
+
+**Applied** at `onClientResourceStart`, and again on
+[`opx77:client:onPlayerLoaded`](events.md), because the game brings its own HUD
+back at incarnation and that lands after this resource started.
+
+**Restored** when the resource stops — to the visibility each component was
+*found* at, not to what is written here. A component the player's own settings
+already had hidden stays hidden. Whether the platform would also restore them by
+itself is undocumented; this resource does not rely on either answer.
+
+!!! warning "The names belong to the client, not to this table"
+    The seven above are the ones that existed when this was written.
+    `Open77.hud.components()` is what the client itself reports, and it is what
+    the resource validates against: a name this client does not recognise is one
+    logged warning and nothing else, never a script error. A newer client that
+    adds an eighth component can have it hidden by adding a line here — no
+    release of `opx77_hud` is needed.
+
+!!! info "Requires `ui.vanilla.hud`"
+    Declared by `opx77_hud`'s manifest, not by yours. Like the rest of the
+    `ui.vanilla` family it is presentation **on the client that holds it**:
+    nothing here is authoritative and none of it is worth trusting on the server.
+
+    `Open77.hud` is newer than every other API this framework touches and is
+    absent from the published API reference, so a client that predates it cannot
+    hide anything. That case is a logged warning naming the capability, and
+    [`exports("vanilla")`](exports.md#vanilla) reports `available = false` so you
+    can tell it apart from a component that simply refused.
 
 ## What is deliberately not a key {#not-configurable}
 

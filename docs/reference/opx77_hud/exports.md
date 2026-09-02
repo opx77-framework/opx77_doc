@@ -1,13 +1,15 @@
 ---
 title: opx77_hud exports
-description: The two client exports opx77_hud publishes — setVisible and isVisible — which control the HUD surface and nothing about the character drawn on it.
+description: The three client exports opx77_hud publishes — setVisible, isVisible and vanilla — which control the HUD surface and report what became of the game's own HUD.
 ---
 
 # Exports
 
-`opx77_hud` publishes two client exports. Both control **the rectangle, not the
-character drawn in it**: hiding the HUD does not stop it following the core, and
-showing it again does not need a refresh.
+`opx77_hud` publishes three client exports. The first two control **the
+rectangle, not the character drawn in it**: hiding the HUD does not stop it
+following the core, and showing it again does not need a refresh. The third
+reports what became of *Cyberpunk's own* HUD, which this resource turns off at
+boot so that its health bar and clock are not drawn underneath this one.
 
 !!! info "Read the export contract first"
     There is no `exports.opx77_hud:setVisible()` proxy. The only entry point is
@@ -103,6 +105,64 @@ CreateThread(function()
   local result = promise:await()
   if result and result.ok and not result.visible then
     -- the player has hidden their HUD; do not fight them for it
+  end
+end)
+```
+
+## vanilla {#vanilla}
+
+Answers what became of the game's own HUD on this client. Read-only: it never
+answers `ok = false` and never returns `nil`.
+
+There is deliberately no setter. The game's HUD is this resource's to hide
+because this resource draws the replacement; a second opinion arriving from
+another resource is how a player ends up with neither HUD. To change which
+components are hidden, edit [`VANILLA`](config.md#vanilla) in `config.lua`.
+
+```lua
+Open77.exports.call("opx77_hud", "vanilla")
+```
+
+**Returns** `table` — `{ ok = true, available = boolean, found = table|nil, state = table|nil }`
+
+| Field | Meaning |
+|---|---|
+| `available` | Whether `Open77.hud` exists on this client at all. `false` on a client older than the `ui.vanilla.hud` capability, and then nothing was hidden. |
+| `found` | Component → the visibility it had **before** this resource touched it, which is what is put back when the resource stops. `nil` until the first apply. A component the client would not report reads `nil` and is left alone on the way out. |
+| `state` | Whatever `Open77.hud.state()` reports right now, verbatim, or `nil` if the client will not say. |
+
+**Errors**
+
+| Code | Meaning |
+|---|---|
+| — | The export itself never refuses. `ok` is always `true`. |
+| `export_not_found` (level 1) | `opx77_hud` is not running, or is mid-reload. |
+| *any* (level 2) | The call was dispatched and resolution failed. |
+
+**Side** `client export` — callable from any client resource, asynchronously,
+through `Open77.exports.call`. It needs no permission; the `ui.vanilla.hud`
+capability is declared by `opx77_hud`'s own manifest, not by yours.
+
+### Example {#vanilla-example}
+
+```lua
+-- a client script in your own resource: is the vanilla minimap still on screen,
+-- and if so, why?
+CreateThread(function()
+  local promise = Open77.exports.call("opx77_hud", "vanilla")
+  if not promise then return end
+  local result = promise:await()
+  if not (result and result.ok) then return end
+
+  if not result.available then
+    -- this client predates Open77.hud; nothing could be hidden
+    return
+  end
+
+  local live = result.state
+  if live and live.minimap == true then
+    -- the API exists and the component is still shown: it was left out of
+    -- VANILLA, or the client refused the call
   end
 end)
 ```

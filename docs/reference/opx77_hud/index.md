@@ -11,9 +11,9 @@ description: opx77_hud is the player HUD for OPX//77 — segmented gauges, a mon
 | **Requires** | `open77_version ">=0.0.1"`. No `dependency` is declared; it reads [`opx77_core`](../opx77_core/index.md) and [`opx77_status`](../opx77_status/index.md) at runtime when they are running |
 | **Auto start** | yes |
 | **Reload policy** | `reconnect` — a CEF surface is never replaced in place |
-| **Permissions** | `network.events` |
+| **Permissions** | `network.events`, `ui.vanilla.hud` |
 | **Sides** | client, plus a server half that registers one command |
-| **Exports** | two, both client: [`setVisible`](exports.md#setvisible), [`isVisible`](exports.md#isvisible) |
+| **Exports** | three, all client: [`setVisible`](exports.md#setvisible), [`isVisible`](exports.md#isvisible), [`vanilla`](exports.md#vanilla) |
 | **Commands** | one: [`/hud`](commands.md#hud) |
 | **Events** | it raises no Lua event at all. Its only outbound messages are to its own page — see [Events](events.md) |
 | **Reads** | `opx77_core` (client export and local events), `opx77_status` (local event) |
@@ -24,6 +24,10 @@ description: opx77_hud is the player HUD for OPX//77 — segmented gauges, a mon
 health, armour, stamina, hunger, thirst, the purse, the job and street cred — as
 segmented gauges in one corner and a bare text read-out in another. It also
 draws the status strip that [`opx77_status`](../opx77_status/index.md) publishes.
+
+It also turns Cyberpunk's own HUD off at boot — see
+[`VANILLA`](config.md#vanilla) — because a replacement drawn on top of the
+original leaves the player reading their health off two bars that disagree.
 
 **It decides nothing and writes nothing.** There is no state in this resource
 another resource would want. It never calls a mutator on the core, never writes
@@ -103,11 +107,13 @@ authoritative refusal clears the HUD.
 
 ## Where to go next {#next}
 
-- [Exports](exports.md) — the two calls that control the rectangle.
+- [Exports](exports.md) — the two calls that control the rectangle, and the one
+  that reports what became of the game's own HUD.
 - [Events](events.md) — what it listens to, and the whole message protocol
   between Lua and `web/hud.js`.
 - [Commands](commands.md) — `/hud`.
-- [Configuration](config.md) — the six keys, and what is deliberately not a key.
+- [Configuration](config.md) — the seven keys, including
+  [`VANILLA`](config.md#vanilla), and what is deliberately not a key.
 - [`opx77_status`](../opx77_status/index.md) — the registry behind the strip.
 - [The client export contract](../../concepts/export-contract.md) — read this
-  before calling either export.
+  before calling any of them.
