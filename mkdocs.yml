@@ -135,6 +135,12 @@ nav:
           - Exports: reference/opx77_chat/exports.md
           - Events: reference/opx77_chat/events.md
           - Configuration: reference/opx77_chat/config.md
+      - opx77_notify:
+          - Overview: reference/opx77_notify/index.md
+          - Exports: reference/opx77_notify/exports.md
+          - Events: reference/opx77_notify/events.md
+          - Configuration: reference/opx77_notify/config.md
+          - Types: reference/opx77_notify/types.md
       - opx77_status:
           - Overview: reference/opx77_status/index.md
           - Exports: reference/opx77_status/exports.md

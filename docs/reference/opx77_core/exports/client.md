@@ -414,7 +414,7 @@ Takes no parameters.
 - moneyTypes: `string[]` — the money types this server runs.
 - defaultMoneyType: `string`
 - nameBounds: `{ MIN: integer, MAX: integer }` — character-name length, counted in characters.
-- notifyPosition: `string` — the `open77_notifications` position the core sends with.
+- notifyPosition: `string` — the notification position the core sends with, in the platform's underscored vocabulary.
 
 **Errors** none.
 

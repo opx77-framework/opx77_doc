@@ -26,6 +26,7 @@ of two independently versioned resources that happen to ship together.
 | [`opx77_hud`](reference/opx77_hud/index.md) | `0.1.0` | `reconnect` |
 | [`opx77_chat`](reference/opx77_chat/index.md) | `0.1.0` | `reconnect` |
 | [`opx77_status`](reference/opx77_status/index.md) | `0.2.0` | `reconnect` |
+| [`opx77_notify`](reference/opx77_notify/index.md) | `0.1.0` | `reconnect` |
 | [`opx77_weather`](reference/opx77_weather/index.md) | `0.1.0` | `local` |
 | [`opx77_elevators`](reference/opx77_elevators/index.md) | `0.2.0` | `local` |
 
@@ -55,7 +56,7 @@ compatibility contract.
 
 ## What changed {#changes}
 
-There is no changelog file in any of the seven repositories. The commit history
+There is no changelog file in any of the eight repositories. The commit history
 of each resource is the record, and this documentation is written against the
 code as it stands rather than against a release. If a page and the code you have
 disagree, the code is right and the page is a bug — see

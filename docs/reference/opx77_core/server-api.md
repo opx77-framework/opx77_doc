@@ -1789,8 +1789,9 @@ only exact repeats are suppressed. The window is cleared by
 
 ### OPX.Notify {#notify}
 
-Sends a toast to one player through `open77_notifications`; does nothing at all
-when that resource is not installed.
+Sends a toast to one player through the server runtime's own
+`Open77.notifications`; does nothing at all when nothing is installed to render
+it.
 
 ```lua
 OPX.Notify(source, message, kind, durationMs)
@@ -1812,11 +1813,17 @@ OPX.Notify(source, message, kind, durationMs)
 
 !!! warning "It degrades to nothing, on purpose"
 
-    The core declares **no dependency** on `open77_notifications`, because a
-    declared dependency is hard on this platform and the core must install on a
-    bare server. If that resource is absent, `Open77.notifications` is `nil` and
-    this function returns having done nothing — no error, no log line. A flow
-    whose only feedback is a toast will look broken and diagnose as silent.
+    The core declares **no dependency** on any renderer, because a declared
+    dependency is hard on this platform and the core must install on a bare
+    server. If `Open77.notifications` is `nil`, this function returns having
+    done nothing — no error, no log line. A flow whose only feedback is a toast
+    will look broken and diagnose as silent.
+
+    `Open77.notifications.send` itself only fires
+    `open77:notifications:show` at the target. Whichever client resource
+    registered that name draws the toast:
+    [`opx77_notify`](../opx77_notify/index.md), the platform's own
+    `open77_notifications`, or — if both are running — both of them, twice.
 
 `title` is `OPX.Config.SHARED.SERVER_NAME` and `position` is
 `SHARED.NOTIFY_POSITION` on every notification the core sends.

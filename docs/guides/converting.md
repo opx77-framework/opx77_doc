@@ -209,16 +209,30 @@ and `RegisterNetEvent`. Prefer the local names.
 
 | ESX Legacy | Qbox (`qbx_core`) | OPX//77 | Side |
 |---|---|---|---|
-| `ESX.ShowNotification(msg)` | `exports.qbx_core:Notify(msg, type)` | `Open77.exports.call("open77_notifications", "show", { … })` | client |
+| `ESX.ShowNotification(msg)` | `exports.qbx_core:Notify(msg, type)` | `Open77.exports.call("opx77_notify", "show", { … })` | client |
 | `xPlayer.showNotification(msg)` | `exports.qbx_core:Notify(src, msg, type)` | `Open77.notifications.send(playerId, { … })` | any server resource |
 | — | — | `OPX.Notify(source, message, kind, durationMs)` | in-core server |
 
-Notifications are a **platform** service, not an OPX//77 one. `Open77.notifications`
-is a host binding available to any server resource, which makes it one of the few
-things a third-party server resource can do without the core's help;
+The **transport** is a platform service, not an OPX//77 one. `Open77.notifications`
+is a host binding available to any server resource, which makes it one of the very
+few things a third-party server resource can do without the core's help;
 `OPX.Notify` is a thin wrapper over it that adds the server name, the configured
 position and a repeat filter. `OPX.Refuse(source, code)` is the same thing for a
 locale key.
+
+The **renderer** is [`opx77_notify`](../reference/opx77_notify/index.md), and the
+two meet without being introduced. `Open77.notifications.send` does nothing but
+fire `open77:notifications:show` at the target; `opx77_notify` registers that
+name. So a server resource you port from ESX or Qbox draws in OPX//77's toasts
+while calling nothing this framework owns — and a client resource written
+against the platform's own `open77_notifications` export names works too, since
+`opx77_notify` publishes the same ones.
+
+!!! warning "Do not run both renderers"
+    `opx77_notify` and the platform's `open77_notifications` listen on the same
+    four net events and publish the same export names, so running both draws
+    every toast twice, on two surfaces, in two corners. `opx77_notify` warns
+    about this at start-up. Drop one from `resources.load`.
 
 ### Menus {#menus}
 

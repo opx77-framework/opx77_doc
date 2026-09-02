@@ -187,7 +187,7 @@ On a server whose resource set contains nothing that emits
   a minute.
 
 There is no timeout, no fallback and no substitute probe. **A stock OPX//77
-resource set is such a server**, because the seven `opx77_*` resources do not
+resource set is such a server**, because the eight `opx77_*` resources do not
 include an appearance service.
 
 What to do about it:

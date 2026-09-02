@@ -121,7 +121,7 @@ are built on. `lib.callback`, `lib.registerContext`, statebags, `exports.name:fn
 and `Citizen.*` do not exist here.
 
 Port the *idea*, not the file. `opx77_menu` is the context-menu equivalent,
-`open77_notifications` is the toast service, and
+[`opx77_notify`](../reference/opx77_notify/index.md) is the toast service, and
 [Converting from ESX or Qbox](converting.md) maps the rest.
 
 ## Why is there no inventory? {#why-is-there-no-inventory}

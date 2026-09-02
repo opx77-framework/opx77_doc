@@ -231,7 +231,10 @@ leaves every unplaced character wherever the game happened to put them.
 
 ## NOTIFY_POSITION {#shared-notify-position}
 
-Chooses where `open77_notifications` draws the toasts the core sends.
+Chooses where the toasts the core sends are drawn. It is passed straight
+through `Open77.notifications.send` to whichever client resource renders them —
+[`opx77_notify`](../opx77_notify/index.md) defaults to this same corner, so the
+two agree without either being configured.
 
 ```lua
 NOTIFY_POSITION = "top_right",
@@ -251,8 +254,8 @@ default), `top_left`, `top_center`, `top_right`, `bottom_left`,
 
 The core **warns about an unrecognised value and sends it anyway**. That is
 deliberate rather than lax: the accepted set is known only from the platform's
-website, the server binary does not validate `position` at all, and
-`open77_notifications` is a client resource whose source is not on disk here —
+website, the server binary does not validate `position` at all, and the
+resource that renders the toast is a *client* resource the server cannot read —
 so a whitelist that guessed the set wrong would silently swallow every
 notification the core sends. The check runs once, at load, in
 `client/exports.lua`; you get one warning line, not one per toast.

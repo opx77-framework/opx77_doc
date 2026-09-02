@@ -1,13 +1,13 @@
 ---
-title: Reference overview — the seven resources
-description: The seven resources OPX//77 ships, with the version, reload policy and role of each, which of them are optional, what a missing one costs, and how they depend on one another at runtime.
+title: Reference overview — the eight resources
+description: The eight resources OPX//77 ships, with the version, reload policy and role of each, which of them are optional, what a missing one costs, and how they depend on one another at runtime.
 ---
 
 # Reference
 
-OPX//77 ships as seven resources. One of them, `opx77_core`, owns the server
+OPX//77 ships as eight resources. One of them, `opx77_core`, owns the server
 state: characters, money, jobs, gangs, metadata, persistence and the entry gate.
-The other six are client-side services and surfaces that read it.
+The other seven are client-side services and surfaces that read it.
 
 | Resource | Version | Reload policy | Role |
 |---|---|---|---|
@@ -16,6 +16,7 @@ The other six are client-side services and surfaces that read it.
 | [`opx77_hud`](opx77_hud/index.md) | 0.1.0 | `reconnect` | Player HUD: gauges, money, job, and the status strip. |
 | [`opx77_chat`](opx77_chat/index.md) | 0.1.0 | `reconnect` | Chat box, and the only path a slash command typed in game takes to the host's dispatcher. |
 | [`opx77_status`](opx77_status/index.md) | 0.2.0 | `reconnect` | Status-effect registry. Owns no surface of its own. |
+| [`opx77_notify`](opx77_notify/index.md) | 0.1.0 | `reconnect` | Toast notifications, drop-in for the platform's own notification API. |
 | [`opx77_weather`](opx77_weather/index.md) | 0.1.0 | `local` | Synchronised clock and weather authority. |
 | [`opx77_elevators`](opx77_elevators/index.md) | 0.2.0 | `local` | Job-gated in-world elevators. |
 
@@ -40,6 +41,7 @@ candidate resource from starting at all.
 | `opx77_hud` | Yes | Nothing is drawn on screen: no gauges, no money, no job, and no status strip. `opx77_status` still registers effects; nobody paints them. Cyberpunk's own HUD is left on, since this is the resource that hides it. |
 | `opx77_chat` | Yes | No chat box — and no way to type a command in game at all. A slash command never reaches this resource's *server* half, but its *client* half is what tokenises the line and hands it to the host's dispatcher, so without it every `RegisterCommand` in the set is reachable only from the OPEN//77 developer terminal and `startup.commands`. |
 | `opx77_status` | Yes | The HUD's status strip stays empty. The HUD draws everything else exactly as before. |
+| `opx77_notify` | Yes | No toasts. A server resource calling `Open77.notifications.send` reaches nothing unless the official `open77_notifications` is installed, and every client call answers `export_not_found`. |
 | `opx77_weather` | Yes | The sky and clock are whatever the host defaults to. Nothing else reads this resource. |
 | `opx77_elevators` | Yes | The scripted lifts are inert. It is the worked example of a satellite, and the resource most safely deleted. |
 
@@ -68,6 +70,7 @@ a manifest declaration.
    opx77_status                        opx77_menu
 
     opx77_chat        opx77_weather        (depend on nothing in this set)
+    opx77_notify
 ```
 
 - **`opx77_hud` reads `opx77_core`** through `Open77.exports.call("opx77_core", "GetPlayerData")`
@@ -78,7 +81,11 @@ a manifest declaration.
 - **`opx77_elevators` reads the character's job from `opx77_core`** and draws its
   floor panel with `opx77_menu`. Both are optional at runtime: a missing menu
   costs one log line and a `menu_not_running` answer.
-- **`opx77_chat` and `opx77_weather` depend on nothing else in the set.**
+- **`opx77_chat`, `opx77_weather` and `opx77_notify` depend on nothing else in
+  the set.** `opx77_notify` is the one resource whose main inbound channel comes
+  from *outside* the framework: it registers the platform's own four
+  `open77:notifications:*` net events, so a server resource written against
+  `Open77.notifications` renders here without knowing this framework exists.
 - **`opx77_core` declares no dependency at all**, in either direction. It must
   install on a bare server, and it consults `open77_appearance` and
   `open77_playerstate` through the host rather than requiring them.

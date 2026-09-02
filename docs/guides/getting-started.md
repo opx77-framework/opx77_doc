@@ -44,6 +44,7 @@ open77-server/
     ├── opx77_hud/
     ├── opx77_chat/
     ├── opx77_status/
+    ├── opx77_notify/
     ├── opx77_weather/
     └── opx77_elevators/
 ```
@@ -142,7 +143,7 @@ and carries on with every login refused. See
 
 ## 3. Staff commands and the ACL {#acl}
 
-Twenty-four commands are registered across the seven resources. Sixteen of them
+Twenty-four commands are registered across the eight resources. Sixteen of them
 pass `true` as the third argument to `RegisterCommand`, which makes them
 **restricted**: the host resolves `command.<name>` against the caller's ACL
 *before* the resource's handler runs, so there is no permission check inside any
@@ -321,7 +322,7 @@ Each resource declares how a reload should be handled:
 | Policy | Resources | Why |
 |---|---|---|
 | `local` | `opx77_core`, `opx77_weather`, `opx77_elevators` | A reload is a script reload, not a reconnect. `opx77_weather` hands its live state to the host and keeps the sky; `opx77_elevators` re-adopts lifts from the next client sighting. |
-| `reconnect` | `opx77_menu`, `opx77_hud`, `opx77_status`, `opx77_chat` | A generation change or a CEF surface that is never replaced in place needs a clean reconnect. |
+| `reconnect` | `opx77_menu`, `opx77_hud`, `opx77_status`, `opx77_chat`, `opx77_notify` | A generation change or a CEF surface that is never replaced in place needs a clean reconnect. |
 
 ## 6. Configuration {#configuration}
 
