@@ -7,8 +7,9 @@ description: OPX//77 is a roleplay framework for the OPEN//77 multiplayer platfo
 
 OPX//77 is a roleplay framework for [OPEN//77](https://open2077.net), the
 multiplayer platform for Cyberpunk 2077. It gives a server the systems a
-roleplay game mode needs — characters, money, jobs, gangs, persistence, entry
-gating — plus a set of shared client services that other resources build on.
+roleplay game mode needs — characters, money, jobs, gangs, appearance,
+persistence, entry gating — plus a set of shared client services that other
+resources build on.
 
 !!! warning "Early development"
 
@@ -25,7 +26,7 @@ export — has no equivalent here at all. Read
 [Converting from ESX or Qbox](guides/converting.md).
 
 **Installing a server?**
-Seven resources, one load order and one `server.jsonc` block, in the order that
+Nine resources, one load order and one `server.jsonc` block, in the order that
 works. Read [Getting started](guides/getting-started.md).
 
 **Writing a resource?**

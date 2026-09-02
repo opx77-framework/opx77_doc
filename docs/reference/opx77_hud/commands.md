@@ -30,7 +30,7 @@ only** — on this platform a chat command cannot be registered from the client,
 | `/hud` | toggle |
 | `/hud on`, `/hud show` | show |
 | `/hud off`, `/hud hide` | hide |
-| anything else | `usage: hud [on\|off]`, and nothing changes |
+| anything else | `usage: /hud [on\|off]`, and nothing changes |
 
 The server decides nothing about the HUD. It turns the typed word into a mode,
 sends that mode straight back to the same player on the
@@ -66,9 +66,15 @@ On `chat:ready` the server half registers the command's completion metadata with
 the chat resource, throttled to **once per ten seconds per player**.
 
 ```lua
-TriggerClientEvent("chat:addSuggestion", player, "/hud",
-  "Show or hide your HUD", { { name = "on|off", help = "omit to toggle" } })
+TriggerClientEvent("chat:addSuggestion", player, "/" .. name,
+  locale("hud.commandHelp"),
+  { { name = "on|off", help = locale("hud.commandArgument") } })
 ```
+
+Both strings come from this resource's own catalogue, so the suggestion is in the
+language [`LOCALE`](config.md#locale) names; on the shipped `en` they read
+"Show or hide your HUD" and "omit to toggle". The usage line the server answers a
+bad argument with comes from the same place.
 
 The throttle is not cosmetic: `chat:ready` is a net event, free for a client to
 send as often as it likes, and it was otherwise answered every time. The

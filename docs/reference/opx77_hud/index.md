@@ -7,7 +7,7 @@ description: opx77_hud is the player HUD for OPX//77 — segmented gauges, a mon
 
 | At a glance | |
 |---|---|
-| **Version** | `0.1.0` |
+| **Version** | `0.2.0` |
 | **Requires** | `open77_version ">=0.0.1"`. No `dependency` is declared; it reads [`opx77_core`](../opx77_core/index.md) and [`opx77_status`](../opx77_status/index.md) at runtime when they are running |
 | **Auto start** | yes |
 | **Reload policy** | `reconnect` — a CEF surface is never replaced in place |
@@ -16,14 +16,15 @@ description: opx77_hud is the player HUD for OPX//77 — segmented gauges, a mon
 | **Exports** | three, all client: [`setVisible`](exports.md#setvisible), [`isVisible`](exports.md#isvisible), [`vanilla`](exports.md#vanilla) |
 | **Commands** | one: [`/hud`](commands.md#hud) |
 | **Events** | it raises no Lua event at all. Its only outbound messages are to its own page — see [Events](events.md) |
-| **Reads** | `opx77_core` (client export and local events), `opx77_status` (local event) |
+| **Reads** | `opx77_core` (client export and local events), `opx77_status` (client export and local events) |
 
 ## What it is {#what-it-is}
 
-`opx77_hud` owns one rectangle. It draws the character `opx77_core` holds —
-health, armour, stamina, hunger, thirst, the purse, the job and street cred — as
-segmented gauges in one corner and a bare text read-out in another. It also
-draws the status strip that [`opx77_status`](../opx77_status/index.md) publishes.
+`opx77_hud` owns one rectangle. It draws what two other resources hold — health,
+armour, the purse and the job from `opx77_core`, and stamina, hunger, thirst and
+street cred from [`opx77_status`](../opx77_status/index.md) — as segmented gauges
+in one corner and a bare text read-out in another. It also draws the status strip
+that the same registry publishes.
 
 It also turns Cyberpunk's own HUD off at boot — see
 [`VANILLA`](config.md#vanilla) — because a replacement drawn on top of the
@@ -44,6 +45,13 @@ one glob shape that is safe on this platform; a *script* glob is fatal, and
 [Architecture](../../concepts/architecture.md#load-order) explains why every
 `client_script` line here is written out individually.
 
+Player-facing text comes from this resource's own catalogue: `shared/locale.lua`
+publishes the global `locale(key, params)`, `locales/en.lua` and `locales/fr.lua`
+register the strings, and [`LOCALE`](config.md#locale) chooses between them. All
+three are `shared_script`s, because the `/hud` command is registered on the
+server half. `types.lua` holds the annotations for the shapes this resource
+builds and is never loaded at runtime.
+
 !!! info "The reload policy is `reconnect`"
     The CEF surface is never replaced in place. Restarting this resource against
     a live client would leave the old page on screen, so the platform requires
@@ -54,18 +62,21 @@ one glob shape that is safe on this platform; a *script* glob is fatal, and
 
 The two resources are separate on purpose, and the split is a clean one:
 
-- **[`opx77_status`](../opx77_status/index.md) owns the effect registry and
-  publishes a payload.** What an effect is, who added it, when it expires, how
-  many one owner may hold, what order they sit in — all of that is decided
-  there, and it has [four exports](../opx77_status/exports.md) that third-party
-  resources call. It has no surface of its own.
+- **[`opx77_status`](../opx77_status/index.md) owns the effect registry and the
+  gameplay needs, and publishes both.** What an effect is, who added it, when it
+  expires, how many one owner may hold, what order they sit in — all of that is
+  decided there, and so are hunger, thirst, stamina and street cred: their
+  bounds, their value on a new character and their decay. It has
+  [seven exports](../opx77_status/exports.md) that third-party resources call,
+  and no surface of its own.
 - **`opx77_hud` renders it and owns the surface.** It listens on the local
-  client event [`opx77:status:effects`](events.md#status-effects), carries the
-  chips into its next frame, and places, themes and animates them. It has no
-  opinion about what a chip means.
+  client events [`opx77:status:needs`](events.md#status-needs) and
+  [`opx77:status:effects`](events.md#status-effects), carries what they say into
+  its next frame, and places, themes and animates it. It has no opinion about
+  what a chip means or what a need is worth.
 
 A merge of the two was considered and rejected. `opx77_status` is its own
-repository with its own version and licence, and its four exports are a public
+repository with its own version and licence, and its exports are a public
 API that other resources are written against; folding them into the resource
 that happens to own a rectangle would have made the rectangle a dependency of
 every resource that wanted to say a word on screen.
@@ -80,30 +91,39 @@ is why the registry publishes a payload rather than drawing one.
     there is anything to draw: a live chip must not keep a HUD the player turned
     off on screen. If you need the strip visible you need the HUD visible.
 
-## What it reads from the core {#what-it-reads}
+## What it reads, and from whom {#what-it-reads}
 
-Every frame is built from one `PlayerData` snapshot. These are the only keys
-this resource touches:
+Every frame is built from one `PlayerData` snapshot and one set of needs. These
+are the only keys this resource touches:
 
-| Key | Drawn as |
-|---|---|
-| `metadata.health` | the `HP` gauge, always drawn |
-| `metadata.armor` | the `ARMOR` gauge, drawn only above zero |
-| `metadata.stamina` | the `STAMINA` gauge, absent until a gameplay file writes it |
-| `metadata.hunger` | the `FOOD` gauge |
-| `metadata.thirst` | the `HYDRATION` gauge |
-| `metadata.streetCred` | the `CRED` line, drawn above zero, floored |
-| `money` | one line per money type, `EDDIES` and `BANK` first |
-| `job.label`, `job.grade.name`, `job.onDuty` | the job line, `on` tone while on duty |
+| Key | Held by | Drawn as |
+|---|---|---|
+| `metadata.health` | `opx77_core` | the `health` gauge, always drawn |
+| `metadata.armor` | `opx77_core` | the `armor` gauge, drawn only above zero |
+| `stamina` | `opx77_status` | the `stamina` gauge |
+| `hunger` | `opx77_status` | the `hunger` gauge |
+| `thirst` | `opx77_status` | the `thirst` gauge |
+| `streetCred` | `opx77_status` | the `CRED` line, drawn above zero, floored |
+| `money` | `opx77_core` | one line per money type, `EDDIES` and `BANK` first |
+| `job.label`, `job.grade.name`, `job.onDuty` | `opx77_core` | the job line, `on` tone while on duty |
 
-Hunger and thirst are **character metadata owned by `opx77_core`**, which seeds
-and decays them in `server/needs.lua`. They are not status effects and
-`opx77_status` never touches them.
+A gauge is named here by its row `id`, which is the page's DOM slot key and the
+CSS class the stylesheet themes it through. A gauge carries **no label**: an
+icon, the lit segments and the value are all it draws. Only the text lines — the
+money lines, the job line and `CRED` — carry one.
+
+Health and armour are **character metadata owned by `opx77_core`**. Hunger,
+thirst, stamina and street cred are **needs owned by
+[`opx77_status`](../opx77_status/index.md)**: they are not character metadata,
+they are not status effects, and `opx77_core` never sees them.
 
 The snapshot arrives on three local events and is re-read every five seconds as
-a net under them; see [Events](events.md#non-networked). A core that is not
-running is not a broken screen — the gauges simply stop moving, and only an
-authoritative refusal clears the HUD.
+a net under them. The needs are read once at start through `opx77_status`'s
+`needs` export and after that only from
+[`opx77:status:needs`](events.md#status-needs), which is pushed on every change;
+see [Events](events.md#non-networked). A source that is not running is not a
+broken screen — the gauges it owns leave the frame rather than reading zero, the
+rest keep drawing, and only an authoritative refusal clears anything.
 
 ## Where to go next {#next}
 
@@ -112,8 +132,9 @@ authoritative refusal clears the HUD.
 - [Events](events.md) — what it listens to, and the whole message protocol
   between Lua and `web/hud.js`.
 - [Commands](commands.md) — `/hud`.
-- [Configuration](config.md) — the seven keys, including
-  [`VANILLA`](config.md#vanilla), and what is deliberately not a key.
+- [Configuration](config.md) — the eight keys, including
+  [`LOCALE`](config.md#locale) and [`VANILLA`](config.md#vanilla), and what is
+  deliberately not a key.
 - [`opx77_status`](../opx77_status/index.md) — the registry behind the strip.
 - [The client export contract](../../concepts/export-contract.md) — read this
   before calling any of them.

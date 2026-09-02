@@ -180,7 +180,7 @@ end)
 ## dismiss {#dismiss}
 
 Takes one of your toasts down now and raises the
-[removal events](events.md#non-networked) for it with reason `dismissed`;
+[removal event](events.md#opx77-notify-removed) for it with reason `dismissed`;
 dismissing what is not there is an error code, never a raise.
 
 ```lua
@@ -219,8 +219,8 @@ Open77.exports.call("opx77_notify", "clear")
 
 **Returns** `table` — `{ ok = true, removed = integer }`
 
-Each toast it takes down raises the [removal events](events.md#non-networked) with
-reason `owner_cleared`.
+Each toast it takes down raises the
+[removal event](events.md#opx77-notify-removed) with reason `owner_cleared`.
 
 **Errors**
 
@@ -277,9 +277,9 @@ Open77.exports.call("opx77_notify", "setEnabled", enabled)
 
 **Returns** `table` — `{ ok = true, enabled = boolean }`, the state it now holds.
 
-Toasts dropped by disabling raise the [removal events](events.md#non-networked)
-with reason `owner_disabled`. While disabled, [`show`](#show) refuses with
-`owner_disabled`.
+Toasts dropped by disabling raise the
+[removal event](events.md#opx77-notify-removed) with reason `owner_disabled`.
+While disabled, [`show`](#show) refuses with `owner_disabled`.
 
 !!! info "Per caller, and that is the official package's rule"
     This is the opposite of [`opx77_chat`'s `setEnabled`](../opx77_chat/exports.md),

@@ -9,13 +9,13 @@ description: What opx77_core is, the state it owns, its manifest at a glance, th
 
 | At a glance | |
 |---|---|
-| **Version** | `0.2.0` |
+| **Version** | `0.3.0` |
 | **Requires** | `open77_version ">=0.0.1"`. **No `dependency` is declared**, in either direction: a declared dependency is hard, and this core must install on a bare server. |
 | **Auto start** | yes |
 | **Reload policy** | `local` — a reload is a script reload, not a reconnect: both halves rebuild |
 | **Permissions** | `network.events`, `database.access`, `players.life.read`, `players.life.kill`, `players.life.respawn`, `players.life.revive`, `players.damage.apply`, `world.vehicles` — see [Permissions](permissions.md) |
 | **Sides** | server, which owns every decision and the database, and client, which holds a read-only mirror and publishes the exports |
-| **Exports** | 15 client exports — see [client exports](exports/client.md). **No server exports, and none is possible** — see [server exports](exports/server.md) |
+| **Exports** | 16 client exports — see [client exports](exports/client.md). **No server exports, and none is possible** — see [server exports](exports/server.md) |
 | **Commands** | 14, ACL-restricted — see [Commands](commands.md) |
 | **Events** | four channels it owns — `Client` and `Server` on the wire, `Local` and `Internal` in-VM. `Client` and `Local` are deliberately disjoint vocabularies — see [Events](events.md) |
 | **Licence** | MIT |
@@ -25,7 +25,7 @@ description: What opx77_core is, the state it owns, its manifest at a glance, th
 `opx77_core` is the whole server side of OPX//77. It owns the character roster,
 the money ledger, jobs, gangs, per-character metadata, vehicle ownership, the
 database schema and the join-time readiness gate — and it owns all of them
-alone. Nothing else on the server writes to `opx77_players`, and nothing else
+alone. Nothing else on the server writes to `opx77_characters`, and nothing else
 decides where a character stands when they enter the world.
 
 It is one resource rather than several because the OPEN//77 server runtime
@@ -38,7 +38,7 @@ exist, are in [Architecture](../../concepts/architecture.md) and
 [Integration channels](../../concepts/integration-channels.md).
 
 The core's **client** half is the opposite: it draws nothing. It mirrors the
-character the server sent, publishes 15 exports over that mirror, and re-fires
+character the server sent, publishes 16 exports over that mirror, and re-fires
 every change on a local event channel any resource on the host can hear. Pixels
 belong in satellite client resources reaching it through
 `Open77.exports.call("opx77_core", …)`.
@@ -56,11 +56,13 @@ belong in satellite client resources reaching it through
 | `config/` | The only files an operator edits. `UPPER_SNAKE` keys. `shared.lua` is shipped to every client; `server.lua` and `vehicles.lua` are not. |
 | `data/` | Jobs, gangs, lifepaths. Definitions, not settings: changing one renames something players already hold. |
 | `locales/` | `en.lua` and `fr.lua`, registered immediately after the catalogue so no file below them can call `locale()` against an empty one. |
-| `shared/` | `OPX` itself — result, table, string, math, log, validate, hooks, locale, citizen ids. Loaded into both VMs. |
-| `server/storage/` | Every SQL statement, and the migrations. Nothing else in the resource writes SQL. |
-| `server/` | Sessions, players, groups, characters, needs, vehicles, the gate, events, commands, loops. |
+| `shared/` | `OPX` itself — result, table, string, math, validate, hooks, locale, citizen ids. Loaded into both VMs. |
+| `sql/` | One `.sql` file per table, and the copy an operator reads. Not loaded by the manifest — see [Persistence](../../concepts/persistence.md#schema). |
+| `server/storage/` | Every SQL statement the resource actually runs, and the migrations. Nothing else in the resource writes SQL. |
+| `server/` | Sessions, players, groups, characters, appearance, vehicles, the gate, events, commands, loops. |
 | `client/` | The state mirror, the character-screen requests, the event re-emissions and the exports surface. |
 | `types.lua` | The LuaLS annotations for everything above. Not loaded by the manifest. |
+| `tools/` | `check_sql_parity.py`, which proves `sql/` and `server/storage/schema.lua` still carry the same statements. |
 
 ## Load order is the contract {#load-order}
 
@@ -91,7 +93,7 @@ Two rules cost somebody something before they were written down.
 
 ## Where to go next {#next}
 
-- [Client exports](exports/client.md) — the 15 the client half publishes.
+- [Client exports](exports/client.md) — the 16 the client half publishes.
 - [Server exports](exports/server.md) — why there are none, and the three things to use instead.
 - [Server API](server-api.md) — the `OPX.*` functions a file inside the core may call.
 - [Player](player.md) — the `Player` object and `PlayerData`.

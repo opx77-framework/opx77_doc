@@ -66,7 +66,8 @@ and nothing else in the core writes SQL.
     per-resource schema, prefix or statement filter, so any resource holding it
     can read and write any other resource's tables. That is why the core is the
     only writer of its own tables and why a third-party resource should treat
-    them as read-only.
+    them as read-only. [`opx77_status`](../opx77_status/index.md) is the only
+    other resource in this set that requests it, for the one table it owns.
 
 It is safe on a server with no database configured: `OPX.Storage` degrades to
 one logged line and a refusal to log anybody in, rather than raising. The
@@ -184,6 +185,7 @@ gap.
 | `combat.config` | The core arbitrates no damage and configures no combat. Nothing here should be able to. |
 | `players.damage.read` | Armour is written after a respawn and never read back. Health comes from the character row, which is the copy the core is authoritative for. |
 | `players.disconnect` | Nothing in this framework kicks anybody. A framework that can disconnect players is a framework whose bugs can disconnect players. |
+| `player.appearance.read` / `player.appearance.edit` | The core stores the face and never wears it. Reading the catalogue and dressing the puppet are client capabilities, and [`opx77_appearance`](../opx77_appearance/index.md) requests them for itself. |
 
 If you need one of these, it belongs in a satellite resource that requests it
 for itself — not in a patch to the core's manifest. That is the whole point of
@@ -194,5 +196,5 @@ holding it, the smaller the blast radius.
 
 - [Overview](index.md) — the manifest at a glance.
 - [Commands](commands.md) — the ACL permissions, which are the other kind.
-- [Reference overview](../index.md) — what the other six resources request.
+- [Reference overview](../index.md) — what the other eight resources request.
 - [The Open77 platform](../../concepts/the-platform.md) — how capabilities are enforced.

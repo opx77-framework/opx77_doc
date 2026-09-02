@@ -34,7 +34,7 @@ decide everything on the side it would like to.
 | `rate_limited` | server | too many requests in `REQUEST_WINDOW_MS` |
 | `no_position` | server | no replicated position snapshot for that player |
 | `wrong_bucket` | server | the player is in another routing bucket |
-| `too_far` | server | further than `USE_RADIUS` from the declared shaft |
+| `too_far` | server | further than `USE_RADIUS` from the declared shaft, across the ground |
 | `floor_out_of_range` | server | past the native device's floor count |
 | `move_rejected` | server | `Open77.elevators.goTo` refused |
 | `adopt_refused` | server, log | `Open77.elevators.adopt` answered `nil` |
@@ -44,6 +44,30 @@ decide everything on the side it would like to.
 
 The last four never reach a client: they are the adoption path's own outcomes
 and appear in the server log only.
+
+## What the player is shown {#wording}
+
+A code is never shown to a player. The built-in panel turns one into text in two
+places, and both prefer the operator's own words:
+
+- **Beside a greyed row**, the floor's `REASON`, or `elevators.locked` —
+  *"Locked"* — where the floor declares none. A greyed row with nothing beside
+  it reads as broken.
+- **On the status line under the list**, after a refusal: the `reason` the
+  refusal carried, or this resource's own wording for the code where it carried
+  none.
+
+That wording is read from the catalogue in `locales/`, under
+`elevators.<thing>`, in the language [`LOCALE`](config.md#locale) names. Fifteen
+codes have an entry of their own — `no_elevator_nearby`, `no_such_elevator`,
+`no_such_floor`, `not_adopted`, `floor_out_of_range`, `move_rejected`,
+`not_sent`, the [five hints](#hints), `no_position`, `wrong_bucket` and
+`too_far`. Any other code, and any code a later release adds, reads as
+`elevators.refused`: *"That floor is not available."*
+
+A `REASON` and a `LABEL` in `config.lua` are the server owner's own words and
+are never translated. Neither are the codes themselves, the diagnostic command
+or the `Open77.log` lines. See [Player-facing text](config.md#locales).
 
 ## The five hints {#hints}
 
@@ -92,16 +116,17 @@ verdict must tolerate never receiving one. Two other paths are silent for the
 same reason — a sighting the server rejects, and a request from a player whose
 `source` did not resolve.
 
-## Codes declared but never produced {#unreachable}
+## Codes that no longer exist {#unreachable}
 
-`types.lua` declares two more codes that no shipped code path can answer, and
-they are documented here so that a reader diffing the annotations against the
-behaviour does not go looking for the setting that produces them.
+`types.lua` used to declare two more codes that no shipped code path could
+answer. Both have been dropped from the annotations. Neither was ever produced,
+so a caller branching on either has a branch that never runs, and they are named
+here only because earlier documentation described them.
 
-| Code | Why it never appears |
+| Code | What it was |
 |---|---|
-| `panel_disabled` | Annotated as *`PANEL` is not `"menu"`*. There is no `PANEL` key in `config.lua`, and no file reads one. The panel is always attempted, and answers `menu_not_running` when `opx77_menu` is not running. |
-| `request_refused` | Annotated as *`request` refused*. No file produces it; a request the server refuses is answered with the server's own code on `opx77_elevators:answer`. |
+| `panel_disabled` | Annotated as *`PANEL` is not `"menu"`*. There was never a `PANEL` key in `config.lua` and no file read one. The panel is always attempted, and answers `menu_not_running` when `opx77_menu` is not running. |
+| `request_refused` | Annotated as *`request` refused*. No file produced it; a request the server refuses is answered with the server's own code on `opx77_elevators:answer`. |
 
 ## Codes that only reach the log {#log-only}
 

@@ -16,7 +16,7 @@ description: The twelve jobs, twelve gangs and three origins shipped in opx77_co
     already hold.
 
     A job's key — `ncpd`, `merc`, `fixer` — is written into the `job` column of
-    `opx77_players` and into `opx77_player_groups` for every membership. Rename
+    `opx77_characters` and into `opx77_character_groups` for every membership. Rename
     it and every character employed under the old name is orphaned: their row
     still says `ncpd`, nothing in `data/jobs.lua` answers to it, and on their
     next login `server/player.lua` silently falls them back to
@@ -110,7 +110,9 @@ merc = {
 Each grade is a [`JobGrade`](types.md#jobgrade):
 
 - name: `string` — the rank shown to players.
-- payment: `integer` — eddies per paycheck, credited to `BANK`.
+- payment: `integer` — eddies per paycheck, credited to the money type
+  [`SERVER.MONEY.PAYCHECK_TYPE`](config.md#server-paycheck-type) names, `BANK` as
+  shipped.
 - isBoss?: `boolean` — published on `PlayerData.job.isBoss`.
 - bankAuth?: `boolean` — published on `PlayerData.job.bankAuth`.
 
@@ -125,7 +127,7 @@ Each grade is a [`JobGrade`](types.md#jobgrade):
 
 `payment` is per paycheck, at the interval set by
 [`PAYCHECK_MINUTES`](config.md#server-paycheck-minutes) (10 minutes shipped),
-paid into `BANK`.
+paid into the money type [`SERVER.MONEY.PAYCHECK_TYPE`](config.md#server-paycheck-type) names, `BANK` as shipped.
 
 #### unemployed {#job-unemployed}
 
@@ -417,7 +419,7 @@ already stored depends on what you changed:
 | Adding a grade at the top | Nothing breaks; existing members keep their level. |
 | Adding a job, gang or origin | Nothing breaks. |
 | **Removing a grade in the middle** | The job is silently truncated at the gap — `OPX.TopGrade` counts up from `0` and stops. Anybody above the gap fails to resolve and falls back. |
-| **Removing a job or gang** | Every holder falls back to [`DEFAULT_JOB`](config.md#server-player-default-job) or [`DEFAULT_GANG`](config.md#server-player-default-gang) on their next login. Their membership row in `opx77_player_groups` is left alone, mid-edit or not. |
+| **Removing a job or gang** | Every holder falls back to [`DEFAULT_JOB`](config.md#server-player-default-job) or [`DEFAULT_GANG`](config.md#server-player-default-gang) on their next login. Their membership row in `opx77_character_groups` is left alone, mid-edit or not. |
 | **Renaming a key** | The same as removing it, and there is no undo. See the danger callout at the top of this page. |
 
 `PlayerData.job` is rebuilt from `data/jobs.lua` on every login rather than

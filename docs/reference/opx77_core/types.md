@@ -12,12 +12,12 @@ type-check a plug-in written against the core. Nothing in it is enforced. A
 table that is missing a field will not be rejected; it will simply be wrong
 later, somewhere else.
 
-!!! warning "`types.lua` has drifted from the code"
+!!! warning "`types.lua` can drift from the code"
 
-    Three declarations no longer describe what the core does, and one field the
-    core sets is not declared at all. Every drift is called out on the type it
-    belongs to, and **this page documents the code, not the annotation**. If the
-    two disagree, the code wins — and the annotation is a bug worth fixing.
+    One field the core sets is still not declared at all. It is called out on
+    the type it belongs to, and **this page documents the code, not the
+    annotation**. If the two disagree, the code wins — and the annotation is a
+    bug worth fixing.
 
 Types are grouped below the way the core groups them: the aliases first, then
 results, then a character, then jobs and gangs, then the entry machinery, then
@@ -48,7 +48,7 @@ The durable account id, a GUID signed by the OPEN//77 Master server.
 ```
 
 This is the one identifier that survives a reconnect, a name change and a new
-machine. It is what `opx77_accounts` is keyed on, and what
+machine. It is what `opx77_users` is keyed on, and what
 `OPX.Config.SERVER.CHARACTERS.SLOTS_BY_USER` is keyed on.
 
 ### CitizenId {#citizenid}
@@ -61,8 +61,8 @@ One character's durable id, in grouped form: `"H7K-M4X3"`.
 
 Six payload symbols and one check symbol drawn from a 23-symbol alphabet with no
 ambiguous glyph, so a player reading one aloud cannot produce a valid id
-belonging to somebody else. It is also the `character_key`
-`open77_appearance` stores an appearance under — one identity, not two. See
+belonging to somebody else. It is also the character key every satellite
+addresses a character by — one identity, not two. See
 [Identity](../../concepts/identity.md#citizen-id).
 
 ### MoneyType {#moneytype}
@@ -101,15 +101,19 @@ Validated against `OPX.Origins` at creation, so the alias and
 
 ### Gender {#gender}
 
-The body family `open77_appearance` understands.
+The character's body family, chosen at creation and owned by the core.
 
 ```lua
 ---@alias Gender "female"|"male"
 ```
 
-Two values, and not a claim about anything else: it is the value that resource's
-`CHECK` constraint accepts, which is why the core validates against exactly this
-set at creation.
+Two values, and not a claim about anything else. It lives on
+[`CharInfo.gender`](#charinfo) on the character row, and it is what
+`opx77_appearance` resolves the engine's character bootstrap with — so nothing
+outside the core can change it, and a creator that comes back on the other body
+is refused there rather than accepted here. The engine's own opaque body-family
+hash is a different value and lives in
+[`AppearanceSnapshot.gender`](#appearancesnapshot).
 
 ## Results {#results}
 
@@ -185,24 +189,20 @@ mutate it, and whether it is in the world.
       `Functions`, but sends nothing to a client, places nobody, and is refused
       by every money mutator with `money.offline`.
 
-!!! warning "`types.lua` does not declare `Revision` or `MaySample`"
+- Revision: `integer`
+    - The autosave's dirty counter. Bumped by `Functions.UpdatePlayerData` and
+      never reset. A plug-in that assigns into `PlayerData` directly instead of
+      going through a mutator makes a change this counter cannot see, and the
+      autosave will not write it.
+- MaySample: `boolean`
+    - False until the world agrees with the stored row. Only
+      [`OPX.PlaceCharacter`](server-api.md#placecharacter) ever sets it true.
+      While it is false the position sampler will not touch the stored position,
+      which is what stops a failed placement overwriting the very coordinates it
+      was trying to restore.
 
-    [`OPX.CreatePlayer`](server-api.md#createplayer) sets two more fields on
-    every Player, and they are deliberately *not* on `PlayerData`, which keeps
-    them out of the client payload and out of every database column:
-
-    - **`Revision`** (`integer`) — the autosave's dirty counter. Bumped by
-      `Functions.UpdatePlayerData` and never reset. A plug-in that assigns into
-      `PlayerData` directly instead of going through a mutator makes a change
-      this counter cannot see, and the autosave will not write it.
-    - **`MaySample`** (`boolean`) — false until the world agrees with the stored
-      row. Only [`OPX.PlaceCharacter`](server-api.md#placecharacter) ever sets
-      it true. While it is false the position sampler will not touch the stored
-      position, which is what stops a failed placement overwriting the very
-      coordinates it was trying to restore.
-
-    Neither is declared in `types.lua`. Both are real, and both are read by the
-    core every second.
+`Revision` and `MaySample` are deliberately *not* on `PlayerData`, which keeps
+them out of the client payload and out of every database column.
 
 See [Player](player.md) for the whole object in use.
 
@@ -243,7 +243,7 @@ Everything the core knows about one character.
 - gang: [`PlayerGang`](#playergang)
 - jobs: `table<string, integer>`
     - Every job membership, as `name -> grade`. Mirrored from
-      `opx77_player_groups`, which is the authority.
+      `opx77_character_groups`, which is the authority.
 - gangs: `table<string, integer>`
     - Every gang membership, as `name -> grade`.
 - position: [`Position`](#position)`|nil`
@@ -251,6 +251,12 @@ Everything the core knows about one character.
       never known", which is not the same as "at the origin", and the core keeps
       the two apart deliberately.
 - metadata: [`PlayerMetadata`](#playermetadata)
+- appearance: [`AppearanceSnapshot`](#appearancesnapshot)`|nil`
+    - The character's stored face, `nil` until one has been captured. Written
+      only by [`OPX.SaveAppearance`](server-api.md#saveappearance), and
+      therefore only by the net event
+      [`opx77:server:saveAppearance`](events.md#saveappearance) that
+      `opx77_appearance` sends.
 - lastLoggedOut: `string|nil`
     - A database timestamp, stamped by the save that ran with `loggedOut` true.
       Shown on the character-selection screen.
@@ -297,17 +303,6 @@ every save.
     - 0–100. Applied with `Open77.players.setArmor` *after* the respawn has
       settled, because armour is not a respawn option and the body is replaced
       by the transaction.
-- hunger: `number`
-    - 0–100. Decayed by `server/needs.lua` every `NEEDS.TICK_SECONDS`, by
-      `NEEDS.hunger.PER_TICK` a tick. At zero it costs
-      `NEEDS.DAMAGE_AT_ZERO` health per tick.
-- thirst: `number`
-    - 0–100, decayed the same way and faster, as in every survival system.
-- stamina: `number`
-    - Carried and saved, never read by the core. An agreed name, for a plug-in
-      that wants one.
-- streetCred: `number`
-    - Carried and saved, never read by the core.
 - isDead: `boolean`
 - inLastStand: `boolean`
 - `[string]`: `any`
@@ -316,19 +311,71 @@ every save.
       column, so a key added by a plug-in survives a core upgrade and costs
       nothing.
 
-!!! warning "Two drifts live in this type"
+!!! info "The gameplay needs are not here"
 
-    `types.lua` declares **`ram`** — "carried, never read by the core". Nothing
-    in the core writes it, it is not in
-    `OPX.Config.SERVER.PLAYER.STARTING_METADATA`, and no character will have it
-    unless a plug-in puts it there. Reading `metadata.ram` on a stock install
-    yields `nil`.
+    `hunger`, `thirst`, `stamina` and `streetCred` used to be metadata keys
+    decayed by the core's own `server/needs.lua`. They are not any more:
+    [`opx77_status`](../opx77_status/index.md) owns them, in its own
+    `opx77_character_status` table, and the core neither ships them in
+    `STARTING_METADATA` nor writes them. `ram` was removed outright — nothing
+    ever drew it.
 
-    `types.lua` also declares `thirst` as "the one need Night City justifies —
-    there is no hunger". **There is hunger.** It ships in
-    `STARTING_METADATA`, `OPX.Config.SERVER.NEEDS.hunger.PER_TICK` is `1.0`,
-    and `server/needs.lua` decays it on the same tick as thirst. The annotation
-    predates the needs loop.
+    The four keys above stay in the core because placement forces it:
+    [`OPX.PlaceCharacter`](server-api.md#placecharacter) reads the stored health
+    to clamp the respawn transaction and applies the armour after it.
+
+### AppearanceSnapshot {#appearancesnapshot}
+
+One captured face, as stored in the `appearance` column of `opx77_characters`
+and carried on [`PlayerData.appearance`](#playerdata).
+
+**Fields**
+
+- schemaVersion: `integer`
+    - Always `1`. `opx77_core/server/appearance.lua` refuses any other value
+      with `unsupported_schema`.
+- gameBuild: `string`
+    - The catalogue build the face was captured on. Must be a key of
+      `OPX.Config.SHARED.APPEARANCE.GAME_BUILDS`, `{ ["2.31"] = true }` as
+      shipped.
+- catalogDigest: `string`
+    - 64 lower-case hex characters: which catalogue the option indices index.
+- gender: `string`
+    - The **engine's** opaque body-family hash, `"0x"` and 16 hex digits, and
+      allowed to be zero. Not `"female"`/`"male"` — that is
+      [`CharInfo.gender`](#charinfo) and lives on the character row.
+- options: [`AppearanceOption`](#appearanceoption)`[]`
+    - Dense, 1 to 256 entries. A hole in the array is refused with
+      `sparse_options`.
+
+A snapshot is a list of positions in the customization catalogue, not a mesh, so
+it only means anything against the catalogue it was captured on. The core
+stores it in canonical form only: option names lower-cased, the array dense, and
+every field the type the column expects. See
+[`OPX.SaveAppearance`](server-api.md#saveappearance) for the validation, and
+[opx77_appearance](../opx77_appearance/index.md) for the resource that captures
+one.
+
+### AppearanceOption {#appearanceoption}
+
+One logical customization option: a position in the catalogue, not a mesh.
+
+**Fields**
+
+- part: `"head"|"body"|"arms"`
+- name: `string`
+    - An option hash, `"0x"` and 16 lower-case hex digits, and never zero. It is
+      compared as a string and never through `tonumber`, which a 64-bit hash
+      does not survive.
+- value: `integer`
+    - The chosen index, 0 to 511, and below `choices` whenever that is non-zero.
+- choices: `integer`
+    - How many the catalogue offers, 0 to 512. Zero is a catalogue entry with
+      nothing to choose from, which the engine does report, and is the one case
+      where `value` cannot be bounded by it.
+
+`part` and `name` together are unique within one snapshot; a repeat is refused
+with `duplicate_option`.
 
 ### Position {#position}
 
@@ -402,7 +449,7 @@ into a single table, so nothing downstream has to look a grade up again.
     - From the grade. The core spends neither of these; they are agreed names a
       plug-in or a satellite gates on.
 - grade: `{ name: string, level: integer }`
-    - `level` is the number stored in `opx77_player_groups`; `name` is the
+    - `level` is the number stored in `opx77_character_groups`; `name` is the
       grade's label.
 
 Built by [`OPX.ResolveJob`](server-api.md#resolvejob). A character whose stored
@@ -571,6 +618,11 @@ One entry of `OPX.Schema`.
     - The key the runner records in `opx77_migrations`. **Append-only.** Never
       rename or edit one that has shipped: the runner keys on this name and it
       has already run on live databases.
+- file: `string`
+    - The `sql/` file carrying the same statements, for an operator reading the
+      schema. The runner never opens it — the server runtime has no file-reading
+      API — so the two copies are edited together and
+      `python3 tools/check_sql_parity.py` is what proves they still agree.
 - statements: `string[]`
     - Run in order. The runner stops at the first failure, because a
       half-applied schema is the one state neither rolling forward nor back is
@@ -601,20 +653,6 @@ rather than in `types.lua`.
 - userId: [`UserId`](#userid)`|nil`
 - data: `table|nil`
     - JSON-encoded into the line and truncated to 200 characters.
-
-### LogScope {#logscope}
-
-A named logger, as returned by [`OPX.Log.scope`](server-api.md#logscope-fn).
-
-**Fields**
-
-- debug: `fun(...)`
-- info: `fun(...)`
-- warn: `fun(...)`
-- error: `fun(...)`
-
-Every argument is passed through `tostring` and joined with spaces, so a table
-prints as its address — encode it yourself if you want to read it.
 
 ### Vector3Like {#vector3like}
 

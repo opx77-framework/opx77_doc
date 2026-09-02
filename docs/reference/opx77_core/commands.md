@@ -75,7 +75,7 @@ report that nothing loads.
 ### Example {#opx77-example}
 
 ```text
-opx77_core 0.2.0 -- 2 character(s) in the world, 3 session(s) connected
+opx77_core 0.3.0 -- 2 character(s) in the world, 3 session(s) connected
   1    NC-4B2K-7Q V Sinclair  Mercenary
   4    NC-9T1M-2X Jack Welles  Fixer
 ```

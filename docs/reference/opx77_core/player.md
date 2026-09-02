@@ -161,7 +161,7 @@ The whole character, as one table. The type of every field is in
 | `money` | `money` | the three money mutators | JSON column. Whole units only. |
 | `job` | `job` | [`SetJob`](#setjob), `SetJobDuty`, `RemovePlayerFromJob` | The **primary** job, flattened. |
 | `gang` | `gang` | [`SetGang`](#setgang), `RemovePlayerFromGang` | |
-| `jobs` | *(none)* | `AddPlayerToJob`, `RemovePlayerFromJob` | A mirror of `opx77_player_groups`. **Not saved with the character** — that table is the authority. |
+| `jobs` | *(none)* | `AddPlayerToJob`, `RemovePlayerFromJob` | A mirror of `opx77_character_groups`. **Not saved with the character** — that table is the authority. |
 | `gangs` | *(none)* | `AddPlayerToGang`, `RemovePlayerFromGang` | Same. |
 | `position` | `position` | the 1 Hz sampler | Only while [`MaySample`](#maysample) is true. `nil` means *never known*, not *at the origin*. |
 | `metadata` | `metadata` | [`SetMetaData`](#setmetadata) | JSON column, free-form, survives a core upgrade. |
@@ -171,7 +171,7 @@ The whole character, as one table. The type of every field is in
 Three consequences worth stating plainly:
 
 - **`jobs` and `gangs` are a mirror.** `Players.save` does not write them. A
-  membership change is a row in `opx77_player_groups`, written by
+  membership change is a row in `opx77_character_groups`, written by
   [`joinGroup`](server-api.md#addplayertojob) before `PlayerData` is touched. If
   the two ever disagree, the table is right.
 - **`citizen_id` and `user_id` are not in the `UPDATE`.** An update that could
@@ -266,14 +266,16 @@ player.Functions.SetMetaData(key, value)
 
 **Side** `server` — inside `opx77_core` only. Does not yield.
 
-This is the supported way for a plug-in to keep per-character state. It goes
-through [`UpdatePlayerData`](#updateplayerdata), which is why the needs loop
-writes through it rather than into the table: the autosave has to be able to see
+This is the supported way for a plug-in to keep per-character state. Write
+through it rather than into the table: it goes through
+[`UpdatePlayerData`](#updateplayerdata), and the autosave has to be able to see
 the change.
 
-Reserved names the core itself reads are `health`, `armor`, `hunger`, `thirst`,
-`isDead` and `inLastStand`. See
-[`PlayerMetadata`](types.md#playermetadata).
+Reserved names the core itself reads are `health`, `armor`, `isDead` and
+`inLastStand` — and only those four. The gameplay needs are not metadata any
+more: `hunger`, `thirst`, `stamina` and `streetCred` belong to
+[`opx77_status`](../opx77_status/index.md), in its own table, and `ram` was
+removed outright. See [`PlayerMetadata`](types.md#playermetadata).
 
 ### GetMetaData {#getmetadata}
 
@@ -627,8 +629,6 @@ A plug-in file that pays an on-duty officer a bounty, correctly.
 ```lua
 -- opx77_core/server/bounties.lua
 -- listed in opx77_core/open77.lua below server/player.lua
-local log = OPX.Log.scope("bounties")
-
 local BOUNTY = 750
 
 RegisterCommand("bounty.claim", function(source)
@@ -650,7 +650,8 @@ RegisterCommand("bounty.claim", function(source)
 
   local ok, why = player.Functions.AddMoney("EDDIES", BOUNTY, "bounty:claim")
   if not ok then
-    log.warn(("bounty refused for %s: %s"):format(player.PlayerData.citizenId, why))
+    Open77.log.warn(("[bounties] refused for %s: %s")
+      :format(player.PlayerData.citizenId, why))
     return OPX.Refuse(source, why)
   end
 
@@ -661,11 +662,13 @@ RegisterCommand("bounty.claim", function(source)
 end, false)
 ```
 
-Four things that example is doing on purpose: it treats a missing Player as a
+Five things that example is doing on purpose: it treats a missing Player as a
 normal condition, it checks the return of `AddMoney` and hands the refusal code
 straight to `OPX.Refuse`, it writes its own state through `SetMetaData` so the
-autosave can see it, and it uses `OPX.Now()` rather than a wall clock — the
-server sandbox removes `os`, so there is no wall clock to use.
+autosave can see it, it uses `OPX.Now()` rather than a wall clock — the server
+sandbox removes `os`, so there is no wall clock to use — and it logs through
+`Open77.log` with its own bracketed scope in the message. There is no `OPX.Log`
+any more; see [Logging](server-api.md#logging).
 
 ## Where to go next {#next}
 

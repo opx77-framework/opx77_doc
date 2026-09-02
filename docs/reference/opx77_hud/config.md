@@ -1,6 +1,6 @@
 ---
 title: opx77_hud configuration
-description: The seven keys in OPX_HUD_CONFIG that decide where the HUD sits, which blocks it builds and in what order, when a gauge hides itself, the name of the /hud command, and which of Cyberpunk's own HUD components are hidden.
+description: The eight keys in OPX_HUD_CONFIG that decide which catalogue its text is read from, where the HUD sits, which blocks it builds and in what order, when a gauge hides itself, the name of the /hud command, and which of Cyberpunk's own HUD components are hidden.
 ---
 
 # Configuration
@@ -13,6 +13,7 @@ command name.
 
 ```lua
 OPX_HUD_CONFIG = {
+  LOCALE = "en",
   ANCHOR = "bottom-left",
   WIDTH = 210,
   INFO_ANCHOR = "top-right",
@@ -21,6 +22,37 @@ OPX_HUD_CONFIG = {
   COMMAND = "hud",
 }
 ```
+
+## LOCALE {#locale}
+
+The catalogue the player-facing text is read from, applied at load.
+
+```lua
+LOCALE = "en"
+```
+
+**Type** `string` — a catalogue registered under `locales/`. `"en"` and `"fr"`
+ship.
+
+There are four strings behind this key, and they are the whole of the text this
+resource writes for a player to read: the `/hud` usage line, the command's chat
+suggestion, its argument help, and the `CRED` label on the street-cred line.
+Everything else on screen belongs to somebody else — a money type's key, a job's
+label, a chip's label — and none of it passes through here. Log lines stay in
+English whatever this is set to.
+
+An unknown code is **accepted**, not rejected: `shared/locale.lua` reads this key
+before any catalogue has registered, so there is nothing to check it against yet.
+Every lookup then falls back to `en`, and then to the key itself, so a string
+nobody translated shows as its raw key rather than as nothing.
+
+!!! info "Three shared scripts, and the order is load-bearing"
+    `shared/locale.lua` reads `LOCALE` at load, so the manifest lists it after
+    `config.lua`, and the two catalogues after it — a file below an empty
+    catalogue would get its keys back instead of its strings. All three are
+    `shared_script`s rather than client ones because the `/hud` command is
+    registered on the server half, and that is the half that answers with the
+    usage line.
 
 ## ANCHOR {#anchor}
 
@@ -76,11 +108,15 @@ BLOCKS = { "vitals", "cyber", "needs", "money", "identity" }
 
 | Name | Builds |
 |---|---|
-| `vitals` | `HP` always, `ARMOR` only above zero. Armour carries no tone — low armour is not the warning low health is. |
-| `cyber` | `STAMINA`, and only once something has written `metadata.stamina`. On a bare install this block appends nothing, which is the intended state. |
-| `needs` | `FOOD` from `metadata.hunger` and `HYDRATION` from `metadata.thirst`, each skipped when the key is not a finite number. |
+| `vitals` | The `health` gauge always, the `armor` gauge only above zero. Armour carries no tone — low armour is not the warning low health is. |
+| `cyber` | The `stamina` gauge, from `opx77_status`. Without that resource answering, this block appends nothing, which is the intended state. |
+| `needs` | The `hunger` and `thirst` gauges, both from `opx77_status`, each skipped when the value is not a finite number. |
 | `money` | One text line per money type. `EDDIES` and `BANK` lead in that order; every other **string** key follows, sorted alphabetically. A zero or non-finite amount is not drawn. |
-| `identity` | The job line — label, grade name, and the `on` tone while `job.onDuty` is `true` — and `CRED` from `metadata.streetCred` when it is above zero, floored. |
+| `identity` | The job line from `opx77_core` — label, grade name, and the `on` tone while `job.onDuty` is `true` — and `CRED` from `opx77_status`'s `streetCred` when it is above zero, floored. Its label is the one string here that comes from the [catalogue](#locale). |
+
+A gauge is named here by its row `id` — the page's DOM slot key, and the CSS
+class the stylesheet themes it through. Gauges carry no label at all; the text
+rows the `money` and `identity` blocks build are the only rows that do.
 
 **Removing a name drops that block entirely**; there is no separate enable flag.
 A name that matches no builder is ignored rather than raising, so a typo costs
@@ -103,8 +139,10 @@ NEEDS_THRESHOLD = 90
 
 **Type** `integer | false`
 
-`false` always shows them. It applies to the `needs` and `cyber` blocks only:
-`HP` is always drawn, and `ARMOR` has its own rule (above zero).
+`false` always shows them, and so does anything else that is not a number: a
+comparison against a string would raise rather than refuse, so it is read as
+`false`. It applies to the `needs` and `cyber` blocks only: `health` is always
+drawn, and `armor` has its own rule (above zero).
 
 ## COMMAND {#command}
 
@@ -118,8 +156,9 @@ COMMAND = "hud"
 
 `false` or an empty string registers nothing, offers no chat suggestion, and logs
 one informational line at startup. See [Commands](commands.md#no-command). The
-value is used verbatim in the usage line the server answers with, so renaming the
-command renames it everywhere.
+value is interpolated into the usage line the server answers with, which comes
+from the [catalogue](#locale) and reads `usage: /<name> [on|off]`, so renaming
+the command renames it everywhere.
 
 ## VANILLA {#vanilla}
 
@@ -190,9 +229,9 @@ editing the resource.
 | Constant | Value | What it is |
 |---|---|---|
 | `GAUGE_SEGMENTS` | `10` | How many blocks a gauge is cut into. |
-| `POLL_MS` | `5000` | How often the core is re-read as a net under its change events. |
-| `TWEEN_MS` | `220` | Sent to the page as `tween` and currently read by nothing there; the animation is a CSS transition. |
+| `POLL_MS` | `5000` | How often the core is re-read as a net under its change events. There is no equivalent for the needs: they are pushed. |
 | `MAX_CHIPS` | `12` | The most chips kept from one `opx77:status:effects` payload. |
+| `MAX_HIDDEN` | `999` | The largest `+N` overflow counter that still reads as a number. |
 
 The strip's own corner and offset are **not** here either. They belong to
 [`opx77_status`](../opx77_status/config.md), which publishes them with every

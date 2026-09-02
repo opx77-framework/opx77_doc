@@ -68,9 +68,20 @@ an optional field that is `nil` is simply absent — it is never a refusal.
     count towards the budget as well as values**, so a flat table of thirty pairs
     is already sixty nodes.
 
-!!! warning "Lengths are counted in bytes"
-    `id`, `label`, `icon` and `event` are measured with `#value`. Two glyphs of
-    `icon` means two bytes, so a two-character emoji does not fit.
+!!! info "Two length rules, and they differ"
+    `id` and `event` are **names**, measured with `#value`: their limits of 64 and
+    96 are byte counts, and the character class they must match rules out
+    multi-byte text anyway.
+
+    `label` and `icon` are **display text**, cleaned by `Text.clean` in
+    `shared/text.lua`, and their limits of 32 and 2 are counted in **characters**.
+    The cut is UTF-8 aware and never lands mid-sequence, so an `icon` of two
+    emoji fits and arrives whole. This is a change: these two used to be truncated
+    with `string.sub` on a byte count, which both refused an emoji and could split
+    one.
+
+    Nothing is appended when display text is cut here — no ellipsis — so a long
+    label simply stops at 32 characters.
 
 ## Tones {#tones}
 

@@ -7,7 +7,7 @@ description: opx77_notify is the toast service for OPX//77 — seven client expo
 
 | At a glance | |
 |---|---|
-| **Version** | `0.1.0` |
+| **Version** | `0.2.0` |
 | **Requires** | `open77_version ">=0.0.1"`. No `dependency` is declared |
 | **Auto start** | yes |
 | **Reload policy** | `reconnect`, because it owns a WebUI surface |
@@ -15,7 +15,7 @@ description: opx77_notify is the toast service for OPX//77 — seven client expo
 | **Sides** | client only. There is no `server_script` and no server half at all |
 | **Exports** | seven, all client: [`show`](exports.md#show), [`update`](exports.md#update), [`dismiss`](exports.md#dismiss), [`clear`](exports.md#clear), [`list`](exports.md#list), [`setEnabled`](exports.md#setenabled), [`isEnabled`](exports.md#isenabled) |
 | **Commands** | none |
-| **Events** | listens on [four net events](events.md#networked); raises [`open77:notificationRemoved`](events.md#notificationremoved) and [`opx77:notify:removed`](events.md#opx77-notify-removed) |
+| **Events** | listens on [four net events](events.md#networked); raises one, [`opx77:notify:removed`](events.md#opx77-notify-removed) |
 | **Surface** | its own, on the `hud` layer at `zIndex` 720 |
 
 ## What it is {#what-it-is}
@@ -69,6 +69,11 @@ That is this framework's convention, and it is additive — a caller that only
 tests truthiness reads `{ ok = true }` as true either way, and one that wants a
 reason now has a stable `error` code. See
 [The client export contract](../../concepts/export-contract.md).
+
+The one thing a ported resource does have to change is its **removal handler**.
+The platform's own `open77:notificationRemoved` is not raised here; there is a
+single removal event, [`opx77:notify:removed`](events.md#opx77-notify-removed),
+and it carries the same payload under the other name.
 
 !!! danger "Do not run this and `open77_notifications` at the same time"
 
@@ -141,7 +146,7 @@ inbound names. It is **inbound only** — this resource never calls
 
 Nothing else is declared, and the emptiness beyond that line is deliberate rather
 than an omission. Export calls need no permission on either side; the client's
-local event bus is host-wide, so the two removal events reach a bare
+local event bus is host-wide, so the removal event reaches a bare
 `AddEventHandler` in another resource without a grant; the surface is never
 focused, so no `webui.*` capability applies; and no world, input or environment
 API is touched.
@@ -150,8 +155,8 @@ API is touched.
 
 - [Exports](exports.md) — the seven calls, every error code, and the ownership
   and generation model behind them.
-- [Events](events.md) — the four net events it answers to, and the two local ones
-  it raises.
+- [Events](events.md) — the four net events it answers to, and the one local
+  event it raises.
 - [Configuration](config.md) — the four keys, and what is deliberately not one.
 - [Types](types.md) — the definition schema, the entry, and the removal payload.
 - [The client export contract](../../concepts/export-contract.md) — read this

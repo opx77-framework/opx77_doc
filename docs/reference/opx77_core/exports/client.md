@@ -1,11 +1,11 @@
 ---
 title: opx77_core client exports
-description: The fifteen client exports opx77_core publishes — eleven reads over the mirrored character state and the static definitions, four character-screen requests that answer by event — each with its parameters, answer shape and error codes, plus the in-core OPX client API those exports wrap.
+description: The sixteen client exports opx77_core publishes — twelve reads over the mirrored character state and the static definitions, four character-screen requests that answer by event — each with its parameters, answer shape and error codes, plus the in-core OPX client API those exports wrap.
 ---
 
 # Client exports
 
-`opx77_core`'s client half publishes fifteen exports. Eleven are **reads**: they
+`opx77_core`'s client half publishes sixteen exports. Twelve are **reads**: they
 answer from the mirror of the character the server last sent, or from the static
 definitions shipped into the client VM. Four are **requests**: they fire an
 `opx77:server:*` net event, the server validates it, and the return value only
@@ -17,6 +17,7 @@ says the request was sent — the answer arrives as an event.
 | [`IsLoggedIn`](#isloggedin) | read | a boolean |
 | [`HasJob`](#hasjob) | read | a boolean |
 | [`HasGang`](#hasgang) | read | a boolean |
+| [`GetAppearance`](#getappearance) | read | the stored face, or `nil` |
 | [`GetCharacters`](#getcharacters) | read | the selection roster |
 | [`RequestCharacters`](#requestcharacters) | request | `opx77:client:charactersReady` |
 | [`SelectCharacter`](#selectcharacter) | request | `opx77:client:onPlayerLoaded` or `opx77:client:refused` |
@@ -209,6 +210,42 @@ reachable from a server resource.
 
 ---
 
+## GetAppearance {#getappearance}
+
+Returns the stored face for the live character, as the mirror carries it.
+
+```lua
+Open77.exports.call("opx77_core", "GetAppearance")
+```
+
+Takes no parameters.
+
+**Returns** `{ ok: true, appearance: `[`AppearanceSnapshot`](../types.md#appearancesnapshot)`|nil }`
+
+- `appearance` — `nil` for a character that has never been to the mirror, which
+  is not an error.
+
+**Errors** `error.notLoggedIn` when no character is loaded, as
+`{ ok = false, error = "error.notLoggedIn" }`.
+
+The snapshot is read from `PlayerData.appearance`, so it is already on the
+client before this is called — it arrives with `opx77:client:playerLoaded` like
+every other field of the character, and is replaced by
+[`opx77:client:onAppearanceUpdate`](../events.md#onappearanceupdate) whenever the
+core stores a new one. There is deliberately no export that *writes* a face: a
+caller that could hand the framework a snapshot could hand it somebody else's.
+The one write path is the net event
+[`opx77:server:saveAppearance`](../events.md#saveappearance), and
+[`opx77_appearance`](../../opx77_appearance/index.md) is what sends it.
+
+!!! warning
+    Read from the client's mirror. It is a hint, not proof.
+
+**Side** `client` export — callable from any client resource. Asynchronous. Not
+reachable from a server resource.
+
+---
+
 ## GetCharacters {#getcharacters}
 
 Returns the selection roster the server last sent — the character list, the slot
@@ -291,9 +328,12 @@ Open77.exports.call("opx77_core", "SelectCharacter", citizenId)
 | `bad-citizen-id` | The argument was not a string. Nothing was sent. |
 
 The server's own refusals do not come back through this call. They arrive as
-`opx77:client:refused` (local) or `opx77:client:notify` (wire), carrying a
-locale key such as `character.notFound`, `error.tooFast` or `entry.failed`.
-Success arrives as `opx77:client:onPlayerLoaded` (local) or
+[`opx77:client:refused`](../events.md#refused) (local) or
+[`opx77:client:notify`](../events.md#notify) (wire), carrying a locale key such
+as `character.notFound`, `error.tooFast` or `entry.failed` **and the operation
+they answer** — `selectCharacter` here. Branch on the operation: a caller with
+more than one request in flight cannot otherwise tell whose `error.tooFast` it
+is holding. Success arrives as `opx77:client:onPlayerLoaded` (local) or
 `opx77:client:playerLoaded` (wire).
 
 **Side** `client` export — callable from any client resource. Asynchronous, and
@@ -306,7 +346,8 @@ AddEventHandler("opx77:client:onPlayerLoaded", function(playerData)
   -- the selection landed
 end)
 
-AddEventHandler("opx77:client:refused", function(code)
+AddEventHandler("opx77:client:refused", function(code, kind, operation)
+  if operation ~= "selectCharacter" then return end
   -- render locale(code); it is a catalogue key
 end)
 
@@ -572,7 +613,7 @@ Open77.exports.call("opx77_core", "GetVersion")
 
 Takes no parameters.
 
-**Returns** `{ ok: true, version: string }` — `"0.2.0"` on this release.
+**Returns** `{ ok: true, version: string }` — `"0.3.0"` on this release.
 
 **Errors** none.
 
@@ -777,6 +818,21 @@ OPX.GetMetadata(key)
 
 **Side** `in-core client` — a file inside `opx77_core/client/` only. Does not
 yield.
+
+### OPX.GetAppearance {#client-getappearance}
+
+Returns the stored face for the live character, or `nil` for one that has never
+been captured.
+
+```lua
+local snapshot = OPX.GetAppearance()
+```
+
+**Returns** [`AppearanceSnapshot`](../types.md#appearancesnapshot)` | nil`
+
+**Side** `in-core client` — a file inside `opx77_core/client/` only. Does not
+yield. It is a mirror: the writer is
+[`OPX.SaveAppearance`](../server-api.md#saveappearance), on the server.
 
 ### OPX.GetPosition {#getposition}
 

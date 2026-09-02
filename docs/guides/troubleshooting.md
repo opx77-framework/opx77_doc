@@ -10,9 +10,12 @@ happens, the cause, and the fix. The lines are quoted from the resources rather
 than paraphrased, so they are safe to grep the platform log for; the two that come
 from the host itself rather than from OPX//77 say so.
 
-OPX//77 log lines are written through `OPX.Log`, which prefixes a scope in square
-brackets — `[storage]`, `[lifecycle]`, `[core]`, `[player]`. The satellites write
-through `Open77.log` directly and carry the host's own resource prefix instead.
+Every OPX//77 log line is written through `Open77.log`, the host's own logger,
+including the core's. The core prefixes a scope in square brackets —
+`[storage]`, `[lifecycle]`, `[core]`, `[player]`, `[events]`, `[appearance]`,
+`[audit]` — and the satellites carry the host's own resource prefix. The host
+owns the level; there is no `LOG_LEVEL` setting in this framework any more, and
+no `OPX.Log`.
 
 ## Nothing at all happens when I join {#nothing-on-join}
 
@@ -32,25 +35,25 @@ open77:session:gameplayReady
 `opx77_core` says the same thing once, at boot:
 
 ```text
-[lifecycle] no resource here emits `open77:session:gameplayReady`
-[lifecycle]   so the platform's own `__platform` hold never clears: the readiness gate
-[lifecycle]   never opens, `Open77.ready.isReady` is permanently false and the
-[lifecycle]   `onPlayerReady` handler in server/events.lua can never fire.
+[lifecycle] no resource here emits `open77:session:gameplayReady`, so the
+`__platform` hold never clears and `Open77.ready.isReady` stays false
 ```
 
 **Cause.** Every joiner arrives holding a platform hold named `__platform`. No
 Lua may take it, no Lua may release it, and it has **no deadline** — the expiry
 tick can never fire for it. It clears on exactly one thing: the client sending
-the net event `open77:session:gameplayReady`. On a stock server that comes from
-`open77_appearance`. If nothing on the server emits it, the gate stays shut for
-the whole session.
+the net event `open77:session:gameplayReady`. In this resource set that comes
+from [`opx77_appearance`](../reference/opx77_appearance/index.md). If nothing on
+the server emits it, the gate stays shut for the whole session.
 
 The website's own readiness-gate page says the opposite — "a server where nothing
 participates is a server where the gate is always open". That is true of
 *resource* participation only; the platform hold is unconditional.
 
-**Fix.** Install `open77_appearance`, or another resource that emits
-`open77:session:gameplayReady`. If you cannot, do not write anything that waits
+**Fix.** Start `opx77_appearance` — it ships with the framework and the core's
+boot check looks for it by that name or by the official `open77_appearance`. Any
+other resource that emits `open77:session:gameplayReady` does just as well. If
+you cannot run one, do not write anything that waits
 on `Open77.ready.isReady` or on `onPlayerReady` — on your server they will wait
 for ever. `opx77_core` itself reads neither, so characters still load and are
 still placed. See [The entry gate](../concepts/entry-gate.md).
@@ -287,7 +290,7 @@ the world is refused with `error.notLoggedIn` or nothing at all.
 ```text
 [storage] no database: <the driver's own exception text>
 [storage] the core will boot, but nobody can be logged in until this is fixed
-[core] opx77_core 0.2.0 is up but cannot load characters: no database
+[core] opx77_core 0.3.0 is up but cannot load characters: no database
 ```
 
 **Cause.** `OPX.Storage.ready()` probed with `SELECT 1` and the probe failed.
@@ -305,7 +308,7 @@ export OP77_DATABASE_CONNECTION='Server=localhost;Port=3306;Database=open77;User
 default. The `opx77` command reports the degraded state to an operator in game:
 
 ```text
-opx77_core 0.2.0 -- 0 character(s) in the world, 2 session(s) connected
+opx77_core 0.3.0 -- 0 character(s) in the world, 2 session(s) connected
   DEGRADED: no database
 ```
 
@@ -392,8 +395,8 @@ dropped.
   useless for diagnosing a disagreement between the two.
 - `opx77.elevators.where [key]` (restricted) prints adoption state per lift.
 - `acl.check <playerId> <permission>` answers the exact question the host asks.
-- Raise `LOG_LEVEL` in `config/shared.lua` to `"debug"` for the core's own
-  chatter.
+- Raise the **host's** log level to see the core's own debug chatter. It is the
+  host's setting: the framework has no log-level key of its own.
 
 If the answer is not here, [the FAQ](faq.md) covers the questions that are about
 the design rather than a fault.

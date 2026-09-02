@@ -161,6 +161,12 @@ nav:
           - Commands: reference/opx77_elevators/commands.md
           - Configuration: reference/opx77_elevators/config.md
           - Types: reference/opx77_elevators/types.md
+      - opx77_appearance:
+          - Overview: reference/opx77_appearance/index.md
+          - Exports: reference/opx77_appearance/exports.md
+          - Events: reference/opx77_appearance/events.md
+          - Configuration: reference/opx77_appearance/config.md
+          - Types: reference/opx77_appearance/types.md
       - opx77_lib: reference/opx77_lib.md
 
   - Releases: releases.md

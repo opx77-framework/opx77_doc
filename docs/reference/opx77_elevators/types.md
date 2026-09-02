@@ -58,14 +58,17 @@ than proof, are listed on [Error codes](errors.md).
 One entry of `config.lua`'s `ELEVATORS`: where a shaft is, how many floors the
 native device has, and the stops this resource offers there.
 
+Reach is horizontal. `X` and `Y` are the only pair any distance is measured on,
+which is what makes an elevator callable from every floor of its own shaft.
+
 **Fields**
 
 | Field | Type | Meaning |
 |---|---|---|
 | `LABEL` | `string` | the panel's title, and the name in the diagnostic report |
-| `X` | `number` | the **shaft's** position in metres, never the cabin's |
+| `X` | `number` | with `Y`, where the shaft is: the pair that decides reach, in metres, never the cabin's |
 | `Y` | `number` | " |
-| `Z` | `number` | " |
+| `Z` | `number` | the shaft's height. Recorded, printed by the diagnostic command, and **never compared** |
 | `BUCKET` | `integer\|nil` | routing bucket, default `0`. An elevator in a bucket is invisible to players outside it |
 | `ENTITY` | `string\|nil` | the native `LiftDevice` hash, `"0x"` plus sixteen hex digits. **Opaque** — compared as a lower-cased string, never through `tonumber` |
 | `FLOOR_COUNT` | `integer` | the engine's floor count, not `#FLOORS`. The ceiling every index is checked against |
@@ -238,7 +241,7 @@ shape, not this resource's; it is here because a scan reads every field of it.
 | `engineEntity` | `string` | the opaque 64-bit hash as `"0x…"` |
 | `controllerEntity` | `string` | the controller's hash |
 | `position` | `{ x: number, y: number, z: number }` | **nested** here |
-| `distance` | `number` | metres from the local player |
+| `distance` | `number` | metres from the local player, in **three** dimensions, to the cabin — which moves. This resource ranks on `X` and `Y` instead, and falls back to this only when the client cannot read its own position |
 | `floorCount` | `integer\|nil` | `nil` until the native device's inspect answers |
 | `activeFloor` | `integer\|nil` | `nil` until the native device's inspect answers |
 | `managed` | `boolean` | already adopted by some resource |

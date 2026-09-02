@@ -127,11 +127,11 @@ Two more channels exist for a server resource that owns no code inside the core.
 - **The shared database** is one connection with one credential and no
   per-resource schema, so a resource holding `database.access` can read the
   core's tables. It is the loosest coupling here and the most dangerous: the
-  same grant that lets you read `opx77_players` lets you write it, bypassing
+  same grant that lets you read `opx77_characters` lets you write it, bypassing
   every guard the core has.
 
 !!! danger
-    The core is the only writer of `opx77_players`, `opx77_player_groups` and
+    The core is the only writer of `opx77_characters`, `opx77_character_groups` and
     `opx77_vehicles`. Read them if you must; do not write them. A row written
     behind the core's back is overwritten by the next autosave at best, and
     silently disagrees with the loaded character at worst.

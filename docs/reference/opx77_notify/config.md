@@ -132,6 +132,14 @@ Raising the two ceilings would make this resource behave differently from the
 package it stands in for, which is the one thing a drop-in may not do. That is why
 they are not keys.
 
+**A locale** is not a key either. There is no `locales/` directory here and no
+`LOCALE`, because this resource renders no words of its own: every title, body
+and icon it draws was handed to it by the caller, in whatever language that
+caller chose. Its error codes are a branching surface rather than text, and its
+`Open77.log` lines stay English. Five resources in this set do carry a
+catalogue — see
+[`opx77_core`'s configuration page](../opx77_core/config.md#satellite-locales).
+
 The four **kind accents** are not keys either. `info`, `success`, `warning` and
 `error` are `#22D8E2`, `#4FE3A9`, `#F5C95C` and `#FF5964` — the OPEN//77 signal
 tokens, written in two places that must stay in step: `client/state.lua`, which

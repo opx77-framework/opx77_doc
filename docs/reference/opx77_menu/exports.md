@@ -18,7 +18,7 @@ shape and the three levels of failure.
 | [`close`](#close) | [`MenuResponse`](types.md#menuresponse) | Closes your own menu. |
 | [`state`](#state) | [`MenuState`](types.md#menustate) | Reports whether a menu is open and whether it is yours. |
 | [`status`](#status) | [`MenuResponse`](types.md#menuresponse) | Writes the transient line under the list. |
-| [`keys`](#keys) | [`MenuResponse`](types.md#menuresponse) | Reports the keys that drive the menu, for a caller printing its own hint. |
+| [`keys`](#keys) | [`MenuKeys`](types.md#menukeys) | Reports the keys that drive the menu, for a caller printing its own hint. |
 
 Every export answers a table and **never raises**. `ok` is always present;
 `error` is a stable code meant for branching, never for showing to a player.
@@ -74,7 +74,7 @@ Open77.exports.call("opx77_menu", "open", spec)
 
 **Returns** [`MenuOpened`](types.md#menuopened) — on success `handle` (unique
 for the life of the client session), `id` (the menu's id, defaulting to your
-resource name) and `items` (how many nodes the whole tree came to, submenus
+resource name) and `nodes` (how many nodes the whole tree came to, submenus
 included).
 
 **Errors — call and ownership**
@@ -93,6 +93,7 @@ included).
 |---|---|
 | `invalid_menu_id` | `spec.id` is not a [valid name](menu-spec.md#names). |
 | `invalid_menu_event` | `spec.event` is not a valid name. |
+| `invalid_status` | `spec.status` is neither a string, a number nor `nil` — a table would sanitise to `nil` and silently *clear* the line, so it is refused instead. |
 | `invalid_menu_data` | `spec.data` is not a table. |
 | `menu_data_too_large` | `spec.data` exceeds 64 value nodes or 4 levels of nesting. |
 | `items_must_be_a_table` | `spec.items`, or a submenu's `items`, is not a table. |
@@ -137,7 +138,7 @@ CreateThread(function()
   if not opened then
     return Open77.log.warn("garage menu refused: " .. tostring(reason))
   end
-  Open77.log.info("menu " .. tostring(opened.handle) .. ", " .. tostring(opened.items) .. " nodes")
+  Open77.log.info("menu " .. tostring(opened.handle) .. ", " .. tostring(opened.nodes) .. " nodes")
 end)
 ```
 
@@ -190,6 +191,7 @@ nothing else on success.
 | Code | Meaning |
 |---|---|
 | `invalid_menu_event` | `spec.event` is not a [valid name](menu-spec.md#names). |
+| `invalid_status` | `spec.status` is neither a string, a number nor `nil`, as on [`open`](#open). |
 | `invalid_menu_data` | `spec.data` is not a table. |
 | `menu_data_too_large` | `spec.data` exceeds 64 value nodes or 4 levels of nesting. |
 | `items_must_be_a_table` | `spec.items`, or a submenu's `items`, is not a table. |
@@ -389,7 +391,8 @@ Open77.exports.call("opx77_menu", "keys")
 
 Takes no arguments.
 
-**Returns** [`MenuResponse`](types.md#menuresponse) with two extra fields:
+**Returns** [`MenuKeys`](types.md#menukeys) — a [`MenuResponse`](types.md#menuresponse)
+with two extra fields:
 
 - backend: `"poll" | "none"`
     - `"poll"` — `Open77.input.isDown` answered and the keyboard is being read

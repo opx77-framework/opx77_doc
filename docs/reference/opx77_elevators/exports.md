@@ -17,9 +17,16 @@ Every call answers a table carrying `ok` and never raises. `error` is a stable
 
 `elevator` is optional everywhere it appears and always defaults to the elevator
 the player is standing at — the nearest configured elevator within `USE_RADIUS`,
-from a sighting no older than two `SCAN_MS` scans. Every answer that has one
-carries the `elevator` key back, so a caller drawing its own panel needs nothing
-else.
+measured **across the ground**, from a sighting no older than two `SCAN_MS`
+scans. Every answer that has one carries the `elevator` key back, so a caller
+drawing its own panel needs nothing else.
+
+!!! info "Standing at an elevator means anywhere in its shaft"
+
+    Reach is decided on `X` and `Y` alone; `Z` is recorded and never compared. A
+    player on the twelfth storey is exactly as close to the panel as one in the
+    lobby, so **an elevator is callable from every floor of its own shaft** and
+    one panel serves the whole thing.
 
 !!! info "Called from another resource, always"
 
@@ -246,8 +253,11 @@ Open77.exports.call("opx77_elevators", "panel", elevator)
 - elevator?: `ElevatorKey`
     - Default: the elevator the player is standing at
 
-**Returns** `table` — `{ ok = true, queued = true, elevator = <key>, floors = <row count> }`
-on a pass; a [`FloorListing`](types.md#floorlisting) refusal otherwise.
+**Returns** a [`FloorDecision`](types.md#floordecision) — on a pass,
+`{ ok = true, queued = true, elevator = <key>, floors = <row count> }`, where
+`floors` is the number of rows the list was built from and rides beside the
+class rather than in it. A refusal is a [`FloorListing`](types.md#floorlisting)
+when the listing itself failed.
 
 **Errors**
 | Code | Meaning |
@@ -284,14 +294,16 @@ end)
 ## nearest {#nearest}
 
 Returns which configured elevator the player is standing at, or `ok = false`
-with `no_elevator_nearby` when none is within `USE_RADIUS`.
+with `no_elevator_nearby` when none is within `USE_RADIUS` across the ground.
 
 ```lua
 Open77.exports.call("opx77_elevators", "nearest")
 ```
 
-**Returns** `table` — `{ ok = true, elevator = <ElevatorKey>, id = <integer|nil> }`.
-`id` is the Open77 elevator id and is present only once the lift is adopted.
+**Returns** an [`ElevatorResponse`](types.md#elevatorresponse) —
+`{ ok = true, elevator = <ElevatorKey>, id = <integer|nil> }`, with `elevator`
+and `id` riding beside the class rather than in it. `id` is the Open77 elevator
+id and is present only once the lift is adopted.
 
 !!! warning "The id is not a name"
 
@@ -303,7 +315,7 @@ Open77.exports.call("opx77_elevators", "nearest")
 | Code | Meaning |
 |---|---|
 | `export_call_required` | No invoking resource, so the call came from inside this VM. |
-| `no_elevator_nearby` | No configured elevator within `USE_RADIUS`, from a sighting no older than two scans. |
+| `no_elevator_nearby` | No configured elevator within `USE_RADIUS` across the ground, from a sighting no older than two scans. |
 
 **Side** `client export` — callable from any resource on the player's machine,
 asynchronous, arguments and answer pass through the runtime's codec.

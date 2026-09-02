@@ -71,8 +71,9 @@ end)
 **What the server does with it.** It believes the shape and nothing else.
 Discovery only proposes immutable topology: the server picks the elevator, the
 bucket and the floor count itself. It checks the reporter is within
-`SCAN_RADIUS` of the position it claims to see, matches the position against
-`config.lua` within `MATCH_RADIUS`, requires the reporter to be in the
+`SCAN_RADIUS` of the position it claims to see — the one distance here still
+measured in three dimensions — matches the position against `config.lua` within
+`MATCH_RADIUS` across the ground, requires the reporter to be in the
 **elevator's** bucket, and prefers the elevator's declared `FLOOR_COUNT` over the
 reported one — logging the mismatch once per elevator. Rate-limited to twelve
 sightings per second per player.
@@ -105,8 +106,8 @@ end)
 **What the server does with it.** Everything listed in
 [What the server does prove](index.md#what-the-server-proves), from its own
 authority: the key, the floor, the adoption, the native floor count, the
-replicated position, the bucket, the distance to the **declared** shaft, and the
-rate limit. Not the job — it has no way to ask.
+replicated position, the bucket, the distance to the **declared** shaft across
+the ground, and the rate limit. Not the job — it has no way to ask.
 
 **Side** `net event` — sent by this resource's client half only, from `use` and
 from the built-in panel.

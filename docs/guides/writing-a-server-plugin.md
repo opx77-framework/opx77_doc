@@ -123,8 +123,6 @@ frozen account.
 --- Listed LAST in open77.lua so that everything it reaches for -- OPX.GetPlayer,
 --- OPX.AddMoney, OPX.SetMetadata, OPX.Hooks -- has already been published.
 
-local log = OPX.Log.scope("bounty")
-
 --- Metadata key. Namespaced, because metadata is one flat table shared with the
 --- core and with every other plug-in on this server.
 local KEY = "bounty.amount"
@@ -169,8 +167,8 @@ RegisterCommand("bounty.set", function(source, args, raw)
 
   OPX.SetMetadata(target, KEY, amount)
 
-  -- The ledger line an operator will be asked about later. OPX.Log is for what
-  -- the code is doing; OPX.Logger is for what happened to somebody's money.
+  -- The ledger line an operator will be asked about later. Open77.log is for
+  -- what the code is doing; OPX.Logger is for what happened to somebody's money.
   OPX.Logger.player(target, "bounty.set", ("set by %s"):format(tostring(source)),
     { amount = amount })
 
@@ -202,7 +200,7 @@ local function payOut(claimant, target)
   local ok, why = OPX.AddMoney(hunter, "EDDIES", amount,
     "bounty:" .. quarry.PlayerData.citizenId)
   if not ok then
-    log.warn(("payout refused: %s"):format(tostring(why)))
+    Open77.log.warn(("[bounty] payout refused: %s"):format(tostring(why)))
     return false, why
   end
 
@@ -228,7 +226,7 @@ OPX.Hooks.register("money:beforeAdd", function(payload)
   end
 end, 100)
 
-log.info("bounty desk ready")
+Open77.log.info("[bounty] desk ready")
 ```
 
 Three things in that file are the whole point of the page: `OPX.GetPlayer` is
@@ -338,6 +336,7 @@ channels that do work, in the direction they work:
 | know whether another resource is up | `GetResourceState("name")` — the only question you may ask it |
 | persist something across a restart | the database, through `OPX.Storage`, or `Open77.state.save` |
 | record what happened | `OPX.Logger.player` / `OPX.Logger.security` |
+| say what the code is doing | `Open77.log.debug` / `.info` / `.warn` / `.error` |
 
 `GetResourceState` deserves the emphasis: it is the *entire* server-side
 inter-resource surface. `opx77_elevators` uses it to warn that the official

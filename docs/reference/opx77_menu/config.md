@@ -98,3 +98,10 @@ produce servers where the menu feels wrong.
 menu from ever taking focus, and `zIndex` 725 is a position in a stack shared
 with the platform's chat (700), its toasts (720) and `open77_admin`'s strip
 (730). None of the three is a preference.
+
+**A locale.** There is no `locales/` directory here and no `LOCALE` key, where
+[`opx77_core`](../opx77_core/index.md) and
+[`opx77_elevators`](../opx77_elevators/index.md) both have one. This resource
+draws the caller's own text, in whatever language the caller chose; the only
+strings it owns are its `Open77.log` lines and its `error` codes, and neither is
+ever shown to a player.
