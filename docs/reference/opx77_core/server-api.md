@@ -498,10 +498,19 @@ local outcome = OPX.Login(source, citizenId)
 **Side** `server` — inside `opx77_core` only. **Yields.** Call it inside a
 `CreateThread`.
 
-Order is the contract, and it is not arbitrary: memberships load before the
-Player is built, the roster entry is made before the client is told, and
-`open77:appearance:setCharacter` is fired before `playerLoaded` so the puppet
-exists by the time anything reacts.
+Order is the contract, and it is not arbitrary: ownership is checked before any
+teardown, memberships load before the Player is built, and the roster entry is
+made before the client is told — so a handler woken by `playerLoaded` finds the
+character already in the roster.
+
+The character's stored face rides along in `PlayerData.appearance` rather than
+being announced separately. The core used to fire an
+`open77:appearance:setCharacter` here; it does not, and it never reached
+anything when it did — a server-side `TriggerEvent` walks the handler table of
+its own VM and no further, and the host fans only its own closed set of names.
+[`opx77_appearance`](../opx77_appearance/index.md) follows the live character on
+the client-local bus instead, which is host-wide and is the only channel that
+can work from here.
 
 It does **not** place the character and does **not** release the readiness gate.
 [`OPX.SelectCharacter`](#selectcharacter) is what does both, in the right order.
@@ -866,10 +875,168 @@ local value = OPX.GetMetadata(identifier, key)
 value is genuinely nil". Resolve the player first if you need to tell them
 apart.
 
+## Appearance {#appearance}
+
+The character's face is `opx77_characters.appearance`, a nullable JSON column,
+and `server/appearance.lua` is the only thing that writes it. It travels inside
+`PlayerData` like any other field of the character, so it is in every event the
+core already publishes.
+
+The capture is not done here. [`opx77_appearance`](../opx77_appearance/index.md)
+is a **client-only** resource: it opens the native customization modal, captures
+a snapshot, and sends it to the core on
+[`opx77:server:saveAppearance`](events.md#saveappearance). The core takes the
+character from the connection, validates the snapshot, writes it and broadcasts
+it. Nothing else may write a face, and there is deliberately no export that
+does: a caller that could hand the framework a snapshot could hand it somebody
+else's.
+
+### OPX.SaveAppearance {#saveappearance}
+
+Validates a captured snapshot, writes it to `opx77_characters.appearance` and
+puts it on `PlayerData.appearance`.
+
+```lua
+local saved = OPX.SaveAppearance(identifier, snapshot)
+```
+
+- identifier: [`Player`](types.md#player)`|`[`Source`](types.md#source)`|`[`CitizenId`](types.md#citizenid)
+- snapshot: `any`
+    - Straight off the wire. Nothing is assumed about it.
+
+**Returns** [`Result`](types.md#result) — the `ok` value is the **canonical**
+snapshot, which is not necessarily the table that was passed in.
+
+**Errors**
+
+| Code | Meaning |
+|---|---|
+| `error.notLoggedIn` | No character resolves from `identifier`. |
+| `appearance.invalid` | The snapshot is not in canonical form. `detail` carries which check failed. |
+| `appearance.tooLarge` | The encoded document is over `SHARED.APPEARANCE.MAX_JSON_BYTES`. `detail` carries the size. |
+| — | Anything the storage layer answers, unchanged. |
+
+**Side** `server` — inside `opx77_core` only. **Yields** — coroutine only.
+
+A snapshot identical to the stored face returns `ok` and writes **nothing**: no
+column is touched, and neither
+[`opx77:client:onAppearanceUpdate`](events.md#onappearanceupdate) nor
+[`opx77:player:appearanceChange`](events.md#internal-appearancechange) is
+raised. A caller waiting on one of those for an unchanged confirm waits forever.
+
+On a real change the column is written immediately rather than at the next
+autosave, `PlayerData.appearance` is replaced, the owning client is sent the new
+snapshot, the internal event is fired and one `appearance.saved` audit line is
+written.
+
+### OPX.GetAppearance {#server-getappearance}
+
+Returns the stored face for a character, online or not.
+
+```lua
+local face = OPX.GetAppearance(identifier)
+```
+
+- identifier: [`Player`](types.md#player)`|`[`Source`](types.md#source)`|`[`CitizenId`](types.md#citizenid)
+
+**Returns** [`Result`](types.md#result) — the `ok` value is an
+[`AppearanceSnapshot`](types.md#appearancesnapshot), or `nil` for a character
+that has never been captured, which is a success and not an error.
+
+**Errors** `error.notLoggedIn` when the identifier is not a citizen id and no
+Player resolves from it. Anything the storage layer answers is passed through
+unchanged.
+
+**Side** `server` — inside `opx77_core` only. **Yields when the character is
+offline** — treat it as coroutine-only.
+
+An online character is answered from the roster with no round trip. An offline
+one is fetched with
+[`OPX.Storage.Players.fetchOne`](#storageplayersfetchone).
+
+### OPX.Appearance.canonical {#appearancecanonical}
+
+Puts a snapshot into canonical form, or says what is wrong with it.
+
+```lua
+local canonical, reason = OPX.Appearance.canonical(value)
+```
+
+- value: `any`
+
+**Returns** [`AppearanceSnapshot`](types.md#appearancesnapshot)`|nil`, and a
+`string|nil` reason when it answered `nil`.
+
+**Side** `server` — inside `opx77_core` only. Does not yield.
+
+Canonical form means: `schemaVersion` is `OPX.Appearance.VERSION`, `gameBuild`
+is a key of `SHARED.APPEARANCE.GAME_BUILDS`, `catalogDigest` is 64 lower-case
+hex characters, `gender` is the engine's `"0x…"` body-family hash, and `options`
+is a dense array of 1 to 256 entries with lower-cased names and no duplicate
+`part:name` pair. Every reason is a diagnostic string for a log, never a locale
+key: `invalid_snapshot`, `unsupported_schema`, `unsupported_game_build`,
+`invalid_catalog_digest`, `invalid_gender`, `invalid_options`,
+`invalid_option_count`, `invalid_option`, `invalid_option_part`,
+`invalid_option_name`, `invalid_option_value`, `invalid_option_choices`,
+`option_out_of_range`, `duplicate_option` and `sparse_options`.
+
+The array is checked twice: `#value.options` stops at the first hole, so the
+first pass only proves the *prefix* is well formed, and a second walk over
+`pairs` is what catches a sparse array before it reaches the codec.
+
+### OPX.Appearance.same {#appearancesame}
+
+Returns whether two canonical snapshots are the same face.
+
+```lua
+if OPX.Appearance.same(left, right) then return end
+```
+
+- left: [`AppearanceSnapshot`](types.md#appearancesnapshot)`|nil`
+- right: [`AppearanceSnapshot`](types.md#appearancesnapshot)`|nil`
+
+**Returns** `boolean` — `false` whenever either side is not a table.
+
+**Side** `server` — inside `opx77_core` only. Does not yield.
+
+This is what makes a confirm that changed nothing free. It compares the build,
+the catalogue digest, the body-family hash and every option's part, name and
+value; `choices` is not compared, because it describes the catalogue rather than
+the choice.
+
+### OPX.Appearance.buildAccepted {#appearancebuildaccepted}
+
+Returns whether a game build is one the core will read a stored face back into.
+
+```lua
+if not OPX.Appearance.buildAccepted(build) then return end
+```
+
+- build: `any`
+
+**Returns** `boolean` — `true` only for a key of
+`OPX.Config.SHARED.APPEARANCE.GAME_BUILDS`.
+
+**Side** `server` — inside `opx77_core` only. Does not yield.
+
+### OPX.Appearance.VERSION {#appearanceversion}
+
+The schema version written into every stored snapshot.
+
+```lua
+OPX.Appearance.VERSION --> 1
+```
+
+**Type** `integer`
+
+A snapshot declaring any other `schemaVersion` is refused with
+`unsupported_schema`. There is no upgrade path between versions: a snapshot is a
+list of positions in a catalogue, and there is nothing to migrate it against.
+
 ## Jobs and gangs {#groups}
 
 A character has **memberships** — every job and gang they belong to, with a
-grade, held in `opx77_player_groups` — and one **primary** job and gang, the
+grade, held in `opx77_character_groups` — and one **primary** job and gang, the
 flattened [`PlayerJob`](types.md#playerjob) and
 [`PlayerGang`](types.md#playergang) that live on `PlayerData` and get paid.
 
@@ -1003,7 +1170,7 @@ local outcome = OPX.AddPlayerToJob(identifier, name, grade)
 **Side** `server` — inside `opx77_core` only. **Yields.**
 
 Joining a group you are already in is a **promotion**, not a duplicate row —
-enforced by the composite primary key on `opx77_player_groups` rather than by
+enforced by the composite primary key on `opx77_character_groups` rather than by
 whichever call site remembered to check.
 
 No client event is fired for a membership change. `PlayerData.jobs` changes, and
@@ -1482,7 +1649,7 @@ local outcome = OPX.CreateCharacter(source, payload)
 | `character.badName` | `firstName` or `lastName` failed [`OPX.ValidateName`](#validatename). `detail` says which. |
 | `character.badOrigin` | `origin` is not a key of `OPX.Origins`. |
 | `error.tooFast` | A 3 000 ms per-source cooldown on the key `create`. |
-| `character.rowLimit` | The account has written as many rows to `opx77_players` as `CHARACTER_ROWS` allows. |
+| `character.rowLimit` | The account has written as many rows to `opx77_characters` as `CHARACTER_ROWS` allows. |
 | `character.limit` | Every configured character slot on the account is taken. |
 | `query-failed` / `no-database` | A read or the insert failed. |
 
@@ -1716,7 +1883,7 @@ local citizenId = OPX.CitizenId.generate(rng)
 !!! warning "Not unique, and not unguessable"
 
     It draws at random and checks nothing. Uniqueness is enforced by the primary
-    key on `opx77_players.citizen_id` — which is why
+    key on `opx77_characters.citizen_id` — which is why
     [`OPX.CreateCharacter`](#createcharacter) retries on a duplicate rather than
     selecting first. And `math.random` is not a secure source, so an id must
     never be treated as a secret.
@@ -1838,9 +2005,11 @@ OPX.NotifyLocale(source, key, params, kind)
 
 - source: [`Source`](types.md#source)
 - key: `string`
-    - A key in the active catalogue. A missing key falls back to `en` and then
-      to the key itself, so the player sees `money.paycheck` rather than
-      nothing.
+    - A key in the active catalogue. It is run through
+      [`OPX.RefusalKey`](#refusalkey) first, so a code the catalogue does not
+      carry is shown as `error.unavailable` rather than raw. A key the catalogue
+      *does* carry but has not translated falls back to `en`, and then to the
+      key itself, so the player sees `money.paycheck` rather than nothing.
 - params?: `table<string, string|number>`
     - Substituted into `{name}` placeholders. An unknown name is left in place
       so a typo is visible.
@@ -1853,28 +2022,66 @@ OPX.NotifyLocale(source, key, params, kind)
 Note that `durationMs` cannot be passed through this form — it always uses the
 5 000 ms default.
 
-### OPX.Refuse {#refuse}
+### OPX.RefusalKey {#refusalkey}
 
-Tells a client a request was refused, carrying a stable code and nothing else.
+Maps a code onto one the catalogue can actually render.
 
 ```lua
-OPX.Refuse(source, code)
+local key = OPX.RefusalKey(code)
+```
+
+- code: `any`
+
+**Returns** `string` — `code` itself when
+[`OPX.Locale.exists`](#localeexists) says the catalogue carries it, and
+`error.unavailable` otherwise, with one warning line naming the code that was
+replaced.
+
+**Side** `server` — inside `opx77_core` only. Does not yield.
+
+Not every code a `Result` carries is a locale key. The storage layer answers
+`query-failed` and `no-database`, and a validator answers `too-short`: those are
+for a log, not for a player. [`OPX.Refuse`](#refuse) and
+[`OPX.NotifyLocale`](#notifylocale) both run their code through this first, so
+neither channel can hand a client a key it cannot render. Call it yourself
+before showing a code through any other path.
+
+### OPX.Refuse {#refuse}
+
+Tells a client a request was refused: which request, a stable code, and nothing
+else.
+
+```lua
+OPX.Refuse(source, code, operation)
 ```
 
 - source: [`Source`](types.md#source)
 - code: `string`
-    - A locale key. The **client** resolves it, so the server sends no text.
+    - A locale key. The **client** resolves it, so the server sends no text. A
+      code the catalogue does not carry is replaced with `error.unavailable` by
+      [`OPX.RefusalKey`](#refusalkey) before it goes out.
+- operation?: `string`
+    - Which request this refusal answers: a value of
+      [`OPX.Operations`](#operations). Omitted, it is sent as `unknown`.
 
 **Returns** nothing.
 
 **Side** `server` — inside `opx77_core` only. Does not yield.
 
 This is the right answer to almost every failed `Result`: the error code of a
-`Result` is already a locale key, so `OPX.Refuse(source, outcome.error)` is the
+`Result` is already a locale key, so
+`OPX.Refuse(source, outcome.error, OPX.Operations.SELECT_CHARACTER)` is the
 whole handler.
 
-It fires `opx77:client:notify` with `{ kind = "error", code = code }`. The
-reason is deliberately not sent. A caller that "helpfully" replaces this with
+**Pass the operation.** Without it a client waiting on one request out of
+several cannot tell which `error.tooFast` is its own — a refusal answering a
+vehicle spawn is not the answer to a captured face still in flight. The
+operation is also part of the dedupe key, so two different requests refused for
+the same reason are two answers rather than one swallowed one.
+
+It fires [`opx77:client:notify`](events.md#notify) with
+`{ kind = "error", code = code, operation = operation }`. The reason is
+deliberately not sent. A caller that "helpfully" replaces this with
 `OPX.Notify(source, "that character belongs to someone else")` has built an
 existence oracle.
 
@@ -2114,7 +2321,7 @@ the runtime id: `Open77.vehicles.create` issues a 64-bit id, and the documented
 policy is that stopping or reloading a resource removes every vehicle it owns —
 so the id is gone every reload while the car is not.
 
-Configuration lives in `config/vehicles.lua` as the global `OPX_VEHICLES`.
+Configuration lives in `config/vehicles.lua` as `OPX.Config.VEHICLES`.
 
 ### OPX.Vehicles.Give {#vehiclesgive}
 
@@ -2508,8 +2715,8 @@ local outcome = OPX.Storage.migrate(migrations)
 
 ### OPX.Schema {#schema}
 
-The core's own migration list: `0001_accounts`, `0002_players`,
-`0003_player_groups`, `0004_vehicles`.
+The core's own migration list: `0001_users`, `0002_characters`,
+`0003_character_groups`, `0004_vehicles`.
 
 ```lua
 OPX.Schema --> Migration[]
@@ -2517,9 +2724,24 @@ OPX.Schema --> Migration[]
 
 **Side** `server` — inside `opx77_core` only.
 
+Each entry carries a `file` naming the `sql/` copy of the same statements —
+`sql/users.sql`, `sql/characters.sql`, `sql/character_groups.sql`,
+`sql/vehicles.sql`. `server/storage/schema.lua` is what actually runs, because
+the server runtime installs no file-reading API; `sql/` is what an operator
+reads. The two are edited together, and
+`python3 tools/check_sql_parity.py` exits non-zero when they drift.
+
 Append-only. A plug-in that needs its own tables should keep its own list and
 call [`OPX.Storage.migrate`](#storagemigrate) with it, rather than appending to
 this one — the core's list is replaced wholesale by an upgrade.
+
+!!! danger "A database from before the renames cannot be upgraded in place"
+    `opx77_accounts`, `opx77_players` and `opx77_player_groups` were renamed
+    **inside** migrations 0001–0003 rather than added as new ones, so a database
+    created earlier keeps the old tables while the code queries the new names.
+    The runner keys on the migration name and will not re-run one it has already
+    recorded. Drop the database and let the runner recreate it: there is no
+    automatic migration path and none is planned.
 
 ### OPX.Storage.Players.fetchAll {#storageplayersfetchall}
 
@@ -2590,9 +2812,35 @@ local outcome = OPX.Storage.Players.save(entity, loggedOut)
 `citizen_id` and `user_id` are **not** in the `SET` list: an update that could
 move a character to another account is how characters get stolen, so the
 statement cannot express it. Neither are `jobs` and `gangs` — those live in
-`opx77_player_groups`, which is their authority.
+`opx77_character_groups`, which is their authority. `appearance` **is** written
+here, so an autosave carries whatever the entity holds; the face is normally
+written the moment it is committed, by
+[`OPX.Storage.Players.saveAppearance`](#storageplayerssaveappearance).
 
 Prefer [`OPX.Save`](#save), which samples the position first.
+
+### OPX.Storage.Players.saveAppearance {#storageplayerssaveappearance}
+
+Writes the `appearance` column, and only that column.
+
+```lua
+local written = OPX.Storage.Players.saveAppearance(citizenId, appearance)
+```
+
+- citizenId: [`CitizenId`](types.md#citizenid)
+- appearance: `table|nil`
+    - A canonical snapshot, already validated. `nil` clears the column, which is
+      what "this character has no stored face" means.
+
+**Returns** [`Result`](types.md#result)
+
+**Side** `server` — inside `opx77_core` only. **Yields.**
+
+Written the moment a face is committed rather than at the next autosave, and
+scoped `WHERE citizen_id = @citizen AND deleted_at IS NULL`, so a soft-deleted
+character cannot be dressed. Called only from
+[`OPX.SaveAppearance`](#saveappearance), which is what validates the snapshot;
+this function does not.
 
 ### OPX.Storage.Players.insert {#storageplayersinsert}
 
@@ -2813,7 +3061,8 @@ local entity = OPX.Storage.Players.toEntity(row)
 Every JSON column gets a default, because a row written by an older core is a
 shape this one has to survive. A column that fails to decode is treated as
 absent rather than fatal: one corrupted character must not stop a server
-booting.
+booting. `appearance` defaults to `nil`, which means "never captured" rather
+than "empty".
 
 ### OPX.Storage.Vehicles {#storagevehicles}
 
@@ -2847,85 +3096,35 @@ a store-and-respawn cycle a free repair of everything else.
 
 Two systems, for two different questions.
 
-- **`OPX.Log`** is for *what the code is doing*: levelled, developer-facing,
-  filtered by `SHARED.LOG_LEVEL`.
+- **`Open77.log`** is for *what the code is doing*: developer-facing, and the
+  host's own logger. `Open77.log.debug`, `.info`, `.warn` and `.error` are
+  called directly, everywhere, on both sides. The **host** owns the level; the
+  framework has no setting for it.
 - **`OPX.Logger`** is for *what an operator will be asked about later* — "who
   took 40 000 eddies out of the Valentinos account on Tuesday". Structured, one
-  shape per line, greppable.
+  shape per line, greppable, and written under the prefix `[audit]`.
 
-Both write to the platform log and nowhere else. The runtime exposes no HTTP
+Both end up in the platform log and nowhere else. The runtime exposes no HTTP
 client and the sandbox removes `io` and `os`, so there is no file and no
 webhook. A Discord relay is not possible from inside the core.
 
-### OPX.Log.scope {#logscope-fn}
+!!! info "`OPX.Log` is gone, and so is `SHARED.LOG_LEVEL`"
+    The core used to wrap `Open77.log` in a levelled `OPX.Log` with a
+    `scope(name)` helper, configured by `LOG_LEVEL` in `config/shared.lua`.
+    `shared/log.lua`, its manifest line, the config key and the `setLevel` calls
+    are all deleted. A plug-in written against `OPX.Log.scope` calls a `nil`
+    field; call `Open77.log.info` directly and put the scope in the message, the
+    way the core's own files do:
 
-Returns a named logger, so a line is attributable without every call site
-repeating its prefix.
+    ```lua
+    Open77.log.info(("[my-plugin] %s joined"):format(citizenId))
+    ```
 
-```lua
-local log = OPX.Log.scope(scope)
-log.info("something happened")
-```
+    `OPX.Logger` is unaffected. It is a different thing and it stays.
 
-- scope: `string`
-    - Rendered as `[scope]` in front of the message.
-
-**Returns** [`LogScope`](types.md#logscope) — a table of `debug`, `info`, `warn`
-and `error`.
-
-**Side** `shared` — both runtimes. Does not yield.
-
-Take one at the top of your file, not per call. Every argument is passed through
-`tostring` and joined with spaces, so a table prints as its address.
-
-### OPX.Log.setLevel {#logsetlevel}
-
-Sets the threshold below which lines are dropped.
-
-```lua
-OPX.Log.setLevel(level)
-```
-
-- level: `"debug"|"info"|"warn"|"error"|"silent"`
-    - Anything unrecognised becomes `"info"`.
-
-**Returns** nothing.
-
-**Side** `shared` — both runtimes. Does not yield.
-
-The core calls this once at boot with `OPX.Config.SHARED.LOG_LEVEL`. It is
-process-wide: a plug-in that raises it raises it for the whole core.
-
-### OPX.Log.level {#loglevel}
-
-Returns the current threshold as a string.
-
-```lua
-local level = OPX.Log.level()
-```
-
-**Returns** `string`
-
-**Side** `shared` — both runtimes. Does not yield.
-
-### OPX.Log.debug {#logdebug}
-
-Writes an unscoped line at one of the four levels, under the prefix `[opx77]`.
-
-```lua
-OPX.Log.debug(...)
-OPX.Log.info(...)
-OPX.Log.warn(...)
-OPX.Log.error(...)
-```
-
-**Returns** nothing.
-
-**Side** `shared` — both runtimes. Does not yield.
-
-For one-off lines that belong to no subsystem. Prefer
-[`OPX.Log.scope`](#logscope-fn) in a plug-in, so your lines are attributable to
-your file.
+**Nothing player-facing goes through `Open77.log`.** A translated string in an
+operator's log makes a support request harder to answer, not easier, so the log
+stays English and the catalogue is for the player.
 
 ### OPX.Logger.log {#loggerlog}
 
@@ -3080,10 +3279,11 @@ local value = OPX.TuneNumber(key, floor)
 ```
 
 - key: `string`
-- floor?: `number`
+- floor: `number`
     - Also the answer for a key with no declaration at all. Returning `nil`
       there would hand every caller a `nil` to compare against a number, which
-      raises at the comparison rather than at the mistake.
+      raises at the comparison rather than at the mistake. Every call site in
+      the core passes one.
 
 **Returns** `number`
 
@@ -3091,7 +3291,9 @@ local value = OPX.TuneNumber(key, floor)
 
 The panel enforces each declaration's `min` and `max`, but a host without
 tunables hands back whatever `config/server.lua` says — so the floor is not
-redundant.
+redundant. The value is tested with
+[`OPX.Math.isFinite`](#isfinite) rather than with a bare NaN check, because an
+infinity passes a NaN test and freezes whichever interval it lands in.
 
 `floor` is a **floor, not a default**: passing `5` does not mean "5 if unset", it
 means "never less than 5".
@@ -3203,7 +3405,7 @@ lets the client resolve it — a key nothing has registered reaches the player r
 
 The shared helpers. All of these are `shared_script`s, so they exist in the
 client VM too — which is why the **Side** on each says `shared`, and why none of
-them touches a platform API beyond what `OPX.Log` wraps.
+them touches a platform API at all.
 
 ### OPX.Result.ok {#resultok}
 
@@ -3592,7 +3794,7 @@ Not functions, but part of the surface.
 
 ### OPX.VERSION {#version}
 
-The core's version string, `"0.2.0"`, matching `open77.lua`.
+The core's version string, `"0.3.0"`, matching `open77.lua`.
 
 ```lua
 OPX.VERSION
@@ -3633,10 +3835,13 @@ on the client.
 ```lua
 OPX.Config.SHARED.MONEY.DEFAULT
 OPX.Config.SERVER.PLAYER.DEFAULT_JOB
+OPX.Config.VEHICLES.PLATE_FORMAT
 ```
 
-**Side** `shared` — `SERVER` is `nil` on a client and `CLIENT` is `nil` on the
-server, so a wrong-side read fails loudly rather than silently answering `nil`.
+**Side** `shared` — `SERVER`, `CLIENT` and `VEHICLES` each exist on one side
+only, so a wrong-side read fails loudly rather than silently answering `nil`.
+`config/vehicles.lua` used to fill a bare global `OPX_VEHICLES`; it fills
+`OPX.Config.VEHICLES` now, and the old name is gone.
 
 !!! danger "`SHARED` is shipped to every client in the signed resource set"
 
@@ -3670,6 +3875,34 @@ TriggerClientEvent(OPX.Events.Client.PLAYER_LOADED, source, playerData)
 Use the constants rather than the literal strings, so a rename is one edit. Every
 name, with its payload and which registration call it needs, is in
 [Events](events.md).
+
+### OPX.Operations {#operations}
+
+The vocabulary of the `operation` argument to [`OPX.Refuse`](#refuse), and the
+third argument of [`opx77:client:refused`](events.md#refused). Each value is
+named after the `opx77:server:*` request that starts it.
+
+```lua
+OPX.Operations.SAVE_APPEARANCE --> "saveAppearance"
+```
+
+| Key | Value |
+|---|---|
+| `ENTRY` | `entry` |
+| `ROSTER` | `ready` |
+| `SELECT_CHARACTER` | `selectCharacter` |
+| `CREATE_CHARACTER` | `createCharacter` |
+| `DELETE_CHARACTER` | `deleteCharacter` |
+| `SAVE_APPEARANCE` | `saveAppearance` |
+| `SPAWN_VEHICLE` | `spawnVehicle` |
+| `STORE_VEHICLE` | `storeVehicle` |
+
+**Side** `shared` — both runtimes.
+
+A **satellite cannot import this table**: it lives in the core's own Lua state,
+and the runtime installs no cross-resource way to read it. A satellite that
+branches on an operation compares the string literal, and the values above are
+where it comes from.
 
 ### OPX.BootError {#booterror}
 

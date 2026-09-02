@@ -156,10 +156,13 @@ generation can be made deterministic in a test.
 
 ### One identity, not two {#character-key}
 
-The grouped citizen id is also the `character_key` that `open77_appearance`
-uses. That is deliberate: one identity instead of two means there is no state in
-which a character's face and their money disagree about who they are. The
-appearance validator accepts `^[%w_.:%-]+$`, which the grouped form satisfies.
+The grouped citizen id is the one key every satellite addresses a character by.
+`opx77_status` keys its `opx77_character_status` rows on it, the core's own
+`appearance` column hangs off the same row, and
+[`opx77_appearance`](../reference/opx77_appearance/index.md) names the character
+it is dressing with it. That is deliberate: one identity instead of two means
+there is no state in which a character's face and their money disagree about who
+they are.
 
 ## Where to go next {#next}
 

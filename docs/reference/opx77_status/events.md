@@ -1,19 +1,151 @@
 ---
 title: opx77_status events
-description: The two local events opx77_status raises back to an effect's owner when it is removed or expires, the payload they carry, and the opx77:status:effects payload opx77_hud draws.
+description: Every event opx77_status sends and receives — the two local events raised back to an effect's owner, the opx77:status:effects and opx77:status:needs payloads opx77_hud draws, and the four net events that carry a character's needs between the two halves.
 ---
 
 # Events
 
-Every event on this page is **non-networked**. It is raised with `TriggerEvent`
-on the client's local bus and received with a bare `AddEventHandler`, and none of
-it needs a permission.
+There are two kinds here, and the split matters.
+
+The **local** events are the resource's public output: an effect being removed or
+expiring, the strip to draw, the needs to draw. They are raised with
+`TriggerEvent` on the client's host-wide bus, received with a bare
+`AddEventHandler`, and none of them needs a permission. If you are integrating
+with `opx77_status`, these are the names you want.
+
+The **networked** events are its two halves talking to each other about where a
+character's needs are stored. They are listed here because a name on the wire is
+part of a resource's surface whether it is meant to be called or not, but you
+should have no reason to raise one.
+
+## The path a character's needs take {#needs-path}
+
+```text
+opx77:client:onPlayerLoaded              (or, on a start mid-session,
+      │                                   opx77_core's GetPlayerData export)
+      ▼
+client takes citizenId, values sit at the config defaults, ready = false
+      │
+      │──TriggerServerEvent("opx77_status:pull", citizenId)──►  server half
+      │                                                              │
+      │                                                     SELECT needs FROM
+      │                                                  opx77_character_status
+      │                                                    (or the defaults)
+      │  ◄──TriggerClientEvent("opx77_status:values", id, values)────┘
+      ▼
+ready = true, and opx77:status:needs fires with source = "loaded"
+      │
+      │  from here the CLIENT owns the values:
+      │    · hunger and thirst decay every DECAY_MS          → source "decay"
+      │    · setNeeds / addNeeds move them                   → source "set"/"add"
+      ▼
+      │──TriggerServerEvent("opx77_status:push", id, values)──►  server half
+      │    every PUSH_MS, or at once when a need moved                │
+      │    PUSH_DELTA                                          held in memory,
+      │                                                        marked dirty
+      │  ◄──TriggerClientEvent("opx77_status:pushed", id)────────────┘
+      ▼
+the drift the push carried is settled; until this arrives it is still counted,
+so a push the server dropped is simply sent again
+
+server writes the held row on onPlayerDisconnected, every AUTOSAVE_MS, and on
+its own onResourceStop — never on the push itself
+```
+
+`opx77:client:onPlayerUnloaded` ends it: the client forgets everything and fires
+[`opx77:status:needs`](#status-needs) once with `source = "unloaded"`.
+
+!!! warning "The disconnect is the one moment the client cannot speak"
+    Nothing is sent from the client at disconnect, so what gets saved is the last
+    push it managed during play. That is the whole reason
+    [`PUSH_DELTA`](config.md#push-delta) exists: it makes a large move — a meal, a
+    payout — reach the server immediately rather than waiting out
+    [`PUSH_MS`](config.md#push-ms).
 
 ## Networked {#networked}
 
-There are none. `opx77_status` registers no net event, sends no
-`TriggerServerEvent`, and has no server half to send anything back. Its manifest's
-`permissions {}` block is empty for exactly this reason.
+Four, all of them internal to this resource, and all of them the reason its
+manifest declares `network.events`. Two travel client to server, two travel back.
+
+| Event | Direction | Carries |
+|---|---|---|
+| [`opx77_status:pull`](#net-pull) | client → server | `citizenId` |
+| [`opx77_status:values`](#net-values) | server → client | `citizenId`, `values` |
+| [`opx77_status:push`](#net-push) | client → server | `citizenId`, `values` |
+| [`opx77_status:pushed`](#net-pushed) | server → client | `citizenId` |
+
+!!! danger "The citizen id and the values are taken at face value"
+    The server half checks the *shape* of an id — one to sixteen characters of
+    upper-case letters, digits and `-` — and clamps every value into the bounds in
+    [`config.lua`](config.md#needs) before it reaches a column. It does **not**
+    check that the connection sending the id owns that character, and it does not
+    re-derive the values from anything. A client that lies is believed. This is
+    the project owner's ruling, stated in the resource's README in the same terms,
+    and not a gap to be worked around by a third-party resource raising these
+    names itself.
+
+### opx77_status:pull {#net-pull}
+
+The client naming the character it wants values for. Raised once when a character
+loads, and again every 10 seconds for as long as the server has not answered.
+
+```lua
+TriggerServerEvent("opx77_status:pull", citizenId)
+```
+
+The server answers [`opx77_status:values`](#net-values), or **says nothing at
+all**. It stays silent when the id is not shaped like one, when the `CREATE TABLE`
+at boot did not succeed, when the read failed, or when this player has already
+sent four pulls in the last ten seconds. There is no refusal payload; the client's
+retry is what covers every one of those cases.
+
+### opx77_status:values {#net-values}
+
+The stored row, or the [configured defaults](config.md#needs) when the character
+has none yet.
+
+```lua
+-- server → this resource's client half
+TriggerClientEvent("opx77_status:values", player, citizenId, values)
+```
+
+An answer whose `citizenId` is not the one the client is currently waiting on is
+dropped, which is what makes a late reply for a character that has already been
+swapped out harmless. Anything the payload leaves out, or gets wrong, falls back
+to that need's `DEFAULT`.
+
+### opx77_status:push {#net-push}
+
+The client handing its values back. Sent every [`PUSH_MS`](config.md#push-ms), at
+once when any need has moved [`PUSH_DELTA`](config.md#push-delta) since the last
+acknowledged push, and forced when this resource stops.
+
+```lua
+TriggerServerEvent("opx77_status:push", citizenId, values)
+```
+
+**Nothing is written to the database here.** The server bounds the values, holds
+them in memory as this player's last push, marks them dirty, and answers
+[`opx77_status:pushed`](#net-pushed). The writes happen elsewhere — see
+[the path above](#needs-path).
+
+A push is dropped in silence when the id is malformed, when the payload is not a
+table, when **not one** of the configured needs came through as a usable number,
+or when this player has already sent twelve pushes in the last ten seconds.
+
+### opx77_status:pushed {#net-pushed}
+
+The acknowledgement, and the only thing that settles a push.
+
+```lua
+-- server → this resource's client half
+TriggerClientEvent("opx77_status:pushed", player, citizenId)
+```
+
+Until it arrives the client still counts the drift that push carried, so a push
+the server dropped for any of the reasons above is sent again on the next tick
+rather than being lost. `TriggerServerEvent` answering `true` only says the event
+left the client.
 
 ## Non-networked (the client local bus) {#non-networked}
 
@@ -21,11 +153,22 @@ The client's local event bus is **host-wide**: a `TriggerEvent` in one client
 resource reaches a plain `AddEventHandler` in another. See
 [The client export contract](../../concepts/export-contract.md#local-bus).
 
+Three fixed names, plus whichever one you choose per effect:
+
+| Event | Raised when |
+|---|---|
+| [`opx77:status`](#opx77-status) | one effect was removed or expired |
+| [your own `spec.event`](#spec-event) | the same, for one effect only |
+| [`opx77:status:effects`](#status-effects) | the strip changed |
+| [`opx77:status:needs`](#status-needs) | a need moved |
+
 !!! warning "Do not name your per-effect event after a wire name"
     A `TriggerEvent` also reaches every `RegisterNetEvent` handler of the same
     name — the dispatcher matches on the name and ignores the network flag. Giving
     an effect an `event` that collides with a networked name you already handle
-    will fire that handler with a status payload it does not expect.
+    will fire that handler with a status payload it does not expect. This resource
+    now has [four wire names](#networked) of its own, so that is no longer a purely
+    hypothetical collision.
 
 ### opx77:status {#opx77-status}
 
@@ -148,3 +291,67 @@ Stopping `opx77_status` publishes one final, **forced**, empty payload on this
 name. The chips live in another resource's page and nothing there knows this
 resource stopped, so without that last publish they would stay on screen for the
 rest of the session.
+
+### opx77:status:needs {#status-needs}
+
+Published whenever a need moves, and once on each end of a character's life. This
+is how a consumer keeps a gauge current: [`opx77_hud`](../opx77_hud/index.md)
+reads the [`needs`](exports.md#needs) export once at boot and redraws from this
+event thereafter, and never polls.
+
+```lua
+AddEventHandler("opx77:status:needs", function(payload) end)
+```
+
+- payload: `table`
+    - `values`: `table` — every key of
+      [`OPX_STATUS_CONFIG.NEEDS`](config.md#needs) with its current number. A
+      fresh copy each time, and **empty** on `"unloaded"`.
+    - `changed`: `string[]` — only the keys whose value actually moved, sorted.
+      Empty on `"unloaded"`; every key on `"loaded"`.
+    - `source`: `string` — why it fired, one of the five below.
+    - `citizenId`: `string | nil` — the character the values belong to, `nil` on
+      `"unloaded"`.
+    - `ready`: `boolean` — whether the server half has answered for this
+      character. `false` only on `"unloaded"`.
+
+| `source` | Raised when |
+|---|---|
+| `loaded` | [`opx77_status:values`](#net-values) arrived and the client adopted it. The first event of a character's life. |
+| `decay` | The decay pass moved at least one need. |
+| `set` | [`setNeeds`](exports.md#setneeds) moved at least one need. |
+| `add` | [`addNeeds`](exports.md#addneeds) moved at least one need. |
+| `unloaded` | `opx77:client:onPlayerUnloaded` fired. The last event of a character's life. |
+
+**Nothing else raises it.** A write that changes no value — setting a need to what
+it already was, or adding to one already at its ceiling — publishes nothing, which
+is why [`setNeeds`](exports.md#setneeds) answers `changed` as well as `ok`.
+
+!!! warning "The name is a config key, and the consumer hard-codes it"
+    This event's name is [`OPX_STATUS_CONFIG.NEEDS_EVENT`](config.md#needs-event),
+    and `opx77_hud` has the literal `"opx77:status:needs"` in its own client code —
+    a satellite cannot read another resource's config. Changing the key therefore
+    stops the HUD's gauges updating, in silence and with nothing logged at either
+    end. There is no reason to change it.
+
+!!! warning "Nothing is raised when this resource stops"
+    The strip gets a [final, forced, empty payload](#status-effects); the needs get
+    no farewell at all. A consumer that wants to blank its gauges has to watch
+    `onClientResourceStop` for `opx77_status` itself, which is what the HUD does.
+
+#### Example {#status-needs-example}
+
+```lua
+-- a client script in your own resource
+AddEventHandler("opx77:status:needs", function(payload)
+  if not payload.ready then
+    -- no character, or the server half has not answered yet: show nothing
+    return
+  end
+  for _, key in ipairs(payload.changed) do
+    if key == "thirst" and payload.values.thirst < 20 then
+      -- warn the player once; `changed` means this really moved
+    end
+  end
+end)
+```

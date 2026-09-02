@@ -9,7 +9,9 @@ description: The three client exports opx77_hud publishes — setVisible, isVisi
 rectangle, not the character drawn in it**: hiding the HUD does not stop it
 following the core, and showing it again does not need a refresh. The third
 reports what became of *Cyberpunk's own* HUD, which this resource turns off at
-boot so that its health bar and clock are not drawn underneath this one.
+boot so that its health bar and clock are not drawn underneath this one. Each
+answers a table carrying `ok` and never raises; the answer shapes are annotated
+in `types.lua`, which is a language-server file and is never loaded at runtime.
 
 !!! info "Read the export contract first"
     There is no `exports.opx77_hud:setVisible()` proxy. The only entry point is

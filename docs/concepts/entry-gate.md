@@ -162,48 +162,59 @@ before any resource's hold. It is not like the others:
 - **No Lua may take or release it.** `hold` and `release` refuse the name with
   `reserved_resource`.
 - **It clears on one thing only:** the client announcing
-  `open77:session:gameplayReady`, which `open77_appearance` emits once it has
-  seen that this world attachment is the *gameplay* one — not the vanilla menu
-  the character creator runs inside — and that the local puppet is attached,
-  alive and above zero health. The resulting `detail` is `incarnated`.
+  `open77:session:gameplayReady`. In this resource set
+  [`opx77_appearance`](../reference/opx77_appearance/index.md) is what sends it,
+  once it has seen that this world attachment is the *gameplay* one — not the
+  vanilla menu the character creator runs inside — that this world entry's face
+  has been settled, and that the announcement has not already gone out. The
+  resulting `detail` is `incarnated`.
 
 That is what makes an open gate worth something. It means "this player is
 incarnated and may be teleported, spawned, killed or respawned", not merely "the
 other resources have finished".
 
-## On a stock OPX//77 install the gate never opens {#never-opens}
+## Without an appearance resource the gate never opens {#never-opens}
 
 The website says: *"A server where nothing participates is a server where the
 gate is always open."* That is true of **resource** holds and false of
 `__platform`.
 
 On a server whose resource set contains nothing that emits
-`open77:session:gameplayReady` — in practice, nothing that ships
-`open77_appearance` — every player's `__platform` hold stands forever. So:
+`open77:session:gameplayReady`, every player's `__platform` hold stands forever.
+So:
 
 - `Open77.ready.isReady(playerId)` is **permanently false**.
 - `onPlayerReady` **never fires**, for anybody, ever.
 - The host logs one `WRN` naming `__platform` per connected player, roughly once
   a minute.
 
-There is no timeout, no fallback and no substitute probe. **A stock OPX//77
-resource set is such a server**, because the eight `opx77_*` resources do not
-include an appearance service.
+There is no timeout, no fallback and no substitute probe.
 
-What to do about it:
+**A stock OPX//77 resource set is not such a server**, because
+[`opx77_appearance`](../reference/opx77_appearance/index.md) ships with it and
+sends the announcement. Stop that resource, or run the set without it, and every
+symptom above comes back.
 
-- **The core is unaffected** and says so at boot. It neither reads `isReady` nor
-  waits on `onPlayerReady`; it holds the gate, loads the character, places them
-  and releases. `server/lifecycle.lua` checks for `open77_appearance` at load and
-  logs a five-line warning when it is absent, because this is otherwise
-  undiagnosable.
-- **Do not build on either signal.** A satellite that parks work behind
-  `Open77.ready.isReady` or resumes it on `onPlayerReady` will hang forever on
-  this install. Use the core's own signals instead — `opx77:client:onPlayerLoaded`
-  on the client, or the release note on the server.
-- **Install an appearance resource** if you want the platform's signal to work.
-  Once something emits `open77:session:gameplayReady`, both come alive with no
-  change to OPX//77.
+`opx77_core/server/lifecycle.lua` checks for it at load — `opx77_appearance`, or
+the official `open77_appearance`, either name satisfies the check — and logs one
+warning when neither is running, because this is otherwise undiagnosable:
+
+```text
+[lifecycle] no resource here emits `open77:session:gameplayReady`, so the
+`__platform` hold never clears and `Open77.ready.isReady` stays false
+```
+
+Two things to know either way:
+
+- **The core is unaffected.** It neither reads `isReady` nor waits on
+  `onPlayerReady`; it holds the gate, loads the character, places them and
+  releases. That is also why a character with no stored face is placed *before*
+  the creator opens — the core's sequence never consulted `Open77.ready`, and no
+  appearance resource has ever gated it.
+- **Prefer the core's own signals anyway.** A satellite that parks work behind
+  `Open77.ready.isReady` or resumes it on `onPlayerReady` hangs on any install
+  where the announcement is missing. `opx77:client:onPlayerLoaded` on the client,
+  or the release note on the server, do not have that failure mode.
 
 ## Placement is kill → respawn {#placement}
 

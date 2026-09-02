@@ -70,6 +70,9 @@ guards `chat:submit`, the message path. Four checks do apply on the way out, all
 | An unclosed `"` or `'` | `The command contains an unterminated quote.` |
 | `/` with nothing after it | `Enter a command after '/'.` |
 
+Those four messages and the `COMMAND` tag above them are catalogue keys, shown here in the
+shipped `en` — see [Player-facing text](index.md#locales).
+
 Quoting works the way a shell's does, so an argument may contain spaces:
 
 ```text
@@ -97,10 +100,12 @@ RegisterNetEvent("chat:submit", function(text) end)
 
 - text: `string`
 
-`opx77_chat` truncates the line to `MAX_LENGTH` with a trailing `...`, replaces control
-characters with spaces, drops it if it is blank or inside the `RATE_MS` floor for that player,
-and rebroadcasts it as `chat:addMessage` to `-1` with `type = "chat"` and an `author` read
-server-side from `Open77.players.name`.
+`opx77_chat` replaces control characters with spaces, truncates the line to `MAX_LENGTH`
+**characters** with a trailing `...`, drops it if it is blank or inside the `RATE_MS` floor for
+that player, and rebroadcasts it as `chat:addMessage` to `-1` with `type = "chat"` and an
+`author` read server-side from `Open77.players.name` — or the catalogue's `player <id>` fallback
+when the host has no name for that connection. The truncation counts characters and not bytes, so it
+never cuts a multi-byte one in half; see [`MAX_LENGTH`](config.md#max-length).
 
 !!! warning "The author is a label, never an identity"
 
@@ -279,12 +284,23 @@ RegisterNetEvent("open77:command:result", function(raw, accepted, message) end)
 
 `opx77_core` wraps sending this as `OPX.CommandResult(source, raw, accepted, message)`, which
 prints to the server console instead when `source` is `0`. Other resources register the name
-as well — `opx77_weather`'s client half logs the ones whose `raw` contains `weather` — so it
-is a shared channel, not a private one.
+as well — `opx77_weather`'s client half logs the ones whose `raw` names one of its own
+configured commands — so it is a shared channel, not a private one.
 
-An accepted message beginning `queued by ` is dropped by the client: the dispatcher
-acknowledges queueing immediately and then sends the useful result, and showing both puts a
-line of noise above every answer.
+An accepted result whose `message` contains `' queued by resource ` is dropped by the client:
+the dispatcher acknowledges queueing immediately and then sends the useful result, and showing
+both puts a line of noise above every answer. Nothing on the payload marks one as the
+acknowledgement — no phase, no flag, and `accepted` is true for both — so the only thing left to
+match on is the platform's own wording, `command '<name>' queued by resource <resource>`. It is
+matched as a substring rather than as a prefix, because the line begins with `command '`.
+
+!!! warning "That filter is a match on somebody else's prose, not a contract"
+
+    `opx77_chat/docs/unknowns.md` records it as such. If the platform rewords the
+    acknowledgement the filter stops matching and the queue line reappears above every answer —
+    cosmetic, and one constant to fix. Do not replace it by counting results or by timing them:
+    `open77:command:result` is not ordered against anything else, and a command that answers
+    nothing at all is normal.
 
 !!! warning "The dispatcher's refusal codes are shown verbatim"
 

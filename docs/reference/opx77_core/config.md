@@ -23,7 +23,7 @@ already hold. That distinction is spelled out at the top of
 |---|---|---|---|
 | `config/shared.lua` | `shared_script` | **yes — every byte** | `OPX.Config.SHARED` |
 | `config/server.lua` | `server_script` | no | `OPX.Config.SERVER` |
-| `config/vehicles.lua` | `server_script` | no | `OPX_VEHICLES` |
+| `config/vehicles.lua` | `server_script` | no | `OPX.Config.VEHICLES` |
 | `config/client.lua` | `client_script` | yes | `OPX.Config.CLIENT` |
 
 !!! danger "`config/shared.lua` goes out in the signed resource set"
@@ -37,8 +37,9 @@ and `OPX.Config.CLIENT` is `nil` on the server, by construction: a wrong-side
 read fails loudly at the point of the mistake instead of silently returning a
 stale default.
 
-`config/vehicles.lua` is the odd one out — it fills a bare global,
-`OPX_VEHICLES`, rather than a field of `OPX.Config`.
+All four fill a field of `OPX.Config`. `config/vehicles.lua` used to fill a
+bare global `OPX_VEHICLES` instead; it does not any more, and a plug-in reading
+that name gets `nil`.
 
 ---
 
@@ -66,7 +67,7 @@ Chooses the language of player-facing text, applied at load; server logs stay
 in English whatever it is set to.
 
 ```lua
-LOCALE = "fr",
+LOCALE = "en",
 ```
 
 **Type** `string` — a catalogue registered in `locales/`. `"en"` and `"fr"`
@@ -77,6 +78,10 @@ ship.
 **Read by** `shared/locale.lua`, which calls `Locale.set` with it at load on
 both sides. Without that call this key would be inert and an operator shipping
 `"fr"` would read English everywhere.
+
+This key covers `opx77_core`'s own catalogue and nothing else. Every satellite
+that renders text of its own carries a second `LOCALE`, in its own `config.lua`
+— see [Locales](#satellite-locales) below.
 
 An unknown code is **accepted**, not rejected: catalogues register after this
 file loads, so there is nothing to check it against yet. Every lookup then
@@ -90,20 +95,30 @@ being read.
 
 ---
 
-## LOG_LEVEL {#shared-log-level}
+## APPEARANCE {#shared-appearance}
 
-Sets the floor below which the core's own log lines are dropped, on both sides.
+Bounds what the core will accept as a stored face.
 
 ```lua
-LOG_LEVEL = "info",
+APPEARANCE = {
+  GAME_BUILDS = { ["2.31"] = true },
+  MAX_JSON_BYTES = 49152,
+},
 ```
 
-**Type** `string` — `"debug"`, `"info"`, `"warn"`, `"error"` or `"silent"`
+**Type** `table` — `GAME_BUILDS` is a set of build strings; `MAX_JSON_BYTES` is
+an integer, measured on the encoded JSON
 
 **File** `config/shared.lua` — shipped to every client
 
-**Read by** `server/main.lua` and `client/main.lua`, each calling
-`OPX.Log.setLevel` at boot.
+**Read by** `server/appearance.lua`, which refuses a snapshot captured on a
+build outside `GAME_BUILDS` with `unsupported_game_build`, and one whose encoded
+document is larger than `MAX_JSON_BYTES` with `appearance.tooLarge`.
+
+A snapshot is a list of positions in the customization catalogue, so it only
+means anything against the catalogue it was captured on. Widening `GAME_BUILDS`
+does not make an old snapshot fit — it only stops the framework saying so. A
+canonical snapshot of the maximum 256 options is far below the byte ceiling.
 
 ---
 
@@ -126,7 +141,7 @@ MONEY = {
 **File** `config/shared.lua` — shipped to every client
 
 !!! danger "The names are durable"
-    A type name becomes a key in the `money` JSON column of `opx77_players`.
+    A type name becomes a key in the `money` JSON column of `opx77_characters`.
     **Adding a type is free. Renaming one orphans every balance already stored
     under the old name** — the money is still in the row, under a key nothing
     reads any more, and the character now starts that type from its configured
@@ -367,76 +382,29 @@ nobody can clock into on an empty server otherwise pays nothing at all.
 
 ---
 
-## NEEDS.TICK_SECONDS {#server-needs-tick-seconds}
+## MONEY.PAYCHECK_TYPE {#server-paycheck-type}
 
-Sets how often hunger and thirst fall.
+Names the money type a salary lands in, and the type its toast names.
 
 ```lua
-NEEDS = {
-  TICK_SECONDS = 300,
+MONEY = {
+  PAYCHECK_TYPE = "BANK",
 },
 ```
 
-**Type** `integer` — seconds
+**Type** `string` — a key of [`SHARED.MONEY.TYPES`](#shared-money-types)
 
 **File** `config/server.lua` — server only, never sent to a client
 
-**Read by** `server/needs.lua`. The tick is wrapped in a `pcall`: one character
-with a malformed metadata row must not stop the decay for everybody else, and
-the loop gets no second chance if it raises.
+**Read by** `server/loops.lua`, once at load: a name that is not a money type on
+this server is warned about at boot and the paycheck falls back to
+[`SHARED.MONEY.DEFAULT`](#shared-money-default), rather than being re-checked on
+every cycle.
 
-Hunger and thirst are `PlayerData.metadata`, which only the core's server VM
-holds. That is why they live here and not in `opx77_status` — a decay loop
-written in a satellite would call a `nil` `OPX` and its own `pcall` would
-swallow the raise. `opx77_status` still owns the effect strip; these two are
-character state.
-
----
-
-## NEEDS.DAMAGE_AT_ZERO {#server-needs-damage-at-zero}
-
-Sets the health lost per tick for each need that is empty; `0` makes needs
-purely cosmetic.
-
-```lua
-NEEDS = {
-  DAMAGE_AT_ZERO = 2,
-},
-```
-
-**Type** `integer` — health points per tick per empty need
-
-**File** `config/server.lua` — server only, never sent to a client
-
-Both needs empty costs twice this per tick. A need at zero stays at zero — this
-is what running out *costs*, not a further drop — and health is never taken
-below zero by it. The core writes it through `SetMetaData`, so the change marks
-the character and the next autosave carries it.
-
----
-
-## NEEDS.hunger.PER_TICK / NEEDS.thirst.PER_TICK {#server-needs-per-tick}
-
-Sets how far each need falls on every tick.
-
-```lua
-NEEDS = {
-  hunger = { PER_TICK = 1.0 },
-  thirst = { PER_TICK = 1.4 }, -- thirst outruns hunger, as in every survival system
-},
-```
-
-**Type** `number` — points per tick, out of the 100 a new character starts with
-
-**File** `config/server.lua` — server only, never sent to a client
-
-The two need names are fixed in `server/needs.lua`; adding a third key here
-adds nothing, because the decay loop iterates its own list. Health is
-deliberately not one of them: the engine owns health, and a need that emptied
-it directly would fight whatever else is writing to it.
-
-At the shipped numbers a full character reaches empty hunger in about eight and
-a third hours of server uptime, and empty thirst in about six.
+`BANK` rather than carried cash, because a salary that lands as `EDDIES` can be
+taken off the body of whoever logged in at the wrong moment. The type is
+substituted into the `money.paycheck` locale line, so the toast names whatever
+this key actually pays into.
 
 ---
 
@@ -491,7 +459,7 @@ from the Warden panel will not move it.
 
 ## CHARACTERS.ROW_CEILING {#server-characters-row-ceiling}
 
-Caps the number of rows one account may ever write to `opx77_players` over its
+Caps the number of rows one account may ever write to `opx77_characters` over its
 whole lifetime.
 
 ```lua
@@ -612,10 +580,6 @@ PLAYER = {
   STARTING_METADATA = {
     health = 100,
     armor = 0,
-    stamina = 100,
-    hunger = 100,
-    thirst = 100,
-    streetCred = 0,
     isDead = false,
     inLastStand = false,
   },
@@ -630,10 +594,17 @@ PLAYER = {
 `server/player.lua`, which fills in any key an older row is missing on load.
 
 Metadata is free-form: a gameplay file that adds its own key has it merged on
-top and it survives every save. Of the keys shipped, `health` and `hunger` and
-`thirst` are written by the core; `armor`, `stamina`, `streetCred`, `isDead`
-and `inLastStand` are stored, published and never written by anything in the
-core — they are agreed names for gameplay files, not features.
+top and it survives every save. The four keys shipped are the four the core
+itself reads: [`OPX.PlaceCharacter`](server-api.md#placecharacter) clamps the
+respawn transaction with the stored `health` and applies `armor` after it, and
+`isDead` and `inLastStand` are stored, published and never written by anything
+in the core.
+
+The gameplay needs are **not** here. `hunger`, `thirst`, `stamina` and
+`streetCred` used to ship in this table and be decayed by the core's own
+`server/needs.lua`; they belong to [`opx77_status`](../opx77_status/index.md)
+now, in its own table, and the core neither seeds nor writes them. `ram` was
+removed outright.
 
 ---
 
@@ -727,8 +698,8 @@ PER_CHARACTER = 8,
 
 **Type** `integer`
 
-**File** `config/vehicles.lua` — server only, never sent to a client. Fills the
-bare global `OPX_VEHICLES`, not `OPX.Config`.
+**File** `config/vehicles.lua` — server only, never sent to a client. Fills
+`OPX.Config.VEHICLES`.
 
 Exceeding it refuses the creation with `vehicle.limit`, carrying the configured
 number as its detail so a UI can say what the limit was.
@@ -792,27 +763,6 @@ player standing against a wall can put a car into it.
 
 ---
 
-## DESPAWN_RADIUS {#vehicles-despawn-radius}
-
-Sets the distance past which an unoccupied vehicle is stored again; `0` never
-stores one.
-
-```lua
-DESPAWN_RADIUS = 0.0,
-```
-
-**Type** `number` — metres, `0` to disable
-
-**File** `config/vehicles.lua` — server only, never sent to a client
-
-!!! warning "Nothing reads this key"
-    Grep the resource and this key has exactly one occurrence: its own
-    definition. No despawn sweep exists in `server/vehicles.lua` as shipped, so
-    setting it to a non-zero value changes nothing. It is a reserved name for
-    the sweep, not a switch.
-
----
-
 ## SAVE_SECONDS {#vehicles-save-seconds}
 
 Sets how often the condition of every vehicle that is currently out is written
@@ -858,76 +808,42 @@ the client controls would not be one.
 
 ---
 
-## CHARACTER.BOOTSTRAP_POLL_MS {#client-bootstrap-poll-ms}
+## Locales, and why there is a second one {#satellite-locales}
 
-Sets how often the bootstrap phase is polled while the character selection
-screen is up.
+[`SHARED.LOCALE`](#shared-locale) chooses the catalogue for `opx77_core`'s own
+player-facing text, and for nothing else. Every satellite in this set that
+renders text of its own carries its own catalogue and its own `LOCALE` key, in
+its own `config.lua`:
 
-```lua
-CHARACTER = {
-  BOOTSTRAP_POLL_MS = 250,
-},
-```
+| Resource | Key | Catalogue |
+|---|---|---|
+| `opx77_core` | `SHARED.LOCALE` in `config/shared.lua` | `locales/en.lua`, `locales/fr.lua` |
+| [`opx77_appearance`](../opx77_appearance/config.md) | `OPX_APPEARANCE_CONFIG.LOCALE` | `locales/` |
+| [`opx77_chat`](../opx77_chat/config.md) | `OPX_CHAT_CONFIG.LOCALE` | `locales/` |
+| [`opx77_elevators`](../opx77_elevators/config.md) | `OPX_ELEVATORS_CONFIG.LOCALE` | `locales/` |
+| [`opx77_hud`](../opx77_hud/config.md) | `OPX_HUD_CONFIG.LOCALE` | `locales/` |
+| [`opx77_weather`](../opx77_weather/config.md) | `OPX_WEATHER_CONFIG.LOCALE` | `locales/` |
 
-**Type** `integer` — milliseconds
+Every one of them ships `"en"`.
 
-**File** `config/client.lua` — client only
+That is a second place to set a language on a server that has already set one,
+and it is deliberate: the core's [`Locale`](exports/client.md#locale) export is
+**client-only and asynchronous**, so a satellite's server half can never call
+it, and a satellite that renders a string at load cannot wait on it either. Each
+resource therefore carries a copy of the core's 63-line `shared/locale.lua`,
+adapted to its own namespace, with the same surface — `register`, `set`,
+`current`, `exists`, `t`, and a `locale(key, params)` shorthand.
 
-!!! warning "Nothing reads this key"
-    `client/character.lua` does not open the character creator and does not
-    poll a bootstrap: `open77_appearance` owns that transaction and it can only
-    be resolved once. This key, `CREATOR_TIMEOUT_MS` and `USE_NATIVE_CREATOR`
-    are reserved names for a selection UI that the framework does not ship —
-    changing them has no effect today. The character flow you have is
-    [`opx77.create`](commands.md) and the core's client exports.
+`opx77_menu`, `opx77_notify` and `opx77_status` ship **no** catalogue and no
+`LOCALE` key. They render nothing of their own: every string they draw was
+handed to them by the resource that called them, in whatever language that
+resource chose.
 
----
-
-## CHARACTER.CREATOR_TIMEOUT_MS {#client-creator-timeout-ms}
-
-Sets how long to wait for the native character creator to hand back a result.
-
-```lua
-CHARACTER = {
-  CREATOR_TIMEOUT_MS = 300000,
-},
-```
-
-**Type** `integer` — milliseconds
-
-**File** `config/client.lua` — client only
-
-!!! warning "Nothing reads this key"
-    As with [`BOOTSTRAP_POLL_MS`](#client-bootstrap-poll-ms), no file in the
-    core reads it. `open77_appearance` owns the creator bootstrap; the core
-    only decides which character is live.
-
----
-
-## CHARACTER.USE_NATIVE_CREATOR {#client-use-native-creator}
-
-Opens Cyberpunk's own character creator for a new character.
-
-```lua
-CHARACTER = {
-  USE_NATIVE_CREATOR = true,
-},
-```
-
-**Type** `boolean`
-
-**File** `config/client.lua` — client only
-
-Opening the native creator needs the `player.appearance.edit` permission in the
-manifest of whichever resource does it. `false` would mean the default body and
-a step of your own.
-
-!!! warning "Nothing reads this key"
-    As with [`BOOTSTRAP_POLL_MS`](#client-bootstrap-poll-ms), no file in the
-    core reads it. The creator belongs to `open77_appearance`, which is also
-    the resource that emits `open77:session:gameplayReady` — see [The entry
-    gate](../../concepts/entry-gate.md) for why a stock install needs it for
-    an unrelated and more urgent reason.
+Error **codes** are not translated anywhere. `not_owner`, `rate_limited`,
+`invalid_status` and the rest are a branching surface for a caller, not text; a
+resource that wants to show one renders it through its own catalogue.
+`Open77.log` lines, console output and the ACL-gated diagnostic commands stay
+English, because they are for the operator reading a server log.
 
 ---
 

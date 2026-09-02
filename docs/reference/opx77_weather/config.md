@@ -1,6 +1,6 @@
 ---
 title: opx77_weather configuration
-description: The keys of OPX_WEATHER_CONFIG in opx77_weather/config.lua — day length, start time, the freeze flags, the weighted weather table and the eight command entries — plus the cadence constants that deliberately are not operator settings.
+description: The keys of OPX_WEATHER_CONFIG in opx77_weather/config.lua — the locale, day length, start time, the freeze flags, the weighted weather table and the eight command entries — plus the cadence constants that deliberately are not operator settings.
 ---
 
 # Configuration
@@ -23,7 +23,37 @@ so which of these takes effect depends on the key:
 |---|---|
 | [`WEATHER`](#weather) | Yes — the table is rebuilt from the file. The live *preset* is still the carried one, and a bag naming a row you deleted is refused whole, which sends everything back to this file. |
 | [`COMMANDS`](#commands) | Yes — the new VM registers the names in the file. |
+| [`LOCALE`](#locale) | Yes — the new VM re-reads the file and applies the code at load. |
 | [`DAY_LENGTH_MINUTES`](#day-length-minutes), [`START_TIME`](#start-time), [`TIME_FROZEN`](#time-frozen), [`WEATHER_FROZEN`](#weather-frozen), [`INITIAL_WEATHER`](#initial-weather) | No — these describe how the authority *boots*, and a reload does not boot it. Restart for these. |
+
+## LOCALE {#locale}
+
+Which catalogue in `locales/` player-facing text is read from.
+
+```lua
+LOCALE = "en",
+```
+
+**Type** `string` — a code registered in `locales/`. `en` and `fr` ship.
+
+`shared/locale.lua` calls `Locale.set` with this value at load, on both sides, which is what
+makes the key do anything at all. An unknown code is **accepted** rather than refused: the
+catalogues register after that file loads, so there is nothing to check it against yet. Every
+lookup then falls back to `en`, and then to the key itself — an untranslated string shows the
+player its raw key, which is the visible failure rather than the silent one.
+
+It reaches only the text a player is shown: the status line and the preset list in chat, the
+refusal sentences, the `usage:` lines and the chat completion help. **Server logs, the answer a
+command run from the server console gets, the `reason` on a snapshot and the `error` codes on
+[`getState`](exports.md#getstate) stay English** — a code is a branching surface, not a sentence
+to read.
+
+To add a language, copy `locales/en.lua` to `locales/<code>.lua`, change the code in the
+`register` call and translate the values, then add `shared_script "locales/<code>.lua"` to
+`open77.lua` beside the others, above every file that renders a string. Keys are named
+`weather.<thing>` and substitute `{placeholder}` parameters; a placeholder with no value is left
+written as it stands, and a key missing from your file falls back to `en` rather than
+disappearing.
 
 ## DAY_LENGTH_MINUTES {#day-length-minutes}
 
@@ -41,9 +71,15 @@ rate is capped at `120.0`, which refuses anything under **12 real minutes a day*
 past the drift tolerance at that speed would be jumping the world continuously instead of
 running it.
 
-An unusable value here falls back to a rate of `8.0` at boot without stopping the resource. The
-same value set at runtime with [`/opx77.weather.daylength`](commands.md#day-length) is refused
-instead, with `invalid_day_length` or `day_too_short`.
+An unusable value here falls back to a rate of `8.0` at boot without stopping the resource, and
+says which of the two bounds it failed:
+
+```text
+DAY_LENGTH_MINUTES '5' refused (day_too_short); starting on 180
+```
+
+The same value set at runtime with [`/opx77.weather.daylength`](commands.md#day-length) is
+refused instead, with `invalid_day_length` or `day_too_short`.
 
 ## START_TIME {#start-time}
 
@@ -170,7 +206,8 @@ still loads:
 | `MIN_SECONDS` missing or unusable | Falls back to `300`, floored at `1` |
 | `MAX_SECONDS` below `MIN_SECONDS` | Raised to `MIN_SECONDS` |
 | `WEIGHT` missing or unusable | Falls back to `0` — the row can be set, never rolled |
-| `TRANSITION_SECONDS` missing | Falls back to `20` |
+| `TRANSITION_SECONDS` missing or unusable | Falls back to `20` |
+| `TRANSITION_SECONDS` outside `0..300` | Clamped into it, because a row above the bound a client validates against would have every snapshot refused |
 
 !!! warning "An empty table leaves the resource running and degraded"
 
@@ -252,6 +289,8 @@ that reason.
 | `MIN_REQUEST_MS` | `1000` | Floor between two sync requests from the same player |
 | `INITIAL_WEATHER_SECONDS` | `180` | How long the boot preset holds before the first roll |
 | `WEATHER_PRIORITY` | `5` | The priority `setWeather` is submitted at |
+| `MAX_TRANSITION_SECONDS` | `300` | The longest crossfade either half accepts, and what a configured row is clamped to |
+| `Clock.MAX_MAGNITUDE` | `2^53` | The widest magnitude a carried or wire number may hold; past it `%d` has no integer form |
 | `Clock.MAX_RATE` | `120.0` | The fastest clock a client can be asked to follow |
 
 !!! warning "Editing these changes the wire, not a setting"

@@ -357,8 +357,9 @@ OPX.Hooks.register("paycheck:before", function(payload) end)
 **Side** `server` — inside `opx77_core` only. Must not yield.
 
 There is no `moneyType` and no `reason` on this payload. The credit that follows
-goes into `BANK` — a salary landing as carried cash can be taken off the body of
-whoever logged in at the wrong moment — and it goes through
+goes into whatever [`SERVER.MONEY.PAYCHECK_TYPE`](config.md#server-paycheck-type)
+names — `BANK` as shipped, because a salary landing as carried cash can be taken
+off the body of whoever logged in at the wrong moment — and it goes through
 [`OPX.AddMoney`](server-api.md#addmoney), so **`money:beforeAdd` runs too**, with
 `reason` set to `"paycheck:<job name>"`. A hook registered at both points will
 see every paycheck twice, from two different angles.
@@ -378,8 +379,6 @@ character flagged `frozen` cannot spend from the bank.
 ```lua
 -- opx77_core/server/economy_rules.lua
 -- listed in opx77_core/open77.lua below server/player.lua
-local log = OPX.Log.scope("economy")
-
 local CEILING = 10000000
 
 -- low priority: it is cheap, and refusing here saves the checks below
@@ -389,7 +388,7 @@ OPX.Hooks.register("money:beforeAdd", function(payload)
   if held + payload.amount <= CEILING then return end
 
   -- logged here, because "money.vetoed" tells the caller nothing
-  log.warn(("ceiling refused %d %s for %s (%s)"):format(
+  Open77.log.warn(("[economy] ceiling refused %d %s for %s (%s)"):format(
     payload.amount, payload.moneyType,
     payload.player.PlayerData.citizenId, tostring(payload.reason)))
   return false

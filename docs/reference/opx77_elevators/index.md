@@ -18,7 +18,7 @@ Everything awkward about this platform shows up here in eighty lines.
 
 | At a glance | |
 |---|---|
-| **Version** | `0.2.0` |
+| **Version** | `0.3.0` |
 | **Requires** | `open77_version ">=0.0.1"`. No `dependency` is declared |
 | **Auto start** | yes |
 | **Reload policy** | `local` — no CEF surface; the server re-adopts from the next client sighting |
@@ -75,21 +75,26 @@ On every floor request the server re-derives:
 | The index is inside the native device's own floor count | `floor_out_of_range` |
 | The player has a replicated position at all | `no_position` |
 | The player is in the elevator's routing bucket | `wrong_bucket` |
-| The player is within `USE_RADIUS` of the **declared** shaft position | `too_far` |
+| The player is within `USE_RADIUS` of the **declared** shaft position, across the ground | `too_far` |
 | The player is inside the rate limit | `rate_limited` |
 | The host accepted the move | `move_rejected` |
 
-Distance is measured against the declared shaft position, never the cabin's: a
-cabin parked at the top of the shaft is thirty metres from the player standing
-at the ground-floor panel, who is exactly the person allowed to call it.
+Distance is measured against the declared shaft position, never the cabin's,
+and it is measured **across the ground**: `X` and `Y` decide reach, and `Z` is
+recorded and never compared. A cabin parked at the top of the shaft is thirty
+metres from the player standing at the ground-floor panel, who is exactly the
+person allowed to call it — and the player on the twelfth storey is exactly as
+close to the panel as the one in the lobby, because an elevator is callable from
+every floor of its own shaft.
 
 !!! warning "The residual, exactly"
 
     A modified client reaches **the configured floors of an elevator it is
-    standing at**, and not the whole shaft. It cannot reach a floor no
-    `config.lua` entry declares, a lift in another bucket, a lift across the map,
-    or a lift this resource never adopted. It can reach a gated floor of the lift
-    it is standing next to. Design as though it will.
+    standing at**, at any height inside that shaft's footprint. It cannot reach
+    a floor no `config.lua` entry declares, a lift in another bucket, a lift
+    across the map, or a lift this resource never adopted. It can reach a gated
+    floor of the lift it is standing next to, from any storey of it. Design as
+    though it will.
 
 ## What a satellite can and cannot prove {#satellite-lesson}
 
@@ -117,6 +122,9 @@ is not a satellite — it is a file in `opx77_core/server/`.
 | File | Does |
 |---|---|
 | `config.lua` | shared. The elevators, the floors, the job requirements, the radii |
+| `shared/text.lua` | shared. `Text.span` and `Text.clean`, which measure and cut in characters |
+| `shared/locale.lua` | shared. The catalogue, and the `locale(key, params)` every file below it calls |
+| `locales/en.lua`, `locales/fr.lua` | shared. The player-facing text, keyed `elevators.<thing>` |
 | `shared/access.lua` | shared, pure. The gate: which floor, which job, which grade, how stale |
 | `client/state.lua` | what this client knows and how old each piece of it is |
 | `client/main.lua` | the link to `opx77_core`, the scan, the net events, the runtime API |
@@ -169,7 +177,8 @@ permissions {
   channel, and everything this resource listens to.
 - [Commands](commands.md) — the ACL-restricted diagnostic command.
 - [Configuration](config.md) — every key of `OPX_ELEVATORS_CONFIG` with its
-  shipped default, and how to configure an elevator.
+  shipped default, how to configure an elevator, and where the player-facing
+  text lives.
 - [Types](types.md) — the shapes the exports answer with.
 
 ## See also {#see-also}

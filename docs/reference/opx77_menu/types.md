@@ -158,7 +158,7 @@ which fields are populated depends on the action.
 ## MenuResponse {#menuresponse}
 
 The envelope every export answers. No export ever raises, so this table — or
-one of the two that extend it — is always what you get.
+one of the three that extend it — is always what you get.
 
 **Fields**
 
@@ -167,7 +167,7 @@ one of the two that extend it — is always what you get.
 
 [`status`](exports.md#status), [`update`](exports.md#update) and
 [`close`](exports.md#close) answer this shape exactly.
-[`keys`](exports.md#keys) answers it with `backend` and `keys` added.
+[`keys`](exports.md#keys) answers [`MenuKeys`](#menukeys).
 
 ## MenuOpened {#menuopened}
 
@@ -179,7 +179,19 @@ Extends [`MenuResponse`](#menuresponse)
 
 - handle?: [`MenuHandle`](#menuhandle) — the new menu's handle. Absent on failure.
 - id?: `string` — the menu's id, which is your resource name unless the spec named one.
-- items?: `integer` — how many nodes the whole tree came to, submenus and separators included. Compare it against the 400-node ceiling if you build menus from data.
+- nodes?: `integer` — how many nodes the whole tree came to, submenus and separators included. Compare it against the 400-node ceiling if you build menus from data.
+
+## MenuKeys {#menukeys}
+
+What [`keys`](exports.md#keys) answers. It never fails, so `ok` is always `true`
+and `error` is never set.
+
+Extends [`MenuResponse`](#menuresponse)
+
+**Fields**
+
+- backend: `string` — `"poll"` while the keyboard is being read, `"none"` when it cannot be read at all.
+- keys: `table<string, string>` — action name to the key that drives it, upper-cased. Empty under the `"none"` backend.
 
 ## MenuState {#menustate}
 

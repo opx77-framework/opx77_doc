@@ -21,12 +21,13 @@ ACL entry, and the load-order rule that decides whether anything works at all.
 - A MySQL-compatible database, for `opx77_core`. Without one, `OPX.Storage`
   degrades to a pair of logged errors and a refusal to log anybody in — the rest
   of the server still boots.
-- **A resource that emits `open77:session:gameplayReady`.** In practice that is
-  the platform's own `open77_appearance`. It is not part of OPX//77 and OPX//77
-  does not declare it as a dependency, but without it the platform's readiness
-  gate never opens for anybody. [What that costs](#the-appearance-requirement) is
-  below, and the mechanism is set out in
-  [The entry gate](../concepts/entry-gate.md).
+- **A resource that emits `open77:session:gameplayReady`.** `opx77_appearance`
+  ships with OPX//77 and is that resource, so a full install already satisfies
+  this. Nothing declares it as a dependency, and without it — or without the
+  platform's own `open77_appearance`, which the core's boot check also accepts —
+  the platform's readiness gate never opens for anybody.
+  [What that costs](#the-appearance-requirement) is below, and the mechanism is
+  set out in [The entry gate](../concepts/entry-gate.md).
 
 Every OPX//77 resource declares `open77_version ">=0.0.1"` and `auto_start true`.
 
@@ -46,7 +47,8 @@ open77-server/
     ├── opx77_status/
     ├── opx77_notify/
     ├── opx77_weather/
-    └── opx77_elevators/
+    ├── opx77_elevators/
+    └── opx77_appearance/
 ```
 
 !!! danger "Do not put anything else in `resources/`"
@@ -127,15 +129,26 @@ to be enabled:
     An explicit `connectionString` key still wins when both are present, for
     operator overlays and containers. Prefer a local-only account.
 
-Every resource holding `database.access` talks to the same database with the same
-credential — there is no per-resource schema or table prefix. All `opx77_core`
-tables are prefixed `opx77_`.
+Two resources hold `database.access`: `opx77_core`, for the character, and
+`opx77_status`, for the one table it owns. They talk to the same database with
+the same credential — there is no per-resource schema or table prefix — and
+every table either creates is prefixed `opx77_`. Each applies its own schema at
+boot; `opx77_core/sql/` and `opx77_status/sql/` hold the statements in a form an
+operator can read and run by hand.
+
+!!! danger "There is no upgrade path from an older database"
+    The core's character tables were renamed inside their original migrations,
+    so a database created before this release keeps `opx77_accounts`,
+    `opx77_players` and `opx77_player_groups` while the code queries
+    `opx77_users`, `opx77_characters` and `opx77_character_groups`. Drop it and
+    let the runner recreate it. See
+    [Persistence](../concepts/persistence.md#schema).
 
 If the database is missing or unreachable, `opx77_core` logs
 
 ```text
-no database: <reason>
-the core will boot, but nobody can be logged in until this is fixed
+[storage] no database: <reason>
+[storage] the core will boot, but nobody can be logged in until this is fixed
 ```
 
 and carries on with every login refused. See
@@ -143,7 +156,7 @@ and carries on with every login refused. See
 
 ## 3. Staff commands and the ACL {#acl}
 
-Twenty-four commands are registered across the eight resources. Sixteen of them
+Twenty-four commands are registered across the nine resources. Sixteen of them
 pass `true` as the third argument to `RegisterCommand`, which makes them
 **restricted**: the host resolves `command.<name>` against the caller's ACL
 *before* the resource's handler runs, so there is no permission check inside any
@@ -287,9 +300,11 @@ Keep this list credential-free too.
 Every player who joins arrives holding a platform hold called `__platform`. No
 Lua may take it and no Lua may release it, it carries no deadline, and it clears
 on exactly one thing: the client sending the net event
-`open77:session:gameplayReady`. On a stock OPEN//77 server that event comes from
-`open77_appearance`, once it has seen that the local puppet is attached, alive
-and past the "press any key to continue" screen.
+`open77:session:gameplayReady`. In this resource set that event comes from
+[`opx77_appearance`](../reference/opx77_appearance/index.md), once it has seen
+that this world attachment is the gameplay one — not the vanilla menu the
+character creator runs inside — and that this world entry's face has been
+settled.
 
 If nothing on your server emits it, the readiness gate never opens for anybody:
 `Open77.ready.isReady` stays `false` for the whole session, `onPlayerReady` never
@@ -301,19 +316,16 @@ fires, and the host logs one WRN naming `__platform` per connected player every
 for the resource at boot and says so:
 
 ```text
-no resource here emits `open77:session:gameplayReady`
-  so the platform's own `__platform` hold never clears: the readiness gate
-  never opens, `Open77.ready.isReady` is permanently false and the
-  `onPlayerReady` handler in server/events.lua can never fire. The core is
-  unaffected -- it reads neither -- but do not build on either of them, and
-  expect one host WRN naming __platform per connected player.
+[lifecycle] no resource here emits `open77:session:gameplayReady`, so the
+`__platform` hold never clears and `Open77.ready.isReady` stays false
 ```
 
-Install `open77_appearance` alongside OPX//77 unless you have another resource
-emitting that event. If you cannot, do not write any resource that waits on
-`Open77.ready.isReady` or on `onPlayerReady`, because on your server they will
-wait for ever. [The entry gate](../concepts/entry-gate.md) explains the whole
-mechanism, including the hold `opx77_core` takes on top of it.
+The check accepts either `opx77_appearance` or the official
+`open77_appearance`, so running one of them is enough. If you run neither, do
+not write any resource that waits on `Open77.ready.isReady` or on
+`onPlayerReady`, because on your server they will wait for ever.
+[The entry gate](../concepts/entry-gate.md) explains the whole mechanism,
+including the hold `opx77_core` takes on top of it.
 
 ## 5. Reload policy {#reload-policy}
 
@@ -321,7 +333,7 @@ Each resource declares how a reload should be handled:
 
 | Policy | Resources | Why |
 |---|---|---|
-| `local` | `opx77_core`, `opx77_weather`, `opx77_elevators` | A reload is a script reload, not a reconnect. `opx77_weather` hands its live state to the host and keeps the sky; `opx77_elevators` re-adopts lifts from the next client sighting. |
+| `local` | `opx77_core`, `opx77_weather`, `opx77_elevators`, `opx77_appearance` | A reload is a script reload, not a reconnect. `opx77_weather` hands its live state to the host and keeps the sky; `opx77_elevators` re-adopts lifts from the next client sighting; `opx77_appearance` re-reads the face from `PlayerData` and keeps nothing across one. |
 | `reconnect` | `opx77_menu`, `opx77_hud`, `opx77_status`, `opx77_chat`, `opx77_notify` | A generation change or a CEF surface that is never replaced in place needs a clean reconnect. |
 
 ## 6. Configuration {#configuration}
@@ -330,16 +342,22 @@ Each resource declares how a reload should be handled:
 
 | File | Scope |
 |---|---|
-| `config/shared.lua` | values both sides need — **shipped to every client, never put a secret in it** |
+| `config/shared.lua` | values both sides need, the language and the appearance limits — **shipped to every client, never put a secret in it** |
 | `config/server.lua` | slots, autosave, paychecks, entry deadlines |
+| `config/vehicles.lua` | plate format, per-character ceiling, spawn offset |
 | `config/client.lua` | client cadences — never loaded by the server VM |
 
 Anything an operator may want to change mid-session is a **tunable** instead and
 lives in `server/tunables.lua`, editable from the Warden operator panel without a
 restart.
 
-The satellites each have a single `config.lua`. Every key of every file is listed
-under [Reference](../reference/index.md).
+The satellites each have a single `config.lua`. Five of them —
+`opx77_appearance`, `opx77_chat`, `opx77_elevators`, `opx77_hud` and
+`opx77_weather` — carry their own locale catalogue in `locales/` and their own
+`LOCALE` key, because a satellite cannot read the core's: that export is
+client-only and asynchronous, and a satellite's server half can never call it.
+`LOCALE` ships `"en"` everywhere, `opx77_core` included. Every key of every file
+is listed under [Reference](../reference/index.md).
 
 ## 7. Check it came up {#check-it-came-up}
 
@@ -348,7 +366,7 @@ failures are logged rather than thrown:
 
 - `opx77_core` with no database: three ERR lines — two from `[storage]`, one
   from `[core]` — and every login refused.
-- `opx77_core` with no `open77_appearance`: six WRN lines, and a permanently
+- `opx77_core` with no appearance resource: one WRN line, and a permanently
   closed readiness gate. See [above](#the-appearance-requirement).
 - `opx77_hud` with no core running: one log line, not a broken screen.
 - `opx77_elevators` with no `opx77_menu`: one log line; the exports still work

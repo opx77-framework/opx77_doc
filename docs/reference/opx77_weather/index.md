@@ -10,7 +10,7 @@ is doing; every client is told, and applies it.
 
 | At a glance | |
 |---|---|
-| **Version** | `0.1.0` |
+| **Version** | `0.2.0` |
 | **Requires** | `open77_version ">=0.0.1"`. Nothing else in OPX//77 |
 | **Auto start** | yes |
 | **Reload policy** | `local` — the live authority is carried across a reload. See [below](#carried-state) |
@@ -19,6 +19,7 @@ is doing; every client is told, and applies it.
 | **Exports** | one, client-side and read-only — see [Exports](exports.md) |
 | **Commands** | eight — six ACL-gated, two open. See [Commands](commands.md) |
 | **Events** | one snapshot outward, one request inward, and **no mutation event** — see [Events](events.md) |
+| **Locales** | `en` and `fr`; [`LOCALE`](config.md#locale) picks one. Logs stay English — see [below](#locales) |
 | **Conflicts with** | `open77_weather`, the official package it replaces. See [below](#official-package-conflict) |
 
 ## What it is {#what-it-is}
@@ -75,10 +76,18 @@ because its revision counter started again at 1 and comparing it against the pre
 generation's would refuse every genuine snapshot. Within one epoch, a lower revision is
 refused as `stale`.
 
-Before any of that the snapshot is validated whole: a wrong `protocol`, a non-integer or
-out-of-range epoch or revision, a `secondsOfDay` outside `0..86399`, a NaN or a rate past
-`Clock.MAX_RATE`, an empty preset string, or a transition outside `0..300` seconds is rejected
-as `invalid_snapshot` and nothing is applied.
+Before any of that the snapshot is validated whole, field by field: a wrong `protocol`, a
+non-integer or out-of-range epoch or revision, a `secondsOfDay` outside `0..86399`, a rate
+outside `0 < rate <= Clock.MAX_RATE`, a freeze flag that is not a boolean, an empty `weather` or
+`weatherPreset`, a non-integer `weatherPriority`, a transition outside `0..300` seconds, a
+remaining transition outside `0..300000` ms, a `nextRollInMs` that is present and negative, or a
+`reason` that is not a string. Any one of them and the **whole** snapshot is rejected as
+`invalid_snapshot`, with nothing applied.
+
+Every number there is tested with `Clock.finite`, which is one test standing in for three
+mistakes: a NaN sits *inside* every bound written above, an infinity sits outside all of them,
+and `% 1 ~= 0` cannot see a non-integer past 2⁵³. A NaN through that gate would hold the clock
+silently; an infinity would raise out of the first `%d` that reached it.
 
 ### Latency compensation {#latency}
 
@@ -140,6 +149,10 @@ drives.
   [`getState`](exports.md#getstate) then answers `environment_unavailable` rather than raising.
 - **With no usable preset row**, the authority reports `ready = false`, every weather mutation
   answers `no_presets`, and the status line carries a `DEGRADED` marker. The clock still runs.
+- **A loop slice that raises does not end its loop.** Every slice runs inside
+  `OpxWeather.guarded`, which `pcall`s it and logs `<label> slice failed: …` at warn level. A
+  raise from a host call inside a bare `CreateThread` ends that loop for the rest of the
+  session, which is the failure this exists to prevent.
 
 ## Reload keeps the sky {#carried-state}
 
@@ -201,13 +214,17 @@ back to noon.
 | `PROTOCOL` is not the current one | The wire shape changed across the reload. |
 | The carried preset is no longer configured | Somebody edited `config.lua` between the generations. |
 | Any carried number is not a finite number | A NaN anchor would freeze the clock silently. |
-| `authorityEpoch` is missing or negative | It orders every snapshot; a bad one latches clients off. |
-| `revision` or `weatherRevision` is below 1 | Both start at 1 and only ever climb. |
+| `authorityEpoch` is missing, negative or not a whole number | It orders every snapshot; a bad one latches clients off. |
+| `revision` or `weatherRevision` is below 1, or not a whole number | Both start at 1, climb by one, and reach a `%d`. |
 | `rate` is `<= 0`, or above `Clock.MAX_RATE` | The same ceiling the wire enforces — a bag can outlive the build whose bound was wider. |
+| `transitionSeconds` is outside `0..300` | Also the wire's own bound: a wider carried crossfade would have every snapshot refused. |
 
-Any of those and it boots from `config.lua` instead, with a warning naming what was wrong. The
-carried anchor is kept as-is rather than rebased, because `anchorMs` comes from the host's
-monotonic clock, which is process-wide and does not restart with the VM.
+Any of those and it boots from `config.lua` instead. The protocol mismatch, the preset that is
+no longer configured and the field that is not a finite number each name themselves in a
+warning; the bounds below them refuse silently. The carried anchor is kept as-is rather than
+rebased, because
+`anchorMs` comes from the host's monotonic clock, which is process-wide and does not restart
+with the VM.
 
 !!! warning "Save when state changes, never from a stop handler"
 
@@ -219,6 +236,29 @@ monotonic clock, which is process-wide and does not restart with the VM.
 
 A **restart** carries nothing: the state returns to `config.lua` with a fresh epoch, which
 every client adopts outright.
+
+## Player-facing text {#locales}
+
+Every sentence a player is shown comes from a catalogue in `locales/`, and
+[`LOCALE`](config.md#locale) in `config.lua` picks which one. `en` and `fr` ship.
+`shared/locale.lua` is the catalogue itself and publishes one global, `locale(key, params)`,
+which every file listed below it in `open77.lua` uses. A key missing from the chosen catalogue
+falls back to `en`, and then to the key itself.
+
+The surface is the whole of what a **player** gets back: the status line and the preset list a
+[command](commands.md) answers with, the refusal sentences, the `usage:` lines and the chat
+completion help. Nothing else moves. Server logs, the answer the server console gets, the
+`reason` on a snapshot and the `error` codes on [`getState`](exports.md#getstate) are English,
+because a code is what integrating code branches on rather than something a player reads.
+
+The two nearly meet in one place, and deliberately do not. The client half mirrors this
+resource's own [`open77:command:result`](events.md#open77-command-result) answers into the
+operator log, and the `message` on that event is the player's translated text — so the mirror
+logs the fact instead, in English:
+
+```text
+command answered: opx77.weather.set (accepted)
+```
 
 ## Permissions {#permissions}
 
@@ -235,8 +275,8 @@ them. `world.environment` is what the client half needs to write the sky and the
 
 **`world.environment` is client-side only.** `Open77.environment.*` does not exist in the
 server runtime; the authority never touches the sky, it only describes it. The client half
-checks the natives are actually present before loading anything else, because every function
-below that point would otherwise be a call into `nil`.
+checks all six are actually present before loading anything else, because every function below
+that point would otherwise be a call into `nil`.
 
 **And only this resource should hold it.** The environment is a single global and the last
 writer wins. Two resources holding `world.environment` and writing the weather fight each

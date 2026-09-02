@@ -1,6 +1,6 @@
 ---
 title: opx77_chat configuration
-description: The six keys of OPX_CHAT_CONFIG in opx77_chat/config.lua — where the box sits, how wide it is, how much it keeps, how long lines stay visible, and the two limits on what a player may send.
+description: The seven keys of OPX_CHAT_CONFIG in opx77_chat/config.lua — where the box sits, how wide it is, how much it keeps, how long lines stay visible, the two limits on what a player may send, and the locale its own text is read from.
 ---
 
 # Configuration
@@ -8,9 +8,10 @@ description: The six keys of OPX_CHAT_CONFIG in opx77_chat/config.lua — where 
 Everything below lives in `opx77_chat/config.lua`. **The value shown in each fence is the
 shipped default**, so a key you never touch behaves exactly as written here.
 
-`config.lua` is listed as both a `client_script` and a `server_script`, so both halves read the
-same table. The page is sent everything except `RATE_MS`, which is a server rule and has no
-meaning in the browser:
+`config.lua` is one `shared_script`, so both halves read the same table. The page is sent
+everything except `RATE_MS`, which is a server rule with no meaning in the browser, and
+[`LOCALE`](#locale), which never crosses as a code at all — the page is sent the one string it
+has to draw, already translated:
 
 ```lua
 send("chat:config", {
@@ -19,6 +20,7 @@ send("chat:config", {
   history = Config.HISTORY,
   fadeMs = Config.FADE_MS,
   maxLength = Config.MAX_LENGTH,
+  placeholder = locale("chat.placeholder"),
 })
 ```
 
@@ -96,11 +98,26 @@ The longest message a player may send.
 MAX_LENGTH = 240,
 ```
 
-**Type** `integer` — characters
+**Type** `integer` — characters, not bytes
 
 Enforced twice, and the second one is the one that counts. The page sets it as the input's
 `maxlength` attribute, which is a convenience; the server also truncates any `chat:submit` to
 `MAX_LENGTH` and appends `...`, because everything off the wire is treated as hostile.
+
+The server counts **characters**, by counting UTF-8 lead bytes, so a cut never lands in the
+middle of a multi-byte one. `shared/text.lua` does the measuring: `Text.span` answers the byte
+length of the first `MAX_LENGTH` characters, and `Text.clean` skips the measuring entirely when
+the whole line is already shorter in bytes than the cap is in characters.
+
+!!! info "The two sides count differently at the boundary"
+
+    HTML's `maxlength` counts UTF-16 code units; the server counts Unicode characters. They
+    agree across the Basic Multilingual Plane — all of Latin, Greek, Cyrillic, Hebrew, Arabic
+    and CJK — and diverge on astral characters, which is emoji and the rarer CJK extensions:
+    the page counts one of those as two and the server as one. A line of emoji is therefore
+    stopped by the input at half of `MAX_LENGTH`. That is left as it is, because it is the safe
+    direction: the server is the side that must not be outrun, and it is the more generous of
+    the two.
 
 !!! warning "It bounds the relay, not what another resource may send"
 
@@ -130,6 +147,28 @@ is kept per session player id and cleared on `onPlayerDisconnected`.
     server half, so it is not affected. If a command of yours needs a floor, put one in your
     own handler — `opx77_weather` floors its two open commands at 2 s per player and leaves
     the ACL-gated ones alone.
+
+## LOCALE {#locale}
+
+Which catalogue in `locales/` the box's own text is read from.
+
+```lua
+LOCALE = "en",
+```
+
+**Type** `string` — a code registered in `locales/`. `en` and `fr` ship.
+
+`shared/locale.lua` calls `Locale.set` with this value at load, on both halves, which is what
+makes the key do anything at all; it is listed after `config.lua` in the manifest for exactly
+that reason. An unknown code is **accepted** rather than refused, because the catalogues
+register after that file loads and there is nothing to check it against yet. Every lookup then
+falls back to `en`, and then to the key itself, so an untranslated string shows the player its
+raw key rather than nothing.
+
+Both halves read it: the client renders the command refusals, the author tags and the
+placeholder, and the server renders the `player <id>` fallback author on a relayed message.
+[Player-facing text](index.md#locales) lists everything it reaches — which is only what this
+resource writes itself, and never a line another resource hands it.
 
 ## See also {#see-also}
 

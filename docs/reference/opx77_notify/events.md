@@ -1,13 +1,13 @@
 ---
 title: opx77_notify events
-description: The four net events opx77_notify answers to — the entire wire vocabulary the platform's server-side Open77.notifications API emits — and the two local events it raises when a toast goes away.
+description: The four net events opx77_notify answers to — the entire wire vocabulary the platform's server-side Open77.notifications API emits — and the one local event it raises when a toast goes away.
 ---
 
 # Events
 
 `opx77_notify` is on both ends of an event: it **listens** for four networked
-names, which is how a server resource reaches it, and it **raises** two
-non-networked ones, which is how a caller hears that a toast has gone.
+names, which is how a server resource reaches it, and it **raises** one
+non-networked name, which is how a caller hears that a toast has gone.
 
 !!! danger "Local and networked names are kept disjoint, and must stay that way"
     On this platform `TriggerEvent` also reaches `RegisterNetEvent` handlers of
@@ -17,8 +17,8 @@ non-networked ones, which is how a caller hears that a toast has gone.
     permanent busy loop**: nothing crashes and nothing is logged.
 
     No name on this page appears in both roles. The four `open77:notifications:*`
-    names are listened for and never raised; `open77:notificationRemoved` and
-    `opx77:notify:removed` are raised and never listened for.
+    names are listened for and never raised; `opx77:notify:removed` is raised and
+    never listened for.
 
 ## Networked {#networked}
 
@@ -98,18 +98,17 @@ The client's local event bus is **host-wide**: a `TriggerEvent` in one client
 resource reaches a plain `AddEventHandler` in another. See
 [The client export contract](../../concepts/export-contract.md).
 
-Both names below carry the **same payload** and are raised together, one after the
-other, for every removal. A listener registered for both hears about one removal
-twice. Pick one.
+One name, raised exactly once for every removal.
 
-### open77:notificationRemoved {#notificationremoved}
+### opx77:notify:removed {#opx77-notify-removed}
 
-The removal event the platform documents on its own package. It is raised under
-that exact name so that code written against `open77_notifications` keeps working
-— mirroring the surface is the whole point.
+The removal event, in this framework's own namespace. It is raised whatever took
+the toast down — a deadline, its owner, a position that overflowed, a server-side
+dismissal — and it is the only way a caller hears that one of its toasts has
+gone.
 
 ```lua
-AddEventHandler("open77:notificationRemoved", function(payload) end)
+AddEventHandler("opx77:notify:removed", function(payload) end)
 ```
 
 - payload: [`NotifyRemoved`](types.md#notifyremoved)
@@ -131,6 +130,13 @@ AddEventHandler("open77:notificationRemoved", function(payload) end)
 | `server_dismissed` | The server resource that sent it called `Open77.notifications.dismiss`. |
 | `server_cleared` | The server resource that sent it called `Open77.notifications.clear`. |
 
+!!! warning "The platform's own removal name is not raised"
+    `open77_notifications` documents its removal event as
+    `open77:notificationRemoved`. This resource raised that name alongside its own
+    up to `0.1.0` and no longer does: one removal, one event. The exports are
+    still a drop-in, but a resource ported from the official package has to rename
+    its removal handler.
+
 !!! warning "This fires for other resources' toasts too"
     It is global. The payload carries `owner` precisely so you can tell yours
     apart, and a listener that does not filter on it will act on somebody else's
@@ -142,35 +148,22 @@ AddEventHandler("open77:notificationRemoved", function(payload) end)
     halfway through stopping when that path would run. Do not build an unwind that
     depends on hearing about it.
 
-#### Example {#notificationremoved-example}
+The reason it is an event at all is that an export cannot answer a callback on
+this platform: the codec rejects functions, so when a toast goes away for a reason
+its owner did not ask for, an event is the only way to say so. See
+[Integration channels](../../concepts/integration-channels.md).
+
+#### Example {#opx77-notify-removed-example}
 
 ```lua
 -- a client script in your own resource
-AddEventHandler("open77:notificationRemoved", function(payload)
+AddEventHandler("opx77:notify:removed", function(payload)
   if payload.owner ~= GetCurrentResourceName() then return end
   if payload.reason == "expired" and payload.id == "download" then
     -- the toast timed out on its own; nothing acknowledged it
   end
 end)
 ```
-
-### opx77:notify:removed {#opx77-notify-removed}
-
-The same payload under this framework's own namespace, raised immediately after
-the one above, so a resource that already listens on the `opx77:` prefix does not
-have to learn a second convention.
-
-```lua
-AddEventHandler("opx77:notify:removed", function(payload) end)
-```
-
-- payload: [`NotifyRemoved`](types.md#notifyremoved) — identical to
-  [`open77:notificationRemoved`](#notificationremoved)'s, field for field.
-
-The reason both exist is that an export cannot answer a callback on this platform:
-the codec rejects functions, so when a toast goes away for a reason its owner did
-not ask for, an event is the only way to say so. See
-[Integration channels](../../concepts/integration-channels.md).
 
 ## Not events: the page channels {#page-channels}
 

@@ -118,8 +118,6 @@ almost nowhere. **A server-side OPX//77 plug-in is a Lua file added to
 
 ```lua
 -- opx77_core/server/heists.lua
-local log = OPX.Log.scope("heists")
-
 RegisterCommand("heist.payout", function(source)
   local player = OPX.GetPlayer(source)
   if not player then return end
@@ -131,7 +129,8 @@ RegisterCommand("heist.payout", function(source)
 
   local ok, why = OPX.AddMoney(player, "EDDIES", 500, "heist:payout")
   if not ok then
-    log.warn(("payout refused for %s: %s"):format(player.PlayerData.citizenId, why))
+    Open77.log.warn(("[heists] payout refused for %s: %s")
+      :format(player.PlayerData.citizenId, why))
     OPX.Refuse(source, why)
   end
 end, true)
@@ -217,7 +216,7 @@ eddies has this channel and, realistically, only this channel.
 ```lua
 CreateThread(function()
   local rows = MySQL.query.await(
-    "SELECT citizen_id, name FROM opx77_players WHERE user_id = @user AND deleted_at IS NULL",
+    "SELECT citizen_id, name FROM opx77_characters WHERE user_id = @user AND deleted_at IS NULL",
     { user = userId })
 end)
 ```
@@ -228,7 +227,7 @@ table is prefixed `opx77_`, and the column meanings are stable.
 !!! warning
     `database.access` is a **whole-database grant**. There is no schema, no
     table prefix and no statement filter behind it. A resource that can read an
-    inbox table can equally run `UPDATE opx77_players SET money = …` and bypass
+    inbox table can equally run `UPDATE opx77_characters SET money = …` and bypass
     every guard, hook and audit line the core has. Grant it only to resources
     that genuinely persist state, and never treat the contents of the database
     as unforgeable by another installed resource. The threat model is stated in
@@ -240,7 +239,7 @@ There is **no synchronous return** and no ordering except the ordering you
 build; latency is your polling interval. The core does not currently expose a
 validated write surface here — it owns `opx77_`-prefixed tables and is the only
 writer it trusts — so a third-party resource writing directly into
-`opx77_players` is writing behind the core's back, and the core's next autosave
+`opx77_characters` is writing behind the core's back, and the core's next autosave
 may overwrite it. If you need an authoritative write, use channel 2.
 
 ## Choosing {#choosing}

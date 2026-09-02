@@ -12,10 +12,10 @@ needs.
 
 | Table | Names | Registration | Permission |
 |---|---|---|---|
-| [`Client`](#networked-server-to-client) — networked, server → client | 8 | `RegisterNetEvent` | `network.events` |
-| [`Local`](#client-local) — client-local, fired by the core's own client half | 10 | `AddEventHandler` | none |
-| [`Server`](#networked-client-to-server) — networked, client → server | 7 | `TriggerServerEvent` from a client | `network.events` |
-| [`Internal`](#resource-internal) — inside the core's server VM only | 6 | `AddEventHandler`, in a file inside the core | none |
+| [`Client`](#networked-server-to-client) — networked, server → client | 9 | `RegisterNetEvent` | `network.events` |
+| [`Local`](#client-local) — client-local, fired by the core's own client half | 9 | `AddEventHandler` | none |
+| [`Server`](#networked-client-to-server) — networked, client → server | 8 | `TriggerServerEvent` from a client | `network.events` |
+| [`Internal`](#resource-internal) — inside the core's server VM only | 7 | `AddEventHandler`, in a file inside the core | none |
 | [`Platform`](#platform) — raised by the host, handled by the core | 8 | — | — |
 
 ## Which channel a satellite should use {#choosing}
@@ -59,7 +59,8 @@ registers with `RegisterNetEvent`.
 | [`opx77:client:onMoneyChange`](#onmoneychange) | type, amount, action, balance |
 | [`opx77:client:onJobUpdate`](#onjobupdate) | the new `PlayerJob` |
 | [`opx77:client:onGangUpdate`](#ongangupdate) | the new `PlayerGang` |
-| [`opx77:client:notify`](#notify) | a refusal code |
+| [`opx77:client:onAppearanceUpdate`](#onappearanceupdate) | the stored `AppearanceSnapshot` |
+| [`opx77:client:notify`](#notify) | a refusal code, and the request it answers |
 
 ### opx77:client:characters {#characters}
 
@@ -186,9 +187,28 @@ RegisterNetEvent("opx77:client:onGangUpdate", function(gang) end)
 
 **Side** `client` — any resource holding `network.events`.
 
+### opx77:client:onAppearanceUpdate {#onappearanceupdate}
+
+Fires when the core has stored a new face for the live character.
+
+```lua
+RegisterNetEvent("opx77:client:onAppearanceUpdate", function(snapshot) end)
+```
+
+- snapshot: [`AppearanceSnapshot`](types.md#appearancesnapshot) — the canonical
+  form the core wrote, not the one the client sent.
+
+Sent only to the character's own client, and only when the write actually
+happened: a capture identical to the stored face is skipped, so a confirm that
+changed nothing raises nothing. The core's client half mirrors it onto
+`PlayerData.appearance` and re-fires it as
+[`opx77:client:appearanceSaved`](#appearancesaved).
+
+**Side** `client` — any resource holding `network.events`.
+
 ### opx77:client:notify {#notify}
 
-Carries a refusal: a stable code, and nothing else.
+Carries a refusal: which request it answers, a stable code, and nothing else.
 
 ```lua
 RegisterNetEvent("opx77:client:notify", function(payload) end)
@@ -196,12 +216,20 @@ RegisterNetEvent("opx77:client:notify", function(payload) end)
 
 - payload: `table`
     - code: `string` — a locale key, so `locale(code)` renders it in the
-      player's language.
+      player's language. A code the catalogue does not carry is replaced with
+      `error.unavailable` before it is sent, so this channel never hands a
+      client something it cannot render.
     - kind: `string` — `error` in every case the core currently sends.
+    - operation: `string` — a value of `OPX.Operations`, naming the request this
+      refusal answers: `entry`, `ready`, `selectCharacter`, `createCharacter`,
+      `deleteCharacter`, `saveAppearance`, `spawnVehicle` or `storeVehicle`.
+      `unknown` when the refusal names none.
 
 The reason behind the code is deliberately not sent: a refusal that explains
 itself tells an attacker which half of the guess was right. Repeats of the same
-code to the same player inside a short window are suppressed at the source.
+code to the same player inside a short window are suppressed at the source — the
+operation is part of that dedupe key, so two different requests refused for the
+same reason are still two answers.
 
 **Side** `client` — any resource holding `network.events`. The permission-free
 equivalent is [`opx77:client:refused`](#refused).
@@ -223,9 +251,8 @@ been updated. Register with a plain `AddEventHandler`, from any resource, with
 | [`opx77:client:moneyChanged`](#moneychanged) | type, amount, action, balance |
 | [`opx77:client:jobChanged`](#jobchanged) | the new `PlayerJob` |
 | [`opx77:client:gangChanged`](#gangchanged) | the new `PlayerGang` |
-| [`opx77:client:refused`](#refused) | a refusal code and its kind |
-| [`opx77:client:appearanceRequired`](#appearancerequired) | a character key and a nonce |
-| [`opx77:client:appearanceChanged`](#appearancechanged) | a character key |
+| [`opx77:client:appearanceSaved`](#appearancesaved) | the stored `AppearanceSnapshot` |
+| [`opx77:client:refused`](#refused) | a refusal code, its kind and its operation |
 
 ### opx77:client:charactersReady {#charactersready}
 
@@ -352,59 +379,54 @@ AddEventHandler("opx77:client:gangChanged", function(gang) end)
 
 **Side** `client` — any resource, no permission.
 
+### opx77:client:appearanceSaved {#appearancesaved}
+
+Fires when the core has stored a new face and the mirror carries it, so a
+handler can read `GetAppearance` and see it.
+
+```lua
+AddEventHandler("opx77:client:appearanceSaved", function(snapshot) end)
+```
+
+- snapshot: [`AppearanceSnapshot`](types.md#appearancesnapshot)
+
+The local re-emission of
+[`opx77:client:onAppearanceUpdate`](#onappearanceupdate). Nothing is raised for
+a capture identical to the stored face, because the core writes nothing for one.
+
+**Side** `client` — any resource, no permission.
+
 ### opx77:client:refused {#refused}
 
 Fires when the server refused something this client asked for.
 
 ```lua
-AddEventHandler("opx77:client:refused", function(code, kind) end)
+AddEventHandler("opx77:client:refused", function(code, kind, operation) end)
 ```
 
 - code: `string` — a locale key. Render it with
   [`Locale`](exports/client.md#locale), or with `locale(code)` inside the core.
+  A code the catalogue does not carry never reaches here: the core maps it to
+  `error.unavailable` first.
 - kind: `string` — `error` in every case the core currently sends.
+- operation: `string` — which request this refusal answers, from
+  `OPX.Operations`: `entry`, `ready`, `selectCharacter`, `createCharacter`,
+  `deleteCharacter`, `saveAppearance`, `spawnVehicle` or `storeVehicle`, and
+  `unknown` when the refusal names none.
 
 This is the failure half of every character-screen request: the export said the
 request was sent, and this says the server would not do it. Common codes are
 `character.notFound`, `character.inUse`, `character.badName`, `error.tooFast`,
 `entry.timedOut` and `entry.failed`.
 
+**Branch on `operation`, not on the code.** A client waiting on one request out
+of several cannot otherwise tell whose `error.tooFast` it is holding — an
+`error.tooFast` raised by a vehicle spawn is not the answer to a captured face
+still in flight. `OPX.Operations` lives in the core's own VM and a satellite
+cannot import it, so a satellite compares the string; the values are the eight
+above and they are named after the `opx77:server:*` request that starts them.
+
 **Side** `client` — any resource, no permission.
-
-### opx77:client:appearanceRequired {#appearancerequired}
-
-Fires when `open77_appearance` has no stored look for the live character and
-wants the creator run, so a selection UI can step out of the way first.
-
-```lua
-AddEventHandler("opx77:client:appearanceRequired", function(characterKey, nonce) end)
-```
-
-- characterKey: `string` — the citizen id, which is what the core uses as the appearance key.
-- nonce: `any` — the platform's token for that creator run. Pass it back untouched.
-
-This is a re-emission of the platform's own `open77:appearance:createRequired`
-under a different name, precisely so that re-emitting it cannot re-enter the
-handler that fired it.
-
-**Side** `client` — any resource, no permission. Requires `open77_appearance` to
-be running; nothing on a stock OPX//77 install raises it.
-
-### opx77:client:appearanceChanged {#appearancechanged}
-
-Fires when the live character's look changed, which is what a successful
-appearance `setCharacter` looks like.
-
-```lua
-AddEventHandler("opx77:client:appearanceChanged", function(characterKey) end)
-```
-
-- characterKey: `string`
-
-A re-emission of `open77:appearance:characterChanged`, under a different name
-for the same reason as above.
-
-**Side** `client` — any resource, no permission. Requires `open77_appearance`.
 
 ---
 
@@ -426,6 +448,7 @@ half validates every one of them.
 | [`opx77:server:createCharacter`](#createcharacter) | the registration | 1 s |
 | [`opx77:server:deleteCharacter`](#deletecharacter) | `{ citizenId }` | 1 s |
 | [`opx77:server:reportPosition`](#reportposition) | `{ heading }` | 1 s |
+| [`opx77:server:saveAppearance`](#saveappearance) | `{ snapshot }` | 2 s |
 | [`opx77:server:spawnVehicle`](#spawnvehicle) | `{ plate }` | 3 s |
 | [`opx77:server:storeVehicle`](#storevehicle) | `{ plate }` | 3 s |
 
@@ -523,6 +546,43 @@ them lies to nobody.
 
 **Side** `net event` — `network.events`.
 
+### opx77:server:saveAppearance {#saveappearance}
+
+Commits a captured face for the live character. Sent by
+[`opx77_appearance`](../opx77_appearance/index.md) once the player has confirmed
+the mirror; nothing else should send it.
+
+```lua
+TriggerServerEvent("opx77:server:saveAppearance", { snapshot = snapshot })
+```
+
+- payload: `table`
+    - snapshot: [`AppearanceSnapshot`](types.md#appearancesnapshot) — the
+      capture. A bare snapshot with no `snapshot` key is accepted too.
+
+The character comes from the connection and never from the payload, and the
+snapshot is put into canonical form before anything is written: an unknown
+schema version, a game build outside
+`OPX.Config.SHARED.APPEARANCE.GAME_BUILDS`, a bad catalogue digest, a sparse or
+oversized option array, a duplicate option or an out-of-range index are each
+refused. An encoded document over `APPEARANCE.MAX_JSON_BYTES` is refused with
+`appearance.tooLarge`.
+
+A snapshot identical to the stored one is accepted and **written nowhere**: no
+column is touched, and neither
+[`opx77:client:onAppearanceUpdate`](#onappearanceupdate) nor
+[`opx77:player:appearanceChange`](#internal-appearancechange) is raised. A
+caller waiting for one of those on an unchanged confirm waits forever, which is
+why `opx77_appearance` completes that case on the client.
+
+Refusals arrive as [`opx77:client:notify`](#notify) with `operation` set to
+`saveAppearance`, so the six codes that path answers with —
+`appearance.invalid`, `appearance.tooLarge`, `error.badRequest`,
+`error.notLoggedIn`, `error.tooFast` and `error.unavailable` — can be told apart
+from a refusal answering some other request.
+
+**Side** `net event` — `network.events`.
+
 ### opx77:server:spawnVehicle {#spawnvehicle}
 
 Asks for one of the caller's own vehicles to be spawned.
@@ -575,6 +635,7 @@ point of them.
 | [`opx77:player:moneyChange`](#internal-moneychange) | seven values, below |
 | [`opx77:player:jobUpdate`](#internal-jobupdate) | `source`, `job` |
 | [`opx77:player:gangUpdate`](#internal-gangupdate) | `source`, `gang` |
+| [`opx77:player:appearanceChange`](#internal-appearancechange) | `source`, `citizenId`, `snapshot` |
 | [`opx77:player:paycheck`](#internal-paycheck) | `source`, `amount`, `jobName` |
 
 ### opx77:player:loaded {#internal-playerloaded}
@@ -655,6 +716,24 @@ AddEventHandler("opx77:player:gangUpdate", function(source, gang) end)
 
 **Side** `server` — inside `opx77_core` only.
 
+### opx77:player:appearanceChange {#internal-appearancechange}
+
+Fires inside the core's server VM after a face has been written to the character
+row.
+
+```lua
+AddEventHandler("opx77:player:appearanceChange", function(source, citizenId, snapshot) end)
+```
+
+- source: `integer|nil` — nil for an offline character.
+- citizenId: [`CitizenId`](types.md#citizenid)
+- snapshot: [`AppearanceSnapshot`](types.md#appearancesnapshot) — canonical form.
+
+Raised only when the column actually changed; a capture identical to the stored
+face is written nowhere and announced nowhere.
+
+**Side** `server` — inside `opx77_core` only.
+
 ### opx77:player:paycheck {#internal-paycheck}
 
 Fires inside the core's server VM after a paycheck has been paid — after the
@@ -665,7 +744,9 @@ AddEventHandler("opx77:player:paycheck", function(source, amount, jobName) end)
 ```
 
 - source: `integer`
-- amount: `integer` — what was actually paid, into `BANK`.
+- amount: `integer` — what was actually paid, into the money type
+  `SERVER.MONEY.PAYCHECK_TYPE` names (`BANK` as shipped; a name that is not a
+  money type falls back to `SHARED.MONEY.DEFAULT`, with one warning at boot).
 - jobName: `string`
 
 To *veto* a paycheck rather than observe one, use the `paycheck:before`
@@ -711,13 +792,15 @@ resource passed to `release`. The core passes
 `opx77_core:selection-timeout`, `opx77_core:roster-failed` or
 `opx77_core:no-identity`.
 
-!!! danger "The gate never opens on a stock OPX//77 install"
+!!! warning "One resource has to be running for the gate to open at all"
     Every joiner also carries a `__platform` hold that no Lua may take or
     release and which has **no deadline**. It clears on one thing only: a client
-    announcing `open77:session:gameplayReady`, which `open77_appearance` emits.
-    Nothing in this resource set emits it, so `Open77.ready.isReady` stays false
-    forever and this handler can never fire. The core is unaffected — it reads
-    neither — but do not build on either of them. See
+    announcing `open77:session:gameplayReady`. In this resource set
+    [`opx77_appearance`](../opx77_appearance/index.md) is what sends it. Without
+    it — or without the official `open77_appearance`, which the core's boot check
+    also accepts — `Open77.ready.isReady` stays false forever and this handler
+    can never fire. The core is unaffected, because it reads neither, and says so
+    with one warning at boot. See
     [The entry gate](../../concepts/entry-gate.md).
 
 A `detail` beginning `liveness_lost:` means a hold passed its liveness deadline

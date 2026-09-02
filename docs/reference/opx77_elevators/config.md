@@ -19,6 +19,26 @@ declares it.
     another reason the job check is a hint. Put nothing here you would not
     publish.
 
+## LOCALE {#locale}
+
+Which catalogue in `locales/` the player-facing text is read from.
+
+```lua
+LOCALE = "en",
+```
+
+**Type** `string`
+
+Two catalogues ship, `en` and `fr`. An unknown code is accepted rather than
+refused — catalogues register after `shared/locale.lua` loads, so the file
+cannot know at that moment which codes exist — and every key then falls back to
+`en`, and then to the key itself. A value that is not a non-empty string is
+ignored, leaving the catalogue at `en`.
+
+Each resource carries its own catalogue, so this is set here as well as in
+[`opx77_core`](../opx77_core/config.md). See
+[Player-facing text](#locales) for what is translated and what is not.
+
 ## DENIED_FLOORS {#denied-floors}
 
 Decides what happens to a floor the player cannot reach: it appears greyed with
@@ -125,14 +145,18 @@ be renamed with it, and the name is not a trust boundary in either case.
 
 ## MATCH_RADIUS {#match-radius}
 
-How close a native lift must be to a declared position for this resource to
-believe it is that elevator.
+How close a native lift must be to a declared position, **across the ground**,
+for this resource to believe it is that elevator.
 
 ```lua
 MATCH_RADIUS = 6.0,
 ```
 
 **Type** `number` — metres
+
+Measured on `X` and `Y` alone: `Z` is validated and then ignored, because the
+cabin is wherever it last stopped and a tower's cabin is nowhere near its
+shaft's declared `Z`.
 
 Applied on the client, when a scan matches what it sees against `ELEVATORS`, and
 again on the server, when it decides whether a reported hash really stands at the
@@ -141,8 +165,8 @@ this become interchangeable — declare an [`ENTITY`](#elevators) instead.
 
 ## USE_RADIUS {#use-radius}
 
-How close the player must be to an elevator to see its panel and to press a
-floor.
+How close the player must be to an elevator, **across the ground**, to see its
+panel and to press a floor.
 
 ```lua
 USE_RADIUS = 4.0,
@@ -155,9 +179,20 @@ and re-derived on the server against the player's replicated position, where it
 decides whether the request is answered at all. A client that skips the first
 meets the second, as `too_far`.
 
-Measured against the **declared shaft position**, never the cabin's: a cabin
-parked at the top of the shaft is thirty metres from the player standing at the
-ground-floor panel, who is exactly the person allowed to call it.
+Measured against the **declared shaft position**, never the cabin's, and on `X`
+and `Y` alone. Two things follow. A cabin parked at the top of the shaft is
+thirty metres from the player standing at the ground-floor panel, who is exactly
+the person allowed to call it. And **an elevator is callable from every floor of
+its own shaft**: a character on the twelfth storey is as close to the panel as
+one in the lobby, because the height difference between them was never part of
+the sum.
+
+!!! info "The client's fallback is the host's 3D distance"
+
+    A client that cannot read its own position — the host answers nothing at all
+    before the world is up — ranks a lift by the host's own distance to the
+    cabin, which is 3D and therefore never the smaller of the two. So the
+    fallback can only ask for less than the server would allow, never more.
 
 ## SCAN_RADIUS {#scan-radius}
 
@@ -172,6 +207,10 @@ SCAN_RADIUS = 40.0,
 Passed to `Open77.elevators.nearby` on the client, and re-derived on the server:
 a reporter further than this from the position it claims to see has its sighting
 dropped in silence. The host caps the client call at 300 metres.
+
+This is the one radius still measured in **three** dimensions. It is a sanity
+check on a report, not a reach test — a client claiming to see a lift it is
+nowhere near — so the storey the reporter stands on is part of the question.
 
 ## TRAVEL_MS {#travel-ms}
 
@@ -268,10 +307,14 @@ ELEVATORS = {
 2. **`LABEL`** — the panel's title, and the elevator's name in the diagnostic
    report.
 3. **`X` / `Y` / `Z`** — the **shaft's** position in metres, not the cabin's.
-   Used three ways: to recognise a streamed native lift as this elevator (within
+   `X` and `Y` place the shaft and are the only pair a distance is ever measured
+   on: to recognise a streamed native lift as this elevator (within
    [`MATCH_RADIUS`](#match-radius)), to decide which elevator the player is
    standing at (within [`USE_RADIUS`](#use-radius)), and by the server as the
-   reference point for `too_far`.
+   reference point for `too_far`. `Z` is validated, recorded and printed by the
+   diagnostic command, and **never compared** — which is what makes an elevator
+   callable from every floor of its own shaft. Give it the storey the panel sits
+   on; nothing reads it.
 4. **`BUCKET`** — the routing bucket, defaulting to `0`. An elevator in a bucket
    is invisible to players outside it. The server adopts into the **elevator's**
    bucket and never the reporter's: adopting into a player's bucket would let the
@@ -281,10 +324,10 @@ ELEVATORS = {
 5. **`ENTITY`** — optional. The native `LiftDevice` hash, as a `"0x…"` string of
    sixteen hex digits. REDengine hashes are **opaque**: keep them as strings and
    never pass one through `tonumber`. When declared, it pins *which* lift among
-   the ones the coordinates could match; `X` and `Y` must still agree, but `Z` is
-   free — that is what the hash is for, since the cabin is wherever it last
-   stopped and a tower's cabin is nowhere near its shaft's declared `Z`. The
-   shipped entries declare none and match on position alone.
+   the ones the coordinates could match; `X` and `Y` must still agree, and `Z`
+   decides nothing here either. The shipped entries declare none and match on
+   position alone — where two of them are equally close, the smaller key wins, so
+   that `pairs` order never decides between two shafts in one lobby.
 6. **`FLOOR_COUNT`** — the **native device's** floor count, not `#FLOORS`. It is
    the ceiling every index is checked against, and the config's value wins over
    whatever a client reports; a mismatch is logged once per elevator, not once
@@ -350,6 +393,7 @@ Everything wrong with `ELEVATORS` that can be seen without a world is reported a
 boot, one warning line per problem, and again on demand from
 [the diagnostic command](commands.md#where):
 
+- an `X`, `Y` or `Z` that is not a finite number inside 1 000 000 of the origin;
 - an elevator with no `FLOORS`, so its panel would be empty;
 - a `FLOOR_COUNT` that is not a whole number of at least 1;
 - an `INDEX` that is not a whole number of at least 0;
@@ -358,19 +402,76 @@ boot, one warning line per problem, and again on demand from
 - a floor with no `LABEL`;
 - a `JOBS` that is not a table of name to minimum grade.
 
+The axes are checked first, and deliberately: every distance below them, and
+every `%.2f` in the diagnostic report, raises on an axis that holds a string.
+
+!!! info "A mistyped number is a line, not a boot failure"
+
+    Each value is validated, and it is the **validated** value the check then
+    compares. That matters because `FLOOR_COUNT = "12"` — a number in quotes,
+    the easiest mistake to make in this file — used to be compared raw, and
+    raised inside the diagnostic itself, at boot, rather than producing the line
+    that describes it. Every problem here comes out as its own warning line and
+    the rest of the report still runs.
+
 It cannot check a job **name**. Those live in `opx77_core`, and this VM cannot
 ask it anything — the same constraint that makes the job check a hint.
 
 ## Keys that do not exist {#nonexistent-keys}
 
-`types.lua` mentions two settings that `config.lua` never declares and no file
-reads. They are listed here so a reader diffing the annotations against the
-behaviour stops looking for them.
+`types.lua` used to mention two settings that `config.lua` never declared and no
+file read. Both references have been removed from the annotations; the keys are
+named here because earlier documentation described them, and neither ever did
+anything.
 
 | Named as | Reality |
 |---|---|
-| `PANEL` | Annotated as taking `"menu"` or `"none"`, and cited by the `panel_disabled` error code. No such key exists; the panel is always attempted and answers `menu_not_running` when `opx77_menu` is not running. |
-| `ENFORCEMENT` | Annotated as taking `"server"`. No such key exists; the server always re-derives every clause it can, and there is no mode in which it does less. |
+| `PANEL` | Annotated as taking `"menu"` or `"none"`, and cited by the since-removed `panel_disabled` error code. The panel is always attempted and answers `menu_not_running` when `opx77_menu` is not running. |
+| `ENFORCEMENT` | Annotated as taking `"server"`. The server always re-derives every clause it can, and there is no mode in which it does less. |
+
+## Player-facing text {#locales}
+
+Everything a player reads that this resource wrote itself lives in `locales/`,
+one file per language, keyed `elevators.<thing>`. `en` and `fr` ship.
+[`LOCALE`](#locale) picks one.
+
+```lua
+-- locales/en.lua
+OpxElevators.Locale.register("en", {
+  ["elevators.locked"]  = "Locked",
+  ["elevators.refused"] = "That floor is not available.",
+  ["elevators.tooFar"]  = "You are too far from the elevator.",
+  -- …
+})
+```
+
+A key missing from the chosen catalogue falls back to `en`, and a key missing
+from that reads as the key itself — so a half-translated file degrades to
+English rather than to a blank line.
+[What the player is shown](errors.md#wording) lists which refusals have wording
+of their own.
+
+!!! warning "Three things are never translated"
+
+    A floor's `REASON` and `LABEL` are the **server owner's own words**, written
+    in `config.lua`, and are shown exactly as written. The `Open77.log` lines and
+    [the diagnostic command](commands.md#where) stay in English, because they are
+    read by an operator and quoted in a bug report. And the `error` codes are
+    stable identifiers meant for branching, never for showing to a player.
+
+### Adding a language {#adding-a-language}
+
+1. Copy `locales/en.lua` to `locales/<code>.lua`, change the code in the
+   `register` call, and translate the values. Every key must be present in every
+   file — the fallback covers a missing one, but it covers it in English.
+2. Add `shared_script "locales/<code>.lua"` to `open77.lua`, beside the others.
+   Order matters: the catalogues are registered immediately after
+   `shared/locale.lua` and above every file that renders a string, or `locale()`
+   is called against an empty catalogue.
+3. Set `LOCALE = "<code>"`.
+
+Each resource carries its own catalogue and its own `LOCALE`; setting it in
+`opx77_core` does not set it here.
 
 ## Constants that are not configurable {#constants}
 

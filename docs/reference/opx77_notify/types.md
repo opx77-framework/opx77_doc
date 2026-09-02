@@ -54,7 +54,7 @@ The default is [`OPX_NOTIFY_CONFIG.POSITION`](config.md#position), which ships a
 ## NotifyReason {#notifyreason}
 
 Why a toast went away, as it reaches the [removal
-events](events.md#non-networked).
+event](events.md#opx77-notify-removed).
 
 ```lua
 ---@alias NotifyReason string
@@ -62,7 +62,7 @@ events](events.md#non-networked).
 
 `expired`, `dismissed`, `queue_limit`, `owner_cleared`, `owner_disabled`,
 `owner_reloaded`, `owner_stopped`, `server_dismissed`, `server_cleared`. Each is
-described on [Events](events.md#notificationremoved).
+described on [Events](events.md#opx77-notify-removed).
 
 ## NotifyDefinition {#notifydefinition}
 
@@ -151,8 +151,7 @@ instead.
 
 ## NotifyRemoved {#notifyremoved}
 
-The payload of [`open77:notificationRemoved`](events.md#notificationremoved) and
-of [`opx77:notify:removed`](events.md#opx77-notify-removed).
+The payload of [`opx77:notify:removed`](events.md#opx77-notify-removed).
 
 **Fields**
 

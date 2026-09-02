@@ -45,6 +45,9 @@ Three things make it a worked example rather than a toy:
 resources/nc_shiftboard/
   open77.lua
   shared/config.lua
+  shared/locale.lua
+  locales/en.lua
+  locales/fr.lua
   client/main.lua
   client/board.lua
   server/main.lua
@@ -80,6 +83,9 @@ dependencies {
 -- panel off it. Swapping these two lines breaks the resource at load, not at
 -- runtime.
 shared_script "shared/config.lua"
+shared_script "shared/locale.lua" -- after the config: LOCALE is read at load
+shared_script "locales/en.lua" -- registered right after the catalogue, so no
+shared_script "locales/fr.lua" -- file below calls locale() against an empty one
 client_script "client/main.lua"
 client_script "client/board.lua"
 server_script "server/main.lua"
@@ -115,8 +121,49 @@ NC_SHIFTBOARD = {
   -- The event opx77_menu raises when a row is chosen. It is OUR name, and the
   -- menu echoes it back to us -- see section 6.
   MENU_EVENT = "nc_shiftboard:row",
+
+  -- Which locales/<code>.lua catalogue player-facing text is read from.
+  LOCALE = "en",
 }
 ```
+
+### Player-facing text {#locale}
+
+A resource that shows a player a word carries its own catalogue. Five of the
+nine shipped resources do — `opx77_appearance`, `opx77_chat`,
+`opx77_elevators`, `opx77_hud` and `opx77_weather` — and the shape is the same
+in each of them, copied from `opx77_core/shared/locale.lua` and adapted to the
+resource's own namespace:
+
+- `shared/locale.lua` — `register`, `set`, `current`, `exists`, `t`, and a
+  `locale(key, params)` shorthand, with `{placeholder}` substitution.
+- `locales/en.lua` and `locales/fr.lua` — one `register` call each.
+
+The three manifest lines in [section 2](#manifest) come before every file that
+renders a string, and that order is not negotiable: a file that calls `locale()`
+before the catalogues are registered gets the key back instead of the text.
+
+**You cannot borrow the core's.** `opx77_core` publishes a
+[`Locale`](../reference/opx77_core/exports/client.md#locale) export, but it is
+client-only and asynchronous: a server half can never call it, and a file that
+renders a string at load cannot wait on it. That is the whole reason `LOCALE`
+appears a second time in your own `config.lua` on a server that has already set
+one in `config/shared.lua`.
+
+Name keys `<resource>.<thing>` — `shiftboard.onDuty`, `weather.usage.set`,
+`elevators.floorLocked` — and keep both catalogues carrying the same key set: a
+key present in one and missing in the other is a defect, not a fallback.
+
+What gets localised is anything a **player** reads: `open77:command:result`
+messages, toast and notification text, chat suggestions, refusal text shown in a
+UI. What does not: `Open77.log` lines, console output, ACL-gated diagnostic
+commands — those are for the operator reading a server log, and translating them
+makes a support request harder to answer. Error **codes** stay as they are too;
+`not_owner` and `rate_limited` are a branching surface for a caller, not text,
+and a resource that wants to show one renders it through its own catalogue.
+
+Operator-authored strings in a `config.lua` — an elevator's `REASON`, a preset's
+label — are the server owner's own words. Leave them alone.
 
 ## 4. Calling another resource {#calling}
 
@@ -202,7 +249,16 @@ resource, receives it with a bare `AddEventHandler`).
 | `opx77:client:jobChanged` | the job or duty state changed; carries the job |
 | `opx77:client:gangChanged` | the gang changed |
 | `opx77:client:moneyChanged` | a balance changed |
-| `opx77:client:refused` | the server refused a request; carries a locale code |
+| `opx77:client:appearanceSaved` | the core stored a new face; carries the snapshot |
+| `opx77:client:refused` | the server refused a request; carries `(code, kind, operation)` |
+
+`opx77:client:refused` hands you three arguments, and the third is the one to
+branch on: it names which request the refusal answers — `selectCharacter`,
+`saveAppearance`, `spawnVehicle` and so on, from `OPX.Operations`. A resource
+with more than one request in flight cannot otherwise tell whose `error.tooFast`
+it is holding. The vocabulary lives in the core's own Lua state and cannot be
+imported, so compare the string; the values are listed in
+[the core's event reference](../reference/opx77_core/events.md#refused).
 
 The second vocabulary — `opx77:client:playerLoaded`,
 `opx77:client:setPlayerData`, `opx77:client:onJobUpdate`, … — is what the server
@@ -536,6 +592,8 @@ Before you ship a client resource against OPX//77:
 - [ ] Every handler on the local event bus validates the shape of its payload
       before reading it.
 - [ ] Nothing of value depends on a client-side job, gang or money check.
+- [ ] Every string a player reads comes from your own `locales/`, and every
+      `Open77.log` line stays English.
 - [ ] `onClientResourceStop` hands back everything you left in another VM.
 
 ## Where to go next {#next}

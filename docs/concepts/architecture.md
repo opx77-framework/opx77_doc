@@ -85,9 +85,16 @@ bare `AddEventHandler`.
 So the client side is split the way you would expect a framework to be split.
 `opx77_core` publishes a client half that mirrors the character and exposes it;
 `opx77_menu` and `opx77_status` are services that own one piece of the screen
-each; `opx77_hud`, `opx77_chat`, `opx77_weather` and `opx77_elevators` are
-consumers. Every one of them is reachable from any other resource, because on
-this side of the wire that is possible.
+each; `opx77_hud`, `opx77_chat`, `opx77_weather`, `opx77_elevators` and
+`opx77_appearance` are consumers. Every one of them is reachable from any other
+resource, because on this side of the wire that is possible.
+
+Two of them bend the shape, and both are worth knowing about:
+[`opx77_status`](../reference/opx77_status/index.md) is the one satellite with a
+server half and a table of its own — the character's gameplay needs — and
+[`opx77_appearance`](../reference/opx77_appearance/index.md) is client-only yet
+writes something durable, by sending it to a name the core's server half
+registered. Neither is an exception to the rule below.
 
 Two consequences are worth stating up front, because they surprise everyone
 arriving from FiveM:
@@ -108,9 +115,10 @@ order.
 |---|---|
 | `config/` | The only files an operator edits. `UPPER_SNAKE` keys, split by who may read them: `shared.lua` reaches every client, `server.lua` and `client.lua` do not cross. |
 | `data/` | Jobs, gangs and origins. Definitions, not settings — changing one renames something players already hold. |
-| `shared/` | `OPX` itself: result, table, string, math, log, validate, hooks, locales, citizen ids. |
-| `server/storage/` | Every SQL statement, and the migrations. Nothing above this layer writes SQL. |
-| `server/` | Roster, player, groups, characters, the entry gate, events, commands, loops. |
+| `shared/` | `OPX` itself: result, table, string, math, validate, hooks, locales, citizen ids. |
+| `sql/` | One `.sql` file per table — the copy an operator reads. Not listed in the manifest, and not what runs. |
+| `server/storage/` | Every SQL statement the resource runs, and the migrations. Nothing above this layer writes SQL. |
+| `server/` | Roster, player, groups, characters, appearance, vehicles, the entry gate, events, commands, loops. |
 | `client/` | The mirrored state and the exports surface. |
 
 `config/shared.lua` is shipped to every client. Nothing secret belongs in it.

@@ -57,6 +57,9 @@ ncpd_watson NCPD WATSON pos=-652.10,1394.55,12.40 floors=5/5 id=7 phase=<phase> 
 ```
 
 - `pos=` — the **declared** shaft position from `config.lua`, not the cabin's.
+  All three axes are printed; only `X` and `Y` decide anything, and `Z` is
+  recorded and never compared. An axis that is not a finite coordinate prints as
+  `0.00`, and a `config:` line above says which one it was.
 - `floors=A/B` — `A` stops this resource offers, against the elevator's declared
   `FLOOR_COUNT` of `B`. `A` smaller than `B` is normal; a floor absent from
   `FLOORS` is one no panel offers and no request can name.

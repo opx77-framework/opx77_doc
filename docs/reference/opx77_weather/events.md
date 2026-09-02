@@ -51,8 +51,9 @@ RegisterNetEvent("chat:ready", function() end)
 ```
 
 Carries no arguments. The answer is a `chat:addSuggestions` to that player, one entry per
-registered command with its help line and parameter names. It is floored at one answer per
-player every 2 s, because `chat:ready` is a net event any client can send as fast as it likes.
+registered command with its help line and parameter names, both rendered from the configured
+[locale](index.md#locales) as the answer goes out. It is floored at one answer per player every
+2 s, because `chat:ready` is a net event any client can send as fast as it likes.
 See [publishing suggestions](../opx77_chat/events.md#publishing-suggestions).
 
 ## Networked (server → client) {#networked-server-to-client}
@@ -122,8 +123,10 @@ actually accepted, or call [`getState`](exports.md#getstate).
 ### open77:command:result {#open77-command-result}
 
 The dispatcher's answer to a command that player typed. `opx77_weather`'s **client** half also
-registers this name, and logs the ones whose `raw` contains `weather` — accepted at info level,
-refused at warn.
+registers this name, and logs the ones whose `raw` names one of its own commands — accepted at
+info level, refused at warn. It matches against the names in
+[`config.lua`](config.md#commands), so a rename carries; matching on the word `weather` would
+not.
 
 ```lua
 RegisterNetEvent("open77:command:result", function(raw, accepted, message) end)
@@ -136,6 +139,13 @@ RegisterNetEvent("open77:command:result", function(raw, accepted, message) end)
 It is a shared channel, not a private one: [`opx77_chat`](../opx77_chat/events.md#open77-command-result)
 renders it in the box, and this resource only mirrors its own into the client log. The server
 side of it is what every command handler here calls to answer the player.
+
+`message` is the player's [localised](index.md#locales) text, so the mirror does not log it. It
+logs the fact instead, in English:
+
+```text
+command answered: opx77.weather.set (accepted)
+```
 
 ## Non-networked, client {#non-networked-client}
 

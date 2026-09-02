@@ -38,10 +38,24 @@ one when refused. The same command typed at the **server console** runs as `sour
 never rate limited, and answers into the platform log instead — `info` when accepted, `warn`
 when refused.
 
+!!! info "A player reads the locale catalogue; the console and the log stay English"
+
+    Every answer on this page exists in two renderings of the same facts. A player is sent the
+    text of the catalogue [`LOCALE`](config.md#locale) names, composed key by key in
+    `server/commands.lua`; the console and the platform log are sent the operator's own English
+    line, which is `Authority.statusText()`. **The sample output on this page is the English
+    one.**
+
 Every command that succeeds answers with the same status line:
 
 ```text
-weather: 21:30:04  day=180min  preset=rain (next roll in 214s)  rev=42
+weather: 21:30:04  day=180min  weather=rain (next roll in 214s)  rev=42
+```
+
+The same moment as a player reads it in the box, with the shipped `en` catalogue:
+
+```text
+It is 21:30:04. A day lasts 180 real minutes. The sky is rain. Next roll in 214s. Revision 42.
 ```
 
 The two bracketed halves change with the freezes: `(clock held)` appears after the day length
@@ -49,9 +63,12 @@ when the clock is frozen, and `(schedule held)` replaces `(next roll in Ns)` whe
 is. A `DEGRADED: no usable preset in OPX_WEATHER_CONFIG.WEATHER` suffix means the weather table
 has no usable row — the clock still runs, but every weather mutation will answer `no_presets`.
 
-Refusals are the mutator's own snake_case codes, shown verbatim: `unknown_preset`,
-`invalid_time`, `invalid_transition`, `invalid_day_length`, `day_too_short`, `no_presets`. A
-wrong argument count answers a `usage:` line instead.
+Refusals reach the console as the mutator's own snake_case codes, shown verbatim:
+`unknown_preset`, `invalid_time`, `invalid_transition`, `invalid_day_length`, `day_too_short`,
+`no_presets`. A player is sent the catalogue sentence for the same code instead — `No such
+weather preset.` in `en` — and a code the catalogue does not name falls back to `That could not
+be done.` A wrong argument count answers a `usage:` line, which is a catalogue key of its own
+and reads the same in `en` on both sides.
 
 Registered names, with `[acl]` or `[open]` beside each, are printed once at boot:
 
@@ -61,7 +78,8 @@ commands: opx77.weather [open], opx77.weather.presets [open], opx77.weather.set 
 
 They are also published as chat completion entries: the resource answers `chat:ready` with
 `chat:addSuggestions`, carrying each registered command's help line and its parameter names, so
-staff see the usage while typing.
+staff see the usage while typing. Those help lines are rendered from the catalogue as the
+suggestions go out.
 
 ## Show the time and sky {#status}
 
@@ -86,7 +104,7 @@ console is never floored — an operator's own terminal is not a rate to limit.
 
 ```text
 > /opx77.weather
-weather: 21:30:04  day=180min  preset=rain (next roll in 214s)  rev=42
+weather: 21:30:04  day=180min  weather=rain (next roll in 214s)  rev=42
 ```
 
 ## List the configured presets {#presets}
@@ -143,7 +161,7 @@ sky holds for its own configured band before the schedule takes over again. It b
 | Refusal | Meaning |
 |---|---|
 | `usage: <preset> [transitionSeconds]` | Fewer than one or more than two arguments. |
-| `unknown_preset  -- run opx77.weather.presets` | Neither a `NAME` nor a `PRESET` in the table. |
+| `unknown_preset -- run opx77.weather.presets` | Neither a `NAME` nor a `PRESET` in the table. A player is sent `No such weather preset. Run opx77.weather.presets to see the list.` instead. |
 | `invalid_transition` | Not a number, or outside `0..300` seconds. |
 | `no_presets` | The weather table has no usable row. |
 
@@ -151,10 +169,10 @@ sky holds for its own configured band before the schedule takes over again. It b
 
 ```text
 > /opx77.weather.set rain
-weather: 21:30:11  day=180min  preset=rain (next roll in 298s)  rev=43
+weather: 21:30:11  day=180min  weather=rain (next roll in 298s)  rev=43
 
 > /opx77.weather.set 24h_weather_fog 5
-weather: 21:30:19  day=180min  preset=fog (next roll in 241s)  rev=44
+weather: 21:30:19  day=180min  weather=fog (next roll in 241s)  rev=44
 ```
 
 ## Roll the weather table now {#next}
@@ -186,7 +204,7 @@ drawn on the way in. If nothing is left to roll — a one-row table, or every ot
 
 ```text
 > /opx77.weather.next
-weather: 21:31:02  day=180min  preset=lightclouds (next roll in 604s)  rev=45
+weather: 21:31:02  day=180min  weather=lightclouds (next roll in 604s)  rev=45
 ```
 
 ## Hold or release the weather schedule {#freeze}
@@ -221,7 +239,7 @@ make "resume" mean "next".
 
 ```text
 > /opx77.weather.freeze on
-weather: 21:31:40  day=180min  preset=lightclouds (schedule held)  rev=46
+weather: 21:31:40  day=180min  weather=lightclouds (schedule held)  rev=46
 ```
 
 ## Set the authoritative clock {#time}
@@ -259,7 +277,7 @@ become a full-day jump.
 
 ```text
 > /opx77.weather.time 20:30
-weather: 20:30:00  day=180min  preset=lightclouds (schedule held)  rev=47
+weather: 20:30:00  day=180min  weather=lightclouds (schedule held)  rev=47
 ```
 
 ## Hold or release the clock {#time-freeze}
@@ -289,7 +307,7 @@ clock stood rather than jumping forward by however long it was held. The status 
 
 ```text
 > /opx77.weather.time.freeze on
-weather: 20:30:12  day=180min (clock held)  preset=lightclouds (schedule held)  rev=48
+weather: 20:30:12  day=180min (clock held)  weather=lightclouds (schedule held)  rev=48
 ```
 
 ## Set how long a day takes {#day-length}
@@ -326,7 +344,7 @@ world continuously instead of running it.
 
 ```text
 > /opx77.weather.daylength 60
-weather: 20:30:12  day=60min (clock held)  preset=lightclouds (schedule held)  rev=49
+weather: 20:30:12  day=60min (clock held)  weather=lightclouds (schedule held)  rev=49
 
 > /opx77.weather.daylength 5
 day_too_short

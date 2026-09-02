@@ -1,6 +1,6 @@
 ---
 title: opx77_lib — the copy-in snippet library
-description: The twenty-odd helper lines every OPX//77 satellite re-types — finite, clamp, nowMs, displayText, response and the three-level export-call contract — reconciled into one versioned file you paste into your own resource, because a shared library resource is impossible on this platform.
+description: The twenty-odd helper lines every OPX//77 satellite re-types — finite, clamp, nowMs, displayText, response and the three-level export-call contract — reconciled into one versioned file you paste into your own resource, because a shared library resource is impossible on this platform; and the two mirrored files the framework already ships instead.
 ---
 
 # opx77_lib
@@ -99,12 +99,43 @@ with anything. Rename it if it reads better inside your own namespace.
 | [`integer`](#integer) | both | `integer()` in `opx77_elevators` (twice) |
 | [`clamp`](#clamp) | both | `OPX.Math.clamp` |
 | [`percent`](#percent) | both | `percent()` in `opx77_hud` |
-| [`nowMs`](#nowms) | both | `nowMs()` in all six satellites |
-| [`displayText`](#displaytext) | both | `displayText()` in `opx77_menu`, `opx77_status` |
-| [`identifier`](#identifier) | both | `validName()` in `opx77_menu`, `opx77_status` |
-| [`response`](#response) | client | `response()` in four satellites |
-| [`caller`](#caller) | client | `caller()` in four satellites |
+| [`nowMs`](#nowms) | both | `nowMs()` in every satellite |
+| [`displayText`](#displaytext) | both | superseded in-framework by `Text.clean` — see [The mirrored files](#mirrored) |
+| [`identifier`](#identifier) | both | `validName()` in `opx77_menu`, `opx77_notify`, `opx77_status` |
+| [`response`](#response) | client | `response()` in six satellites |
+| [`caller`](#caller) | client | `caller()` in six satellites |
 | [`call`](#call) | client | `Runtime.call` / `core()` in `opx77_elevators`, `opx77_hud` |
+
+## The mirrored files the framework already ships {#mirrored}
+
+Copy-in is the only mechanism, but a copy does not have to drift. Three files in
+this framework are maintained as **byte-identical mirrors**, differing only in
+the namespace line each one publishes under, and that is the pattern to follow
+for anything you copy between your own resources.
+
+| File | In | Publishes |
+|---|---|---|
+| `shared/text.lua` | `opx77_chat`, `opx77_elevators`, `opx77_menu`, `opx77_status` | `<Namespace>.Text` — `Text.span` and `Text.clean` |
+| `shared/locale.lua` | `opx77_appearance`, `opx77_chat`, `opx77_elevators`, `opx77_hud`, `opx77_weather` | `<Namespace>.Locale`, and the global `locale(key, params)` |
+| `web/open77-ui.css` | `opx77_chat`, `opx77_hud`, `opx77_menu`, `opx77_notify` | the shared surface styling |
+
+`shared/text.lua` is what replaced the four hand-written `displayText` and
+`safe()` copies, and it is not a rename: **`Text.clean` counts characters where
+`displayText` counted bytes.** `Text.span(text, maximum)` answers the byte
+length of the first `maximum` characters, and `Text.clean(value, maximum,
+ellipsis)` strips control characters, cuts at that boundary and appends the
+ellipsis when it cut. A cap of 96 is now 96 characters, so an accented label or
+a two-emoji icon that used to be cut short — or cut *in half* — arrives whole.
+
+`shared/locale.lua` is 77 lines in all five satellites, identical apart from the
+namespace and the one line naming that resource's config global. `opx77_core`'s
+own copy is shorter, because it reuses `OPX.String.interpolate` instead of
+carrying its own. The surface is the same in all six: `register(code, strings)`,
+`set(code)`, `current()`, `exists(key)`, `t(key, params)`, and the `locale`
+shorthand. The field is spelled `.Locale` everywhere, capital L.
+
+The snippets below remain the reconciliation for everything that is *not*
+mirrored.
 
 ---
 
@@ -245,10 +276,15 @@ here reaches a web page as a missing property that renders as `NaN%`.
 ```lua
 page:send("hud:frame", {
   health = OPX_LIB.percent(data.metadata.health),
-  hunger = OPX_LIB.percent(data.metadata.hunger),
-  thirst = OPX_LIB.percent(data.metadata.thirst),
+  armor = OPX_LIB.percent(data.metadata.armor),
+  hunger = OPX_LIB.percent(needs.hunger),
+  thirst = OPX_LIB.percent(needs.thirst),
 })
 ```
+
+`health` and `armor` are `opx77_core` metadata; the needs come from
+[`opx77_status`](opx77_status/index.md), which owns them. They have not been
+metadata keys since the core gave them up.
 
 ---
 
@@ -285,6 +321,13 @@ prefers `GetGameTimer` and falls back to this.
 Sanitises text a caller offered for display — control characters become spaces,
 then the result is truncated on a UTF-8 character boundary — returning `nil`
 only for a value that is not text at all.
+
+!!! info "The framework itself uses `Text.clean` now"
+    `displayText` no longer exists in any shipped resource. `shared/text.lua`
+    replaced it, and it measures in **characters** rather than bytes — see
+    [The mirrored files](#mirrored). The snippet below is kept for a resource
+    that wants a byte budget, which is the right unit when the ceiling is a
+    column width or a wire limit rather than something a person reads.
 
 ```lua
 OPX_LIB.displayText(value, maxBytes)
@@ -731,8 +774,9 @@ First release. Reconciles the copies scattered across `opx77_core`,
 `opx77_menu`, `opx77_hud`, `opx77_chat`, `opx77_status`, `opx77_weather` and
 `opx77_elevators`. Where they disagreed, the strictest correct behaviour won:
 
-- **`finite` now rejects both infinities.** `opx77_core/server/needs.lua`
-  accepted them.
+- **`finite` now rejects both infinities.** The core's own needs loop, since
+  removed, accepted them, and a `metadata.health` of `math.huge` was written
+  straight back into the character row.
 - **The magnitude bound is a parameter, not a constant.** The two
   `opx77_elevators` copies hard-coded `1000000`, which is right for a world
   coordinate and wrong for everything else.
@@ -741,7 +785,8 @@ First release. Reconciles the copies scattered across `opx77_core`,
   returned a number and accepted them. Both are useful and they are now
   [`isFinite`](#isfinite) and [`finite`](#finite).
 - **`displayText` truncates on a character boundary.** Every copy cut at a
-  byte offset.
+  byte offset. The framework has since gone further and made the budget itself
+  a character count, in `shared/text.lua` — see [above](#mirrored).
 - **`displayText` matches control characters as an explicit byte range**
   rather than `%c`.
 - **`call` checks `GetResourceState` first**, as `opx77_elevators` and

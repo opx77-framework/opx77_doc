@@ -54,6 +54,11 @@ Takes no arguments.
 | `not_synchronized` | No snapshot has been accepted yet on this client. |
 | `environment_unavailable` | This client has no environment natives, so the projection never loaded. |
 
+Both are codes rather than sentences, and [`LOCALE`](config.md#locale) does not reach them: a
+resource that wants to show one to a player renders it through its own catalogue. The same goes
+for `weather` and `weatherPreset`, which are the configured `NAME` and the engine preset, not
+display text.
+
 **Side** `client export` — callable from any client resource through `Open77.exports.call`.
 Local only: it reads this machine's projection, not the server's state.
 

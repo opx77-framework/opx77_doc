@@ -9,7 +9,7 @@ The chat box, and the only path a typed command takes to the server.
 
 | At a glance | |
 |---|---|
-| **Version** | `0.1.0` |
+| **Version** | `0.2.0` |
 | **Requires** | `open77_version ">=0.0.1"`. Nothing else in OPX//77 |
 | **Auto start** | yes |
 | **Reload policy** | `reconnect` — a CEF surface is never replaced in place |
@@ -18,6 +18,7 @@ The chat box, and the only path a typed command takes to the server.
 | **Exports** | six, all client-side — see [Exports](exports.md) |
 | **Commands** | **none of its own.** It carries everybody else's — see [Events](events.md#command-path) |
 | **Events** | the message path, the command path and the suggestion protocol — see [Events](events.md) |
+| **Locales** | `en` and `fr`; [`LOCALE`](config.md#locale) picks one. Logs stay English — see [below](#locales) |
 | **Conflicts with** | `open77_chat`, the official package it replaces. See [below](#official-package-conflict) |
 
 ## What it is {#what-it-is}
@@ -56,7 +57,7 @@ handled too, so another resource on the same client can open or close the box.
   arguments the platform documents on its own `open77_chat` package.
 - **[Events](events.md)** — every event in and out, split by networked and non-networked, and
   the full path a typed slash command takes to the dispatcher.
-- **[Configuration](config.md)** — the six keys in `config.lua`.
+- **[Configuration](config.md)** — the seven keys in `config.lua`.
 
 ## The box {#the-box}
 
@@ -101,7 +102,7 @@ is logged as itself:
 
 | Limit | Where | Behaviour |
 |---|---|---|
-| `MAX_LENGTH` (240) | Both | The input carries a `maxlength`; the server also truncates to `MAX_LENGTH` and appends `...`. Everything off the wire is treated as hostile. |
+| `MAX_LENGTH` (240) | Both | The input carries a `maxlength`; the server truncates to `MAX_LENGTH` **characters** and appends `...`. Everything off the wire is treated as hostile, and the two sides count a character differently at the boundary — see [Configuration](config.md#max-length). |
 | `RATE_MS` (800) | Server | A floor between two messages from the same player. A message inside the floor is dropped silently. Commands do not pass through here and are not affected. |
 | `HISTORY` (60) | Page | Lines kept on screen; older ones fall off the top. |
 | 40 typed lines | Page | The ++arrow-up++ recall buffer. Not configurable. |
@@ -110,6 +111,32 @@ is logged as itself:
 Control characters in a relayed message are replaced with spaces before it goes out: a newline
 in a payload would forge a line in everybody's box. Blank and whitespace-only messages are
 dropped.
+
+## Player-facing text {#locales}
+
+Every sentence this resource writes itself comes from a catalogue in `locales/`, and
+[`LOCALE`](config.md#locale) in `config.lua` picks which one. `en` and `fr` ship;
+`shared/locale.lua` publishes the one global every file below it uses, `locale(key, params)`,
+and a key missing from the chosen catalogue falls back to `en` and then to the key itself.
+
+It is a short list, because this resource mostly carries other people's text:
+
+| Rendered from the catalogue | Where |
+|---|---|
+| The four command-line refusals | A red `COMMAND` line, before anything is sent |
+| `The command could not be sent.` and `The message could not be sent.` | A red `NETWORK` line, when the trigger itself is refused |
+| The `COMMAND` and `NETWORK` author tags | Every line this resource writes itself |
+| `player <id>` | The author on a relayed message, when the host has no display name for that connection |
+| The input's placeholder | Sent to the page with the rest of the config |
+
+The page has no words of its own — every string it draws arrives from Lua already translated,
+the placeholder included — so there is no second catalogue in `web/`.
+
+Nothing else moves. A line another resource sends on
+[`chat:addMessage`](events.md#chat-addmessage) is drawn exactly as it arrives, and so is the
+dispatcher's answer on [`open77:command:result`](events.md#open77-command-result), including its
+`unknown_command` and `permission_denied:` codes. The client log stays English whatever the
+locale is.
 
 ## Layering {#layering}
 

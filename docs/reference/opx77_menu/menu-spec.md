@@ -58,7 +58,8 @@ something to guess about.
     - Default: the first selectable row.
 - status?: `string`
     - A transient line written under the list as the menu opens. See
-      [`status`](exports.md#status) for its lifetime.
+      [`status`](exports.md#status) for its lifetime. A number is accepted;
+      anything else refuses the spec with `invalid_status`.
     - Default: none.
 - closeOnSelect?: `boolean`
     - Close the menu after any `action` row fires. Has no effect on a toggle, a
@@ -357,7 +358,7 @@ spaces.
 
 | Limit | Value | Applies to |
 |---|---|---|
-| `MAX_NODES` | 400 | Rows across the **whole tree**, submenus and separators included. Reported back by `open` as `items`. |
+| `MAX_NODES` | 400 | Rows across the **whole tree**, submenus and separators included. Reported back by `open` as `nodes`. |
 | `MAX_ROWS` | 200 | Rows on one level. Counted before any row is normalised, so a caller handing over a thousand rows is told immediately. |
 | `MAX_DEPTH` | 8 | Nesting levels, root included. |
 | `MAX_DATA_NODES` | 64 | Value nodes in one `data` table, keys counted as well as values. |
@@ -377,8 +378,9 @@ time, with the cursor near the middle except at the two ends — for the same
 The two are treated differently on purpose.
 
 **Cosmetic text is sanitised, never refused.** Control characters become
-spaces and the string is truncated to its cap. A label should not lose a menu
-over a stray tab someone pasted in.
+spaces and the string is truncated to its cap, counted in characters so a cut
+never lands inside a multi-byte one. A label should not lose a menu over a
+stray tab someone pasted in.
 
 **Structure is refused, never truncated.** An oversized `data` table, a level
 with too many rows, a tree that is too deep: all of them refuse the whole call.

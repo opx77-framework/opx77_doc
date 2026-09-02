@@ -160,17 +160,20 @@ the right call for deciding what to *draw* — greying a row, hiding a prompt,
 choosing a label. They are never the right call for deciding what a player is
 allowed to *do*.
 
-## Do I really need `open77_appearance`? {#need-appearance}
+## Do I really need an appearance resource? {#need-appearance}
 
 For OPX//77 itself, no: the core neither reads `Open77.ready.isReady` nor waits
-for `onPlayerReady`, so characters load and are placed without it.
+for `onPlayerReady`, so characters load and are placed without one.
 
 For the platform's readiness gate, yes. Every joiner holds a `__platform` hold
 that no Lua can release and that has no deadline; it clears only when the client
-sends `open77:session:gameplayReady`, which in practice means
-`open77_appearance`. Without it the gate never opens for anybody, and any
-resource written to wait on it waits for ever. See
-[Getting started](getting-started.md#the-appearance-requirement).
+sends `open77:session:gameplayReady`. In this resource set
+[`opx77_appearance`](../reference/opx77_appearance/index.md) is what sends it,
+and it ships with the framework — so on a stock install this is already handled.
+Stop it, or run the set without it, and the gate never opens for anybody: any
+resource written to wait on it waits for ever. The official `open77_appearance`
+satisfies the same requirement, and the core's boot check accepts either name.
+See [Getting started](getting-started.md#the-appearance-requirement).
 
 ## Why does nothing listen for `playerDropped`? {#no-playerdropped}
 

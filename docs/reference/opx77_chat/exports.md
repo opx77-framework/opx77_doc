@@ -28,7 +28,13 @@ that player `chat:addMessage` instead — see [Events](events.md).
 
 Every export answers a table carrying `ok`, and never raises. When `ok` is `false` the table
 also carries `error`, a stable snake_case code meant for branching rather than for a player to
-read.
+read — a caller that wants to show one renders it through its own catalogue, because these
+codes are not translated.
+
+The shapes have names, annotated in `opx77_chat/types.lua`, which the manifest never loads:
+`ChatResponse` and `ChatEnabledState` for the answers, `ChatMessage` for one line,
+`ChatSuggestion` and `ChatSuggestionParameter` for a completion entry, `ChatError` for the codes
+below, and `ChatConfig` for `config.lua`.
 
 | Code | Meaning |
 |---|---|
@@ -68,7 +74,7 @@ Open77.exports.call("opx77_chat", "addMessage", message)
     - `text`: `string` — the line.
     - `color`: `{ r, g, b }` — tints the **author tag only**, not the body.
 
-**Returns** `table` — `{ ok = true }`
+**Returns** `table` — a `ChatResponse`: `{ ok = true }`
 
 **Errors**
 
@@ -111,7 +117,7 @@ still starting.
 Open77.exports.call("opx77_chat", "clear")
 ```
 
-**Returns** `table` — `{ ok = true }`
+**Returns** `table` — a `ChatResponse`: `{ ok = true }`
 
 **Errors**
 
@@ -158,7 +164,7 @@ Open77.exports.call("opx77_chat", "addSuggestion", command, help, parameters)
       or `optional` key on a parameter is documentation for whoever reads your code next.
     - Default: `{}`
 
-**Returns** `table` — `{ ok = true }`
+**Returns** `table` — a `ChatResponse`: `{ ok = true }`
 
 **Errors**
 
@@ -207,7 +213,7 @@ Open77.exports.call("opx77_chat", "removeSuggestion", command)
 - command: `string`
     - With or without the leading slash; the page adds one if you omit it.
 
-**Returns** `table` — `{ ok = true }`
+**Returns** `table` — a `ChatResponse`: `{ ok = true }`
 
 **Errors**
 
@@ -255,7 +261,7 @@ Open77.exports.call("opx77_chat", "setEnabled", enabled)
 - enabled: `any`
     - Anything but `false` enables. Only a literal `false` disables.
 
-**Returns** `table` — `{ ok = true, enabled = boolean }`, the state it now holds
+**Returns** `table` — a `ChatEnabledState`: `{ ok = true, enabled = boolean }`, the state it now holds
 
 **Errors**
 
@@ -301,7 +307,7 @@ Answers whether the box is currently enabled.
 Open77.exports.call("opx77_chat", "isEnabled")
 ```
 
-**Returns** `table` — `{ ok = true, enabled = boolean }`
+**Returns** `table` — a `ChatEnabledState`: `{ ok = true, enabled = boolean }`
 
 **Errors**
 
