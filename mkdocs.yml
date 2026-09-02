@@ -39,6 +39,19 @@ theme:
 
 plugins:
   - search
+  # URLs shared in support channels outlive page paths. Every path the site
+  # published before the guides/concepts/reference split still resolves.
+  - redirects:
+      redirect_maps:
+        getting-started.md: guides/getting-started.md
+        resources/index.md: reference/index.md
+        resources/opx77_core.md: reference/opx77_core/index.md
+        resources/opx77_menu.md: reference/opx77_menu/index.md
+        resources/opx77_hud.md: reference/opx77_hud/index.md
+        resources/opx77_chat.md: reference/opx77_chat/index.md
+        resources/opx77_status.md: reference/opx77_status/index.md
+        resources/opx77_weather.md: reference/opx77_weather/index.md
+        resources/opx77_elevators.md: reference/opx77_elevators/index.md
 
 markdown_extensions:
   - abbr
@@ -67,29 +80,81 @@ markdown_extensions:
 extra_css:
   - stylesheets/extra.css
 
-# --------------------------------------------------------------------------- #
-# NAVIGATION
-#
-# The seven pages under "Resources" are placeholders. Other agents write them.
-# Do not rename or move these paths -- they are the agreed contract:
-#
-#   docs/resources/opx77_core.md
-#   docs/resources/opx77_menu.md
-#   docs/resources/opx77_hud.md
-#   docs/resources/opx77_chat.md
-#   docs/resources/opx77_status.md
-#   docs/resources/opx77_weather.md
-#   docs/resources/opx77_elevators.md
-# --------------------------------------------------------------------------- #
 nav:
   - Home: index.md
-  - Getting started: getting-started.md
-  - Resources:
-      - Overview: resources/index.md
-      - opx77_core: resources/opx77_core.md
-      - opx77_menu: resources/opx77_menu.md
-      - opx77_hud: resources/opx77_hud.md
-      - opx77_chat: resources/opx77_chat.md
-      - opx77_status: resources/opx77_status.md
-      - opx77_weather: resources/opx77_weather.md
-      - opx77_elevators: resources/opx77_elevators.md
+
+  - Guides:
+      - Getting started: guides/getting-started.md
+      - Converting from ESX or Qbox: guides/converting.md
+      - Writing a resource: guides/writing-a-resource.md
+      - Writing a server plugin: guides/writing-a-server-plugin.md
+      - Troubleshooting: guides/troubleshooting.md
+      - FAQ: guides/faq.md
+      - Contributing: guides/contributing.md
+
+  - Concepts:
+      - Architecture: concepts/architecture.md
+      - The Open77 platform: concepts/the-platform.md
+      - The export contract: concepts/export-contract.md
+      - Integration channels: concepts/integration-channels.md
+      - Identity: concepts/identity.md
+      - The entry gate: concepts/entry-gate.md
+      - Persistence: concepts/persistence.md
+
+  - Reference:
+      - Overview: reference/index.md
+      - opx77_core:
+          - Overview: reference/opx77_core/index.md
+          - Exports:
+              - client: reference/opx77_core/exports/client.md
+              - server: reference/opx77_core/exports/server.md
+          - Server API: reference/opx77_core/server-api.md
+          - Player: reference/opx77_core/player.md
+          - Hooks: reference/opx77_core/hooks.md
+          - Events: reference/opx77_core/events.md
+          - Commands: reference/opx77_core/commands.md
+          - Configuration: reference/opx77_core/config.md
+          - Jobs, gangs and origins: reference/opx77_core/data.md
+          - Permissions: reference/opx77_core/permissions.md
+          - Types: reference/opx77_core/types.md
+      - opx77_menu:
+          - Overview: reference/opx77_menu/index.md
+          - Exports: reference/opx77_menu/exports.md
+          - The menu spec: reference/opx77_menu/menu-spec.md
+          - Events: reference/opx77_menu/events.md
+          - Configuration: reference/opx77_menu/config.md
+          - Types: reference/opx77_menu/types.md
+      - opx77_hud:
+          - Overview: reference/opx77_hud/index.md
+          - Exports: reference/opx77_hud/exports.md
+          - Events: reference/opx77_hud/events.md
+          - Commands: reference/opx77_hud/commands.md
+          - Configuration: reference/opx77_hud/config.md
+      - opx77_chat:
+          - Overview: reference/opx77_chat/index.md
+          - Exports: reference/opx77_chat/exports.md
+          - Events: reference/opx77_chat/events.md
+          - Configuration: reference/opx77_chat/config.md
+      - opx77_status:
+          - Overview: reference/opx77_status/index.md
+          - Exports: reference/opx77_status/exports.md
+          - The effect spec: reference/opx77_status/effect-spec.md
+          - Events: reference/opx77_status/events.md
+          - Configuration: reference/opx77_status/config.md
+      - opx77_weather:
+          - Overview: reference/opx77_weather/index.md
+          - Exports: reference/opx77_weather/exports.md
+          - Commands: reference/opx77_weather/commands.md
+          - Events: reference/opx77_weather/events.md
+          - Configuration: reference/opx77_weather/config.md
+      - opx77_elevators:
+          - Overview: reference/opx77_elevators/index.md
+          - Exports: reference/opx77_elevators/exports.md
+          - Error codes: reference/opx77_elevators/errors.md
+          - Events: reference/opx77_elevators/events.md
+          - Commands: reference/opx77_elevators/commands.md
+          - Configuration: reference/opx77_elevators/config.md
+          - Types: reference/opx77_elevators/types.md
+      - opx77_lib: reference/opx77_lib.md
+
+  - Releases: releases.md

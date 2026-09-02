@@ -36,6 +36,14 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v6.0.0
 
+      # The framework lives in a different repository, so there is no resources
+      # tree here and this step reports a skip. It is wired in so that a
+      # workflow_dispatch run in a checkout that does have one — or the same
+      # script run locally — fails on a public name the reference does not
+      # document. See scripts/check-api-coverage.sh for how to run it locally.
+      - name: Check API coverage
+        run: ./scripts/check-api-coverage.sh
+
       - name: Build site
         run: mkdocs build --strict
 

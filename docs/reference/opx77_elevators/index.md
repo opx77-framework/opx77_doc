@@ -1,0 +1,182 @@
+---
+title: opx77_elevators
+description: Job-gated in-world elevators for OPX//77 — one building's door policy, and the clearest worked example in the repository of what a satellite resource can and cannot prove.
+---
+
+# opx77_elevators
+
+Job-gated in-world elevators: a floor list on the lifts Night City already has,
+each floor opened or closed by the job a character holds in
+[`opx77_core`](../opx77_core/index.md). An Arasaka executive floor, the NCPD
+holding level, a ripperdoc's back room — the jobs, the grades and the wording
+all live in `config.lua`.
+
+It is also the smallest complete example of a **satellite**: a resource that
+lives outside `opx77_core`, has to reach the core for the one fact it cares
+about, and can only reach it from the client. Read it before writing your own.
+Everything awkward about this platform shows up here in eighty lines.
+
+| At a glance | |
+|---|---|
+| **Version** | `0.2.0` |
+| **Requires** | `open77_version ">=0.0.1"`. No `dependency` is declared |
+| **Auto start** | yes |
+| **Reload policy** | `local` — no CEF surface; the server re-adopts from the next client sighting |
+| **Permissions** | `network.events`, `world.elevators`, `elevators.read` |
+| **Sides** | client, which runs the gate, the scan and the panel, and server, which adopts, locks and re-derives every request |
+| **Exports** | six, all client-side — see [Exports](exports.md) |
+| **Commands** | one, ACL-restricted — see [Commands](commands.md) |
+| **Events** | five net events between the two halves, plus the answer channel — see [Events](events.md) |
+| **Optional at runtime** | [`opx77_menu`](../opx77_menu/index.md) for the panel, [`opx77_core`](../opx77_core/index.md) for the job |
+
+Nothing is declared as a hard dependency. Without `opx77_core` every gated floor
+closes and every public floor stays open; without `opx77_menu` the built-in
+panel is unavailable and the exports carry on unchanged.
+
+!!! danger "The job check is a client-side hint, and no setting turns it into anything else"
+
+    The Open77 server runtime has no cross-resource event bus, so this
+    resource's **server half cannot ask `opx77_core` for a player's job**. There
+    is no message to send and no promise to await. The check runs on the client,
+    where the core can be reached, and a modified client skips every line of it.
+
+    **Do not gate money, contraband or a body count on it.** Gate the flavour:
+    which floor a lift stops at, which corridor a story happens in. A decision
+    that has to be unforgeable belongs in `opx77_core`'s server VM, where the job
+    is already in memory — see
+    [Writing a server plugin](../../guides/writing-a-server-plugin.md).
+
+## What the server does prove {#what-the-server-proves}
+
+The other half of the honest answer, and the reason this resource is worth
+reading. The server proves everything a server *can*, and it proves it from its
+own authority rather than from anything the client said.
+
+Every adopted lift is locked with the host's own
+`Open77.elevators.flags.locked`. That is the platform's switch for *refuse
+requests coming from a client*, so the elevator authority rejects a request sent
+straight off a client and this resource's server half is the only way the cabin
+moves.
+
+The lock is set with `setFlags`, OR-ed onto whatever flags the lift already had:
+`powered` is left exactly as the host set it, because an operator who cut the
+power to a shaft did it on purpose. A lift that could **not** be locked is a
+warning line rather than a rollback — an unlocked lift still answers this
+resource, it just also answers a client directly, and running that way unnoticed
+is the real failure.
+
+On every floor request the server re-derives:
+
+| It checks, itself | Refusal |
+|---|---|
+| The elevator key is one `config.lua` declares | `no_such_elevator` |
+| The floor index is one that elevator declares | `no_such_floor` |
+| The elevator is one **this resource** adopted, and the host still has it | `not_adopted` |
+| The index is inside the native device's own floor count | `floor_out_of_range` |
+| The player has a replicated position at all | `no_position` |
+| The player is in the elevator's routing bucket | `wrong_bucket` |
+| The player is within `USE_RADIUS` of the **declared** shaft position | `too_far` |
+| The player is inside the rate limit | `rate_limited` |
+| The host accepted the move | `move_rejected` |
+
+Distance is measured against the declared shaft position, never the cabin's: a
+cabin parked at the top of the shaft is thirty metres from the player standing
+at the ground-floor panel, who is exactly the person allowed to call it.
+
+!!! warning "The residual, exactly"
+
+    A modified client reaches **the configured floors of an elevator it is
+    standing at**, and not the whole shaft. It cannot reach a floor no
+    `config.lua` entry declares, a lift in another bucket, a lift across the map,
+    or a lift this resource never adopted. It can reach a gated floor of the lift
+    it is standing next to. Design as though it will.
+
+## What a satellite can and cannot prove {#satellite-lesson}
+
+The general shape, stated once, because every satellite hits it:
+
+- **The client can ask the core anything.** `Open77.exports.call` reaches
+  `opx77_core`'s client half, which holds `PlayerData`. This resource does that
+  every `POLL_MS`, and again on every `opx77:client:playerDataChanged`.
+- **The server can ask the core nothing.** No `exports`, no
+  `GetInvokingResource`, no cross-resource bus; `TriggerEvent` walks only its own
+  VM. So the server half of a satellite knows what the host knows — positions,
+  buckets, entity ownership, rates — and nothing about a character.
+- **So a satellite's server half must re-derive, from the host, every clause it
+  intends to enforce**, and must be honest in its documentation about the one
+  clause it cannot.
+
+[The client export contract](../../concepts/export-contract.md) explains the
+call shape and its three levels of failure;
+[Integration channels](../../concepts/integration-channels.md) sets out what
+each of the four channels can carry. If your decision has to be unforgeable, it
+is not a satellite — it is a file in `opx77_core/server/`.
+
+## Where the pieces live {#layout}
+
+| File | Does |
+|---|---|
+| `config.lua` | shared. The elevators, the floors, the job requirements, the radii |
+| `shared/access.lua` | shared, pure. The gate: which floor, which job, which grade, how stale |
+| `client/state.lua` | what this client knows and how old each piece of it is |
+| `client/main.lua` | the link to `opx77_core`, the scan, the net events, the runtime API |
+| `client/panel.lua` | the floor list, borrowed from `opx77_menu` |
+| `client/exports.lua` | the six public exports |
+| `server/main.lua` | adoption, the lock, the re-derived request, the diagnostic command |
+
+`shared/access.lua` is loaded by both halves for different halves of the same
+question: the client asks *may this player press this button*, the server asks
+only *is this a button `config.lua` declared*, because the server has no
+character to ask about.
+
+## Permissions {#permissions}
+
+```lua
+permissions {
+  "network.events",
+  "world.elevators", -- adopt a native lift, lock it, and move the cabin
+  "elevators.read",
+}
+```
+
+| Permission | For |
+|---|---|
+| `network.events` | the five net events between the two halves — `sighted` and `request` upward, `bound`, `answer` and `released` downward. See [Events](events.md) |
+| `world.elevators` | server-only. `adopt`, `get`, `all`, `setFlags` for the lock, and `goTo` to move the cabin |
+| `elevators.read` | the client's streamed snapshots — `Open77.elevators.nearby(radius)`, which is how a lift is sighted at all |
+
+!!! info "The permission it deliberately does not ask for"
+
+    The platform also defines `elevators.request`, a client's own bounded button
+    and call intentions. This resource does not request it, because no press ever
+    goes that way: every request travels to this resource's server half, which is
+    the only holder of `world.elevators` in the set and the only thing a locked
+    cabin will answer.
+
+!!! warning "Nothing is scanned without the native API"
+
+    On a client that has not loaded the world, or one whose game build predates
+    the elevator API, `Open77.elevators` is absent. Both halves say so once, as an
+    error line, and then do nothing — which beats a stack trace per scan.
+
+## Pages {#pages}
+
+- [Exports](exports.md) — the six client exports, with the errors each can
+  answer.
+- [Error codes](errors.md) — every code, who decided it, and which of them are
+  hints.
+- [Events](events.md) — the five net events between the two halves, the answer
+  channel, and everything this resource listens to.
+- [Commands](commands.md) — the ACL-restricted diagnostic command.
+- [Configuration](config.md) — every key of `OPX_ELEVATORS_CONFIG` with its
+  shipped default, and how to configure an elevator.
+- [Types](types.md) — the shapes the exports answer with.
+
+## See also {#see-also}
+
+- [`opx77_core`](../opx77_core/index.md) — where the job actually lives, and
+  where an unforgeable decision belongs.
+- [`opx77_menu`](../opx77_menu/index.md) — the surface the floor list is drawn
+  on.
+- [Writing a resource](../../guides/writing-a-resource.md) — the satellite
+  pattern this resource is an instance of.

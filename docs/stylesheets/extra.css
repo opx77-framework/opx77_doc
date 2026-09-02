@@ -1,4 +1,9 @@
-/* OPX//77 — small accents on top of the Material theme. */
+/* OPX//77 — small accents on top of the Material theme.
+ *
+ * Everything here serves one page shape: a reference page is a long run of H2
+ * entries that a reader arrives at by deep link and leaves again, so the rules
+ * below are about telling one entry from the next and about landing well on an
+ * explicit {#anchor}. */
 
 :root {
   --md-code-font: "JetBrains Mono", "Roboto Mono", ui-monospace, monospace;
@@ -14,7 +19,42 @@
   font-weight: 700;
 }
 
-/* Keep inline code inside tables from wrapping mid-identifier. */
+/* Keep inline code inside tables from wrapping mid-identifier. Error codes and
+ * type names are short; the prose column beside them still wraps normally. */
 .md-typeset table:not([class]) code {
   white-space: nowrap;
+}
+
+/* One rule per entry. Every H2 on a reference page is a callable, an event, a
+ * command or a config key, and on a page carrying fifty of them the boundary
+ * has to be visible without reading. */
+.md-typeset h2 {
+  border-top: 1px solid var(--md-default-fg-color--lightest);
+  padding-top: 1.2rem;
+}
+
+.md-typeset h1 + h2,
+.md-typeset h2:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+/* Arriving on a deep link. Material already scrolls the heading clear of the
+ * sticky header; this says which of the fifty entries you landed on. */
+.md-typeset h2:target,
+.md-typeset h3:target {
+  background: var(--md-accent-fg-color--transparent);
+  border-radius: 0.1rem;
+}
+
+/* Parameter bullets. The entry grammar nests a description under each
+ * parameter, which the default spacing pushes too far apart to read as one
+ * item. */
+.md-typeset ul li > ul {
+  margin-top: 0.2em;
+  margin-bottom: 0.2em;
+}
+
+.md-typeset ul li > ul > li {
+  margin-bottom: 0.1em;
 }
