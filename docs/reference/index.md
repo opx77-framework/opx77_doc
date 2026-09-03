@@ -14,14 +14,14 @@ of its own.
 | Resource | Version | Reload policy | Role |
 |---|---|---|---|
 | [`opx77_core`](opx77_core/index.md) | 0.3.0 | `local` | The framework. Characters, money, jobs, gangs, metadata, appearance, persistence, entry gate. |
-| [`opx77_menu`](opx77_menu/index.md) | 0.2.0 | `reconnect` | Shared keyboard-driven menu service. |
-| [`opx77_hud`](opx77_hud/index.md) | 0.2.0 | `reconnect` | Player HUD: gauges, money, job, and the status strip. |
-| [`opx77_chat`](opx77_chat/index.md) | 0.2.0 | `reconnect` | Chat box, and the only path a slash command typed in game takes to the host's dispatcher. |
-| [`opx77_status`](opx77_status/index.md) | 0.3.0 | `reconnect` | The gameplay needs, in its own table, and the status-effect registry. Owns no surface of its own. |
+| [`opx77_menu`](opx77_menu/index.md) | 0.3.0 | `reconnect` | Shared keyboard-driven menu service. |
+| [`opx77_hud`](opx77_hud/index.md) | 0.3.0 | `reconnect` | Player HUD: gauges, money, job, and the status strip. |
+| [`opx77_chat`](opx77_chat/index.md) | 0.3.0 | `reconnect` | Chat box, and the only path a slash command typed in game takes to the host's dispatcher. |
+| [`opx77_status`](opx77_status/index.md) | 0.4.0 | `reconnect` | The gameplay needs, in its own table, and the status-effect registry. Owns no surface of its own. |
 | [`opx77_notify`](opx77_notify/index.md) | 0.2.0 | `reconnect` | Toast notifications, drop-in for the platform's own notification API. |
-| [`opx77_weather`](opx77_weather/index.md) | 0.2.0 | `local` | Synchronised clock and weather authority. |
-| [`opx77_elevators`](opx77_elevators/index.md) | 0.3.0 | `local` | Job-gated in-world elevators. |
-| [`opx77_appearance`](opx77_appearance/index.md) | 0.2.0 | `local` | The character's face, client-side, and the readiness announcement that opens the platform's gate. |
+| [`opx77_weather`](opx77_weather/index.md) | 0.3.0 | `local` | Synchronised clock and weather authority. |
+| [`opx77_elevators`](opx77_elevators/index.md) | 0.4.0 | `local` | Job-gated in-world elevators. |
+| [`opx77_appearance`](opx77_appearance/index.md) | 0.4.0 | `local` | The character's face, client-side, and the readiness announcement that opens the platform's gate. |
 
 Every version and reload policy in that table is read from the resource's own
 `open77.lua`. A `reload_policy` is a **client transition** policy, not a
@@ -80,7 +80,7 @@ a manifest declaration.
 
 - **`opx77_hud` reads `opx77_core`** through `Open77.exports.call("opx77_core", "GetPlayerData")`
   and through the core's local events, and it reads the needs and the effects
-  from `opx77_status` — the `needs` export at boot, then `opx77:status:needs`
+  from `opx77_status` — the `getNeeds` export at boot, then `opx77:status:needs`
   and `opx77:status:effects`. `opx77_status` owns no surface of its own — two
   surfaces for one corner of the screen was two things to place, theme and keep
   in step.

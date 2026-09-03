@@ -52,7 +52,7 @@ DENIED_FLOORS = "shown",
 
 `"shown"` tells the player a door exists and who it is for, which is usually the
 point of a job-gated floor. `"hidden"` tells them nothing — and when it hides
-*everything* at an elevator, [`panel`](exports.md#panel) answers
+*everything* at an elevator, [`openPanel`](exports.md#openpanel) answers
 `no_floors_available` rather than opening an empty list, because "nothing
 happened" is a worse answer than a named one.
 
@@ -125,7 +125,8 @@ SCAN_MS = 2000,
 
 A sighting is considered stale after **two** scans: a lift that stopped being
 reported is a lift the player walked away from, and that is what makes
-[`nearest`](exports.md#nearest) go quiet when the player leaves the lobby.
+[`nearestElevator`](exports.md#nearestelevator) go quiet when the player leaves
+the lobby.
 
 ## EVENT {#event}
 
@@ -187,12 +188,18 @@ its own shaft**: a character on the twelfth storey is as close to the panel as
 one in the lobby, because the height difference between them was never part of
 the sum.
 
-!!! info "The client's fallback is the host's 3D distance"
+!!! warning "The client's fallback measures something else, and can disagree"
 
-    A client that cannot read its own position — the host answers nothing at all
-    before the world is up — ranks a lift by the host's own distance to the
-    cabin, which is 3D and therefore never the smaller of the two. So the
-    fallback can only ask for less than the server would allow, never more.
+    A client that cannot read its own position — `Open77.character.position()`
+    answers nothing at all before the world is up — ranks a lift by the host's
+    own distance to the **cabin**, in three dimensions. That is a different
+    measurement to a different point, so it can disagree with the server in
+    **both** directions: it can offer the panel up to `MATCH_RADIUS` further out
+    than the server accepts, because the cabin may sit that far from the
+    declared position, and it can withhold it on a floor the cabin is not
+    parked on, because the height difference it was never meant to count is now
+    in the sum. The server re-derives `USE_RADIUS` across the ground against the
+    declared position, and its answer is the one that counts.
 
 ## SCAN_RADIUS {#scan-radius}
 

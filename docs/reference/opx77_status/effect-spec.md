@@ -5,8 +5,8 @@ description: Every field of a StatusSpec, the eight tones a chip may take, the t
 
 # The effect spec
 
-The table you hand to [`add`](exports.md#add), and the shape any subset of which
-you hand to [`update`](exports.md#update).
+The table you hand to [`addEffect`](exports.md#addeffect), and the shape any
+subset of which you hand to [`updateEffect`](exports.md#updateeffect).
 
 ## StatusSpec {#statusspec}
 
@@ -76,7 +76,9 @@ an optional field that is `nil` is simply absent — it is never a refusal.
     `label` and `icon` are **display text**, cleaned by `Text.clean` in
     `shared/text.lua`, and their limits of 32 and 2 are counted in **characters**.
     The cut is UTF-8 aware and never lands mid-sequence, so an `icon` of two
-    emoji fits and arrives whole. This is a change: these two used to be truncated
+    emoji fits and arrives whole. The scan behind it is bounded in bytes at four
+    times the character cap, so a run of continuation bytes cannot make it walk
+    an arbitrarily long string. This is a change: these two used to be truncated
     with `string.sub` on a byte count, which both refused an emoji and could split
     one.
 
@@ -136,10 +138,12 @@ it into a single `+3` counter chip. Because the cut is second, raising
 from the bottom — the lowest priority, oldest effects.
 
 !!! warning "Replacing an effect moves it"
-    `startedAtMs` is set on every [`add`](exports.md#add), including one that
+    `startedAtMs` is set on every [`addEffect`](exports.md#addeffect), including
+    one that
     replaces an id you already hold. A resource that re-adds the same effect every
     tick will drag it to the front of its priority group every tick. Use
-    [`update`](exports.md#update), which keeps the start time whenever the patch
+    [`updateEffect`](exports.md#updateeffect), which keeps the start time
+    whenever the patch
     omits `durationMs`.
 
 ## Countdowns {#countdowns}
@@ -184,6 +188,6 @@ this resource.
 
 !!! warning "The chip id is prefixed; the event payload's `status` is not"
     A chip's `id` is `owner:id`. The `status` field in the events raised back to
-    you is the **bare** id you passed to [`add`](exports.md#add). They are
+    you is the **bare** id you passed to [`addEffect`](exports.md#addeffect). They are
     deliberately different, and matching a chip id against your own id will never
     succeed.

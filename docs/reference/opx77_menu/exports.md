@@ -17,7 +17,7 @@ shape and the three levels of failure.
 | [`update`](#update) | [`MenuResponse`](types.md#menuresponse) | Rebuilds a menu you own from a fresh spec, keeping the player where they are. |
 | [`close`](#close) | [`MenuResponse`](types.md#menuresponse) | Closes your own menu. |
 | [`state`](#state) | [`MenuState`](types.md#menustate) | Reports whether a menu is open and whether it is yours. |
-| [`status`](#status) | [`MenuResponse`](types.md#menuresponse) | Writes the transient line under the list. |
+| [`setStatus`](#setstatus) | [`MenuResponse`](types.md#menuresponse) | Writes the transient line under the list. |
 | [`keys`](#keys) | [`MenuKeys`](types.md#menukeys) | Reports the keys that drive the menu, for a caller printing its own hint. |
 
 Every export answers a table and **never raises**. `ok` is always present;
@@ -324,7 +324,7 @@ CreateThread(function()
 end)
 ```
 
-## status {#status}
+## setStatus {#setstatus}
 
 Writes the transient line under the list, or clears it now when `text` is
 `nil`; it returns `ok = false` when no menu is open or the open menu is not
@@ -335,7 +335,7 @@ with spaces, and clears itself after **6 seconds**. Clearing is `nil` —
 never an empty string, which sanitises to nothing and is treated the same way.
 
 ```lua
-Open77.exports.call("opx77_menu", "status", text, ok)
+Open77.exports.call("opx77_menu", "setStatus", text, ok)
 ```
 
 - text: `string | number | nil`
@@ -362,14 +362,14 @@ nothing else on success.
 usable inside a `CreateThread`. Not reachable from a server resource, and not
 reachable as an event.
 
-### Example {#status-example}
+### Example {#setstatus-example}
 
 ```lua
 -- Report the outcome of a row the player chose. Best-effort: their ENTER may
 -- have closed the menu before this lands, which answers no_menu_open.
 CreateThread(function()
   local ok, why = DoTheThing()
-  call("status", ok and "done" or why, ok)
+  call("setStatus", ok and "done" or why, ok)
 end)
 ```
 

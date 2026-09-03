@@ -185,8 +185,9 @@ Extends [`ElevatorResponse`](#elevatorresponse)
 
 ## FloorDecision {#floordecision}
 
-What [`check`](exports.md#check) and [`use`](exports.md#use) answer, and the shape
-of the payload published on
+What [`isFloorAllowed`](exports.md#isfloorallowed) and
+[`requestFloor`](exports.md#requestfloor) answer, and the shape of the payload
+published on
 [`opx77:elevators`](events.md#opx77-elevators).
 
 Extends [`ElevatorResponse`](#elevatorresponse)
@@ -199,10 +200,10 @@ Extends [`ElevatorResponse`](#elevatorresponse)
 | `floor` | [`FloorIndex`](#floorindex)`\|nil` | the floor it is about |
 | `label` | `string\|nil` | the floor's `LABEL` |
 | `reason` | `string\|nil` | the floor's `REASON`, on a refusal |
-| `queued` | `boolean\|nil` | `true` when `use` sent the request to the server |
+| `queued` | `boolean\|nil` | `true` when `requestFloor` sent the request to the server |
 | `source` | `string\|nil` | the invoking resource's own name, `"panel"`, or `"server"` |
 
-!!! warning "`ok = true` from `use` means asked, never moved"
+!!! warning "`ok = true` from `requestFloor` means asked, never moved"
 
     An export handler is not a coroutine, so nothing inside one can wait for the
     server. The verdict arrives afterwards on

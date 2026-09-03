@@ -1,6 +1,6 @@
 ---
 title: opx77_elevators exports
-description: The six client exports of opx77_elevators — floors, check, use, panel, nearest and state — with their parameters, answers, error codes and the side each can be called from.
+description: The six client exports of opx77_elevators — floors, isFloorAllowed, requestFloor, openPanel, nearestElevator and state — with their parameters, answers, error codes and the side each can be called from.
 ---
 
 # Exports
@@ -100,7 +100,7 @@ CreateThread(function()
 end)
 ```
 
-## check {#check}
+## isFloorAllowed {#isfloorallowed}
 
 Answers whether this client believes the player may take one floor, deciding
 nothing and sending nothing, or `ok = false` with the closest near-miss when it
@@ -108,13 +108,13 @@ believes not.
 
 !!! warning "This is a hint, not proof"
 
-    `check` runs the same gate the built-in panel runs, on this client, from a
-    snapshot that a modified client never has to read. It is here so a caller
-    drawing its own UI greys a row for the same reason the built-in panel does —
-    not so a caller can settle anything with it.
+    `isFloorAllowed` runs the same gate the built-in panel runs, on this
+    client, from a snapshot that a modified client never has to read. It is here
+    so a caller drawing its own UI greys a row for the same reason the built-in
+    panel does — not so a caller can settle anything with it.
 
 ```lua
-Open77.exports.call("opx77_elevators", "check", elevator, floor)
+Open77.exports.call("opx77_elevators", "isFloorAllowed", elevator, floor)
 ```
 
 - elevator?: `ElevatorKey`
@@ -141,12 +141,12 @@ Open77.exports.call("opx77_elevators", "check", elevator, floor)
 **Side** `client export` — callable from any resource on the player's machine,
 asynchronous, arguments and answer pass through the runtime's codec.
 
-### Example {#check-example}
+### Example {#isfloorallowed-example}
 
 ```lua
 CreateThread(function()
   local promise, reason = Open77.exports.call(
-    "opx77_elevators", "check", "arasaka_tower", 11)
+    "opx77_elevators", "isFloorAllowed", "arasaka_tower", 11)
   if not promise then return Open77.log.warn(tostring(reason)) end
 
   local result, callError = promise:await()
@@ -160,11 +160,11 @@ CreateThread(function()
 end)
 ```
 
-## use {#use}
+## requestFloor {#requestfloor}
 
-Selects a floor: runs the same gate as `check` and, on a pass, sends the request
-to this resource's server half, answering `ok = false` with the refusal when the
-gate closed or nothing could be sent.
+Selects a floor: runs the same gate as `isFloorAllowed` and, on a pass, sends
+the request to this resource's server half, answering `ok = false` with the
+refusal when the gate closed or nothing could be sent.
 
 !!! warning "`ok = true` means asked, never moved"
 
@@ -174,7 +174,7 @@ gate closed or nothing could be sent.
     [`opx77:elevators`](events.md#opx77-elevators) with `source = "server"`.
 
 ```lua
-Open77.exports.call("opx77_elevators", "use", elevator, floor)
+Open77.exports.call("opx77_elevators", "requestFloor", elevator, floor)
 ```
 
 - elevator?: `ElevatorKey`
@@ -209,12 +209,13 @@ on [`opx77:elevators`](events.md#opx77-elevators).
 **Side** `client export` — callable from any resource on the player's machine,
 asynchronous, arguments and answer pass through the runtime's codec.
 
-### Example {#use-example}
+### Example {#requestfloor-example}
 
 ```lua
 CreateThread(function()
   -- nearest elevator, floor 3
-  local promise, reason = Open77.exports.call("opx77_elevators", "use", nil, 3)
+  local promise, reason = Open77.exports.call(
+    "opx77_elevators", "requestFloor", nil, 3)
   if not promise then
     return Open77.log.warn("use not dispatched: " .. tostring(reason))
   end
@@ -233,7 +234,7 @@ CreateThread(function()
 end)
 ```
 
-## panel {#panel}
+## openPanel {#openpanel}
 
 Opens the floor list through [`opx77_menu`](../opx77_menu/index.md), or answers
 `ok = false` with `menu_not_running` when the menu is not running and
@@ -247,7 +248,7 @@ Opens the floor list through [`opx77_menu`](../opx77_menu/index.md), or answers
     log line, not a return value.
 
 ```lua
-Open77.exports.call("opx77_elevators", "panel", elevator)
+Open77.exports.call("opx77_elevators", "openPanel", elevator)
 ```
 
 - elevator?: `ElevatorKey`
@@ -271,13 +272,13 @@ when the listing itself failed.
 **Side** `client export` — callable from any resource on the player's machine,
 asynchronous, arguments and answer pass through the runtime's codec.
 
-### Example {#panel-example}
+### Example {#openpanel-example}
 
 ```lua
 -- the one call an interaction resource needs: bind it to a prompt on the
 -- elevator's call button and this resource does the rest
 CreateThread(function()
-  local promise, reason = Open77.exports.call("opx77_elevators", "panel")
+  local promise, reason = Open77.exports.call("opx77_elevators", "openPanel")
   if not promise then return Open77.log.warn(tostring(reason)) end
 
   local result, callError = promise:await()
@@ -291,13 +292,13 @@ CreateThread(function()
 end)
 ```
 
-## nearest {#nearest}
+## nearestElevator {#nearestelevator}
 
 Returns which configured elevator the player is standing at, or `ok = false`
 with `no_elevator_nearby` when none is within `USE_RADIUS` across the ground.
 
 ```lua
-Open77.exports.call("opx77_elevators", "nearest")
+Open77.exports.call("opx77_elevators", "nearestElevator")
 ```
 
 **Returns** an [`ElevatorResponse`](types.md#elevatorresponse) —
@@ -320,11 +321,11 @@ id and is present only once the lift is adopted.
 **Side** `client export` — callable from any resource on the player's machine,
 asynchronous, arguments and answer pass through the runtime's codec.
 
-### Example {#nearest-example}
+### Example {#nearestelevator-example}
 
 ```lua
 CreateThread(function()
-  local promise = Open77.exports.call("opx77_elevators", "nearest")
+  local promise = Open77.exports.call("opx77_elevators", "nearestElevator")
   if not promise then return end
   local result = promise:await()
   if result and result.ok then

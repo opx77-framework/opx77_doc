@@ -48,9 +48,15 @@ ready = true, and opx77:status:needs fires with source = "loaded"
 the drift the push carried is settled; until this arrives it is still counted,
 so a push the server dropped is simply sent again
 
-server writes the held row on onPlayerDisconnected, every AUTOSAVE_MS, and on
-its own onResourceStop — never on the push itself
+server writes the held row on onPlayerDisconnected, every AUTOSAVE_MS, on its
+own onResourceStop, and when a second character takes the same player slot —
+never on the push itself
 ```
+
+The last of those is there because **nothing announces a character being put
+down**: on a character swap the server writes the outgoing character's last push
+before the record holding it is replaced, or that push would be dropped with the
+record.
 
 `opx77:client:onPlayerUnloaded` ends it: the client forgets everything and fires
 [`opx77:status:needs`](#status-needs) once with `source = "unloaded"`.
@@ -147,6 +153,21 @@ the server dropped for any of the reasons above is sent again on the next tick
 rather than being lost. `TriggerServerEvent` answering `true` only says the event
 left the client.
 
+!!! info "The acknowledgement names no push, so the client counts them"
+    The payload carries the citizen id and nothing that identifies *which* push
+    it answers. The client therefore indexes every push it sends and settles the
+    **nth** acknowledgement against the **nth** push, never against a later one.
+    Two pushes in flight at once is easy to produce —
+    [`addNeeds`](exports.md#addneeds) re-pushes while the drift is still measured
+    against the value before it — and without the counting the first ack would
+    promote the second push's snapshot. If that second push were then dropped by
+    the rate limit, which sends no acknowledgement and logs nothing, the client
+    would believe a value was stored that never was.
+
+    A push held too long for an acknowledgement that never comes is forgotten
+    without moving the settled snapshot, so the drift it carried is sent again.
+    The failure mode is a redundant push, never a lost value.
+
 ## Non-networked (the client local bus) {#non-networked}
 
 The client's local event bus is **host-wide**: a `TriggerEvent` in one client
@@ -182,7 +203,7 @@ AddEventHandler("opx77:status", function(payload) end)
 
 - payload: `table`
     - `status`: `string` — the effect id you passed to
-      [`add`](exports.md#add), **unprefixed**.
+      [`addEffect`](exports.md#addeffect), **unprefixed**.
     - `owner`: `string` — the resource that added it.
     - `action`: `string` — `"removed"` or `"expired"`.
     - `label`: `string` — the cleaned label it had.
@@ -191,11 +212,11 @@ AddEventHandler("opx77:status", function(payload) end)
 
 | `action` | Raised when |
 |---|---|
-| `removed` | The owner called [`remove`](exports.md#remove) for it. |
+| `removed` | The owner called [`removeEffect`](exports.md#removeeffect) for it. |
 | `expired` | Its `durationMs` elapsed and the 250 ms sweep took it down. |
 
-**Nothing else raises.** [`add`](exports.md#add), [`update`](exports.md#update),
-[`clear`](exports.md#clear), a stopped owner and a reloaded owner are all silent
+**Nothing else raises.** [`addEffect`](exports.md#addeffect), [`updateEffect`](exports.md#updateeffect),
+[`clearEffects`](exports.md#cleareffects), a stopped owner and a reloaded owner are all silent
 — see [the sweep](exports.md#sweep).
 
 !!! warning "This fires for other resources' effects too"
@@ -230,7 +251,7 @@ AddEventHandler("myresource:status", function(payload) end)
   `owner` and `action`.
 
 The name is validated on the way in: same character rules as an id, up to 96
-characters, or the [`add`](exports.md#add) call is refused with `invalid_event`.
+characters, or the [`addEffect`](exports.md#addeffect) call is refused with `invalid_event`.
 
 The reason this channel exists at all is that **an export cannot answer a
 callback** on this platform. When an effect goes away for a reason its owner did
@@ -242,7 +263,7 @@ not ask for, an event is the only way to say so. See
 ```lua
 -- a client script in your own resource
 CreateThread(function()
-  Open77.exports.call("opx77_status", "add", {
+  Open77.exports.call("opx77_status", "addEffect", {
     id = "overdose",
     label = "Overdose",
     tone = "chem",
@@ -296,7 +317,7 @@ rest of the session.
 
 Published whenever a need moves, and once on each end of a character's life. This
 is how a consumer keeps a gauge current: [`opx77_hud`](../opx77_hud/index.md)
-reads the [`needs`](exports.md#needs) export once at boot and redraws from this
+reads the [`getNeeds`](exports.md#getneeds) export once at boot and redraws from this
 event thereafter, and never polls.
 
 ```lua

@@ -167,6 +167,5 @@ nav:
           - Events: reference/opx77_appearance/events.md
           - Configuration: reference/opx77_appearance/config.md
           - Types: reference/opx77_appearance/types.md
-      - opx77_lib: reference/opx77_lib.md
 
   - Releases: releases.md

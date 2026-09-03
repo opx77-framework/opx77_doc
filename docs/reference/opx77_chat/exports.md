@@ -1,14 +1,16 @@
 ---
 title: opx77_chat exports
-description: The six client exports opx77_chat publishes — addMessage, clear, addSuggestion, removeSuggestion, setEnabled and isEnabled — with their arguments, results and refusal codes.
+description: The six client exports opx77_chat publishes — addMessage, clearMessages, addSuggestion, removeSuggestion, setEnabled and isEnabled — with their arguments, results and refusal codes.
 ---
 
 # Exports
 
-`opx77_chat` publishes six client exports. They are deliberately the six names the platform
-documents on its own `open77_chat` package, with the same arguments and the same message
-schema, so third-party code written against the documented chat surface works against this
-resource without a change.
+`opx77_chat` publishes six client exports. Five of them are the names the platform documents
+on its own `open77_chat` package, with the same arguments and the same message schema. The
+sixth is not: `clear` was renamed to [`clearMessages`](#clearmessages) in `0.3.0`, because it
+empties the message log and leaves the suggestions alone, and its neighbours all name what they
+act on. Code written against the platform package needs that one-word change and nothing
+else.
 
 !!! info "Read the export contract first"
 
@@ -108,13 +110,13 @@ CreateThread(function()
 end)
 ```
 
-## clear {#clear}
+## clearMessages {#clearmessages}
 
 Empties the visible log, and answers `{ ok = false, error = … }` if the surface is missing or
 still starting.
 
 ```lua
-Open77.exports.call("opx77_chat", "clear")
+Open77.exports.call("opx77_chat", "clearMessages")
 ```
 
 **Returns** `table` — a `ChatResponse`: `{ ok = true }`
@@ -134,11 +136,11 @@ Suggestions are a separate list and are left alone, which is what the official p
 too. To drop the completion list as well, call [`removeSuggestion`](#removesuggestion) per
 entry, or send this client `chat:clearSuggestions` from the server.
 
-### Example {#clear-example}
+### Example {#clearmessages-example}
 
 ```lua
 CreateThread(function()
-  local promise = Open77.exports.call("opx77_chat", "clear")
+  local promise = Open77.exports.call("opx77_chat", "clearMessages")
   if promise then promise:await() end
 end)
 ```

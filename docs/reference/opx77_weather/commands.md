@@ -297,6 +297,11 @@ The anchor is rewritten at the moment of the freeze, so releasing it resumes fro
 clock stood rather than jumping forward by however long it was held. The status line reads
 `(clock held)` while it is on.
 
+This holds the engine's clock as well as the authority's: every client takes
+`Open77.environment.setTimeFrozen(true)` on the change, so REDengine's own clock does not run
+underneath the held projection. Before `0.3.0` it held the authority alone and the engine ran
+free — see [the clock lock](index.md#time-lock).
+
 **Errors**
 
 | Refusal | Meaning |

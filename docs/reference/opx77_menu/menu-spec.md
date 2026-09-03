@@ -58,7 +58,7 @@ something to guess about.
     - Default: the first selectable row.
 - status?: `string`
     - A transient line written under the list as the menu opens. See
-      [`status`](exports.md#status) for its lifetime. A number is accepted;
+      [`setStatus`](exports.md#setstatus) for its lifetime. A number is accepted;
       anything else refuses the spec with `invalid_status`.
     - Default: none.
 - closeOnSelect?: `boolean`
@@ -366,7 +366,7 @@ spaces.
 | `MAX_LABEL` | 96 | Characters in a label or a title. |
 | `MAX_VALUE` | 48 | Characters in a `value`, a choice entry or a toggle word. |
 | `MAX_DESCRIPTION` | 160 | Characters in a description. |
-| — | 120 | Characters in the [status line](exports.md#status). |
+| — | 120 | Characters in the [status line](exports.md#setstatus). |
 | — | 8 | Characters in a slider suffix. |
 
 Only the visible window of rows ever reaches the page — `VISIBLE_ROWS` at a
@@ -379,8 +379,9 @@ The two are treated differently on purpose.
 
 **Cosmetic text is sanitised, never refused.** Control characters become
 spaces and the string is truncated to its cap, counted in characters so a cut
-never lands inside a multi-byte one. A label should not lose a menu over a
-stray tab someone pasted in.
+never lands inside a multi-byte one. `shared/text.lua` does the measuring, and
+bounds its scan in bytes at four times the character cap. A label should not
+lose a menu over a stray tab someone pasted in.
 
 **Structure is refused, never truncated.** An oversized `data` table, a level
 with too many rows, a tree that is too deep: all of them refuse the whole call.

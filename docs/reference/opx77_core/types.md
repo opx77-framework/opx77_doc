@@ -543,6 +543,9 @@ selection screen has one of these and no [`Player`](#player).
       readiness gate is held for this player. Compared rather than
       interpreted: releasing by a recycled `Source` alone could clear somebody
       else's hold.
+- heldAt: `integer|nil`
+    - When the hold was taken, in `OPX.Now()` milliseconds. Stamped by
+      `OPX.Lifecycle.hold` beside `gateSession`.
 - citizenId: [`CitizenId`](#citizenid)`|nil`
     - Set once a character is loaded, and cleared on logout. This is what the
       selection watchdog polls to decide whether the player ever chose.
@@ -550,11 +553,6 @@ selection screen has one of these and no [`Player`](#player).
 - released: `boolean|nil`
     - Set true once the gate has been released for this player, so the watchdog
       exits instead of releasing a second time.
-
-!!! warning "`types.lua` does not declare `heldAt`"
-
-    `OPX.Lifecycle.hold` also stamps `session.heldAt` with `OPX.Now()`. It is
-    real and it is not in the annotation.
 
 Sessions live in `OPX.Sessions`, and every read of one goes through
 [`OPX.EnsureSession`](server-api.md#ensuresession), which is what makes the

@@ -118,7 +118,7 @@ RegisterNetEvent("opx77:weather:sync", function(snapshot, requestId) end)
 
 If you want to know what the weather is, do not register this name at all. Listen for
 [`opx77:weather:updated`](#opx77-weather-updated), which fires only for snapshots that were
-actually accepted, or call [`getState`](exports.md#getstate).
+actually accepted, or call [`state`](exports.md#state).
 
 ### open77:command:result {#open77-command-result}
 
@@ -181,7 +181,7 @@ times an hour plus one per heartbeat.
     It is the time at `anchorLocalMs`, and the clock keeps running afterwards. Reading it
     directly gives you a value that is correct for one instant and then drifts by `rate`
     seconds for every real second that passes. Use it to detect *that* something changed, and
-    call [`getState`](exports.md#getstate) when you need the time *now*.
+    call [`state`](exports.md#state) when you need the time *now*.
 
 ### Example {#opx77-weather-updated-example}
 
@@ -227,7 +227,7 @@ AddEventHandler("opx77:weather:state", function(snapshot) end)
 
 ## See also {#see-also}
 
-- [Exports](exports.md) — `getState`, for sampling rather than reacting.
+- [Exports](exports.md) — `state`, for sampling rather than reacting.
 - [Overview](index.md#authority-model) — how a snapshot is ordered, validated and projected.
 - [Integration channels](../../concepts/integration-channels.md) — why the client and server
   buses behave differently.
