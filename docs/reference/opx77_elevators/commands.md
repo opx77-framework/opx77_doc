@@ -87,6 +87,6 @@ denied=shown membership=primary
 ```
 
 `id=-` with `not adopted` on an elevator a player is standing next to is the
-first thing to check when [`use`](exports.md#use) answers `not_adopted`: it means
+first thing to check when [`requestFloor`](exports.md#requestfloor) answers `not_adopted`: it means
 no client sighting has been accepted for it yet. The server logs the reason it
 rejected one.

@@ -191,6 +191,7 @@ component, `true` puts it back. A component with no line is left alone.
 | `component = true` | Explicitly shown, overriding whatever the client had. |
 | *(line removed)* | Untouched. |
 | `VANILLA = false` | The whole feature is off; nothing is read and nothing is called. |
+| Anything else | Neither a table nor `false` — `VANILLA = "yes"`, say. The game's own HUD is left exactly as it was, and one warning names the key. |
 
 **Applied** at `onClientResourceStart`, and again on
 [`opx77:client:onPlayerLoaded`](events.md), because the game brings its own HUD
@@ -229,7 +230,6 @@ editing the resource.
 | Constant | Value | What it is |
 |---|---|---|
 | `GAUGE_SEGMENTS` | `10` | How many blocks a gauge is cut into. |
-| `POLL_MS` | `5000` | How often the core is re-read as a net under its change events. There is no equivalent for the needs: they are pushed. |
 | `MAX_CHIPS` | `12` | The most chips kept from one `opx77:status:effects` payload. |
 | `MAX_HIDDEN` | `999` | The largest `+N` overflow counter that still reads as a number. |
 

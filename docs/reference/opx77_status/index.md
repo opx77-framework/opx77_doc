@@ -7,13 +7,13 @@ description: opx77_status owns two things for OPX//77 — the shared status-effe
 
 | At a glance | |
 |---|---|
-| **Version** | `0.3.0` — `version` in `open77.lua`, mirrored as `OpxStatus.VERSION` in `client/state.lua` because no Lua here can read the manifest. A release moves both lines |
+| **Version** | `0.4.0` — `version` in `open77.lua`, mirrored as `OpxStatus.VERSION` in `client/state.lua` because no Lua here can read the manifest. A release moves both lines |
 | **Requires** | `open77_version ">=0.0.1"`. No `dependency` is declared |
 | **Auto start** | yes |
 | **Reload policy** | `reconnect` |
 | **Permissions** | `network.events`, `database.access` — see [below](#permissions) |
 | **Sides** | client, plus a server half that stores the needs and does nothing else |
-| **Exports** | seven, all client: [`add`](exports.md#add), [`update`](exports.md#update), [`remove`](exports.md#remove), [`clear`](exports.md#clear), [`needs`](exports.md#needs), [`setNeeds`](exports.md#setneeds), [`addNeeds`](exports.md#addneeds) |
+| **Exports** | seven, all client: [`addEffect`](exports.md#addeffect), [`updateEffect`](exports.md#updateeffect), [`removeEffect`](exports.md#removeeffect), [`clearEffects`](exports.md#cleareffects), [`getNeeds`](exports.md#getneeds), [`setNeeds`](exports.md#setneeds), [`addNeeds`](exports.md#addneeds) |
 | **Commands** | none |
 | **Events** | publishes [`opx77:status:effects`](events.md#status-effects) and [`opx77:status:needs`](events.md#status-needs); raises [`opx77:status`](events.md#opx77-status) and, per effect, [your own event name](events.md#spec-event); four [net events](events.md#networked) carry the needs |
 | **Database** | one table, [`opx77_character_status`](#schema) |
@@ -37,7 +37,7 @@ client, and serves them to `opx77_hud`. See [The needs it owns](#needs).
 
 Both halves are a **public API** rather than an internal detail of the HUD, and
 that is what its seven exports are for. An effect belongs to the resource that
-added it; `remove` and `clear` only ever reach your own; ids are unique per
+added it; `removeEffect` and `clearEffects` only ever reach your own; ids are unique per
 owner, so two resources may both hold `bleeding`; and when your resource stops or
 reloads, everything it held goes with it without you writing a line of teardown.
 That ownership model is the whole reason another developer can depend on this
@@ -80,7 +80,7 @@ travels **in the payload**, so the HUD never has to read this resource's config:
 ```
 
 The needs travel the same way. The HUD reads them once at boot with the
-[`needs`](exports.md#needs) export, because a resource that starts after this one
+[`getNeeds`](exports.md#getneeds) export, because a resource that starts after this one
 has already missed the load, and then redraws on every
 [`opx77:status:needs`](events.md#status-needs) rather than polling.
 
@@ -104,7 +104,7 @@ bounds, their value on a new character and their decay rate:
 
 A key that is not in that table is refused by [`setNeeds`](exports.md#setneeds)
 and [`addNeeds`](exports.md#addneeds) with `unknown_need`, never appears in a
-[`needs`](exports.md#needs) answer, and is never stored. The table is the whole
+[`getNeeds`](exports.md#getneeds) answer, and is never stored. The table is the whole
 list.
 
 !!! warning "`ram` is gone"

@@ -165,7 +165,7 @@ one of the three that extend it — is always what you get.
 - ok: `boolean`
 - error?: `string` — a stable code meant for branching, never for showing to a player. Absent when `ok` is `true`.
 
-[`status`](exports.md#status), [`update`](exports.md#update) and
+[`setStatus`](exports.md#setstatus), [`update`](exports.md#update) and
 [`close`](exports.md#close) answer this shape exactly.
 [`keys`](exports.md#keys) answers [`MenuKeys`](#menukeys).
 

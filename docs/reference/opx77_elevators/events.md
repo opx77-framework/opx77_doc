@@ -44,7 +44,7 @@ answers nothing at all.
     The client sends exactly six and the server declares exactly six. When they
     disagreed — the client sent a leading `key` the server did not declare — the
     configured key landed in the `entity` slot, failed the hex-hash guard and
-    returned silently. No lift was ever adopted and every `use` answered
+    returned silently. No lift was ever adopted and every `requestFloor` answered
     `not_adopted`, with no error anywhere. The server now logs that mismatch
     once, on the first rejected sighting.
 
@@ -109,13 +109,13 @@ authority: the key, the floor, the adoption, the native floor count, the
 replicated position, the bucket, the distance to the **declared** shaft across
 the ground, and the rate limit. Not the job — it has no way to ask.
 
-**Side** `net event` — sent by this resource's client half only, from `use` and
-from the built-in panel.
+**Side** `net event` — sent by this resource's client half only, from `requestFloor`
+and from the built-in panel.
 
 ### opx77_elevators:bound {#bound}
 
 Sent by the server to one player to tell them the Open77 id of an elevator this
-resource has adopted, so that player's `use` has something to press.
+resource has adopted, so that player's `requestFloor` has something to press.
 
 ```lua
 -- client/main.lua
@@ -189,7 +189,7 @@ end)
 
 The client drops its binding, so the next scan re-reports the lift rather than
 sending requests for an id nobody owns. Until a new
-[`opx77_elevators:bound`](#bound) arrives, `use` answers `not_adopted`.
+[`opx77_elevators:bound`](#bound) arrives, `requestFloor` answers `not_adopted`.
 
 **Side** `net event` — sent by this resource's server half only.
 
@@ -237,7 +237,8 @@ end)
       the same shape a [`FloorDecision`](types.md#floordecision) carries.
 
 `source` tells you whose press this was: the **invoking resource's own name** for
-a press made through the [`use`](exports.md#use) export, `"panel"` for one made
+a press made through the [`requestFloor`](exports.md#requestfloor) export,
+`"panel"` for one made
 in the built-in floor list, and `"server"` for the verdict itself.
 
 **What is published, and when.** A local refusal — the gate, `not_adopted`,
@@ -261,7 +262,7 @@ every client resource on the machine.
 
 Raised by [`opx77_menu`](../opx77_menu/index.md) when a row of the built-in floor
 list is selected; this resource listens for it and turns the selection into a
-`use`.
+`requestFloor`.
 
 ```lua
 -- client/panel.lua
@@ -424,5 +425,5 @@ described them, and a listener for either is now a handler that never runs.
 
 | Name | Direction | Replaced by |
 |---|---|---|
-| `opx77_elevators:floors` | client → server | [`floors`](exports.md#floors) and [`nearest`](exports.md#nearest), which answer from the client's own config and sightings without a round trip |
+| `opx77_elevators:floors` | client → server | [`floors`](exports.md#floors) and [`nearestElevator`](exports.md#nearestelevator), which answer from the client's own config and sightings without a round trip |
 | `opx77_elevators:list` | server → client | the same |

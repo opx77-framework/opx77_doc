@@ -45,7 +45,7 @@ player its raw key, which is the visible failure rather than the silent one.
 It reaches only the text a player is shown: the status line and the preset list in chat, the
 refusal sentences, the `usage:` lines and the chat completion help. **Server logs, the answer a
 command run from the server console gets, the `reason` on a snapshot and the `error` codes on
-[`getState`](exports.md#getstate) stay English** — a code is a branching surface, not a sentence
+[`state`](exports.md#state) stay English** — a code is a branching surface, not a sentence
 to read.
 
 To add a language, copy `locales/en.lua` to `locales/<code>.lua`, change the code in the
@@ -113,6 +113,11 @@ TIME_FROZEN = false,
 Only a literal `true` freezes. Release it at runtime with
 [`/opx77.weather.time.freeze off`](commands.md#time-freeze); the anchor is rewritten at the
 moment of the freeze, so releasing resumes from where the clock stood rather than jumping.
+
+A held clock is held in the **engine** too: the client takes
+`Open77.environment.setTimeFrozen` when the flag changes, so REDengine's own clock does not run
+underneath a frozen authority. That is new in `0.3.0` — see
+[the clock lock](index.md#time-lock).
 
 ## WEATHER_FROZEN {#weather-frozen}
 

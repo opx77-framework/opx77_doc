@@ -9,7 +9,7 @@ The chat box, and the only path a typed command takes to the server.
 
 | At a glance | |
 |---|---|
-| **Version** | `0.2.0` |
+| **Version** | `0.3.0` |
 | **Requires** | `open77_version ">=0.0.1"`. Nothing else in OPX//77 |
 | **Auto start** | yes |
 | **Reload policy** | `reconnect` — a CEF surface is never replaced in place |
@@ -53,8 +53,9 @@ handled too, so another resource on the same client can open or close the box.
 
 ## The pages {#pages}
 
-- **[Exports](exports.md)** — the six client exports, deliberately the same names and
-  arguments the platform documents on its own `open77_chat` package.
+- **[Exports](exports.md)** — the six client exports. Five carry the names and arguments the
+  platform documents on its own `open77_chat` package; `clear` became
+  [`clearMessages`](exports.md#clearmessages) in `0.3.0`.
 - **[Events](events.md)** — every event in and out, split by networked and non-networked, and
   the full path a typed slash command takes to the dispatcher.
 - **[Configuration](config.md)** — the seven keys in `config.lua`.

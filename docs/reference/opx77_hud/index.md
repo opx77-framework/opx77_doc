@@ -7,7 +7,7 @@ description: opx77_hud is the player HUD for OPX//77 — segmented gauges, a mon
 
 | At a glance | |
 |---|---|
-| **Version** | `0.2.0` |
+| **Version** | `0.3.0` |
 | **Requires** | `open77_version ">=0.0.1"`. No `dependency` is declared; it reads [`opx77_core`](../opx77_core/index.md) and [`opx77_status`](../opx77_status/index.md) at runtime when they are running |
 | **Auto start** | yes |
 | **Reload policy** | `reconnect` — a CEF surface is never replaced in place |
@@ -117,13 +117,15 @@ thirst, stamina and street cred are **needs owned by
 [`opx77_status`](../opx77_status/index.md)**: they are not character metadata,
 they are not status effects, and `opx77_core` never sees them.
 
-The snapshot arrives on three local events and is re-read every five seconds as
-a net under them. The needs are read once at start through `opx77_status`'s
-`needs` export and after that only from
-[`opx77:status:needs`](events.md#status-needs), which is pushed on every change;
-see [Events](events.md#non-networked). A source that is not running is not a
-broken screen — the gauges it owns leave the frame rather than reading zero, the
-rest keep drawing, and only an authoritative refusal clears anything.
+The snapshot is read **once** at start, through `opx77_core`'s `GetPlayerData`
+client export, and after that only from the core's own local events — there is no
+poll behind them. The needs are read the same way, once at start through
+`opx77_status`'s [`getNeeds`](../opx77_status/exports.md#getneeds) export and
+after that only from [`opx77:status:needs`](events.md#status-needs), which is
+pushed on every change; see [Events](events.md#non-networked). A source that is
+not running is not a broken screen — the gauges it owns leave the frame rather
+than reading zero, the rest keep drawing, and only an authoritative refusal
+clears anything.
 
 ## Where to go next {#next}
 

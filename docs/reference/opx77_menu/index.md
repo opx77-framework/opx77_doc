@@ -7,7 +7,7 @@ description: opx77_menu owns the single keyboard-driven menu surface on the clie
 
 !!! warning "Early development"
 
-    `opx77_menu` is version `0.2.0`. The exports, the payload shape and the
+    `opx77_menu` is version `0.3.0`. The exports, the payload shape and the
     error codes are subject to change without notice. Do not build a production
     resource on the current surface.
 
@@ -28,13 +28,13 @@ same one `open77_zones` and `open77_worldui` use, is the subject of
 
 | At a glance | |
 |---|---|
-| **Version** | `0.2.0` |
+| **Version** | `0.3.0` |
 | **Requires** | `open77_version ">=0.0.1"`. No `dependency` is declared, and nothing needs to be running for it to start |
 | **Auto start** | yes |
 | **Reload policy** | `reconnect` — handles and owner generations belong to the client session, so a generation change needs a clean reconnect rather than a hot swap |
 | **Permissions** | `input.actions` — `Open77.input.isDown` and `isCaptured`. It never takes focus, so it needs no `webui` permission |
 | **Sides** | client only. The server runtime has no `exports`, so there is no server surface and there cannot be one |
-| **Exports** | six, all client: [`open`](exports.md#open), [`update`](exports.md#update), [`close`](exports.md#close), [`state`](exports.md#state), [`status`](exports.md#status), [`keys`](exports.md#keys) |
+| **Exports** | six, all client: [`open`](exports.md#open), [`update`](exports.md#update), [`close`](exports.md#close), [`state`](exports.md#state), [`setStatus`](exports.md#setstatus), [`keys`](exports.md#keys) |
 | **Commands** | none |
 | **Events** | local only, on the client. Nothing crosses the wire — see [Events](events.md) |
 

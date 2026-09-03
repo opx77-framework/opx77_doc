@@ -709,7 +709,9 @@ number as its detail so a UI can say what the limit was.
 ## PLATE_FORMAT {#vehicles-plate-format}
 
 Describes the shape of a generated number plate: `1` becomes a digit, `A` a
-letter, and anything else is copied through as written.
+letter, `.` either, and anything else is copied through as written. It is handed
+straight to [`OPX.String.random`](server-api.md#stringrandom), so the tokens are
+that helper's.
 
 ```lua
 PLATE_FORMAT = "11AAA111",

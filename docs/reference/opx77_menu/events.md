@@ -253,7 +253,7 @@ AddEventHandler(EVENT, function(payload)
   if payload.action == "select" and type(payload.data) == "table" then
     local ok, why = OpenDoor(plate, payload.data.door)
     -- Best-effort: the menu may already be gone, which answers no_menu_open.
-    CreateThread(function() call("status", ok and "done" or why, ok) end)
+    CreateThread(function() call("setStatus", ok and "done" or why, ok) end)
     return
   end
 

@@ -1,6 +1,6 @@
 ---
 title: opx77_appearance configuration
-description: Every key of OPX_APPEARANCE_CONFIG with its shipped default — the language, the event name, the toasts, the catalogue builds, the two deadlines and the two retry counts — the locale catalogues, and the constants that are not keys.
+description: Every key of OPX_APPEARANCE_CONFIG with its shipped default — the language, the event name, the toasts, the catalogue builds, the deadlines and the two retry counts — the locale catalogues, and the constants that are not keys.
 ---
 
 # Configuration
@@ -21,6 +21,7 @@ OPX_APPEARANCE_CONFIG = {
   SAVE_COOLDOWN_MS = 2000,
   RESTORE_RETRIES = 3,
   FAMILY_RETRIES = 2,
+  CREATION_WAIT_MS = 15000,
 }
 ```
 
@@ -109,8 +110,8 @@ that is not a key of this table is **not applied**: the player joins on the
 pristine face, is told once per character, and
 [`settled`](events.md#opx77-appearance) is published with
 `stored_build_mismatch`. The same test decides whether
-[`open`](exports.md#open) warns that the editor is starting from the default
-face.
+[`openEditor`](exports.md#openeditor) warns that the editor is starting from the
+default face.
 
 !!! danger "Widening this does not make an old snapshot fit"
     It only stops this resource from saying so. The indices still point into a
@@ -203,6 +204,33 @@ the other body is refused, the player is told which one to build, and the creato
 is reopened. Past this count the run ends with `body_family_mismatch`: the
 character enters on the pristine face of its own body, nothing is stored, and the
 creator is not reopened for it again this session.
+
+## CREATION_WAIT_MS {#creation-wait-ms}
+
+How long a character with no stored face waits for something to answer
+[`needsCreation`](events.md#needs-creation) before this resource says nobody
+did.
+
+```lua
+CREATION_WAIT_MS = 15000
+```
+
+**Type** `integer` — milliseconds
+
+**This resource never opens a creator itself.** When the timer runs out it
+writes three lines to `Open77.log`, once per character, naming the
+[`openCreator`](exports.md#opencreator) export that was never called — and then
+carries on waiting. Nothing is refused, nothing is opened and no event is
+published: the decision belongs to whichever resource owns character creation,
+and a player deliberating in front of a menu somebody *did* open is not a fault.
+
+It exists because the failure it names is otherwise invisible. The player is
+sitting in the vanilla character menu with no world behind it and nothing on
+screen, and no server-side symptom says why.
+
+The clock starts when `needsCreation` is published and is cleared the moment
+[`openCreator`](exports.md#opencreator) is called, so a caller that answers
+promptly never trips it.
 
 ## Locales {#locales}
 

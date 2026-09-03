@@ -361,10 +361,10 @@ the problem by copying the file: `pursuit/shared/roster.lua` is a byte-identical
 copy of `open77_vehiclepicker/shared/roster.lua`, and its manifest says why.
 
 **What to write instead:** copy the helpers you need into your own
-`shared/` directory and pin the version you copied in a comment. OPX//77 ships a
-small copy-in snippet for the call plumbing —
-[`opx77_lib`](../reference/opx77_lib.md) — on exactly that understanding: it is a
-file you take a copy of, not a dependency you declare.
+`shared/` directory and pin the version you copied in a comment. That is what the
+framework itself does: `shared/locale.lua` and `shared/text.lua` are carried by
+every resource that needs them — the same code under each resource's own
+namespace — rather than as a dependency anybody declares.
 
 ## A worked conversion {#worked-example}
 

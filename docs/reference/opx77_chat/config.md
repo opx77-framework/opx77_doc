@@ -109,6 +109,10 @@ middle of a multi-byte one. `shared/text.lua` does the measuring: `Text.span` an
 length of the first `MAX_LENGTH` characters, and `Text.clean` skips the measuring entirely when
 the whole line is already shorter in bytes than the cap is in characters.
 
+The scan `Text.span` runs is **bounded in bytes** at `maximum * 4` — the widest a UTF-8
+character can be — so a line made of continuation bytes, which start no character at all, is
+walked four times the cap and no further rather than to its end.
+
 !!! info "The two sides count differently at the boundary"
 
     HTML's `maxlength` counts UTF-16 code units; the server counts Unicode characters. They

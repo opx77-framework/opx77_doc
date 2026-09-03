@@ -1,6 +1,6 @@
 ---
 title: opx77_appearance types
-description: Every shape opx77_appearance names — the aliases, the snapshot it captures and sends, the response tables its five exports answer with, the payload its event channel carries, and where each error code can surface.
+description: Every shape opx77_appearance names — the aliases, the snapshot it captures and sends, the response tables its ten exports answer with, the payload its event channel carries, and where each error code can surface.
 ---
 
 # Types
@@ -47,15 +47,15 @@ the engine's character bootstrap is resolved with.
 
 ### AppearanceMode {#appearancemode}
 
-Which editor [`open`](exports.md#open) asks for.
+Which editor [`openEditor`](exports.md#openeditor) asks for.
 
 ```lua
 ---@alias AppearanceMode "ripperdoc"|"hairdresser"
 ```
 
 Lower-cased on the way in; `nil` means `"ripperdoc"`; anything else is refused
-with `invalid_mode`. [`barber`](exports.md#barber) is the second value with no
-argument to get wrong.
+with `invalid_mode`. There is no second export for the second value: a
+hairdresser's chair calls `openEditor("hairdresser")`.
 
 ### AppearanceError {#appearanceerror}
 
@@ -68,16 +68,21 @@ them so they can be shown in the player's language.
 | Code | Meaning | Where it surfaces |
 |---|---|---|
 | `export_call_required` | No invoking resource, so the call came from inside this VM. | every export |
-| `no_character` | `opx77_core` has no character loaded here. | [`open`](exports.md#open), [`barber`](exports.md#barber), [`current`](exports.md#current) |
-| `appearance_busy` | An editor or a native modal is already on screen. | [`open`](exports.md#open), [`barber`](exports.md#barber) |
-| `character_creation_in_progress` | The character is still being built. | [`open`](exports.md#open), [`barber`](exports.md#barber) |
-| `invalid_mode` | Not `"ripperdoc"` or `"hairdresser"`. | [`open`](exports.md#open) |
-| `not_sent` | The net event was not accepted. | the `created` event; a toast on an edit |
+| `no_character` | `opx77_core` has no character loaded here. | [`getSkin`](exports.md#getskin), [`getFamily`](exports.md#getfamily), [`setSkin`](exports.md#setskin), [`saveSkin`](exports.md#saveskin), [`openEditor`](exports.md#openeditor), [`openCreator`](exports.md#opencreator) |
+| `appearance_busy` | A modal is on screen, or a capture is with the core. | [`setSkin`](exports.md#setskin), [`saveSkin`](exports.md#saveskin), [`openEditor`](exports.md#openeditor), [`openCreator`](exports.md#opencreator) |
+| `character_creation_in_progress` | The character is still being built. | [`openEditor`](exports.md#openeditor) |
+| `invalid_mode` | Not `"ripperdoc"` or `"hairdresser"`. | [`openEditor`](exports.md#openeditor) |
+| `already_has_a_face` | [`openCreator`](exports.md#opencreator) on a character that has a stored face. | [`openCreator`](exports.md#opencreator) |
+| `bootstrap_already_spent` | [`openCreator`](exports.md#opencreator) after the world has already loaded. | [`openCreator`](exports.md#opencreator) |
+| `creation_refused` | This character's creator run ended for good. | [`openCreator`](exports.md#opencreator) |
+| `character_creator_unavailable` | The engine would not open the creator. | [`openCreator`](exports.md#opencreator) |
+| `capture_failed` | The engine would not answer what the puppet is wearing. | [`captureSkin`](exports.md#captureskin), [`saveSkin`](exports.md#saveskin); a toast |
+| `not_sent` | The net event was not accepted. | the `created` and `saved` events |
 | `save_timeout` | The core never answered a captured face. | the `created` event; a toast on an edit |
-| `invalid_snapshot` | The native capture is not a snapshot. | a toast; the failed bootstrap on a creation |
+| `invalid_snapshot` | The capture, or the snapshot given, is not a snapshot. | [`captureSkin`](exports.md#captureskin), [`setSkin`](exports.md#setskin), [`saveSkin`](exports.md#saveskin); a toast |
 | `invalid_option` | An entry of the option list is not a table. | the same |
 | `invalid_option_name` | An option name is not a string. | the same |
-| `stored_build_mismatch` | The stored face is from another game build. | the `settled` event |
+| `stored_build_mismatch` | The face is from another game build. | [`setSkin`](exports.md#setskin), [`saveSkin`](exports.md#saveskin); the `settled` event |
 | `body_family_mismatch` | The creator came back on the other body. | the `created` event |
 | `character_bootstrap_failed` | The host would not load a world for this body. | the `created` event |
 
@@ -105,8 +110,8 @@ reports.
 
 ```lua
 ---@alias AppearanceEventName
----| "gameplayReady" | "restored" | "settled" | "createRequired"
----| "created" | "saved" | "characterChanged"
+---| "gameplayReady" | "restored" | "settled" | "needsCreation"
+---| "applied" | "created" | "saved" | "characterChanged"
 ```
 
 | Name | The decision |
@@ -114,7 +119,8 @@ reports.
 | `gameplayReady` | The readiness announcement went out; the player may be placed. |
 | `restored` | A stored face was put on the puppet, or could not be. |
 | `settled` | This world entry's face was decided, and there is none to wear. |
-| `createRequired` | This character has no face and the creator is opening. |
+| `needsCreation` | This character has no face; call [`openCreator`](exports.md#opencreator) to open one. |
+| `applied` | [`setSkin`](exports.md#setskin) reached the puppet, or could not. |
 | `created` | A character was built and stored, or was not. |
 | `saved` | An edit was committed, or was refused. |
 | `characterChanged` | The live character switched underneath this resource. |
@@ -181,16 +187,65 @@ The shape every export answers with. None of them raises.
 - error: [`AppearanceError`](#appearanceerror)`|nil` — present only when `ok` is
   `false`.
 
-### AppearanceOpenResult {#appearanceopenresult}
+### AppearanceQueued {#appearancequeued}
 
-What [`open`](exports.md#open) and [`barber`](exports.md#barber) answer.
+What a write or a modal call answers: that it was **asked for**, never that it
+has happened. [`setSkin`](exports.md#setskin),
+[`saveSkin`](exports.md#saveskin), [`openEditor`](exports.md#openeditor) and
+[`openCreator`](exports.md#opencreator) all answer this shape.
 
 Extends [`AppearanceResponse`](#appearanceresponse)
 
 **Fields**
 
-- queued: `boolean|nil` — `true` means **asked**, never "the modal is on
-  screen".
+- queued: `boolean|nil` — `true` means **asked**, never "it is done".
+- citizenId: [`CitizenId`](#citizenid)`|nil`
+
+Renamed from `AppearanceOpenResult` in `0.4.0`, because it is no longer only the
+modals that answer it.
+
+### AppearanceCapture {#appearancecapture}
+
+What [`captureSkin`](exports.md#captureskin) answers: the puppet as it is right
+now, canonical and ready to hand straight back to
+[`setSkin`](exports.md#setskin) or [`saveSkin`](exports.md#saveskin).
+
+Extends [`AppearanceResponse`](#appearanceresponse)
+
+**Fields**
+
+- snapshot: [`AppearanceSnapshot`](#appearancesnapshot)`|nil`
+- citizenId: [`CitizenId`](#citizenid)`|nil` — `nil` when no character is
+  loaded, which is not itself a refusal: this export reads the engine rather
+  than the character.
+
+### AppearanceFamily {#appearancefamily}
+
+What [`getFamily`](exports.md#getfamily) answers.
+
+Extends [`AppearanceResponse`](#appearanceresponse)
+
+**Fields**
+
+- family: [`BodyFamily`](#bodyfamily)`|nil`
+- citizenId: [`CitizenId`](#citizenid)`|nil`
+
+The value is `opx77_core`'s `charInfo.gender` and nothing here can change it.
+
+### AppearanceSettled {#appearancesettled}
+
+What [`isSettled`](exports.md#issettled) answers.
+
+Extends [`AppearanceResponse`](#appearanceresponse)
+
+**Fields**
+
+- settled: `boolean` — the appearance work for this world entry has finished.
+- announced: `boolean` — [`open77:session:gameplayReady`](events.md#gameplay-ready)
+  has gone out.
+- waiting: `"server"|"restore"|"creation"|"creator"|nil` — what the session is
+  short of. `"creation"` means the character has no face and nothing has called
+  [`openCreator`](exports.md#opencreator).
 - citizenId: [`CitizenId`](#citizenid)`|nil`
 
 ### AppearanceOpenState {#appearanceopenstate}
@@ -206,9 +261,10 @@ Extends [`AppearanceResponse`](#appearanceresponse)
 - editing: `boolean` — and it is this resource's editor.
 - creating: `boolean` — and it is this resource's character creator.
 
-### AppearanceCurrent {#appearancecurrent}
+### AppearanceSkin {#appearanceskin}
 
-What [`current`](exports.md#current) answers.
+What [`getSkin`](exports.md#getskin) answers. Renamed from `AppearanceCurrent`
+in `0.4.0`, with the export.
 
 Extends [`AppearanceResponse`](#appearanceresponse)
 
@@ -223,7 +279,8 @@ Extends [`AppearanceResponse`](#appearanceresponse)
 ### AppearanceClientState {#appearanceclientstate}
 
 What [`state`](exports.md#state) answers: one client's own view, sampled at the
-moment of the call.
+moment of the call. It is the diagnostic report behind
+[`isSettled`](exports.md#issettled).
 
 Extends [`AppearanceResponse`](#appearanceresponse)
 
@@ -233,7 +290,12 @@ Extends [`AppearanceResponse`](#appearanceresponse)
 - family: [`BodyFamily`](#bodyfamily)`|nil`
 - stored: `boolean` — a stored snapshot is held on this client.
 - wearing: `boolean` — the puppet is wearing it.
-- settled: `boolean` — this world entry's face has been decided.
+- decided: `boolean` — this world entry's face has been decided.
+- settled: `boolean` — and every piece of work behind that decision has
+  finished. This is the same value [`isSettled`](exports.md#issettled) answers
+  with, and the condition
+  [`open77:session:gameplayReady`](events.md#gameplay-ready) waits on. A queued
+  apply is `decided = true`, `settled = false`.
 - restoring: `boolean` — a restore is in flight.
 - committing: `boolean` — a captured face is with the core, unanswered.
 - creating: `boolean` — the character creator is on screen.
@@ -258,6 +320,10 @@ What arrives on [`OPX_APPEARANCE_CONFIG.EVENT`](config.md#event), with a bare
 - event: [`AppearanceEventName`](#appearanceeventname) — branch on this first.
 - error: [`AppearanceError`](#appearanceerror)`|nil`
 - citizenId: [`CitizenId`](#citizenid)`|nil`
+- family: [`BodyFamily`](#bodyfamily)`|nil` — on `needsCreation`: the body the
+  creator must come back on.
+- unchanged: `boolean|nil` — on `saved`: the face matched the stored one, so the
+  core wrote nothing.
 
 ## See also {#see-also}
 

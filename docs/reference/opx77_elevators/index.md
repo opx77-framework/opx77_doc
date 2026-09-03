@@ -18,7 +18,7 @@ Everything awkward about this platform shows up here in eighty lines.
 
 | At a glance | |
 |---|---|
-| **Version** | `0.3.0` |
+| **Version** | `0.4.0` |
 | **Requires** | `open77_version ">=0.0.1"`. No `dependency` is declared |
 | **Auto start** | yes |
 | **Reload policy** | `local` — no CEF surface; the server re-adopts from the next client sighting |
@@ -122,7 +122,7 @@ is not a satellite — it is a file in `opx77_core/server/`.
 | File | Does |
 |---|---|
 | `config.lua` | shared. The elevators, the floors, the job requirements, the radii |
-| `shared/text.lua` | shared. `Text.span` and `Text.clean`, which measure and cut in characters |
+| `shared/text.lua` | shared. `Text.span` and `Text.clean`, which measure and cut in **characters** while bounding the scan in bytes at `maximum * 4` |
 | `shared/locale.lua` | shared. The catalogue, and the `locale(key, params)` every file below it calls |
 | `locales/en.lua`, `locales/fr.lua` | shared. The player-facing text, keyed `elevators.<thing>` |
 | `shared/access.lua` | shared, pure. The gate: which floor, which job, which grade, how stale |

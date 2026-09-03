@@ -1,6 +1,6 @@
 ---
 title: opx77_weather exports
-description: getState, the one read-only client export opx77_weather publishes — the synchronised time and weather projected to the instant of the call — with its fields and refusal codes.
+description: state, the one read-only client export opx77_weather publishes — the synchronised time and weather projected to the instant of the call — with its fields and refusal codes.
 ---
 
 # Exports
@@ -18,14 +18,14 @@ move is not one — every mutation goes through an ACL-gated [command](commands.
 only inbound wire event is a request for a snapshot. There is no server export either, here or
 anywhere in OPX//77: the server runtime installs no export machinery at all.
 
-## getState {#getstate}
+## state {#state}
 
 Answers the synchronised time and weather, projected to the instant of the call, or
 `{ ok = false, error = … }` when this client has no environment natives or has not accepted a
 snapshot yet.
 
 ```lua
-Open77.exports.call("opx77_weather", "getState")
+Open77.exports.call("opx77_weather", "state")
 ```
 
 Takes no arguments.
@@ -81,14 +81,14 @@ monotonic clock.
     can influence — the client event bus is host-wide, so another resource can raise
     `opx77:weather:sync` locally. If your rule needs to be enforced (a job that only pays in
     the rain, a vehicle that handles differently in fog), decide it on the server against the
-    authority's own state, and use `getState` only to draw what the player sees.
+    authority's own state, and use `state` only to draw what the player sees.
 
-### Example {#getstate-example}
+### Example {#state-example}
 
 ```lua
 -- client/main.lua of your own resource
 CreateThread(function()
-  local promise, reason = Open77.exports.call("opx77_weather", "getState")
+  local promise, reason = Open77.exports.call("opx77_weather", "state")
   if not promise then return Open77.log.warn("not dispatched: " .. tostring(reason)) end
 
   local state, callError = promise:await()
@@ -114,15 +114,15 @@ end)
 ## What the official package publishes that this one does not {#official-differences}
 
 The platform's own `open77_weather` package publishes three exports: `isReady`, `requestSync`
-and `getState`. `opx77_weather` publishes only the last of them, and the shape of its answer is
-this resource's own — the two are not interchangeable, and `Open77.exports.call` is
-resource-scoped, so no caller can reach one while naming the other.
+and `getState`. `opx77_weather` publishes only the last of them, and it spells it `state`; the
+shape of its answer is this resource's own — the two are not interchangeable, and
+`Open77.exports.call` is resource-scoped, so no caller can reach one while naming the other.
 
 | Official export | Here |
 |---|---|
-| `isReady()` | Read `ok` on `getState`. `ok == false` with `not_synchronized` is exactly "not ready yet". |
+| `isReady()` | Read `ok` on `state`. `ok == false` with `not_synchronized` is exactly "not ready yet". |
 | `requestSync()` | Not published. The client already requests a snapshot at start and every 15 s, and the authority broadcasts a heartbeat every 5 s; a resource that forced an extra request could only add load to a channel that is already floored at one request per player per second. |
-| `getState()` | [`getState`](#getstate), with the fields above. |
+| `getState()` | [`state`](#state), with the fields above. |
 
 ## See also {#see-also}
 

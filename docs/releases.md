@@ -7,8 +7,9 @@ description: The version each OPX//77 resource currently declares, what a versio
 
 Every resource carries its own version, declared on the second line of its
 `open77.lua` and reported by nothing else. There is no framework-wide release
-number: `opx77_core` at `0.3.0` and `opx77_hud` at `0.2.0` are the current state
-of two independently versioned resources that happen to ship together.
+number: `opx77_core` at `0.3.0` and `opx77_appearance` at `0.4.0` are the
+current state of two independently versioned resources that happen to ship
+together.
 
 !!! warning "Early development"
 
@@ -22,14 +23,14 @@ of two independently versioned resources that happen to ship together.
 | Resource | Version | Reload policy |
 |---|---|---|
 | [`opx77_core`](reference/opx77_core/index.md) | `0.3.0` | `local` |
-| [`opx77_menu`](reference/opx77_menu/index.md) | `0.2.0` | `reconnect` |
-| [`opx77_hud`](reference/opx77_hud/index.md) | `0.2.0` | `reconnect` |
-| [`opx77_chat`](reference/opx77_chat/index.md) | `0.2.0` | `reconnect` |
-| [`opx77_status`](reference/opx77_status/index.md) | `0.3.0` | `reconnect` |
+| [`opx77_menu`](reference/opx77_menu/index.md) | `0.3.0` | `reconnect` |
+| [`opx77_hud`](reference/opx77_hud/index.md) | `0.3.0` | `reconnect` |
+| [`opx77_chat`](reference/opx77_chat/index.md) | `0.3.0` | `reconnect` |
+| [`opx77_status`](reference/opx77_status/index.md) | `0.4.0` | `reconnect` |
 | [`opx77_notify`](reference/opx77_notify/index.md) | `0.2.0` | `reconnect` |
-| [`opx77_weather`](reference/opx77_weather/index.md) | `0.2.0` | `local` |
-| [`opx77_elevators`](reference/opx77_elevators/index.md) | `0.3.0` | `local` |
-| [`opx77_appearance`](reference/opx77_appearance/index.md) | `0.2.0` | `local` |
+| [`opx77_weather`](reference/opx77_weather/index.md) | `0.3.0` | `local` |
+| [`opx77_elevators`](reference/opx77_elevators/index.md) | `0.4.0` | `local` |
+| [`opx77_appearance`](reference/opx77_appearance/index.md) | `0.4.0` | `local` |
 
 Each of those numbers is read from the resource's own manifest, and each is the
 value [`GetVersion`](reference/opx77_core/exports/client.md#getversion) answers
@@ -43,9 +44,9 @@ While the leading digit is `0`, it promises the reader one thing only: two
 servers running the same number are running the same code. It is not a
 compatibility contract.
 
-- **A minor bump — `0.2.0` to `0.3.0` — may break you.** Every resource past
-  `0.1.0` changed shape to get there, and the current round is a large one: see
-  [What changed](#changes).
+- **A minor bump — `0.3.0` to `0.4.0` — may break you.** Every resource past
+  `0.1.0` changed shape to get there, and the last two rounds were large ones:
+  see [What changed](#changes).
 - **The stable surface is the error codes, not the version.** Every refusal in
   this framework answers a documented string — `job.notFound`, `money.badAmount`,
   `menu_busy`, `not_adopted` — and those codes are treated as API. A code is the
@@ -64,10 +65,74 @@ code as it stands rather than against a release. If a page and the code you have
 disagree, the code is right and the page is a bug — see
 [Contributing](guides/contributing.md) for how to report or fix one.
 
-The current round moved state between resources, and four of its changes break a
-server or a plug-in written against the previous one.
+### The export audit {#export-audit}
 
-!!! danger "A database from before this round has to be dropped and recreated"
+The most recent round is an audit of the **export surface**: eleven exports were
+renamed and one was deleted, across five resources. Nothing on the wire moved —
+no net event, no WebUI message and none of `opx77_core`'s PascalCase exports —
+so what breaks is caller code that names an export by string.
+
+| Resource | Was | Is |
+|---|---|---|
+| [`opx77_status`](reference/opx77_status/exports.md) | `add` | [`addEffect`](reference/opx77_status/exports.md#addeffect) |
+| | `update` | [`updateEffect`](reference/opx77_status/exports.md#updateeffect) |
+| | `remove` | [`removeEffect`](reference/opx77_status/exports.md#removeeffect) |
+| | `clear` | [`clearEffects`](reference/opx77_status/exports.md#cleareffects) |
+| | `needs` | [`getNeeds`](reference/opx77_status/exports.md#getneeds) |
+| [`opx77_menu`](reference/opx77_menu/exports.md) | `status` | [`setStatus`](reference/opx77_menu/exports.md#setstatus) |
+| [`opx77_weather`](reference/opx77_weather/exports.md) | `getState` | [`state`](reference/opx77_weather/exports.md#state) |
+| [`opx77_chat`](reference/opx77_chat/exports.md) | `clear` | [`clearMessages`](reference/opx77_chat/exports.md#clearmessages) |
+| [`opx77_elevators`](reference/opx77_elevators/exports.md) | `check` | [`isFloorAllowed`](reference/opx77_elevators/exports.md#isfloorallowed) |
+| | `use` | [`requestFloor`](reference/opx77_elevators/exports.md#requestfloor) |
+| | `panel` | [`openPanel`](reference/opx77_elevators/exports.md#openpanel) |
+| | `nearest` | [`nearestElevator`](reference/opx77_elevators/exports.md#nearestelevator) |
+| [`opx77_appearance`](reference/opx77_appearance/exports.md) | `open`, `editor` | [`openEditor`](reference/opx77_appearance/exports.md#openeditor) |
+| | `current` | [`getSkin`](reference/opx77_appearance/exports.md#getskin) |
+| | `family` | [`getFamily`](reference/opx77_appearance/exports.md#getfamily) |
+| | `barber` | **deleted** — call `openEditor("hairdresser")` |
+
+The shape being converged on is the one the resources that got it right already
+used: `get*` reads, `set*` writes, `is*` asks a yes/no, and a bare noun answers a
+report. `opx77_core` stays PascalCase; that difference is deliberate.
+
+Beside the renames:
+
+- **`opx77_appearance` is now a service rather than a flow**, and publishes ten
+  exports where it published five.
+  [`captureSkin`](reference/opx77_appearance/exports.md#captureskin),
+  [`setSkin`](reference/opx77_appearance/exports.md#setskin),
+  [`saveSkin`](reference/opx77_appearance/exports.md#saveskin),
+  [`openCreator`](reference/opx77_appearance/exports.md#opencreator),
+  [`isSettled`](reference/opx77_appearance/exports.md#issettled) and
+  [`getFamily`](reference/opx77_appearance/exports.md#getfamily) are new. It no
+  longer opens a character creator on its own: it publishes
+  [`needsCreation`](reference/opx77_appearance/events.md#needs-creation) and
+  waits for something to call `openCreator`, saying so in the log after
+  [`CREATION_WAIT_MS`](reference/opx77_appearance/config.md#creation-wait-ms) if
+  nothing does. `AppearanceCurrent` became
+  [`AppearanceSkin`](reference/opx77_appearance/types.md#appearanceskin),
+  `AppearanceOpenResult` became
+  [`AppearanceQueued`](reference/opx77_appearance/types.md#appearancequeued), and
+  the `createRequired` event is now `needsCreation`.
+- **`opx77_hud` stopped polling.** It read `GetPlayerData` every five seconds as
+  a net under the core's change events; it now reads once at boot and lives on
+  those events. `POLL_MS` is gone.
+- **`opx77_weather`'s frozen clock is now actually frozen.** `setTimeFrozen` was
+  declared and never taken, so a held authority left REDengine's own clock
+  running free — see [the clock lock](reference/opx77_weather/index.md#time-lock).
+- **`opx77_elevators`' client fallback can disagree with the server in both
+  directions.** When `Open77.character.position()` answers nothing, the client
+  ranks a lift by the host's 3D distance to the *cabin*, which is a different
+  measurement to a different point. The previous claim that it "can only ask for
+  less than the server allows" was wrong — see
+  [`USE_RADIUS`](reference/opx77_elevators/config.md#use-radius).
+
+### The state round, before it {#state-round}
+
+The round before it moved state between resources, and four of its changes break
+a server or a plug-in written against the previous one.
+
+!!! danger "A database from before that round has to be dropped and recreated"
     The core's three character tables were renamed — `opx77_accounts` →
     `opx77_users`, `opx77_players` → `opx77_characters`, `opx77_player_groups` →
     `opx77_character_groups`, with every foreign key and index renamed with them

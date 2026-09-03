@@ -141,7 +141,7 @@ NEEDS = {
 
 **This table is the whole list.** A key absent from it is refused by
 [`setNeeds`](exports.md#setneeds) and [`addNeeds`](exports.md#addneeds) with
-`unknown_need`, never appears in a [`needs`](exports.md#needs) answer, and is
+`unknown_need`, never appears in a [`getNeeds`](exports.md#getneeds) answer, and is
 dropped from the stored JSON on the next write.
 
 | Field | Does |
@@ -246,9 +246,12 @@ Read by the **server** half only. Every five minutes it walks the players it hol
 a push for and writes each one that has changed since its last write. Nothing is
 written on the push itself.
 
-Two other paths write the same held row and do not wait for this interval:
-`onPlayerDisconnected`, for the player who has gone, and this resource's own
-`onResourceStop`, for everyone still connected. A write that fails on either of
+Three other paths write the same held row and do not wait for this interval:
+`onPlayerDisconnected`, for the player who has gone; this resource's own
+`onResourceStop`, for everyone still connected; and a **character swap on one
+player slot**, because nothing announces a character being put down, so the
+outgoing character's last push is written before the record holding it is
+replaced. A write that fails on either of
 those is logged and the row stays dirty, so the next pass tries again — except on
 the disconnect path, where the record is dropped before the write is attempted and
 a failure there is not retried.

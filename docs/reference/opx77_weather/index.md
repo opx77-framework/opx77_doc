@@ -10,7 +10,7 @@ is doing; every client is told, and applies it.
 
 | At a glance | |
 |---|---|
-| **Version** | `0.2.0` |
+| **Version** | `0.3.0` |
 | **Requires** | `open77_version ">=0.0.1"`. Nothing else in OPX//77 |
 | **Auto start** | yes |
 | **Reload policy** | `local` — the live authority is carried across a reload. See [below](#carried-state) |
@@ -40,7 +40,7 @@ has changed. A client answers a snapshot with nothing; it either adopts it or dr
 
 ## The pages {#pages}
 
-- **[Exports](exports.md)** — `getState`, the one read-only client export.
+- **[Exports](exports.md)** — `state`, the one read-only client export.
 - **[Commands](commands.md)** — the eight staff commands and the ACL keys that gate them.
 - **[Events](events.md)** — the two wire events, the local one every other resource should
   listen to, and the in-VM one that is not reachable from outside.
@@ -119,6 +119,30 @@ from where the projection says it should be — the engine's own clock runs the 
     one second behind would be applied as a full-day jump. The client refuses a backwards step
     of more than twelve hours unless a mutation or a new epoch actually moved the authority.
 
+### The clock lock {#time-lock}
+
+A held clock is held in the engine as well as in the projection. When an accepted
+snapshot's `timeFrozen` changes, the client takes or releases
+`Open77.environment.setTimeFrozen`, and only then — the native is called on a
+change, not on every pass.
+
+!!! warning "This did not work before `0.3.0`"
+
+    `setTimeFrozen` was declared, released at start and at stop, and **never
+    taken**. Under a frozen authority the projection answers one constant second
+    forever, so the client's unchanged-second guard latched on the first tick and
+    the apply returned early for the rest of the session: the engine's own clock
+    ran free and was never corrected again. [`TIME_FROZEN`](config.md#time-frozen)
+    and [`/opx77.weather.time.freeze`](commands.md#time-freeze) held the
+    *authority's* clock and nothing else. They now hold both.
+
+    If the native refuses the lock, the failure is logged and the resource
+    degrades to that older behaviour rather than raising.
+
+Drift is deliberately **not** corrected while the clock is held. Correcting a
+held clock means moving it backwards, and `setTime` seeks the next occurrence, so
+a correction would strobe a whole day every two minutes of game time.
+
 ### The weather lock {#weather-lock}
 
 REDengine runs its own weather cycle. On every accepted snapshot the client takes
@@ -146,7 +170,7 @@ drives.
   lock an older generation left behind always thaws.
 - **Without the environment natives, the client loads nothing.** It logs
   `environment natives unavailable; restart Cyberpunk to activate them` and returns;
-  [`getState`](exports.md#getstate) then answers `environment_unavailable` rather than raising.
+  [`state`](exports.md#state) then answers `environment_unavailable` rather than raising.
 - **With no usable preset row**, the authority reports `ready = false`, every weather mutation
   answers `no_presets`, and the status line carries a `DEGRADED` marker. The clock still runs.
 - **A loop slice that raises does not end its loop.** Every slice runs inside
@@ -248,7 +272,7 @@ falls back to `en`, and then to the key itself.
 The surface is the whole of what a **player** gets back: the status line and the preset list a
 [command](commands.md) answers with, the refusal sentences, the `usage:` lines and the chat
 completion help. Nothing else moves. Server logs, the answer the server console gets, the
-`reason` on a snapshot and the `error` codes on [`getState`](exports.md#getstate) are English,
+`reason` on a snapshot and the `error` codes on [`state`](exports.md#state) are English,
 because a code is what integrating code branches on rather than something a player reads.
 
 The two nearly meet in one place, and deliberately do not. The client half mirrors this
@@ -281,7 +305,7 @@ that point would otherwise be a call into `nil`.
 **And only this resource should hold it.** The environment is a single global and the last
 writer wins. Two resources holding `world.environment` and writing the weather fight each
 other at whatever cadence they each run. Everything else in OPX//77 reads the sky through
-[`getState`](exports.md#getstate) or the
+[`state`](exports.md#state) or the
 [`opx77:weather:updated`](events.md#opx77-weather-updated) event instead of writing it.
 
 ## Running alongside the official `open77_weather` {#official-package-conflict}

@@ -65,7 +65,8 @@ sessions are connected, and one line per loaded character.
 /opx77
 ```
 
-Takes no arguments.
+Takes no arguments. The character lines are **sorted by player id**, so two runs
+of this command can be compared line for line.
 
 If the core booted degraded — a database that would not answer, most often — a
 `DEGRADED:` line follows the header carrying the boot error, and no character

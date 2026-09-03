@@ -54,7 +54,7 @@ and `await` is coroutine-only, so every call site is inside a `CreateThread`.
 The cost is real and the benefit is that a resource cannot be blocked by another
 resource's handler. It also means an **export handler cannot itself await**,
 because a handler is not a coroutine — an export that needs to call out queues
-the work and answers "asked", which is why `opx77_elevators`' `panel` export
+the work and answers "asked", which is why `opx77_elevators`' `openPanel` export
 returns `{ ok = true, queued = true }` rather than "the menu is on screen".
 
 See [The export contract](../concepts/export-contract.md).

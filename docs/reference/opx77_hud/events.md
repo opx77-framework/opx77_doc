@@ -113,7 +113,8 @@ The name is `opx77_status`'s `NEEDS_EVENT`, and this resource hard-codes the
 shipped value rather than reading another resource's config.
 
 A `ready` that is not `true`, a `values` that is not a table, a value in it that
-is not a finite number, and an authoritative refusal from the `needs` export all
+is not a finite number, and an authoritative refusal from the
+[`getNeeds`](../opx77_status/exports.md#getneeds) export all
 mean the same thing: that gauge is **left out of the frame** rather than drawn at
 zero. An empty hunger bar is something a player acts on, so it is never shown for
 a value the HUD does not have. Stopping `opx77_status` does the same — it takes
@@ -121,10 +122,12 @@ its chip strip down on the way out but raises no farewell for the needs, so
 `onClientResourceStop` clears them here.
 
 !!! info "Read once at start, pushed after that"
-    On boot the client half calls `opx77_status`'s `needs` export once, to catch
-    up on a character that loaded before this resource did. There is no second
-    poll behind it: every later change arrives on this event, which the publisher
-    raises after each one.
+    On boot the client half calls `opx77_status`'s
+    [`getNeeds`](../opx77_status/exports.md#getneeds) export once, to catch up on
+    a character that loaded before this resource did. There is no second poll
+    behind it: every later change arrives on this event, which the publisher
+    raises after each one. The character snapshot from `opx77_core` works the
+    same way — one `GetPlayerData` call at boot, then its local events.
 
 ### opx77:status:effects {#status-effects}
 

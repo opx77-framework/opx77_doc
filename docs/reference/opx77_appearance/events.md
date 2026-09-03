@@ -83,7 +83,7 @@ It is sent at most once per world entry, and only when all four of these hold:
 |---|---|
 | not already announced | one per world entry; a new world entry resets it |
 | `worldEligible` | this world attachment is the gameplay one, not the vanilla menu the creator runs inside |
-| the face has settled | restored, committed, or honestly given up on — and no creator open, and no `create` commit outstanding |
+| the face has settled | restored, committed, or honestly given up on — and no creator open, and no `create` commit outstanding. [`isSettled`](exports.md#issettled) is this condition, and `state().settled` is the same value |
 | the player is in gameplay | the host reports the puppet attached, alive, and above zero health |
 
 A restore that was merely *queued* additionally waits for the mirror's own
@@ -127,6 +127,10 @@ AddEventHandler("opx77:appearance", function(payload) end)
       decision this is. **Branch on this before anything else.**
     - `error`: `string | nil` — present only when `ok` is `false`.
     - `citizenId`: `string | nil` — the character it concerns.
+    - `family`: `string | nil` — on `needsCreation` only: the body family the
+      creator must come back on.
+    - `unchanged`: `boolean | nil` — on `saved` only: the face matched the
+      stored one, so nothing was written.
 
 | `event` | `ok` | Raised when |
 |---|---|---|
@@ -134,12 +138,50 @@ AddEventHandler("opx77:appearance", function(payload) end)
 | `restored` | `true` | A stored face was applied to the puppet. |
 | `restored` | `false` | The apply failed for good; `error` is the host's own reason. |
 | `settled` | `false` | The stored face is from a build [`GAME_BUILDS`](config.md#game-builds) does not accept; `error` is `stored_build_mismatch` and there is nothing to wear. |
-| `createRequired` | `true` | The character has no stored face and the creator is about to be asked for. |
+| `needsCreation` | `true` | The character has no stored face. **Nothing opens a creator until something calls [`openCreator`](exports.md#opencreator)** — see [the handshake](#needs-creation). `family` carries the body the creator must come back on. |
+| `applied` | `true` | A snapshot handed to [`setSkin`](exports.md#setskin) reached the puppet. |
+| `applied` | `false` | It did not; `error` is the host's own reason. |
 | `created` | `true` | The face the creator built was stored and the character bootstrap was spent. |
 | `created` | `false` | The creation stored nothing; `error` is a core refusal code, `not_sent`, `save_timeout`, `body_family_mismatch` or `character_bootstrap_failed`. |
-| `saved` | `true` | An edit was stored — or the confirm changed nothing, which the core answers with silence and this resource completes itself. |
+| `saved` | `true` | An edit was stored — or the face matched the stored one, which the core answers with silence and this resource completes itself, carrying `unchanged = true`. |
 | `saved` | `false` | The core refused the save; `error` is the refusal code. |
 | `characterChanged` | `true` | The live character changed underneath this resource. |
+
+#### The needsCreation handshake {#needs-creation}
+
+**This resource never opens a character creator on its own.** When the live
+character has no stored face, and the one-shot character bootstrap has not been
+spent, it publishes `needsCreation` and waits:
+
+```lua
+AddEventHandler("opx77:appearance", function(payload)
+  if payload.event ~= "needsCreation" then return end
+  -- payload.family is "female" or "male": the body the creator must build
+  CreateThread(function()
+    Open77.exports.call("opx77_appearance", "openCreator")
+  end)
+end)
+```
+
+Everything after the player confirms belongs to this resource again — the
+capture, the check that the body they built is the body their character is, the
+save through `opx77_core`, spending the character bootstrap and letting the world
+load. The outcome arrives as `created`.
+
+!!! danger "If nothing answers, the player sits in an empty menu"
+
+    They are in the vanilla character menu with no world behind it and nothing
+    on screen, which is undiagnosable from the outside. So after
+    [`CREATION_WAIT_MS`](config.md#creation-wait-ms) this resource says so in the
+    log — **once**, naming the `openCreator` export that was never called. It
+    still does not open a creator: there is no deadline on a decision that
+    belongs to another resource.
+
+`needsCreation` is published in one place, and only while the bootstrap is
+unspent. A reload in the gameplay world cannot raise one, because the vanilla
+creator runs inside the character bootstrap and that has already been resolved —
+which is also what [`openCreator`](exports.md#opencreator) refuses with
+`bootstrap_already_spent`.
 
 !!! info "`settled` is only ever a refusal"
     It is published in one place: the stored face is from a build this resource
