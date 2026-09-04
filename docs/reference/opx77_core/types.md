@@ -533,11 +533,21 @@ selection screen has one of these and no [`Player`](#player).
 - source: [`Source`](#source)
 - userId: [`UserId`](#userid)
 - displayName: `string`
-    - From `GetPlayerName` at the moment the session was created. `""` when the
-      host would not answer.
+    - The display name at the moment the session was created, taken from
+      `Open77.players.identity` and passed through `OPX.Logger.safe`. `""` when
+      the host would not answer. Authenticated, but the player chooses it: a
+      label, never a key.
+- fingerprint: `string|nil`
+    - `sha256:<hex>` of the identity public key. The client prints the same
+      string for `identity.dump`, so a player can read it out to an operator.
+- joinedAt: `string|nil`
+    - When the host admitted them, ISO 8601 UTC. This is the wall-clock
+      counterpart to `connectedAt`, and the one to show or persist.
 - connectedAt: `integer`
     - `OPX.Now()` at creation — process-monotonic milliseconds, not a wall
-      clock. The sandbox removes `os`, so there is no wall clock to use.
+      clock, and therefore only ever useful as the start of an interval inside
+      this process. For an instant, use `joinedAt` above or
+      [`Open77.time.unix()`](server-api.md#now).
 - gateSession: `any|nil`
     - The opaque handle `Open77.ready.hold` returned, held for as long as the
       readiness gate is held for this player. Compared rather than

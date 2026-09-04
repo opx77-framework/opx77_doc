@@ -75,6 +75,37 @@ which means nobody can join.
 **Fix.** List every script on its own line, as every shipped OPEN//77 resource
 does. `**` is only safe under `web_files`.
 
+**The other cause, and the more likely one on a server that was working
+yesterday.** A resource holding `players.gate` has a code path that calls
+`deferrals.defer()` and never reaches `deferrals.done()` — a database callback
+that never fires, an early `return`, an error swallowed inside the deferred
+work. Every player is then held until
+`simulation.connectGateTimeoutSeconds` expires and refused with
+`connection_gate_timeout`, which is what they see on their own screen.
+
+**Fix.** Make every branch after `defer()` end in a `done()`, including the
+error branches, and give the deferred work its own guard `done()` well inside
+the deadline. See [Connection control](../concepts/connection-gate.md#connecting).
+
+## A connection gate handler never runs {#gate-never-runs}
+
+**Symptom.** An `onPlayerConnecting` handler is registered and nothing happens;
+players join as though it were not there.
+
+**Cause.** One of three, in order of likelihood:
+
+- The manifest does not list `players.gate`. The host skips the handler and
+  says so once: `onPlayerConnecting handler ignored: the manifest lacks the
+  players.gate permission`. Look for that `WRN` first.
+- The resource is not running.
+- The handler was registered with `RegisterNetEvent` instead of
+  `AddEventHandler`. `onPlayerConnecting` is raised by the host, not sent over
+  the wire.
+
+**Related.** A player who sees `Connection refused by the server.` rather than
+your own sentence was refused with `done()` given an empty string or a
+non-string. A message that arrives cut short hit the 127-byte UTF-8 ceiling.
+
 ## A command answers "unknown command", or is silently refused {#unknown-command}
 
 **Symptom.** An operator types `opx77.money 3 EDDIES 500` in the OPEN//77 terminal

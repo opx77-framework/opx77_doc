@@ -237,8 +237,15 @@ participates is a server where the gate is always open" is true of resource
 holds and false of this one. See [The entry gate](entry-gate.md#platform-hold),
 which also explains why this matters on a stock OPX//77 install.
 
-**There is only one disconnect event, and it is undocumented.**
-`onPlayerDisconnected(playerId)` is emitted; `playerDropped` is not. The token
+**There is only one disconnect event.**
+`onPlayerDisconnected(playerId, reason)` is emitted; `playerDropped` is not.
+*Corrected since:* this event was undocumented when this note was written, and
+carried only the player id. The platform now documents it, with a second
+argument — `connection_closed` for a quit or a dropped link, otherwise the text
+the disconnect was queued with. It also raises
+[`onPlayerRejected`](connection-gate.md#rejected), which is **not** a departure:
+it reports a connection refused *before* admission, so there is no `playerId`.
+The point that survives is that there is exactly one departure event. The token
 appears in no assembly outside the bootstrap's own literal — which is the text
 of its own handler registration, so nothing ever calls it. Five first-party
 resources listen for it anyway, and nothing breaks for them, because they all

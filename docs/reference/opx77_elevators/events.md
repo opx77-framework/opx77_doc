@@ -403,17 +403,26 @@ limit windows and removes them from every elevator's audience.
 
 ```lua
 -- server/main.lua
-AddEventHandler("onPlayerDisconnected", function(playerId)
+AddEventHandler("onPlayerDisconnected", function(playerId, reason)
+  local player = tonumber(playerId)
 end)
 ```
 
-- playerId: `integer`
+- playerId: `string`
+    - Like every host event argument. Convert it before using it as a table
+      key: Lua 5.4 keeps `"3"`, `3` and `3.0` apart.
+- reason: `string`
+    - `connection_closed` when the transport dropped or the player quit,
+      otherwise the text the disconnect was queued with by
+      `Open77.players.disconnect`, `kick` or `ban`.
 
 !!! warning "`playerDropped` does not exist on this host"
 
     Nothing in the platform ever emits it. A registration for it is a handler
     that never runs, and this resource carried one until it was removed.
-    `onPlayerDisconnected` is the only departure event there is.
+    `onPlayerDisconnected` is the only *departure* event there is —
+    [`onPlayerRejected`](../../concepts/connection-gate.md#rejected) reports a
+    connection refused before admission, which is a different thing.
 
 **Side** `server local event` — raised by the host, inside this resource's own
 server VM.

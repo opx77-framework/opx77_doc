@@ -3456,13 +3456,26 @@ local now = OPX.Now()
 
 **Side** `shared` — both runtimes. Does not yield.
 
-!!! warning "This is not a wall clock, and there is no wall clock"
+!!! warning "This is not a wall clock — but the host now provides one"
 
     The server sandbox removes `os`, so there is no `os.time` and no `os.date`.
     `OPX.Now()` counts from process start and resets on every restart. Never
     persist it, never compare one against a value stored before a restart, and
-    never present it to a player as a date — the only real timestamps on this
-    server are the database's own `TIMESTAMP` columns.
+    never present it to a player as a date.
+
+    Where you need an instant rather than an interval, the platform supplies
+    two calls, neither of which needs a permission:
+
+    | Call | Answers |
+    |---|---|
+    | `Open77.time.unix()`, alias `GetUnixTime` | Seconds since 1970-01-01 UTC, fractional |
+    | `Open77.time.utc()`, alias `GetUtcTimestamp` | The same instant as an ISO 8601 string |
+
+    Use `OPX.Now()` for cooldowns, deadlines and anything measured *inside* one
+    process, and the wall clock for anything written to a column, a JSON blob or
+    a log line. Earlier revisions of this page said there was no wall clock at
+    all; that has not been true since the platform's
+    [connection control](../../concepts/connection-gate.md#wall-clock) page.
 
 `Open77.time.monotonic()` is the same clock in **seconds**; this function
 multiplies it back up in the fallback path, and prefers `GetGameTimer` where the

@@ -403,8 +403,11 @@ RegisterNetEvent("chat:ready", function()
   })
 end)
 
+-- playerId arrives as a string, like every host event argument. An id that
+-- will not convert is worth a line, not a `-1` key no player will ever hold.
 AddEventHandler("onPlayerDisconnected", function(playerId)
-  lastSuggestedMs[tonumber(playerId) or -1] = nil
+  local player = tonumber(playerId)
+  if player ~= nil then lastSuggestedMs[player] = nil end
 end)
 ```
 

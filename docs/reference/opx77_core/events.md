@@ -764,8 +764,10 @@ place to look when the platform moves them.
 
 | Event | Side | What the core does with it |
 |---|---|---|
-| `onPlayerConnected` | server | Begins entry: makes the session, takes the readiness hold, sends the roster. Arguments arrive as `(rawPlayerId, playerName)` and the id is a **string**, because the bare `source` global is populated only for network events. |
-| `onPlayerDisconnected` | server | Logs the character out, forgets the session and clears the per-source cooldowns. The only departure event this platform raises. |
+| `onPlayerConnecting` | server | **Nothing — deliberately.** The core does not request `players.gate`; see [Connection control](../../concepts/connection-gate.md#opx77) for why a gate belongs in a resource of its own. |
+| `onPlayerConnected` | server | Begins entry: makes the session, takes the readiness hold, sends the roster. It carries `(rawPlayerId)` and nothing else — the id is a **string**, because the bare `source` global is populated only for network events. A handler declaring a second `playerName` parameter reads `nil`; use [`Open77.players.identity`](../../concepts/connection-gate.md#identity). |
+| `onPlayerRejected` | server | **Nothing.** Raised in every resource with no permission for every refused connection; the core keeps no audit of connections it was never part of. Useful in a gatekeeper resource. |
+| `onPlayerDisconnected` | server | Logs the character out, forgets the session, clears the per-source cooldowns, and writes the `reason` to the audit log. Arguments are `(playerId, reason)`. The only *departure* event this platform raises — a refusal before admission is `onPlayerRejected`, which is a different thing. |
 | `onPlayerReady` | server | The readiness gate opened. Read for its `detail` note. |
 | `onClientResourceStart` | client | The core's client half announces itself and re-requests the roster. This is what makes a core reload survivable. |
 | `open77:worldReady` | client | Announces again, because a client can start before the world is up. |

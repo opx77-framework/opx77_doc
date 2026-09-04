@@ -173,6 +173,39 @@ touches the world at all.
 
 ---
 
+## players.disconnect {#players-disconnect}
+
+Grants `Open77.players.disconnect`, alias `kick`.
+
+Requested for exactly one purpose, on the three paths where the core cannot
+bring a player in at all: no verified identity, the roster query failed, and
+nobody chose a character before `SELECTION_MS`. Releasing the readiness gate on
+those paths — which is what the core did before this call existed — admits the
+player to Night City with no character, no persistence and no way to obtain one;
+and since `onPlayerLoaded` never follows, `opx77_charselector` leaves a roster
+on screen that reopens itself on every Escape. The three player-facing strings
+were always written for a disconnect: `entry.failed` reads *"Could not bring you
+into Night City. Try reconnecting."*
+
+The reason is shown on the player's own screen and delivered to
+`onPlayerDisconnected`, so the departure explains itself in the audit line.
+
+**This is not a moderation tool.** Nothing in the framework disconnects a player
+for anything they *do*, and `players.ban` is not requested. A host that predates
+the call falls back to the old notify-and-release.
+
+**Used by** `server/lifecycle.lua`, and nothing else.
+
+!!! note "This entry used to be in the list below"
+
+    It read: *"Nothing in this framework kicks anybody. A framework that can
+    disconnect players is a framework whose bugs can disconnect players."* The
+    reasoning still holds for moderation, which is why the capability is
+    confined to one function on one failure path — but refusing an entry the
+    core cannot complete turned out to need it.
+
+---
+
 ## Deliberately not requested {#not-requested}
 
 Named here so that a fork knows it is changing a decision rather than filling a
@@ -184,7 +217,9 @@ gap.
 | `world.elevators` | `opx77_elevators` requests this for itself. A shared lift service in the core would put a gameplay feature behind the framework's release cycle. |
 | `combat.config` | The core arbitrates no damage and configures no combat. Nothing here should be able to. |
 | `players.damage.read` | Armour is written after a respawn and never read back. Health comes from the character row, which is the copy the core is authoritative for. |
-| `players.disconnect` | Nothing in this framework kicks anybody. A framework that can disconnect players is a framework whose bugs can disconnect players. |
+| `players.gate` | A gate handler in the core would put every connection behind the resource with the widest failure surface — and the host **admits** a player whose gate handler raised, so a core bug would be a silent open door rather than a loud one. A gate belongs in a small resource that does nothing else. See [Connection control](../../concepts/connection-gate.md#opx77). |
+| `players.ban` | A ban is a moderation decision with a Master-side effect that outlives every resource. That is an operator's tool, not a framework's. |
+| `filesystem.read` / `filesystem.write` | Everything the core keeps durable belongs in the database, where it can be queried, joined and migrated. A second store in `data/` would be a second source of truth. |
 | `player.appearance.read` / `player.appearance.edit` | The core stores the face and never wears it. Reading the catalogue and dressing the puppet are client capabilities, and [`opx77_appearance`](../opx77_appearance/index.md) requests them for itself. |
 
 If you need one of these, it belongs in a satellite resource that requests it

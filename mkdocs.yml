@@ -98,6 +98,7 @@ nav:
       - The export contract: concepts/export-contract.md
       - Integration channels: concepts/integration-channels.md
       - Identity: concepts/identity.md
+      - Connection control: concepts/connection-gate.md
       - The entry gate: concepts/entry-gate.md
       - Persistence: concepts/persistence.md
 

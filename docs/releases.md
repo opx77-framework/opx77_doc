@@ -65,6 +65,30 @@ code as it stands rather than against a release. If a page and the code you have
 disagree, the code is right and the page is a bug — see
 [Contributing](guides/contributing.md) for how to report or fix one.
 
+### Platform changes {#platform}
+
+This site is written against a specific server binary —
+`open77-server-2.31.4+op77.11` at the time of writing, as
+[The Open77 platform](concepts/the-platform.md) records — and that page carries
+a list of corrections made by reading the shipped binary rather than the
+platform's website. Those corrections exist because somebody will eventually
+read the website and "fix" OPX//77 in the wrong direction. The same hazard runs
+the other way: when the platform gains something, a correction here can become
+the stale claim.
+
+The platform's **connection control** page did exactly that. What it added, and
+what it made obsolete on this site:
+
+| Added | Consequence here |
+|---|---|
+| `onPlayerConnecting` + `players.gate`, with deferrals | A gate is now a thing a resource can be. New page: [Connection control](concepts/connection-gate.md). |
+| `onPlayerRejected(userId, name, code, message)` | A refused connection is visible to every resource, with no permission. |
+| `reason` on `onPlayerDisconnected` | The event is no longer undocumented and no longer single-argument. Both claims appeared on this site and are corrected. |
+| `Open77.players.identity` | A durable `userId` is readable from any resource, with no permission. |
+| `Open77.players.disconnect` / `ban` | `opx77_core` can now refuse an entry it cannot complete, instead of releasing the gate and stranding the player. |
+| `Open77.time.unix` / `utc` | **There is a wall clock.** Three pages said there was none, and one taught a persisted cooldown stamped with `OPX.Now()` as good practice. Corrected. |
+| `simulation.connectGateTimeoutSeconds` | A new failure mode worth knowing: [No player can connect at all](guides/troubleshooting.md#nobody-connects). |
+
 ### The export audit {#export-audit}
 
 The most recent round is an audit of the **export surface**: eleven exports were
