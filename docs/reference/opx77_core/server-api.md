@@ -883,7 +883,8 @@ and `server/appearance.lua` is the only thing that writes it. It travels inside
 core already publishes.
 
 The capture is not done here. [`opx77_appearance`](../opx77_appearance/index.md)
-is a **client-only** resource: it opens the native customization modal, captures
+does it on the **client** — its one server file only hands looks between players
+and never touches the face: it opens the native customization modal, captures
 a snapshot, and sends it to the core on
 [`opx77:server:saveAppearance`](events.md#saveappearance). The core takes the
 character from the connection, validates the snapshot, writes it and broadcasts

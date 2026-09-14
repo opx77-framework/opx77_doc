@@ -129,8 +129,8 @@ NC_SHIFTBOARD = {
 
 ### Player-facing text {#locale}
 
-A resource that shows a player a word carries its own catalogue. Ten of the
-thirteen shipped satellites do — every one but `opx77_menu`, `opx77_status` and
+A resource that shows a player a word carries its own catalogue. Eleven of the
+fourteen shipped satellites do — every one but `opx77_menu`, `opx77_status` and
 `opx77_notify` — and the shape is the same in each of them, copied from
 `opx77_core/shared/locale.lua` and adapted to the resource's own namespace:
 

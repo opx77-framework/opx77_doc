@@ -201,5 +201,10 @@ nav:
           - Events: reference/opx77_admin/events.md
           - Configuration: reference/opx77_admin/config.md
           - Types: reference/opx77_admin/types.md
+      - opx77_inventory:
+          - Overview: reference/opx77_inventory/index.md
+          - Commands: reference/opx77_inventory/commands.md
+          - Exports: reference/opx77_inventory/exports.md
+          - Configuration: reference/opx77_inventory/config.md
 
   - Releases: releases.md

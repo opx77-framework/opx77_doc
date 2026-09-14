@@ -133,7 +133,7 @@ own playback <playbackId> could not be posed: <reason>
 ### opx77_animations:row {#row}
 
 Raised by [`opx77_menu`](../opx77_menu/index.md) for a row of the picker; this
-resource listens and plays, stops, or forgets its handle.
+resource listens and plays, stops, moves between screens, or forgets its handle.
 
 ```lua
 -- client/picker.lua
@@ -143,9 +143,14 @@ end)
 
 - payload: `table`
     - `opx77_menu`'s selection payload. Ignored unless `payload.owner` is this
-      resource and `payload.menu` is `"opx77_animations.picker"`. `select` on a
-      row whose `data` carries `stop` stops; one carrying `name` and `variant`
-      plays; `close` forgets the handle.
+      resource and `payload.menu` is `"opx77_animations.picker"`, which every
+      screen of the picker shares. `select` on a row whose `data` carries `go`
+      opens that screen — `category` or `variants` — and one carrying `back`
+      steps up a screen; one carrying `stop` stops; one carrying `name` and
+      `variant` plays. `close` forgets the handle, unless it is the close of a
+      screen this resource replaced (`reopened`, or another handle); a close
+      whose reason is `back`, on a screen below the root, steps up a screen
+      instead.
 
 Not a public contract. Named here so a listener on the same bus knows what it is
 looking at. See [`opx77_menu` events](../opx77_menu/events.md#your-event).

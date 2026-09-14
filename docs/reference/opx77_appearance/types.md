@@ -372,6 +372,34 @@ What arrives on [`OPX_APPEARANCE_CONFIG.EVENT`](config.md#event), with a bare
 - reason: [`AppearancePanelReason`](#appearancepanelreason)`|nil` — on
   `panelClosed`: what took the panel down.
 
+## AppearanceLook {#appearancelook}
+
+One player's look as the presence halves hand it to the other players, on
+[`opx77_appearance:present`](events.md#presence-wire) and
+[`opx77_appearance:look`](events.md#presence-wire). **Never stored.** New in
+`0.8.0`.
+
+```lua
+---@class AppearanceLook
+---@field body AppearanceBody
+---@field equipment table<string, string|false>  the nine equipment slots: a record name, or false
+---@field wardrobe { active: integer|nil, outfits: table<string, table>, names: table|nil }
+
+---@class AppearanceBody
+---@field family BodyFamily
+---@field groups { part: "head"|"body"|"arms", name: string, keys: string[][] }[]
+```
+
+- body — what `Open77.appearance.captureBody` reads: the family and 1 to 64
+  customization groups, each a `part`, a `name` hash and 1 to 64 keys, each a
+  pair of hashes. A hash is `0x` and sixteen hex digits, not all zero. Encoded,
+  at most 49152 bytes. A body outside those bounds is refused whole.
+- equipment — `Head`, `Face`, `InnerChest`, `OuterChest`, `Legs`, `Feet`,
+  `Outfit`, `UnderwearTop` and `UnderwearBottom`, each a record name or `false`.
+  Anything else in a slot becomes `false`.
+- wardrobe — `active`, the outfit index `0` to `6` or none, and `outfits` by
+  index, each overriding any of the first seven slots.
+
 ## See also {#see-also}
 
 - [Exports](exports.md) — which export answers which of these.

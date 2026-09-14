@@ -253,10 +253,13 @@ third of the four idioms with no equivalent, [below](#no-function-references).
 
 | ESX Legacy | Qbox (`qbx_core`) | OPX//77 |
 |---|---|---|
-| `xPlayer.addInventoryItem` and 11 more | `ox_inventory` | none |
-| `ESX.RegisterUsableItem` | `exports.qbx_core:CreateUseableItem` | none |
+| `xPlayer.addInventoryItem` and 11 more | `ox_inventory` | [`opx77_inventory`](../reference/opx77_inventory/exports.md#server)'s server exports: `AddItem`, `RemoveItem`, `GetItemCount`, `HasItem`, `CanCarry`, `GetInventory` and the rest |
+| `ESX.RegisterUsableItem` | `exports.qbx_core:CreateUseableItem` | [`RegisterUsable`](../reference/opx77_inventory/exports.md#registerusable), naming a server export of your own |
 
-OPX//77 ships no inventory and no item registry, deliberately. See
+Items are declared in `opx77_inventory`'s `data/items.lua`, not registered at
+runtime, and a resource that changes a bag must be listed in its
+[`EXPORTS.WRITERS`](../reference/opx77_inventory/config.md#exports). Every
+answer is `{ ok = ... }`, never a bare value. See
 [the FAQ](faq.md#why-is-there-no-inventory).
 
 ## Four things with no equivalent {#no-equivalent}

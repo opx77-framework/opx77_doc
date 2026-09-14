@@ -1,15 +1,16 @@
 ---
-title: Reference overview — the fourteen resources
-description: The fourteen resources OPX//77 ships, with the version, reload policy and role of each, which of them are optional, what a missing one costs, and how they depend on one another at runtime.
+title: Reference overview — the fifteen resources
+description: The fifteen resources OPX//77 ships, with the version, reload policy and role of each, which of them are optional, what a missing one costs, and how they depend on one another at runtime.
 ---
 
 # Reference
 
-OPX//77 ships as fourteen resources. One of them, `opx77_core`, owns the
+OPX//77 ships as fifteen resources. One of them, `opx77_core`, owns the
 character: the roster, money, jobs, gangs, metadata, appearance, persistence and
-the entry gate. The other thirteen are services, surfaces and tools that read it.
+the entry gate. The other fourteen are services, surfaces and tools that read it.
 `opx77_status` is the one that owns state of its own — the gameplay needs, in a
-table of its own.
+table of its own. `opx77_inventory` holds what a character carries, in tables
+`opx77_core` owns and writes for it.
 
 | Resource | Version | Reload policy | Role |
 |---|---|---|---|
@@ -22,11 +23,12 @@ table of its own.
 | [`opx77_notify`](opx77_notify/index.md) | 0.2.0 | `reconnect` | Toast notifications, drop-in for the platform's own notification API. |
 | [`opx77_weather`](opx77_weather/index.md) | 0.3.0 | `local` | Synchronised clock and weather authority. |
 | [`opx77_elevators`](opx77_elevators/index.md) | 0.4.0 | `local` | Job-gated in-world elevators. |
-| [`opx77_appearance`](opx77_appearance/index.md) | 0.6.0 | `local` | The character's face, client-side; the character bootstrap spent at join, so the world loads first; and the readiness announcement that opens the platform's gate. |
+| [`opx77_appearance`](opx77_appearance/index.md) | 0.8.0 | `local` | The character's face; the character bootstrap spent at join, so the world loads first; the readiness announcement that opens the platform's gate; and every player's look handed to the others, so they are drawn. |
 | [`opx77_charselector`](opx77_charselector/index.md) | 0.3.0 | `local` | The character roster, drawn by `opx77_menu` in the gameplay world, and the stage camera while the player chooses. |
 | [`opx77_charcreator`](opx77_charcreator/index.md) | 0.1.0 | none declared | The creation flow: the identity form, the write through `opx77_core`, the hand-back to the roster, and the call that opens the in-world face editor. |
-| [`opx77_animations`](opx77_animations/index.md) | 0.1.0 | `local` | Emotes: a command, a picker drawn by `opx77_menu`, and client exports that ask the platform's animation service to play one. |
-| [`opx77_admin`](opx77_admin/index.md) | 0.1.0 | `local` | Staff tool: thirty-nine ACL-restricted commands and a keyboard menu that drives them, audited in the platform log. |
+| [`opx77_animations`](opx77_animations/index.md) | 0.2.0 | `local` | Emotes: a command, a picker drawn by `opx77_menu` one screen at a time, and client exports that ask the platform's animation service to play one. |
+| [`opx77_admin`](opx77_admin/index.md) | 0.1.0 | `local` | Staff tool: forty-three ACL-restricted commands and a keyboard menu that drives them, audited in the platform log. |
+| [`opx77_inventory`](opx77_inventory/index.md) | 0.1.0 | `reconnect` | The inventory: a bag of slots and grams per character, stashes, vehicle storage and piles on the ground, weapons as items, stored by `opx77_core`. |
 
 Every version and reload policy in that table is read from the resource's own
 `open77.lua`. A `reload_policy` is a **client transition** policy, not a
@@ -54,11 +56,12 @@ though: three of them are what gets a player into the world.
 | `opx77_notify` | Yes | No toasts. A server resource calling `Open77.notifications.send` reaches nothing unless the official `open77_notifications` is installed, and every client call answers `export_not_found`. |
 | `opx77_weather` | Yes | The sky and clock are whatever the host defaults to. Nothing else reads this resource. |
 | `opx77_elevators` | Yes | The scripted lifts are inert. It is the worked example of a satellite, and the resource most safely deleted. |
-| `opx77_appearance` | **No, in practice** | Nothing spends the character bootstrap, so the platform's loading cover never lifts and no world loads. No stored face is applied, and **the platform's readiness gate never opens for anybody**: every joiner carries a `__platform` hold that clears only on a client announcing `open77:session:gameplayReady`, and this is the resource that sends it. `opx77_core` places characters regardless, because it reads neither `Open77.ready.isReady` nor `onPlayerReady`; anything that does read them hangs. The official `open77_appearance` spends the bootstrap and sends the announcement too, and the core's boot check accepts either name. |
+| `opx77_appearance` | **No, in practice** | Nothing spends the character bootstrap, so the platform's loading cover never lifts and no world loads. No stored face is applied, and **the platform's readiness gate never opens for anybody**: every joiner carries a `__platform` hold that clears only on a client announcing `open77:session:gameplayReady`, and this is the resource that sends it. `opx77_core` places characters regardless, because it reads neither `Open77.ready.isReady` nor `onPlayerReady`; anything that does read them hangs. **Nobody sees anybody else's body** either: this resource hands every player's look to the others. The official `open77_appearance` also spends the bootstrap, sends the announcement and hands looks out, and the core's boot check accepts either name, but it follows the platform's own join model, not this framework's — and running both conflicts over the bootstrap and the face. Run one. |
 | `opx77_charselector` | **No, in practice** | Nobody plays: nothing draws the roster or calls `SelectCharacter`, so a joining player stays unplaced in the world. `opx77.select` from the terminal still works. |
 | `opx77_charcreator` | Yes, with a consequence | No in-game character creation, and nothing answers `opx77_appearance`'s `needsCreation`: a character with no face enters on the default face after `CREATION_WAIT_MS`. |
 | `opx77_animations` | Yes | No emotes: no `/e`, no picker, no animation exports. Nothing else in the set calls it, and it has no effect on the platform's own `open77_animations`. |
-| `opx77_admin` | Yes | No staff menu and no staff commands for teleport, heal, revive, god mode, kick, ban, vehicles, weapons, announcements or destinations. `opx77_core`'s and `opx77_weather`'s own staff commands still work typed. Nothing else reads it. |
+| `opx77_admin` | Yes | No staff menu and no staff commands for teleport, heal, revive, god mode, kick, ban, vehicles, weapons, bags, announcements or destinations. `opx77_core`'s, `opx77_inventory`'s and `opx77_weather`'s own staff commands still work typed. Nothing else reads it. |
+| `opx77_inventory` | Yes | No bags, stashes, vehicle storage or piles, and no weapons drawn from a bag. Every `opx77_admin` weapon command but the holster, and every inventory command, refuses with `inventory_unavailable`; its weapon rows are greyed and its inventory rows hidden. |
 
 !!! info
     A missing resource is a runtime condition, not a boot failure. Every
@@ -120,12 +123,21 @@ to the next — see [The entry gate](../concepts/entry-gate.md#world-first):
   written against `Open77.notifications` renders here without knowing this
   framework exists.
 - **`opx77_appearance` reads and writes the character's face through
-  `opx77_core`.** It is client-only: it has no `server/`, no `sql/`, no table and
-  no `database.access`. It captures a snapshot and sends it to the core on
+  `opx77_core`.** It has no `sql/`, no table and no `database.access`. It
+  captures a snapshot and sends it to the core on
   `opx77:server:saveAppearance`; the core validates it, stores it on the
   character row and publishes it back inside `PlayerData`. At join it reads the
   core's roster — `GetCharacters` and `opx77:client:charactersReady`, never a
-  request — to pick the body the world loads with.
+  request — to pick the body the world loads with. Its one server file,
+  `server/presence.lua`, reads nothing of the core's: it hands each player's
+  look — body, equipment, outfit — to the other players, in memory, so they are
+  drawn at all.
+- **`opx77_inventory` is stored by `opx77_core`.** It calls the core's server
+  exports — `opx77_core` 0.4.0 or later, with `opx77_inventory` in its
+  `EXPORTS.CALLERS` — for every container, and the core's `GetChanges` cursor for
+  who is in the world. It draws its own screen, and uses `opx77_notify`,
+  `opx77_status` and `opx77_animations` when they run. `opx77_admin` changes a
+  bag through its server exports.
 - **`opx77_charselector` reads `opx77_core`** — `charactersReady`,
   `GetCharacters`, `RequestCharacters`, `SelectCharacter`, `IsLoggedIn` and the
   refusal channel — and draws through `opx77_menu`. It listens for
@@ -143,9 +155,10 @@ to the next — see [The entry gate](../concepts/entry-gate.md#world-first):
 - **`opx77_admin` drives other resources' commands.** It draws with
   `opx77_menu` and `opx77_input`, reads `GetJobs`, `GetGangs` and
   `GetSharedConfig` from `opx77_core`, and runs the core's and `opx77_weather`'s
-  staff commands for the screens that act on a character or the sky. Every
-  command that touches a body waits on `Open77.ready.isReady` too. It owns no
-  table.
+  staff commands for the screens that act on a character or the sky. Its weapon
+  and inventory commands call `opx77_inventory`'s server exports, and two of its
+  bag rows run that resource's `open` and `holders` commands. Every command that
+  touches a body waits on `Open77.ready.isReady` too. It owns no table.
 - **`opx77_status` is the one satellite that owns a table.** It keeps the
   character's needs in `opx77_character_status`, keyed on the citizen id, and
   declares `database.access` for it. Everything else still applies to it: it
@@ -157,10 +170,14 @@ to the next — see [The entry gate](../concepts/entry-gate.md#world-first):
 
 ## Reading these pages {#reading}
 
-Every export listed under `reference/` is **client-side**. The OPEN//77 server
-runtime installs no export mechanism, which is why
-[`opx77_core`'s server exports page](opx77_core/exports/server.md) exists to say
-that there are none, and what to use instead.
+Every export listed under `reference/` is **client-side**, with one exception:
+[`opx77_inventory`'s server exports](opx77_inventory/exports.md#server), which
+another server resource calls with the same `Open77.exports.call`. The pages
+written against `opx77_core` 0.3.0 say the server runtime installs no export
+mechanism, which is why
+[`opx77_core`'s server exports page](opx77_core/exports/server.md) says there are
+none; `opx77_inventory` needs `opx77_core` 0.4.0, whose server exports it calls,
+and those pages have not yet been brought up to it.
 
 Calls always look like this — inside a `CreateThread`, checking every level of
 failure:

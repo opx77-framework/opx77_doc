@@ -11,7 +11,7 @@ plays and stops an animation through [client exports](exports.md).
 
 | At a glance | |
 |---|---|
-| **Version** | `0.1.0` |
+| **Version** | `0.2.0` |
 | **Requires** | `open77_version ">=0.0.1"`. No `dependency` is declared |
 | **Auto start** | yes |
 | **Reload policy** | `local` — the picker is `opx77_menu`'s surface, not this resource's, and the mirror of who plays what is rebuilt from the service's next snapshot |
@@ -169,6 +169,42 @@ The owner is only remembered for the playback that is running. [`stop`](exports.
 ends the local player's animation whoever started it — a command, the picker, or
 another resource.
 
+## The picker {#picker}
+
+A list drawn by [`opx77_menu`](../opx77_menu/index.md), **one screen at a
+time**:
+
+| Screen | Rows |
+|---|---|
+| root | **Stop**, then one row per category with something offered |
+| a category | its animations: one with a single offered variant plays when chosen, one with several opens its variants screen |
+| an animation's variants | one **Variant n** row per offered variant, with the engine's clip words beside it when [`SHOW_VARIANT_WORDS`](config.md#picker) is on |
+
+Every screen below the root ends in a **Back** row, and Backspace steps up a
+screen as well — on the root it closes the picker, as Escape does anywhere.
+
+Each screen is its own `opx77_menu` `open`, with the stack of screens kept in
+this resource, not a submenu of one tree: the whole catalogue in one menu is past
+the host's bound of 1,024 values on an export call, which drops the call without
+a word. A screen lists at most 40 rows and ends in a disabled *n more not shown*
+row past that; the shipped catalogue comes nowhere near it. Every open starts
+from the root.
+
+**A picker that cannot open is a toast as well as a log line**, so the key or
+the command never seems to do nothing:
+
+| Why | The player sees |
+|---|---|
+| another resource's menu is up (`menu_busy`) | *Another menu is open. Close it first.*, as info |
+| `opx77_menu` is not running | the [`menu_not_running`](types.md#animationerror) toast |
+| any other refusal, a refused spec included | *The animation picker could not be opened.*, as a warning |
+
+```text
+picker root did not open: menu_busy
+```
+
+When a lower screen cannot open, the picker stays on the screen still up.
+
 ## Compatibility with the platform's packages {#compatibility}
 
 **`open77_animations`.** This resource does what that package's `/anim` command
@@ -211,7 +247,7 @@ nor replaces.
 | `server/main.lua` | the inbound net events, the departure hook, the boot banner |
 | `client/presenter.lua` | the mirror of the service's wire, and the bodies posed from it |
 | `client/main.lua` | requests, verdicts, refusal toasts, export ownership |
-| `client/picker.lua` | the picker, borrowed from `opx77_menu` |
+| `client/picker.lua` | the picker, borrowed from `opx77_menu` one screen at a time, and its stack of screens |
 | `client/exports.lua` | the eight public exports |
 
 ## Permissions {#permissions}

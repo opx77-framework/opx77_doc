@@ -1,6 +1,6 @@
 ---
 title: opx77_admin configuration
-description: Every key of OPX_ADMIN_CONFIG with its shipped default — rates, the audit ring, placement, noclip, announcements, ban durations, vehicles, weapons, the linked commands, the sky lists and the destinations — plus the two catalogues and the locale catalogue.
+description: Every key of OPX_ADMIN_CONFIG with its shipped default — rates, the audit ring, placement, noclip, announcements, ban durations, vehicles, the inventory, the linked commands, the sky lists and the destinations — plus the vehicle catalogue, the weapon classes and the locale catalogue.
 ---
 
 # Configuration
@@ -48,7 +48,7 @@ RATE = {
 | Key | Floor between |
 |---|---|
 | `ACTION_MS` | two runs of one mutating command |
-| `READ_MS` | two runs of one command that only reads — the opener, `self.pos`, `weapon.read` and the four `read.*` |
+| `READ_MS` | two runs of one command that only reads — the opener, `self.pos`, `weapon.read`, `inventory.view` and the four `read.*` |
 | `REFRESH_MS` | two [`opx77_admin:refresh`](events.md#refresh) requests on one topic |
 
 A command run inside its floor answers `too_fast`. The floor is per operator
@@ -177,19 +177,29 @@ VEHICLES = {
 A vehicle removed by somebody else is forgotten the next time the list is
 consulted, so it stops counting against `PER_OWNER`.
 
-## WEAPONS {#weapons}
+## INVENTORY {#inventory}
+
+Weapons and bags are [`opx77_inventory`](../opx77_inventory/index.md)'s: every
+weapon command but the holster, and every inventory command, calls its server
+exports, which need this resource in its
+[`EXPORTS.WRITERS`](../opx77_inventory/config.md#exports) — shipped so.
 
 ```lua
-WEAPONS = {
-  MAX_RESERVE = 2000,
-  FILL_MAGAZINE = true,
+INVENTORY = {
+  RESOURCE = "opx77_inventory",
+  MAX_COUNT = 10000,
 },
 ```
 
 | Key | Does |
 |---|---|
-| `MAX_RESERVE` | the ceiling on a reserve, typed or from a class. The engine caps each ammunition type lower still |
-| `FILL_MAGAZINE` | after the spare rounds, fill the magazine to the capacity the engine reports. Only `false` turns it off |
+| `RESOURCE` | the inventory whose exports the weapon and inventory commands call; match a renamed folder. A value that is not letters, digits, `_`, `-` and `.` is read as `"opx77_inventory"` |
+| `MAX_COUNT` | the largest count [`inventory.give`](commands.md#inventory-give) and [`inventory.remove`](commands.md#inventory-remove) accept; never below `1`. Past it `bad_count` |
+
+This key replaces `WEAPONS`: `WEAPONS.MAX_RESERVE` and `WEAPONS.FILL_MAGAZINE`
+are gone, and a `WEAPONS` table left in an older `config.lua` is not read. The
+rounds a give loads are [`ROUNDS`](#catalogues) in `data/weapons.lua`, capped by
+the inventory's ammunition `MAX`.
 
 ## LINKS {#links}
 
@@ -204,6 +214,8 @@ LINKS = {
   GANG = "opx77.gang",
   MONEY = "opx77.money",
   SAVE = "opx77.save",
+  INVENTORY_OPEN = "opx77.inventory.open",
+  INVENTORY_HOLDERS = "opx77.inventory.holders",
   WEATHER_SET = "opx77.weather.set",
   WEATHER_NEXT = "opx77.weather.next",
   WEATHER_FREEZE = "opx77.weather.freeze",
@@ -214,9 +226,17 @@ LINKS = {
 
 **Type** `table<string, string|false>`
 
-Match any rename made in [`opx77_core`](../opx77_core/commands.md) or in
+Match any rename made in [`opx77_core`](../opx77_core/commands.md), in
+[`opx77_inventory`'s `COMMANDS`](../opx77_inventory/config.md#commands) or in
 [`opx77_weather`'s `COMMANDS`](../opx77_weather/config.md#commands).
-`false` removes the row. Every name here is also put in the access map, so the
+`false` removes the row.
+
+`INVENTORY_OPEN` and `INVENTORY_HOLDERS` are there because `opx77_inventory`
+publishes no export that opens another character's bag on a staff screen or
+lists the containers holding an item: the menu's *Open the bag beside mine* and
+*Who holds an item* rows run those two commands, gated on
+`command.opx77.inventory.open` and `command.opx77.inventory.holders`. See
+[Weapons and bags](index.md#weapons-and-bags). Every name here is also put in the access map, so the
 menu greys it by the operator's ACL like one of this resource's own.
 
 ## WEATHER_PRESETS and TIMES {#sky}
@@ -262,19 +282,24 @@ to the clipboard. Destinations added in game with
 
 ## Catalogues {#catalogues}
 
-The vehicles staff may spawn and the weapons they may hand out are definitions,
-not settings, and live in `data/vehicles.lua` (`OPX_ADMIN_VEHICLES`) and
-`data/weapons.lua` (`OPX_ADMIN_WEAPONS`).
+The vehicles staff may spawn are definitions, not settings, and live in
+`data/vehicles.lua` (`OPX_ADMIN_VEHICLES`). The weapons and items they may hand
+out are not listed here at all: they are
+[`opx77_inventory`](../opx77_inventory/index.md)'s catalogue. `data/weapons.lua`
+(`OPX_ADMIN_WEAPONS`) keeps only the weapon classes.
 
 !!! danger "They are allowlists, not suggestions"
 
-    A record that is not a row of one of these files never reaches
-    `Open77.vehicles.create` or `Open77.weapons.assign`, whatever a client
-    types.
+    A record that is not a row of `data/vehicles.lua` never reaches
+    `Open77.vehicles.create`, and a name that is not an item of the inventory's
+    catalogue is never given, whatever a client types. The inventory checks the
+    name again.
 
-The platform has no server-side call that enumerates vehicle or item records,
-so both lists are hand-picked starters: fourteen vehicles in three classes and
-seventeen weapons in nine. To extend one, add a row:
+### Vehicles {#vehicles-catalogue}
+
+The platform has no server-side call that enumerates vehicle records, so the
+list is a hand-picked starter: fourteen vehicles in three classes. To extend it,
+add a row:
 
 ```lua
 { NAME = "outlaw", LABEL = "Herrera Outlaw", CLASS = "sport",
@@ -299,16 +324,50 @@ data/vehicles.lua: row #3: CLASS is not a KEY in CLASSES
 A record the engine does not know passes the allowlist and is refused when it
 is spawned, with the host's own reason in the answer.
 
-**A weapon class** carries two more fields. `AMMO` says whether the class takes
-ammunition at all — `false` for melee, and no spare rounds are asked for — and
-`RESERVE` is how many spare rounds a give loads. The ammunition **type** is
-never chosen: the engine reads it off the weapon record, and precision rifles
-draw rifle ammunition. The engine caps what a character carries per ammunition
-type, on the spare rounds plus the magazine, and a request above the cap is
-partly applied and then reported as refused — keep `RESERVE` modest.
+### Weapons and items {#weapons-catalogue}
 
-Only the three ordinary weapon slots are supported by the platform, so grenades,
-heavy weapons and arm cyberware do not belong in `data/weapons.lua`.
+Weapons and items are `opx77_inventory`'s `data/items.lua` and
+`data/weapons.lua`, read through its `GetItems` export, page by page, and kept
+for up to five minutes, forgotten as soon as that resource starts or stops. There
+is one list: a weapon staff can hand out is always one the inventory backs, and
+it is added to or trimmed there. Staff type a weapon by its item name,
+`weapon_lexington`, or without the prefix, `lexington`.
+
+`data/weapons.lua` here keeps only the classes:
+
+```lua
+OPX_ADMIN_WEAPONS = {
+  CLASSES = {
+    { KEY = "handgun", LABEL = "Handguns", ROUNDS = 300 },
+    { KEY = "revolver", LABEL = "Revolvers", ROUNDS = 150 },
+    { KEY = "smg", LABEL = "SMGs", ROUNDS = 600 },
+    { KEY = "rifle", LABEL = "Assault rifles", ROUNDS = 600 },
+    { KEY = "precision", LABEL = "Precision rifles", ROUNDS = 300 },
+    { KEY = "sniper", LABEL = "Sniper rifles", ROUNDS = 100 },
+    { KEY = "shotgun", LABEL = "Shotguns", ROUNDS = 120 },
+    { KEY = "lmg", LABEL = "Light machine guns", ROUNDS = 600 },
+    { KEY = "melee", LABEL = "Melee", ROUNDS = 0 },
+  },
+}
+```
+
+| Field | Rule |
+|---|---|
+| `KEY` | matched on `CLASS` in the inventory's `data/weapons.lua`; the order of the list is the menu's |
+| `LABEL` | what the weapon picker shows, up to 48 characters; defaults to the key |
+| `ROUNDS` | the rounds a [`weapon.give`](commands.md#weapon-give) puts on the item when none are typed. Left out, a give loads full |
+
+A give never puts more than the inventory's ammunition `MAX` for that weapon, and
+a melee weapon carries none. A class the inventory uses and this file does not
+name is listed last, under its key, and loads full. A class with no unique `KEY`
+is dropped and named at boot:
+
+```text
+data/weapons.lua: class #3 needs a unique KEY
+```
+
+The `WEAPONS` list of records, the `AMMO` and `RESERVE` class fields and
+`Catalog.weapon` are gone: a row naming a TweakDB record here is no longer read.
 
 ## Player-facing text {#locales}
 
@@ -341,7 +400,8 @@ code in the `register` call, translate the values, add
 | Coordinates | ±1,000,000 | a point past it on any axis answers `bad_coordinates` |
 | Armour | `0`–`10000` points | the range [`player.armor`](commands.md#player-armor) accepts |
 | Audit read | `1`–`40`, default `15` | what [`read.audit`](commands.md#audit) shows at once |
-| Roster chunk | 20 rows | per [`opx77_admin:roster`](events.md#roster) event: the host drops an event past 1024 value nodes without a word |
+| Roster chunk | 20 rows | per [`opx77_admin:roster`](events.md#roster), [`items`](events.md#items) or [`bag`](events.md#bag) event: the host drops an event past 1024 value nodes without a word |
+| Catalogue cache | 300,000 ms | how long `opx77_inventory`'s catalogue is kept before it is read again |
 | Travel sweep | 2000 ms | how often a revoked grant is looked for |
 | Weapon request | 30,000 ms | how long an unanswered weapon relay is remembered |
 | Menu answer | 15,000 ms | how long a command the menu sent may take to have its answer put under the list |

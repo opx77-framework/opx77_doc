@@ -81,8 +81,9 @@ opx77.anim [name [variant] | category | stop | list]
     - With a name: which variant, e.g. `opx77.anim smoke 3`.
     - Default: the first variant offered on this build
 - category: `string`
-    - Alone: opens the picker standing on that category, e.g.
-      `opx77.anim social`. Shares the once-a-second limit with the bare form.
+    - Alone: opens the picker's root screen with the cursor on that category's
+      row, e.g. `opx77.anim social`; Enter opens the category. Shares the
+      once-a-second limit with the bare form. See [The picker](index.md#picker).
 - `stop`
     - Alone: the same as [`opx77.anim.stop`](#opx77-anim-stop).
 - `list`
@@ -125,7 +126,7 @@ stop or reload.
 > /opx77.anim smoke 3
   (the third variant of smoke plays)
 > /opx77.anim relaxation
-  (the picker opens on Relaxation)
+  (the picker opens with the cursor on Relaxation)
 > /opx77.anim smoke 99
   (a warning toast) That animation has no such variant. Run /opx77.anim.list to see the list.
 ```

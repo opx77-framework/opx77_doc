@@ -1,21 +1,21 @@
 ---
 title: The opx77_appearance resource
-description: opx77_appearance is the character's face for OPX//77 — a client-only resource that spends the character bootstrap at join, puts the selected character's body and face on in the world, opens Cyberpunk's own customization mirror, sends what the player built to opx77_core, and emits the one announcement that clears the platform's readiness hold.
+description: opx77_appearance is the character's face for OPX//77 — it spends the character bootstrap at join, puts the selected character's body and face on in the world, opens Cyberpunk's own customization mirror, sends what the player built to opx77_core, emits the one announcement that clears the platform's readiness hold, and hands every player's look to the other players so they are drawn at all.
 ---
 
 # opx77_appearance
 
 | At a glance | |
 |---|---|
-| **Version** | `0.6.0` |
+| **Version** | `0.8.0` |
 | **Requires** | `open77_version ">=0.0.1"`. No `dependency` is declared |
 | **Auto start** | yes |
 | **Reload policy** | `local` — a reload is a script reload, not a reconnect: the face is re-read from `PlayerData`, the panel is taken down, and nothing here survives one |
-| **Permissions** | `network.events`, `player.appearance.read`, `player.appearance.edit` |
-| **Sides** | client only. There is no `server/`, no `sql/`, no table, no `database.access` and no WebUI page |
+| **Permissions** | `network.events`, `player.appearance.read`, `player.appearance.edit`, `player.equipment.read`, `puppets.present`, `players.life.read` |
+| **Sides** | client, which does everything about the face; and one server file, `server/presence.lua`, which only hands each player's look to the other players, in memory — see [How other players see this one](#presence). There is no `sql/`, no table, no `database.access` and no WebUI page |
 | **Exports** | twelve, all client: [`getSkin`](exports.md#getskin), [`captureSkin`](exports.md#captureskin), [`getFamily`](exports.md#getfamily), [`setSkin`](exports.md#setskin), [`saveSkin`](exports.md#saveskin), [`openEditor`](exports.md#openeditor), [`openCreator`](exports.md#opencreator), [`isOpen`](exports.md#isopen), [`openPanel`](exports.md#openpanel), [`closePanel`](exports.md#closepanel), [`isSettled`](exports.md#issettled), [`state`](exports.md#state) |
 | **Commands** | none |
-| **Events** | sends two net events, registers none; raises [`opx77:appearance`](events.md#opx77-appearance) after every decision — see [Events](events.md) |
+| **Events** | sends two net events to the platform and the core, and seven of its own between its two halves; raises [`opx77:appearance`](events.md#opx77-appearance) after every decision — see [Events](events.md) |
 | **Reads** | [`opx77_core`](../opx77_core/index.md) for the roster, the character and the stored face; [`opx77_menu`](../opx77_menu/index.md) to draw the panel, optionally; [`opx77_notify`](../opx77_notify/index.md) for toasts, optionally |
 
 ## What it is {#what-it-is}
@@ -41,23 +41,27 @@ When the live character has no stored face it publishes
 client's view of it for the length of a session, dresses the local puppet with
 it, and decides when the player is ready to be let into the world.
 
-Its manifest says the same thing in the permissions block, which asks for three
+Its manifest says the same thing in the permissions block, which asks for six
 grants and deliberately declines the rest:
 
 ```lua
 permissions {
-  "network.events",           -- TriggerServerEvent; local.events is not needed
-  "player.appearance.read",   -- read the catalogue
+  "network.events",           -- both halves: the face and the look, and the looks handed back
+  "player.appearance.read",   -- read the catalogue; also what captureBody needs
   "player.appearance.edit",   -- write the puppet
+  "player.equipment.read",    -- client: the equipment registry and the active outfit, read only
+  "puppets.present",          -- client: setBody, setSlot, setWardrobe on another player's proxy
+  "players.life.read",        -- the local player's life state, read only
 }
 ```
 
 `read` alone would let this resource save a face and never put it back on, which
 is why both appearance grants are taken. There is no `webui.*`: the panel is a
 list [`opx77_menu`](../opx77_menu/index.md) draws, and that resource owns the
-surface. `database.access`, `players.life.*`, `world.*` and `combat.config` are
-declined in a comment naming each one: the core owns the face, and this resource
-only dresses a puppet.
+surface. `database.access`, the `players.life.*` writes, `world.*`,
+`combat.config` and `player.equipment.edit` are declined in a comment naming each
+one: the core owns the face, and this resource dresses its own puppet and hands
+on what the others wear without changing it.
 
 !!! danger "This resource is what opens the readiness gate"
 
@@ -127,9 +131,8 @@ selected character's — see [Who owns the body family](#body-family).
 
 ## What holds a player, and what does not {#readiness}
 
-This resource takes **no readiness hold of its own** — it has no server half to
-take one from. What holds a player is the platform's `__platform` hold, and this
-resource decides when it falls.
+This resource takes **no readiness hold of its own**. What holds a player is the
+platform's `__platform` hold, and this resource decides when it falls.
 
 The announcement is **never sent before a character is loaded**. Until one is,
 `opx77_core` holds the player unplaced in the gameplay world, which is intended.
@@ -303,6 +306,72 @@ changing the character, in `opx77_core`.
     resource never derives one from the other — see
     [`BodyFamily`](types.md#bodyfamily).
 
+## How other players see this one {#presence}
+
+**Another client draws a player only from what it is handed**: the body — the
+family and its customization groups, as `Open77.appearance.captureBody` reads
+them, put on with `Open77.puppets.setBody` — every equipment slot, put on with
+`setSlot`, and the wardrobe, with `setWardrobe`. The engine replicates the
+position, the vehicle and the actions; it does not replicate a look, and a proxy
+that has none is never dressed, so the player is not there at all. A vehicle they
+drive is.
+
+On the platform, `open77_appearance` hands those records out and its
+`open77_equipment` and `open77_wardrobe` relays put them on; both relays depend
+on it, so none of them runs beside this resource. This resource does all of it,
+in `client/presence.lua` and `server/presence.lua`:
+
+- **Publishing.** Once the player is announced into the gameplay world on their
+  own settled face, with no editor up and no body reload running, the client
+  reads the body, the equipment registry and the active outfit every second, and
+  sends them when they changed, or when the server did not answer the last ones
+  within three seconds. An item the body family cannot wear is sent as an empty
+  slot, as the platform's record drops it. Every world entry, and a restart of
+  either half, publishes again.
+- **Asking.** After every world entry the client asks for everybody else's look,
+  whatever state its own is in — a player whose own body cannot be read still
+  sees the others — and asks again until the server answers.
+- **Handing out.** The server takes the player id from the connection and checks
+  the shape: the platform's own bounds for a body, refused whole when it is
+  wrong, and answered so the client does not keep sending it; a record name or
+  `false` for each of the nine slots and the seven an outfit overrides, where
+  anything else becomes an empty slot rather than costing the player their body.
+  It sends the look to every other client, never to its owner, whose look is the
+  engine's.
+- **Buckets.** The native roster retires the replicas of a player who changes
+  routing bucket, and `opx77_core` moves every player out of a selection bucket
+  when a character is placed. On `onPlayerBucketChange` the server hands the
+  player and everybody already in that bucket each other's looks again, and
+  ignores a move another one has superseded.
+- **A body reload** withdraws the body first: observers drop their proxy, and
+  get the new body with the publication that follows the reload. A character
+  unloading withdraws it too.
+- **Nothing is stored.** A look lives in the server's memory until the player
+  leaves.
+
+What is checked is the shape, not the truth: a client can only ever describe its
+own player, which is the trust the platform's package extends as well.
+[`PRESENT_BODIES = false`](config.md#present-bodies) turns both halves off, for
+a server where another resource hands looks out.
+
+!!! warning "Run this resource or `open77_appearance`, never both"
+
+    Both halves stand down, with one log line each, while the platform's
+    `open77_appearance` is running — it hands looks out itself. But the two
+    fight over the character bootstrap and the face, so the stand-down is not a
+    way to run them together: run one.
+
+    ```text
+    open77_appearance is running and hands looks out itself; this resource does not. Two appearance resources fight over the bootstrap and the face: run one.
+    ```
+
+A body the server cannot read is said once per player, and the players the
+server hands it to cannot draw them:
+
+```text
+player 7 published a body this server cannot read; other players cannot draw them
+```
+
 ## Why a stored face is refused after a game update {#build}
 
 A snapshot is not a mesh. It is a list of positions in the customization
@@ -342,8 +411,8 @@ character with no stored face and saves the first one like any other capture.
 
 ## Why there is no command {#no-command}
 
-A chat command cannot be registered from a client resource on this platform, and
-this one has no server half to register one from. The panel is opened through
+There is none. Its one server file hands looks out and registers nothing else.
+The panel is opened through
 [`openPanel`](exports.md#openpanel) and the native editor through
 [`openEditor`](exports.md#openeditor) — a menu, a ripperdoc prop or any other
 client resource makes the call.
@@ -352,10 +421,11 @@ client resource makes the call.
 
 - [Exports](exports.md) — the twelve calls, their error codes, and which of them
   answer only that the work was asked for.
-- [Events](events.md) — the two net events it sends, the channel it publishes
-  every decision on, and everything it listens to.
-- [Configuration](config.md) — the ten keys, `BOOTSTRAP` among them, the
-  deadlines, and the locale catalogue.
+- [Events](events.md) — the two net events it sends, the private wire between
+  its two halves, the channel it publishes every decision on, and everything it
+  listens to.
+- [Configuration](config.md) — the eleven keys, `BOOTSTRAP` and
+  `PRESENT_BODIES` among them, the deadlines, and the locale catalogue.
 - [Types](types.md) — every shape the exports answer with and every error code
   they can carry.
 - [The entry gate](../../concepts/entry-gate.md) — what `__platform` is and why

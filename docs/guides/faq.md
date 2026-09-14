@@ -124,18 +124,20 @@ Port the *idea*, not the file. `opx77_menu` is the context-menu equivalent,
 [`opx77_notify`](../reference/opx77_notify/index.md) is the toast service, and
 [Converting from ESX or Qbox](converting.md) maps the rest.
 
-## Why is there no inventory? {#why-is-there-no-inventory}
+## Is there an inventory? {#why-is-there-no-inventory}
 
-Because an inventory is a large, opinionated system that every server wants
-differently, and shipping one badly is worse than not shipping one. ESX's costs a
-database row per item per player *including zero counts*; Qbox delegates to
-`ox_inventory` and inherits its shape.
+Yes: [`opx77_inventory`](../reference/opx77_inventory/index.md). A character
+carries a bag of slots and grams; stashes, vehicle trunks and gloveboxes, and
+piles on the ground sit beside it on one screen; weapons are items, drawn by
+using them. The server is the only authority on what a container holds, and the
+resource owns no table of its own: `opx77_core` stores every container and every
+stack, and needs to be 0.4.0 or later for it.
 
-OPX//77 ships characters, money, jobs, gangs, metadata and persistence, and
-nothing that pretends to be an item system. If you build one, its authoritative
-half belongs in `opx77_core/server/` alongside the money it will need — see
-[Writing a server plugin](writing-a-server-plugin.md) — and `metadata` is where
-per-character state already lives.
+Another server resource changes a bag through its
+[server exports](../reference/opx77_inventory/exports.md#server) — a shop charges
+through the core and calls `AddItem` — once it is listed in
+[`EXPORTS.WRITERS`](../reference/opx77_inventory/config.md#exports). Money stays
+in `opx77_core` and is not an item, and worn clothing is not an item either.
 
 ## Is the job check on the elevators secure? {#elevator-security}
 
@@ -172,8 +174,15 @@ sends `open77:session:gameplayReady`. In this resource set
 and it ships with the framework — so on a stock install this is already handled.
 Stop it, or run the set without it, and the gate never opens for anybody: any
 resource written to wait on it waits for ever. The official `open77_appearance`
-satisfies the same requirement, and the core's boot check accepts either name.
-See [Getting started](getting-started.md#the-appearance-requirement).
+sends the announcement too, and the core's boot check accepts either name, but it
+is not a replacement for this one: it follows the platform's own join model, and
+running both conflicts — they fight over the bootstrap and the face. Run one. See
+[Getting started](getting-started.md#the-appearance-requirement).
+
+And for seeing each other, yes. The engine does not replicate a player's look,
+and another client draws a player only from the body, equipment and outfit it is
+handed; `opx77_appearance` hands every player's look to the others. See
+[How other players see this one](../reference/opx77_appearance/index.md#presence).
 
 And for the join itself, yes again. The platform's loading cover stays up until
 something spends the one-shot character bootstrap, and nothing a server resource

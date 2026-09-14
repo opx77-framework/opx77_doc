@@ -91,12 +91,18 @@ that own one piece of the screen each; `opx77_hud`, `opx77_chat`,
 one of them is reachable from any other resource, because on this side of the
 wire that is possible.
 
-Two of them bend the shape, and both are worth knowing about:
+Three of them bend the shape, and all are worth knowing about:
 [`opx77_status`](../reference/opx77_status/index.md) is the one satellite with a
-server half and a table of its own — the character's gameplay needs — and
-[`opx77_appearance`](../reference/opx77_appearance/index.md) is client-only yet
-writes something durable, by sending it to a name the core's server half
-registered. Neither is an exception to the rule below.
+server half and a table of its own — the character's gameplay needs;
+[`opx77_appearance`](../reference/opx77_appearance/index.md) writes something
+durable without a table, by sending the face to a name the core's server half
+registered, and since `0.8.0` has a server half of its own that holds nothing
+durable — it hands every player's look to the other players, in memory; and
+[`opx77_inventory`](../reference/opx77_inventory/index.md) holds what a
+character carries in tables the core owns, through the core's server exports,
+and publishes server exports of its own. That last one needs `opx77_core` 0.4.0,
+which this page, written against 0.3.0, does not yet describe: the rule below
+predates it.
 
 Two consequences are worth stating up front, because they surprise everyone
 arriving from FiveM:

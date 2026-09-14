@@ -50,10 +50,12 @@ The website's own readiness-gate page says the opposite — "a server where noth
 participates is a server where the gate is always open". That is true of
 *resource* participation only; the platform hold is unconditional.
 
-**Fix.** Start `opx77_appearance` — it ships with the framework and the core's
-boot check looks for it by that name or by the official `open77_appearance`. Any
-other resource that emits `open77:session:gameplayReady` does just as well. If
-you cannot run one, do not write anything that waits
+**Fix.** Start `opx77_appearance` — it ships with the framework, and the core's
+boot check looks for it by that name. The check also accepts the official
+`open77_appearance`, which sends the announcement too, but do not run that
+package instead of this one or beside it: it follows the platform's own join
+model, and the two fight over the character bootstrap and the face. If you
+cannot run one, do not write anything that waits
 on `Open77.ready.isReady` or on `onPlayerReady` — on your server they will wait
 for ever. `opx77_core` itself reads neither, so characters still load and are
 still placed. See [The entry gate](../concepts/entry-gate.md).
@@ -215,13 +217,47 @@ which means nobody can join.
 **Fix.** List every script on its own line, as every shipped OPEN//77 resource
 does. `**` is only safe under `web_files`.
 
+## Other players are invisible {#invisible-players}
+
+**Symptom.** Two players are in the same place and the same routing bucket. Each
+sees the other's vehicle move, but not the other's body.
+
+**Cause.** The engine replicates a player's position, vehicle and actions, not
+their look. Another client draws a player only from the body, equipment and
+outfit it is handed. In this resource set
+[`opx77_appearance`](../reference/opx77_appearance/index.md#presence) hands every
+player's look to the others, from `0.8.0`; an older one does not, and nothing
+else in the set does. Its client says why it could not publish, once:
+
+```text
+the body cannot be read (<reason>): other players cannot draw this one
+```
+
+and its server, when a published body is outside the platform's bounds:
+
+```text
+player 7 published a body this server cannot read; other players cannot draw them
+```
+
+A client that cannot put a look on a proxy says that once too:
+
+```text
+Open77.puppets.setBody is not on this client: other players are not drawn
+```
+
+**Fix.** Run `opx77_appearance` `0.8.0` or later with
+[`PRESENT_BODIES`](../reference/opx77_appearance/config.md#present-bodies) left
+on. If the platform's `open77_appearance` is also running, both presence halves
+stand down and say so — stop one of the two appearance resources: they fight
+over the bootstrap and the face.
+
 ## A command answers "unknown command", or is silently refused {#unknown-command}
 
 **Symptom.** An operator types `opx77.money 3 EDDIES 500` in the OPEN//77 terminal
 and the host answers that the command is unknown or is not permitted. The
 resource's handler never ran, so there is nothing in the resource's own log.
 
-**Cause.** Fifty-five of the sixty-seven OPX//77 commands are registered with
+**Cause.** Sixty-four of the seventy-six OPX//77 commands are registered with
 `true` as the third argument to `RegisterCommand`, which makes them **restricted**:
 the host resolves `command.<name>` against the caller's ACL *before* the handler
 runs. There is no permission check inside any OPX//77 command and there must not

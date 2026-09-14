@@ -830,9 +830,11 @@ resource passed to `release`. The core passes
     release and which has **no deadline**. It clears on one thing only: a client
     announcing `open77:session:gameplayReady`. In this resource set
     [`opx77_appearance`](../opx77_appearance/index.md) is what sends it. Without
-    it — or without the official `open77_appearance`, which the core's boot check
-    also accepts — `Open77.ready.isReady` stays false forever and this handler
-    can never fire. The core is unaffected, because it reads neither, and says so
+    it `Open77.ready.isReady` stays false forever and this handler can never
+    fire. The core's boot check also accepts the official `open77_appearance`,
+    which sends it too, but that package is not a drop-in for this set, and
+    running both conflicts — see
+    [The entry gate](../../concepts/entry-gate.md#platform-hold). The core is unaffected, because it reads neither, and says so
     with one warning at boot. See
     [The entry gate](../../concepts/entry-gate.md).
 

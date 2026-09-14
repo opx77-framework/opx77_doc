@@ -244,7 +244,7 @@ PICKER = {
 
 | Field | Meaning |
 |---|---|
-| `CLOSE_ON_SELECT` | close the picker once an animation or **Stop** is chosen. Passed to `opx77_menu` as `closeOnSelect` |
+| `CLOSE_ON_SELECT` | close the picker once an animation or **Stop** is chosen. Each row that plays or stops is marked `close` for `opx77_menu`; a row that opens another screen, and **Back**, never close it |
 | `SHOW_VARIANT_WORDS` | show the engine's own clip words beside **Variant n** — `rub chin 1`, `stretch arms 3`. They are identifiers and are never translated |
 
 ## COMMANDS {#commands}

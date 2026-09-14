@@ -1,19 +1,20 @@
 ---
 title: opx77_appearance configuration
-description: Every key of OPX_APPEARANCE_CONFIG with its shipped default — the language, the event name, the toasts, the catalogue builds, the deadlines, the two retry counts and the BOOTSTRAP block that picks the body the world loads with at join — the locale catalogues, and the constants that are not keys.
+description: Every key of OPX_APPEARANCE_CONFIG with its shipped default — the language, whether every player's look is handed to the others, the event name, the toasts, the catalogue builds, the deadlines, the two retry counts and the BOOTSTRAP block that picks the body the world loads with at join — the locale catalogues, and the constants that are not keys.
 ---
 
 # Configuration
 
 Everything lives in `config.lua`, in the global table `OPX_APPEARANCE_CONFIG`.
-It is declared as a `shared_script` even though this resource has no server half,
-so the file is shipped to every client and read there.
+It is declared as a `shared_script`: the file is shipped to every client, and
+read by the server half too, for [`PRESENT_BODIES`](#present-bodies).
 
 **Every value shown on this page is the shipped default.**
 
 ```lua
 OPX_APPEARANCE_CONFIG = {
   LOCALE = "en",
+  PRESENT_BODIES = true,
   EVENT = "opx77:appearance",
   NOTIFY = true,
   GAME_BUILDS = { ["2.31"] = true },
@@ -55,6 +56,34 @@ at load cannot wait on it.
 
 `Open77.log` lines and console output stay English whatever this says. See
 [Locales](#locales).
+
+## PRESENT_BODIES {#present-bodies}
+
+Whether this resource hands every player's look — body, equipment, outfit — to
+everybody else, and puts theirs on here, so other players are drawn at all.
+
+```lua
+PRESENT_BODIES = true
+```
+
+**Type** `boolean` — only `false` turns it off.
+
+Read by both halves. See
+[How other players see this one](index.md#presence). Without something handing
+looks out, a player sees nobody else's body: the engine replicates positions,
+vehicles and actions, not a look.
+
+- **It stands down by itself** while the platform's `open77_appearance` runs,
+  which hands looks out on its own — but the two fight over the bootstrap and
+  the face, so run only one of them.
+- **Set it to `false`** only for a server where another resource hands looks
+  out. The server says so when it starts:
+
+```text
+PRESENT_BODIES is false: another resource must hand every look out
+```
+
+New in `0.8.0`.
 
 ## EVENT {#event}
 
@@ -387,6 +416,11 @@ would make.
 | Slow-world warning | `60000 ms` | How long a restore, or a world entry settling on the default face, waits for a puppet a face may go on before it says one line. There is no limit — it is waiting for a human to press a key. |
 | Toast title | `APPEARANCE` | The title every notice is raised under. |
 | `saveAppearance` | literal | The operation a refusal must name to be this resource's. It is `OPX.Operations.SAVE_APPEARANCE` in the core's VM, which a satellite cannot import. |
+| Look check | `1000 ms` | How often the client reads its own look and compares it with the one it published. |
+| Look retry | `3000 ms` | How long a publication or a request for everybody's look waits for the server's answer before it goes again. |
+| Look floor | `500 ms` | Server side: the least time between two publications, and between two requests, of one player. |
+| Body bounds | `49152` bytes, 64 groups of 64 keys | Server side: the most one encoded body may weigh and hold, the platform's own bounds. Past them the body is refused whole. |
+| Clothing bound | `4096` bytes | Server side: the equipment and wardrobe beside a body. Past it they are sent as empty slots. |
 
 The slow-world line names what it is still waiting on, and begins `restore` or
 `pristine`:

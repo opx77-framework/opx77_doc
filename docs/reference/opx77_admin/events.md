@@ -1,17 +1,17 @@
 ---
 title: opx77_admin events
-description: The seven private net events between opx77_admin's two halves, the platform command channel every staff action travels on, and the platform events both halves listen to.
+description: The nine private net events between opx77_admin's two halves, the platform command channel every staff action travels on, and the platform events both halves listen to.
 ---
 
 # Events
 
-This resource's two halves talk over seven net events of its own, and **none of
+This resource's two halves talk over nine net events of its own, and **none of
 them carries a mutation**. Every staff action arrives at the server as a command
 line through the platform's `open77:command:execute`, never as an event of this
 resource's: a net event carries no authorisation on this platform, and one added
 here would be a hole.
 
-All seven are private. Nothing outside this resource should raise or rely on them,
+All nine are private. Nothing outside this resource should raise or rely on them,
 and their payloads are free to change.
 
 !!! warning "On the client, a peer resource can raise every one of these"
@@ -51,7 +51,11 @@ containing `queued by `, the fragment both known wordings share,
 puts the dispatcher's `unknown_command` and `permission_denied:<grant>` in words,
 `admin.client.unknownCommand` and `admin.client.denied`. Either kind of answer
 goes under the menu only when it answers a command the menu sent in the last
-fifteen seconds; `opx77_chat` toasts a refusal as well.
+fifteen seconds; `opx77_chat` toasts a refusal as well. An **accepted** answer of
+more than one line to such a command — the holders of an item, from
+[`opx77_inventory`](../opx77_inventory/commands.md#holders) — is also written to
+the chat box, authored *STAFF*, because `opx77_chat` prints none: the line under
+the list holds only its first line.
 
 ## Server to client {#server-to-client}
 
@@ -70,9 +74,13 @@ RegisterNetEvent("opx77_admin:open", function(session) end)
       travel; a refused name is absent.
     - `aclKnown` is `false` when the host has no ACL reader, and nothing is then
       greyed.
-    - `weapons` says whether `Open77.weapons` exists on this host.
+    - `weapons` says whether `Open77.weapons`, the holster's relay, exists on
+      this host.
+    - `inventory` says whether `opx77_inventory` is running: its rows are drawn
+      only then.
 
-Followed at once by [`roster`](#roster) and [`locations`](#locations).
+Followed at once by [`roster`](#roster) and [`locations`](#locations), and,
+while the inventory runs, by [`items`](#items) once its catalogue has been read.
 
 ### opx77_admin:roster {#roster}
 
@@ -99,6 +107,43 @@ RegisterNetEvent("opx77_admin:locations", function(list) end)
 - list: `{ rows = { name, label, runtime }[] }` — `runtime` marks a destination
   saved in game.
 
+### opx77_admin:items {#items}
+
+`opx77_inventory`'s catalogue, for the item and weapon pickers, in chunks of
+twenty rows. Sent after the opener while the inventory runs, and in answer to a
+[`refresh`](#refresh) for `items`.
+
+```lua
+RegisterNetEvent("opx77_admin:items", function(chunk) end)
+```
+
+- chunk: `{ rows, offset, total, done, error }`
+    - rows: `{ name, label, category, class }[]` — `class` only on a weapon
+      item, which is how the weapon picker tells them apart. Sorted by label.
+    - offset, total, done: as in [`roster`](#roster).
+    - error: this resource's refusal code when the catalogue could not be read,
+      such as `inventory_unavailable`; the picker then shows
+      *opx77_inventory did not answer.*
+
+A row is data drawn as text: what a picker row runs is a command line the host
+gates like any other.
+
+### opx77_admin:bag {#bag}
+
+One bag's stacks, for the *Take an item* picker, in chunks of twenty rows. Sent
+only in answer to a [`refresh`](#refresh) for `bag`.
+
+```lua
+RegisterNetEvent("opx77_admin:bag", function(chunk) end)
+```
+
+- chunk: `{ rows, offset, total, done, target, error }`
+    - rows: `{ slot, name, count, label }[]`, in slot order.
+    - target: the holder the picker asked for, as typed. A chunk for another
+      holder than the one the picker is drawing is ignored.
+    - error: a refusal code when the holder did not resolve or the bag could not
+      be read.
+
 ### opx77_admin:access {#access}
 
 A fresh access map, in answer to a [`refresh`](#refresh) for `access`.
@@ -107,8 +152,9 @@ A fresh access map, in answer to a [`refresh`](#refresh) for `access`.
 RegisterNetEvent("opx77_admin:access", function(payload) end)
 ```
 
-- payload: `{ access, aclKnown }`, as in [`open`](#open). The screen on top is
-  redrawn with it.
+- payload: `{ access, aclKnown, inventory }`, as in [`open`](#open). The screen
+  on top is redrawn with it; an inventory that has come up since asks for
+  [`items`](#items).
 
 ### opx77_admin:travel {#travel}
 
@@ -167,19 +213,28 @@ else.
 ### opx77_admin:refresh {#refresh}
 
 The menu asks for a list again: the roster when it opens the players or a player
-screen, the destinations when it opens a destination screen, and the access map
-when it leaves the root screen.
+screen, the destinations when it opens a destination screen, the access map
+when it leaves the root screen, the inventory's catalogue when an item or weapon
+picker opens without one, and a bag every time the *Take an item* picker opens
+or a removal from it was sent — a bag changes under a staff member between two
+visits.
 
 ```lua
-TriggerServerEvent("opx77_admin:refresh", topic)
+TriggerServerEvent("opx77_admin:refresh", topic, holder)
 ```
 
-- topic: `"roster" | "locations" | "access"` — anything else is ignored.
+- topic: `"roster" | "locations" | "access" | "items" | "bag"` — anything else
+  is ignored.
+- holder: `string` — for `bag` only: a player id, `me` or a citizen id, at most
+  32 characters. A `bag` without one is ignored.
 
 The server cools it at [`RATE.REFRESH_MS`](config.md#rate) per topic, then
 re-checks `command.opx77.admin` with `Open77.acl.isAllowed`, because anybody
-can send a net event. It **fails closed**: with no ACL reader on the host every
-refresh is dropped, and running the opener again refreshes everything.
+can send a net event. A bag's stacks are somebody's belongings, so `bag` also
+needs `command.opx77.admin.inventory.view` or
+`command.opx77.admin.inventory.remove`. It **fails closed**: with no ACL reader
+on the host every refresh is dropped, and running the opener again refreshes
+everything but a bag.
 
 ## What it listens to {#listens}
 

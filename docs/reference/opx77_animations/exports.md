@@ -253,28 +253,31 @@ Open77.exports.call("opx77_animations", "get", name)
 
 ## openPicker {#openpicker}
 
-Asks [`opx77_menu`](../opx77_menu/index.md) to put the picker up, standing on one
-category's row when one is named.
+Asks [`opx77_menu`](../opx77_menu/index.md) to put the picker's root screen up,
+with the cursor on one category's row when one is named.
 
 ```lua
 Open77.exports.call("opx77_animations", "openPicker", category)
 ```
 
 - category?: `string`
-    - Where the cursor starts. Advisory: a category with nothing offered is not
-      drawn, and the menu falls back to the first selectable row.
+    - Where the cursor starts on the root screen. Advisory: a category with
+      nothing offered is not drawn, and the menu falls back to the first
+      selectable row. It does not open that category's screen.
 
 **Returns** an [`AnimationRequest`](types.md#animationrequest) — `ok = true,
 queued = true`. The menu is called on a thread, so the picker appears a moment
 later. A refusal from the menu after that is logged as
-`picker did not open: <reason>`, and `menu_busy` additionally shows the player
-*Another menu is open. Close it first.*
+`picker <screen> did not open: <reason>` and shown to the player as a toast —
+see [The picker](index.md#picker). A picker of this resource's already up is
+replaced by the root.
 
-The picker is the whole tree, built from what is offered at the moment of the
-call: a **Stop** row, then one submenu per non-empty category, then one row per
-animation. An animation with one variant is a row that plays it; one with more is
-a submenu of **Variant n** rows. It is well under `opx77_menu`'s 400-node
-ceiling.
+The picker opens **one screen at a time**, each its own `opx77_menu` `open`,
+built from what is offered at the moment that screen is drawn: the root holds a
+**Stop** row and the non-empty categories, a category its animations, and an
+animation with more than one variant a screen of **Variant n** rows. An animation
+with one variant is a row that plays it. Every screen below the root ends in a
+**Back** row. See [The picker](index.md#picker).
 
 **Errors**
 | Code | Meaning |

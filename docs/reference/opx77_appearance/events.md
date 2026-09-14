@@ -1,18 +1,20 @@
 ---
 title: opx77_appearance events
-description: The two net events opx77_appearance sends — the face it hands to opx77_core and the readiness announcement that clears the platform hold — the local channel it publishes every decision on, and everything it listens to from the core, from opx77_menu and from the host.
+description: The two net events opx77_appearance sends — the face it hands to opx77_core and the readiness announcement that clears the platform hold — the private wire its two halves hand every player's look over, the local channel it publishes every decision on, and everything it listens to from the core, from opx77_menu and from the host.
 ---
 
 # Events
 
-This resource sends **two** net events and registers **none**: there is no
-`RegisterNetEvent` anywhere in it, and no server half to answer one. Everything
+This resource sends **two** net events outside itself — the face to the core,
+and the readiness announcement to the platform. Everything about the face that
 it hears arrives on the client's local bus, either from
 [`opx77_core`](../opx77_core/index.md)'s client half,
-[`opx77_menu`](../opx77_menu/index.md) or the host.
+[`opx77_menu`](../opx77_menu/index.md) or the host. Beside those, its two halves
+hand every player's look to the other players over
+[seven private net events](#presence-wire).
 
 - **Networked** — crosses the wire. Sending one needs `network.events`, which
-  this resource declares for exactly the two calls below.
+  this resource declares for the two calls below and for the presence wire.
 - **Non-networked** — never leaves the machine. Registered with a bare
   `AddEventHandler`.
 
@@ -112,10 +114,37 @@ the send succeeded.
 
 ## Networked (server → client) {#networked-server-to-client}
 
-There are none. This resource registers no net event at all. Everything the core
-sends it arrives through the core's own client half, which re-raises each wire
-event on the local bus — which is why every handler below is a bare
-`AddEventHandler`.
+None from the core: everything the core sends this resource arrives through the
+core's own client half, which re-raises each wire event on the local bus — which
+is why every face handler below is a bare `AddEventHandler`. The only net events
+this resource registers are its own presence wire.
+
+## The presence wire {#presence-wire}
+
+Private to this resource: nothing outside it should raise or rely on these, and
+their payloads are free to change. See
+[How other players see this one](index.md#presence).
+
+| Event | Direction | Carries |
+|---|---|---|
+| `opx77_appearance:present` | client → server | this player's look — `body`, `equipment`, `wardrobe` — and a sequence number |
+| `opx77_appearance:presentAck` | server → client | the sequence answered, and whether the body could be read |
+| `opx77_appearance:replay` | client → server | a request for everybody else's look after a world entry, with a sequence number |
+| `opx77_appearance:replayed` | server → client | the sequence answered, once every look has been sent |
+| `opx77_appearance:look` | server → client | one other player's id and their [`AppearanceLook`](types.md#appearancelook), or `false` while their body is away |
+| `opx77_appearance:absent` | client → server | this player's body is going — a reload, or the character unloading |
+| `opx77_appearance:resend` | server → every client | the server half started and holds nothing: publish and ask again |
+
+The server takes the player from the connection, never from the payload, and
+checks the shape, not the truth: a client can only ever describe its own player.
+It cools `present` and `replay` at 500 ms per player. Every one of them is
+ignored while [`PRESENT_BODIES`](config.md#present-bodies) is `false` or the
+platform's `open77_appearance` is running.
+
+On `look`, the client puts each of the nine equipment slots on the proxy with
+`Open77.puppets.setSlot`, the wardrobe with `setWardrobe`, then the body with
+`setBody` — the proxy is dressed once all three are there. `false` removes the
+body with `setBody(player, false)`.
 
 ## Non-networked: what it publishes {#non-networked}
 
@@ -324,6 +353,17 @@ save refused with an unlisted code: <code>
 | `open77:playerReset:complete` | One of the two confirmations a queued restore waits on before the readiness announcement may go out. A body reload that reached the world without a `worldReady` of its own is judged here instead, or nothing would ever go on the new puppet. |
 | `onClientResourceStart` | Checks the host's appearance, session and character APIs are present, re-establishes world eligibility (no `worldReady` follows a republish into a live world), begins the join-time bootstrap if the phase is still `"waiting"`, catches up on the character, and starts the announcement worker. |
 | `onClientResourceStop` | Releases the native mutation transaction. |
+
+The presence halves listen to these as well:
+
+| Event | Side | What this resource does with it |
+|---|---|---|
+| `open77:worldReady` | client | A new world: this client's proxies of everybody else went with the old one, so it publishes its own look again and asks for everybody's. |
+| `opx77:client:onPlayerUnloaded` | client | The character is leaving: its body is withdrawn from the other players. |
+| `onClientResourceStart` | client | Starts the once-a-second look check, and says once when `open77_appearance` is running. |
+| `onPlayerBucketChange` | server | Hands the player and everybody already in the new bucket each other's looks again. A move another one has superseded, or a player who has left, is ignored. |
+| `onPlayerDisconnected`, `playerDropped` | server | Forgets the player's look. |
+| `onResourceStart` | server | Asks every client to publish and ask again, on `resend`; or, with `PRESENT_BODIES = false`, says another resource must hand looks out. |
 
 It also reads one thing no event carries: every 200 ms the worker asks
 `Open77.appearance.takeBodyFamilyTransition()` what a body reload answered on the

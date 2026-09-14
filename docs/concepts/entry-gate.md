@@ -352,6 +352,14 @@ warning when neither is running, because this is otherwise undiagnosable:
 `__platform` hold never clears and `Open77.ready.isReady` stays false
 ```
 
+The check accepting either name is about the announcement only. The official
+package spends the bootstrap by [its own model](#platform-model), not by
+[this framework's](#world-first), and hands every player's look out as
+`opx77_appearance` does. Run one of them: the two fight over the bootstrap and
+the face, and `opx77_appearance` stands its look distribution down while the
+official package runs — see
+[How other players see this one](../reference/opx77_appearance/index.md#presence).
+
 Two things to know either way:
 
 - **The core is unaffected.** It neither reads `isReady` nor waits on

@@ -1,11 +1,11 @@
 ---
 title: opx77_admin commands
-description: The thirty-nine ACL-restricted commands opx77_admin registers — the menu, yourself, other players, moderation, vehicles, weapons, the world and the read-outs — with their arguments, refusals, rate limits and the permissions to grant.
+description: The forty-three ACL-restricted commands opx77_admin registers — the menu, yourself, other players, moderation, vehicles, weapons, a character's bag, the world and the read-outs — with their arguments, refusals, rate limits and the permissions to grant.
 ---
 
 # Commands
 
-`opx77_admin` registers thirty-nine commands and **every one is restricted**.
+`opx77_admin` registers forty-three commands and **every one is restricted**.
 They go through one registry in `server/main.lua`, which calls
 `RegisterCommand(name, handler, true)` and has no argument for an unrestricted
 command: every command here acts on the world or on somebody.
@@ -32,7 +32,7 @@ eleven player commands at once.
     wildcard can run every staff command typed and cannot open the menu. Grant
     both.
 
-    `command.opx77.*` covers all thirty-nine, the opener included, **and every
+    `command.opx77.*` covers all forty-three, the opener included, **and every
     other OPX//77 staff command on the server** — `opx77_core`'s money among
     them. Grant it only to whoever may have all of it.
 
@@ -67,6 +67,10 @@ Three desks, from least to most:
         "command.opx77.admin.moderate.*",
         "command.opx77.admin.vehicle.*",
         "command.opx77.admin.world.announce",
+        "command.opx77.admin.inventory.view",
+        "command.opx77.admin.weapon.read",
+        "command.opx77.inventory.open",
+        "command.opx77.inventory.holders",
         "command.opx77",
         "command.opx77.where"
       ]
@@ -86,7 +90,9 @@ Three desks, from least to most:
 ```
 
 `command.opx77.admin.weapon.give` hands a loaded weapon to anybody, the operator
-included; it is left out of the moderator on purpose. `identity.dump` in the
+included, and `command.opx77.admin.inventory.give` any item; both are left out
+of the moderator on purpose, who may search a bag and see who holds something,
+and take nothing out of one. `identity.dump` in the
 developer terminal writes a ready-to-paste `aclPrincipal`, and
 `acl.check <playerId> <permission>` answers the exact question the host asks.
 See [Getting started](../../guides/getting-started.md#acl-file).
@@ -104,6 +110,8 @@ followed there.
 | Set job, set gang | [`opx77.job`](../opx77_core/commands.md#opx77-job), [`opx77.gang`](../opx77_core/commands.md#opx77-gang) | `opx77_core` |
 | Money | [`opx77.money`](../opx77_core/commands.md#opx77-money) | `opx77_core` |
 | Characters in the world, save every character | [`opx77`](../opx77_core/commands.md#opx77), [`opx77.save`](../opx77_core/commands.md#opx77-save) | `opx77_core` |
+| Open the bag beside mine | [`opx77.inventory.open`](../opx77_inventory/commands.md#open) `<id>` | `opx77_inventory` |
+| Who holds an item | [`opx77.inventory.holders`](../opx77_inventory/commands.md#holders) `<item>` | `opx77_inventory` |
 | Weather presets, roll, hold | [`opx77.weather.set`](../opx77_weather/commands.md#set), [`.next`](../opx77_weather/commands.md#next), [`.freeze`](../opx77_weather/commands.md#freeze) | `opx77_weather` |
 | Time, hold the clock | [`opx77.weather.time`](../opx77_weather/commands.md#time), [`.time.freeze`](../opx77_weather/commands.md#time-freeze) | `opx77_weather` |
 
@@ -116,20 +124,24 @@ server half sends the answer to this resource's own client half, on
 [`opx77_admin:answer`](events.md#answer):
 
 - **An action's outcome is a toast** through `opx77_notify`, titled *STAFF*, in
-  one slot each answer replaces: a success when it was done; *info* when a
-  request is only on its way — `admin.done.weaponAsked`,
-  `admin.done.slotsCleared`; a warning for what was typed wrong — a usage line,
-  `admin.done.nothingToRefill`, and the refusals `too_fast`, `no_target`,
-  `bad_target`, `self_target`, `bad_number`, `bad_coordinates`, `bad_switch`,
-  `bad_duration`, `empty_text`, `unknown_vehicle`, `bad_scope`, `unknown_flag`,
-  `unknown_weapon`, `bad_slot`, `unknown_location` and `bad_location_name`,
-  where the same command with the right word works; and an error for every
-  other refusal, where something in the world has to change first.
+  one slot each answer replaces: a success when it was done; a warning for what
+  was typed wrong or for nothing to act on — a usage line,
+  `admin.done.nothingToRefill`, `admin.done.noWeapons`, and the refusals
+  `too_fast`, `no_target`, `bad_target`, `self_target`, `bad_number`,
+  `bad_coordinates`, `bad_switch`, `bad_duration`, `empty_text`,
+  `unknown_vehicle`, `bad_scope`, `unknown_flag`, `unknown_weapon`,
+  `unknown_location`, `bad_location_name`, `bad_holder`, `unknown_citizen`,
+  `unknown_item`, `bad_count` and `not_enough`, where the same command with the
+  right word works; and an error for every other refusal, where something in the
+  world has to change first — a full bag, the inventory not answering.
 - **A report stays a chat line.** [`read.players`](#read-players),
   [`read.status`](#read-status), [`read.audit`](#audit),
-  [`read.locations`](#read-locations) and [`weapon.read`](#weapon-read) are
-  lists someone asked to read, scrolled back and compared, which a toast would
-  cut short.
+  [`read.locations`](#read-locations), [`weapon.read`](#weapon-read) and
+  [`inventory.view`](#inventory-view) are lists someone asked to read, scrolled
+  back and compared, which a toast would cut short. So is the list of holders
+  the menu asks `opx77_inventory` for: an accepted answer to a linked command the
+  menu sent, when it runs to more than one line, is written to the chat box by
+  this resource's client half.
 - Either way, when the menu sent the command, the first line is also written
   under the list.
 
@@ -163,15 +175,34 @@ Every refusal a handler can answer is a code in
 | `console_has_no_player` | `me` typed at the console |
 | `not_connected` | nobody holds that id |
 
-A citizen id is **not** a target: that mapping lives in `opx77_core`'s VM,
-which no other server resource can ask. Every command that touches a body then
-checks [the readiness gate](index.md#readiness-gate) and answers
-`not_incarnated`, `gate_closed` or `gate_unreadable` — those are marked
-**gated** below.
+A citizen id is **not** a `<player>`: those commands act on a body, which needs
+a connected player id. Every command that touches a body then checks
+[the readiness gate](index.md#readiness-gate) and answers `not_incarnated`,
+`gate_closed` or `gate_unreadable` — those are marked **gated** below.
 
 A move that passes the gate can still answer `kill_refused` or
 `respawn_refused`, carrying the host's own reason — see
 [Placement](index.md#placement).
+
+`<holder>` — every [weapon](#weapon) command but the holster, and every
+[inventory](#inventory) command — is a player id, `me`, or a **citizen id**,
+which also reaches a character that is not in the world:
+[`opx77_inventory`](../opx77_inventory/index.md) resolves it through the core
+and loads that bag for the call. None of them is gated.
+
+| Refusal | When |
+|---|---|
+| `no_target` | nothing was typed |
+| `console_has_no_player` | `me` typed at the console |
+| `bad_holder` | a player id of `0` or less, or a word that is not 1 to 32 letters, digits, `_` or `-`; also the inventory's own `bad_target` |
+| `not_connected` | a player id nobody holds |
+| `inventory_unavailable` | `opx77_inventory` is not running — checked before anything is asked of it |
+| `no_character` | the inventory answered `not_loaded`: that player has no character in the world |
+| `unknown_citizen` | the inventory answered `no_character`: no living character carries that citizen id |
+| `core_unavailable` | `opx77_core` did not answer `opx77_inventory` |
+
+A holder is answered as `name [id]` for a connected player, and as the citizen
+id otherwise.
 
 ## The menu {#menu}
 
@@ -617,100 +648,219 @@ Occupied vehicles are left in place and counted. The menu asks first.
 
 ## Weapons {#weapon}
 
-A loadout is the target client's own engine state. `Open77.weapons.*` on the
-server relays a request to that one client, and the answer comes back later as
-`open77:weapons:completed` in this VM. The client half that does the work
-belongs to the platform's `open77_weapons` resource; without it running, every
-request completes as a timeout and answers `weapon_no_answer`.
+A weapon is an item of [`opx77_inventory`](../opx77_inventory/index.md): a unit
+in a bag carrying a `serial` and the rounds it is loaded with, which the player
+draws by using it. So a give adds that item, a refill raises the rounds it
+carries, a removal takes the item, and a read lists the weapon items and which
+one is drawn — all through the inventory's server exports, never by putting a
+record in a game slot. See [Weapons and bags](index.md#weapons-and-bags) for
+which export each one calls, and why nothing falls back to the relay.
 
-!!! warning "The server decides, and cannot verify"
+Every weapon command but the holster takes a [`<holder>`](#targets), is **not**
+gated, and answers `inventory_unavailable` while `opx77_inventory` is not
+running. A weapon is named by its item name in the inventory's catalogue —
+`weapon_lexington` — or without the prefix — `lexington` — without case. Any
+other word answers `unknown_weapon`.
 
-    Only catalogue records are ever forwarded. The ammunition counts that come
-    back are that client's own reading.
-
-Every weapon command is **gated**, and answers `weapons_unavailable` when
-`Open77.weapons` is missing on the host. Only the three ordinary weapon slots
-are supported by the platform: no grenades, heavy weapons or arm cyberware.
+A refusal that comes back from the inventory is answered in this resource's
+words: `inventory_denied` (this resource is not in its
+[`EXPORTS.WRITERS`](../opx77_inventory/config.md#exports)), `bag_no_room`,
+`bag_too_heavy`, `unknown_item`, `bad_count`, `not_enough` and the holder
+refusals above. Any other code is `refused`, carrying the inventory's code.
 
 ### opx77.admin.weapon.give {#weapon-give}
 
-Equips a catalogue weapon, loaded.
+Puts a weapon item in a bag, loaded. The player draws it from the inventory.
 
 ```text
-opx77.admin.weapon.give <player> <weapon> [1|2|3|auto] [reserve]
+opx77.admin.weapon.give <holder> <weapon> [rounds]
 ```
 
-- weapon: a `NAME` or exact `RECORD` from `data/weapons.lua`, without case.
-  Otherwise `unknown_weapon`.
-- slot? — default `auto`: the loadout is read first, and the first empty
-  unlocked slot is taken. The drawn weapon is replaced only when all three are
-  full. Naming a slot always replaces it. Anything else answers `bad_slot`.
-- reserve?: `integer` — spare rounds, clamped to
-  [`WEAPONS.MAX_RESERVE`](config.md#weapons). Default: the class's `RESERVE`.
-  A negative or non-integer value answers `bad_number`.
+- weapon: a weapon item of the inventory's catalogue, `weapon_` prefix or not.
+- rounds?: `integer` — the rounds the item carries, from `0`. A negative or
+  non-integer value answers `bad_number`. Default: the weapon class's
+  [`ROUNDS`](config.md#catalogues) in `data/weapons.lua`, or a full load for a
+  class that file does not name.
 
-It answers twice: "asked" at once, the verdict when the client replies. After
-the spare rounds the magazine is topped up to the capacity the engine reported,
-when [`WEAPONS.FILL_MAGAZINE`](config.md#weapons) is on; a refused top-up still
-counts as a give, because the weapon already fires.
+The rounds are never more than the `MAX` of the ammunition that loads the
+weapon, in the inventory's catalogue, and a melee weapon carries none. The
+inventory gives the item its serial. `CanCarry` is asked first, so a full bag
+answers `bag_no_room` and a heavy one `bag_too_heavy` before anything is added.
+A connected target other than the operator is told by toast.
 
 ```text
-Asking player 7's client to equip Ajax...
-Ajax is in player 7's slot 1 (ammo 30/30 +600).
+M-10AF Lexington is in the bag of Kiroshi [7], carrying 300 rounds; it is drawn from the inventory.
 ```
 
 ### opx77.admin.weapon.ammo {#weapon-ammo}
 
-Refills a slot, or every slot.
+Sets the rounds of every weapon item of one name in a bag, or of all of them.
 
 ```text
-opx77.admin.weapon.ammo <player> [slot|all] [reserve]
+opx77.admin.weapon.ammo <holder> [weapon|all] [rounds]
 ```
 
-- slot|all — default `all`.
-- reserve? — default: each weapon's class `RESERVE`. A weapon outside the
-  catalogue has no known class and is refilled only when a reserve is typed.
+- weapon|all — default `all`.
+- rounds?: `integer` — from `0`, otherwise `bad_number`. Default: a full load,
+  the ammunition's `MAX`. Never more than it.
 
-A loadout holding nothing that takes ammunition answers
-"Player 7 holds nothing that takes ammunition.".
+Each weapon item that takes ammunition has its metadata rewritten with the new
+rounds, serial and the rest kept. The one the player has **drawn** is loaded in
+hand first: its rounds are stated to the engine through the relay's `setAmmo`,
+magazine first, and its item is written once the engine holds them, because the
+inventory lowers a drawn weapon's item to what the engine reads back and never
+raises it. For a player the readiness gate does not admit, on a host without
+`Open77.weapons`, or when the weapon was put away meanwhile, only the item is
+written.
+
+It can answer twice: once for the items in the bag, and once more for the drawn
+weapon when the relay has answered. A bag with no such weapon answers a warning.
+
+```text
+2 weapon(s) in the bag of Kiroshi [7] refilled.
+M-10AF Lexington, drawn by Kiroshi [7], loaded with 500 rounds.
+Kiroshi [7] carries no such weapon to refill.
+```
+
+The drawn weapon's relay steps can answer `weapon_no_answer` when the target's
+client never replies, and `refused` with the relay's own reason.
 
 ### opx77.admin.weapon.remove {#weapon-remove}
 
-Clears a weapon slot. The item stays in the inventory: this clears the slot, it
-does not confiscate.
+Takes every weapon item of one name, or every weapon, out of a bag.
 
 ```text
-opx77.admin.weapon.remove <player> <slot|all>
+opx77.admin.weapon.remove <holder> <weapon|all>
 ```
 
-- slot|all — **no default**. Clearing all three slots is never what a forgotten
-  argument meant, so nothing answers `bad_slot`.
+- weapon|all — **no default**. Taking every weapon is never what a forgotten
+  argument meant, so nothing answers `unknown_weapon`.
 
-The menu asks first for `all`.
+The bag is read, and each weapon name is removed by name and count, not by slot:
+a slot read a moment ago may hold something else now. The inventory puts a drawn
+weapon away itself once its item has left the bag. A connected target other than
+the operator is told by toast. The menu asks first for `all`.
+
+```text
+3 weapon(s) taken from the bag of Kiroshi [7].
+Kiroshi [7] carries no such weapon.
+```
 
 ### opx77.admin.weapon.holster {#weapon-holster}
 
-Holsters a player's weapon.
+Holsters a player's weapon, through the platform's relay.
 
 ```text
 opx77.admin.weapon.holster <player>
 ```
 
+**Gated.** Takes a `<player>`, not a holder: it acts on a body. It changes no
+item and leaves the weapon in its slot. Answers `weapons_unavailable` when
+`Open77.weapons` is missing on the host, and `weapon_no_answer` when the target's
+client never answers the relay — the client half that does the work belongs to
+the platform's `open77_weapons`.
+
 ### opx77.admin.weapon.read {#weapon-read}
 
-Reads a player's three slots back, as that client reports them.
+Lists the weapon items in a bag: slot, rounds, serial, and which one is drawn.
 
 ```text
-opx77.admin.weapon.read <player>
+opx77.admin.weapon.read <holder>
 ```
 
-**Read.**
+**Read.** A melee weapon has no rounds column.
 
 ```text
-Loadout of Kiroshi [7]:
-  1  Ajax  30/30 +600  (drawn)
-  2  empty
-  3  Katana
+Weapons in the bag of Kiroshi [7]:
+  slot 3  M-10AF Lexington  300 rounds  #KX1A2B3C4D  (drawn)
+  slot 9  Katana  #QR5E6F7A8B
+```
+
+## Inventory {#inventory}
+
+A character's bag, online or not, through
+[`opx77_inventory`](../opx77_inventory/index.md)'s server exports. Every command
+here takes a [`<holder>`](#targets), is **not** gated, and answers
+`inventory_unavailable` while the inventory is not running. The inventory's
+refusals are answered in this resource's words, as for
+[the weapon commands](#weapon).
+
+`count` is a whole number from `1` to
+[`INVENTORY.MAX_COUNT`](config.md#inventory), `1` when left out; anything else
+answers `bad_count`.
+
+!!! warning "`inventory.give` creates items out of nothing"
+
+    Grant `command.opx77.admin.inventory.give` like money.
+
+### opx77.admin.inventory.view {#inventory-view}
+
+Every stack in a bag, with its slot, the slots used and the weight.
+
+```text
+opx77.admin.inventory.view <holder>
+```
+
+**Read.** Audited — somebody's belongings were read. A stack's rounds and serial
+are shown when its metadata carries them.
+
+```text
+Bag of Kiroshi [7] (H7K-M4X3): 3/40 slots, 3.5/30.0 kg
+  1  Water x2
+  3  M-10AF Lexington x1  300 rounds  #KX1A2B3C4D
+  4  Handgun rounds x120
+```
+
+### opx77.admin.inventory.give {#inventory-give}
+
+Adds items from the inventory's catalogue to a bag.
+
+```text
+opx77.admin.inventory.give <holder> <item> [count]
+```
+
+- item: an item name of the inventory's catalogue, exactly, without case.
+  Otherwise `unknown_item`.
+
+`GetItems`, then `CanCarry`, then `AddItem`. A connected target other than the
+operator is told by toast.
+
+```text
+Put 2x Water in the bag of Kiroshi [7].
+```
+
+### opx77.admin.inventory.remove {#inventory-remove}
+
+Takes items out of a bag.
+
+```text
+opx77.admin.inventory.remove <holder> <item> [count]
+```
+
+- item: any item name — letters, digits, `_`, `-` and `.`, up to 48 — not only a
+  catalogue one: an item taken out of the catalogue stays in bags until it is
+  removed.
+
+A bag holding fewer answers `not_enough`. A connected target other than the
+operator is told by toast.
+
+```text
+Took 1x Water from the bag of Kiroshi [7].
+```
+
+### opx77.admin.inventory.clear {#inventory-clear}
+
+Empties a bag.
+
+```text
+opx77.admin.inventory.clear <holder>
+```
+
+The menu asks first. A connected target other than the operator is told by
+toast.
+
+```text
+Emptied the bag of Kiroshi [7].
 ```
 
 ## The world {#world}
@@ -799,7 +949,8 @@ opx77.admin.read.status
 ```
 
 The resources listed are `opx77_core`, `opx77_menu`, `opx77_input`,
-`opx77_notify`, `opx77_chat`, `opx77_appearance`, `opx77_weather`,
+`opx77_notify`, `opx77_chat`, `opx77_appearance`, `opx77_weather`, the
+inventory named by [`INVENTORY.RESOURCE`](config.md#inventory),
 `open77_weapons` and `open77_admin`: there is no way to enumerate resources, so
 the names are fixed. "In the world" counts players the
 [gate](index.md#readiness-gate) admits.
