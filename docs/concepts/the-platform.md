@@ -176,6 +176,29 @@ leaves unrestricted the five a player runs on their own. Both halves are
 documented per command in
 [the core's command reference](../reference/opx77_core/commands.md).
 
+## The join, before the world {#before-the-world}
+
+A joining client spends its first seconds under a loading cover that belongs to
+the system resource `open77_shell`, and **nothing a server resource draws is
+visible under it** — not on the `"hud"` layer, and not on `"system"` either. The
+cover stays up for as long as the character bootstrap,
+`Open77.session.characterBootstrap()`, is in the phase `"waiting"`; the gameplay
+world starts loading only once a resource has spent that one-shot bootstrap with
+`Open77.session.resolveCharacterBootstrap(family)`, and the cover lifts when the
+world has streamed.
+
+So a framework cannot ask the player anything before the world. It has to pick
+the body the world loads with on its own — OPX//77 picks the account's most
+recently played character's, or a configured default — and draw its character
+selection **in** the gameplay world, as the platform's own `open77_appearance`
+expects a gamemode to. Two client signals cannot tell the pre-game menu from
+that world: `open77:worldReady` fires for both, and `Open77.character.state()`
+answers an attached, alive puppet in both. Only the bootstrap phase `"ready"`
+does.
+
+The whole sequence, from the probe that established it, is in
+[The entry gate](entry-gate.md#world-first).
+
 ## Conventions the platform imposes {#conventions}
 
 Four rules that are not optional, and eight gamemode conventions the platform
@@ -208,9 +231,11 @@ there.
 
 Every entry below was established from the shipped server binary
 (`open77-server-2.31.4+op77.11`) and from the Lua source of the platform's 37
-first-party resources. Where those two disagree with the website, the binary is
-what runs. These are recorded because somebody will eventually read the website
-and "fix" OPX//77 in the wrong direction.
+first-party resources, except the last three, which were established on
+`open77-server-2.31.13+op77.63` with a client probe during a real join. Where
+those sources disagree with the website, the binary is what runs. These are
+recorded because somebody will eventually read the website and "fix" OPX//77 in
+the wrong direction.
 
 **`Open77.ready.hold` returns one value, not two.** The bootstrap's own comment
 says `returns ok, session`. It is wrong, and the website is right: the call
@@ -283,6 +308,25 @@ for any resource to move a player into another dimension silently.
 the "failures are values" convention stated everywhere else.
 `MySQL.transaction.await` is the exception and resolves `false, reason`. See
 [Persistence](persistence.md#await-raises).
+
+**The database bridge drops a `nil` parameter rather than binding `NULL`.** A
+statement naming `@position` with `position = nil` in its parameter table
+reaches MySqlConnector without that parameter, and the whole statement is
+refused with `Parameter '@position' must be defined`. See
+[Persistence](persistence.md#nil-parameters).
+
+**`Open77.exports.call` answers a userdata, not a table.** The promise is an
+`Open77.Promise` userdata. Test it for presence — `if not promise` — and never
+with `type(promise) ~= "table"`, which refuses every call that was in fact
+dispatched. `Open77.exports`, `Open77.session`, `Open77.appearance`,
+`Open77.character`, `Open77.input` and `Open77.resource` themselves are tables.
+See [The export contract](export-contract.md#level-1).
+
+**`open77:worldReady` also fires for the pre-game menu world**, while the
+character bootstrap is still `"waiting"`, and `Open77.character.state()` there
+answers `attached = true`, `alive = true` and `health = 100` for the menu's
+puppet. Neither says the player is in the gameplay world; only the bootstrap
+phase `"ready"` does. See [The entry gate](entry-gate.md#world-first).
 
 ## Where to go next {#next}
 

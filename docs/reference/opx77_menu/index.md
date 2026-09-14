@@ -7,7 +7,7 @@ description: opx77_menu owns the single keyboard-driven menu surface on the clie
 
 !!! warning "Early development"
 
-    `opx77_menu` is version `0.3.0`. The exports, the payload shape and the
+    `opx77_menu` is version `0.4.0`. The exports, the payload shape and the
     error codes are subject to change without notice. Do not build a production
     resource on the current surface.
 
@@ -28,7 +28,7 @@ same one `open77_zones` and `open77_worldui` use, is the subject of
 
 | At a glance | |
 |---|---|
-| **Version** | `0.3.0` |
+| **Version** | `0.4.0` |
 | **Requires** | `open77_version ">=0.0.1"`. No `dependency` is declared, and nothing needs to be running for it to start |
 | **Auto start** | yes |
 | **Reload policy** | `reconnect` — handles and owner generations belong to the client session, so a generation change needs a clean reconnect rather than a hot swap |

@@ -31,7 +31,7 @@ which is why the manifest declares `reload_policy "reconnect"`.
 
 What the player did, on the `action` field of every payload.
 
-`Type:` `"select" | "change" | "open" | "back" | "close"`
+`Type:` `"select" | "change" | "open" | "back" | "focus" | "close"`
 
 See [Which action sets what](events.md#actions) for which fields each one
 populates. Branch on this before anything else in a handler.
@@ -75,6 +75,7 @@ The table you hand to [`open`](exports.md#open), and the patch you hand to
 - cursor?: [`MenuCursor`](#menucursor) — where the cursor starts. Open and push only.
 - status?: `string` — a transient line written as the menu opens.
 - closeOnSelect?: `boolean` — close after any `action` row fires. Default: `false`.
+- reportFocus?: `boolean` — raise `focus` as the cursor moves. Default: `false`.
 - steal?: `boolean` — take over another resource's open menu. Read on `open` only. Default: `false`.
 
 Field-by-field detail, including every default and every limit, is on
@@ -132,8 +133,8 @@ grid after every move.
 
 ## MenuPayload {#menupayload}
 
-What every event this resource raises carries. One shape for all five actions;
-which fields are populated depends on the action.
+What every event this resource raises carries. One shape for all six actions,
+`focus` included; which fields are populated depends on the action.
 
 **Fields**
 
@@ -236,8 +237,8 @@ depend on them.
   `id` is what lets [`update`](exports.md#update) re-walk the stack onto a
   freshly built tree and put the player back where they were.
 - **`MenuRecord`** — the one open menu: handle, owner, owner generation, id,
-  title, event, data, `closeOnSelect`, the built tree, the node count and the
-  frame stack.
+  title, event, data, `closeOnSelect`, `reportFocus`, the built tree, the node
+  count and the frame stack.
 - **`MenuStatus`** — the transient line: `text`, `ok`, and the millisecond it
   was written at, after which it has six seconds to live.
 - **`MenuView`** — one frame as the WebUI page receives it: the title, the

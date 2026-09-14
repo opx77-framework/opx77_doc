@@ -79,6 +79,18 @@ if not promise then
 end
 ```
 
+!!! danger "The promise is a userdata: test it for presence, not for a type"
+    A dispatched call answers an `Open77.Promise`, which is a **userdata**, not
+    a table. `if not promise` is the only test. A guard written as
+    `if type(promise) ~= "table"` refuses every call that *was* dispatched,
+    before it is awaited, and reads exactly like a level-1 failure.
+
+    That guard shipped in `opx77_charselector`, `opx77_charcreator` and
+    `opx77_elevators` until this round, and none of the three could reach
+    another resource at all: in `opx77_charselector` the roster was never asked
+    for, and a joining player saw nothing to choose from. `Open77.exports`
+    itself is a table, and a `nil` test on it is still worth keeping.
+
 ## Level 2 — dispatched, and resolution failed {#level-2}
 
 `promise:await()` returned a non-nil `callError`. The call landed and the

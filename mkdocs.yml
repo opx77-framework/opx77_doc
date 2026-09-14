@@ -167,5 +167,39 @@ nav:
           - Events: reference/opx77_appearance/events.md
           - Configuration: reference/opx77_appearance/config.md
           - Types: reference/opx77_appearance/types.md
+      - opx77_input:
+          - Overview: reference/opx77_input/index.md
+          - Exports: reference/opx77_input/exports.md
+          - The form spec: reference/opx77_input/form-spec.md
+          - Events: reference/opx77_input/events.md
+          - Configuration: reference/opx77_input/config.md
+          - Types: reference/opx77_input/types.md
+      - opx77_charselector:
+          - Overview: reference/opx77_charselector/index.md
+          - Exports: reference/opx77_charselector/exports.md
+          - The stage: reference/opx77_charselector/stage.md
+          - Events: reference/opx77_charselector/events.md
+          - Configuration: reference/opx77_charselector/config.md
+          - Types: reference/opx77_charselector/types.md
+      - opx77_charcreator:
+          - Overview: reference/opx77_charcreator/index.md
+          - Exports: reference/opx77_charcreator/exports.md
+          - Events: reference/opx77_charcreator/events.md
+          - Configuration: reference/opx77_charcreator/config.md
+          - Types: reference/opx77_charcreator/types.md
+      - opx77_animations:
+          - Overview: reference/opx77_animations/index.md
+          - Exports: reference/opx77_animations/exports.md
+          - Commands: reference/opx77_animations/commands.md
+          - Events: reference/opx77_animations/events.md
+          - Configuration: reference/opx77_animations/config.md
+          - Types: reference/opx77_animations/types.md
+      - opx77_admin:
+          - Overview: reference/opx77_admin/index.md
+          - Commands: reference/opx77_admin/commands.md
+          - Exports: reference/opx77_admin/exports.md
+          - Events: reference/opx77_admin/events.md
+          - Configuration: reference/opx77_admin/config.md
+          - Types: reference/opx77_admin/types.md
 
   - Releases: releases.md

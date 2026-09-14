@@ -1,18 +1,18 @@
 ---
 title: opx77_appearance exports
-description: The ten client exports opx77_appearance publishes — getSkin, captureSkin, getFamily, setSkin, saveSkin, openEditor, openCreator, isOpen, isSettled and state — with every error code each can answer, and why a write only ever means "asked for".
+description: The twelve client exports opx77_appearance publishes — getSkin, captureSkin, getFamily, setSkin, saveSkin, openEditor, openCreator, isOpen, openPanel, closePanel, isSettled and state — with every error code each can answer, and why a write only ever means "asked for".
 ---
 
 # Exports
 
-`opx77_appearance` publishes ten client exports. Every one answers a table
+`opx77_appearance` publishes twelve client exports. Every one answers a table
 carrying `ok`, plus an `error` code when `ok` is `false`, and none of them
 raises.
 
 !!! info "Read the export contract first"
     There is no `exports.opx77_appearance:openEditor()` proxy. The only entry
-    point is `Open77.exports.call`, it is always asynchronous, and failure reads
-    at three levels. See
+    point is `Open77.exports.call`, it is always asynchronous, it answers a
+    promise to be tested for presence, and failure reads at three levels. See
     [The client export contract](../../concepts/export-contract.md).
 
 **Reading a face**
@@ -35,8 +35,15 @@ raises.
 | Export | Does |
 |---|---|
 | [`openEditor`](#openeditor) | the native mirror — `"ripperdoc"` or `"hairdresser"` |
-| [`openCreator`](#opencreator) | the vanilla character creator, for a character with no face |
+| [`openCreator`](#opencreator) | the in-world editor on the character's own body, for a character with no face |
 | [`isOpen`](#isopen) | whether a native modal is on screen, and which one |
+
+**This resource's own panel**
+
+| Export | Does |
+|---|---|
+| [`openPanel`](#openpanel) | the appearance panel, as a list drawn by `opx77_menu` |
+| [`closePanel`](#closepanel) | take your own panel back down |
 
 **Where the session is**
 
@@ -49,31 +56,40 @@ raises.
 so there is nothing to call from a server resource — see
 [`opx77_core`'s server exports page](../opx77_core/exports/server.md).
 
-!!! warning "Renamed in `0.4.0`"
+!!! warning "What moved, by version"
 
-    The surface was five exports and is now ten. `open` and `editor` became
-    [`openEditor`](#openeditor), `current` became [`getSkin`](#getskin), and
-    `barber` was **deleted** — a hairdresser's chair is
-    `openEditor("hairdresser")`, which is the same call with the argument
-    written out. Six exports on this page are new.
+    **`0.4.0`** — the surface went from five exports to ten. `open` and `editor`
+    became [`openEditor`](#openeditor), `current` became [`getSkin`](#getskin),
+    and `barber` was **deleted**: a hairdresser's chair is
+    `openEditor("hairdresser")`.
+
+    **`0.5.0`** — [`openPanel`](#openpanel) and [`closePanel`](#closepanel) are
+    new, and [`state`](#state) reports one more field, `panel`. The ten above
+    them are unchanged.
+
+    **`0.6.0`** — [`openCreator`](#opencreator) opens the in-world editor on the
+    character's body rather than the pre-world vanilla creator, and no longer
+    refuses with `bootstrap_already_spent`. [`isSettled`](#issettled) can answer
+    `waiting = "body"` while the world reloads onto the character's body family.
 
 ## It is a service, not a flow {#service}
 
 This resource reads, applies, stores and edits the live character's face. It
-never decides that a player should be sent to a creator: when the live character
+never decides that a player should be sent to an editor: when the live character
 has no stored face it publishes
-[`needsCreation`](events.md#opx77-appearance) and waits for something to call
-[`openCreator`](#opencreator). A character selector or a character creator
-resource owns that decision.
+[`needsCreation`](events.md#needs-creation) and waits for something to call
+[`openCreator`](#opencreator). A character creator resource owns that decision —
+[`opx77_charcreator`](../opx77_charcreator/index.md) on a stock install.
 
 !!! info "A write answers that it was asked for"
-    [`setSkin`](#setskin), [`saveSkin`](#saveskin), [`openEditor`](#openeditor)
-    and [`openCreator`](#opencreator) all answer
+    [`setSkin`](#setskin), [`saveSkin`](#saveskin), [`openEditor`](#openeditor),
+    [`openCreator`](#opencreator) and [`openPanel`](#openpanel) all answer
     [`AppearanceQueued`](types.md#appearancequeued): `ok = true` means the call
     was accepted, never that the work is done. An export handler is not a
     coroutine, so nothing here can wait for the engine to schedule an apply, for
-    `opx77_core` to validate a save, or for a player to finish in a modal. The
-    outcome arrives on [`opx77:appearance`](events.md#opx77-appearance) — see
+    `opx77_core` to validate a save, for a world to reload, or for a player to
+    finish in a modal. The outcome arrives on
+    [`opx77:appearance`](events.md#opx77-appearance) — see
     [Integration channels](../../concepts/integration-channels.md#local-events).
 
 ## getSkin {#getskin}
@@ -165,7 +181,10 @@ through `Open77.exports.call`.
 !!! info "It is the core's value, and nothing here can change it"
     The family is `charInfo.gender` on the character row and `opx77_core` owns
     it — see [Who owns the body family](index.md#body-family). It is **not** the
-    `gender` field of a snapshot, which is the engine's opaque body hash.
+    `gender` field of a snapshot, which is the engine's opaque body hash, and it
+    is not necessarily the body the world loaded with at join: that was a guess
+    made before any character was chosen, and the world is reloaded onto this
+    value once the character is selected.
 
 ## setSkin {#setskin}
 
@@ -192,7 +211,7 @@ The apply gets eight attempts, 400 ms apart, and the outcome is published on
 |---|---|
 | `export_call_required` | The call did not arrive through the export bus. |
 | `no_character` | No character is loaded on this client. |
-| `appearance_busy` | This resource's editor or its character creator is on screen. |
+| `appearance_busy` | This resource's editor is open, or a creation is running — from [`openCreator`](#opencreator) to the core's answer. |
 | `invalid_snapshot` | `snapshot` is not a snapshot. |
 | `invalid_option` | An entry of the option list is not a table. |
 | `invalid_option_name` | An option name is not a string. |
@@ -230,7 +249,7 @@ with `unchanged = true`.
 |---|---|
 | `export_call_required` | The call did not arrive through the export bus. |
 | `no_character` | No character is loaded on this client. |
-| `appearance_busy` | A capture is already with the core, or a modal of this resource's is on screen. |
+| `appearance_busy` | A capture is already with the core, this resource's editor is open, or a creation is running. |
 | `capture_failed` | The engine would not answer what the puppet is wearing. |
 | `invalid_snapshot`, `invalid_option`, `invalid_option_name` | The snapshot given, or the capture taken, is not a face. |
 | `stored_build_mismatch` | The `gameBuild` is not one [`GAME_BUILDS`](config.md#game-builds) accepts. |
@@ -295,7 +314,7 @@ so a caller cannot learn about that case from the event channel.
 |---|---|
 | `export_call_required` | The call did not arrive through the export bus. |
 | `invalid_mode` | `mode` is neither `"ripperdoc"` nor `"hairdresser"`. |
-| `character_creation_in_progress` | The character creator is on screen. Checked before the busy test, so the specific refusal is not hidden by the general one. |
+| `character_creation_in_progress` | A creation is running, from [`openCreator`](#opencreator) to the core's answer. Checked before the busy test, so the specific refusal is not hidden by the general one. |
 | `appearance_busy` | This resource's editor is already open, the host reports a native modal on screen, or a captured face is still with the core. |
 | `no_character` | `opx77_core` has no character loaded on this client. |
 
@@ -313,6 +332,10 @@ A character whose stored face is missing, or is from a build
 [`GAME_BUILDS`](config.md#game-builds) does not accept, is warned with
 `appearance.editorDefaultFace` **before** the mirror appears: an editor that
 silently opens on the default face reads as a wiped character.
+
+This is also the way back for a character whose creation ended without a face:
+it opens an editor on a character with no stored face, and the first confirm is
+saved like any other capture.
 
 ### Example {#openeditor-example}
 
@@ -333,9 +356,10 @@ end)
 
 ## openCreator {#opencreator}
 
-Opens the vanilla character creator for a character that has no face yet. This
-is the call that answers [`needsCreation`](events.md#opx77-appearance), and the
-outcome arrives on the event channel as `created`.
+Opens Cyberpunk's own mirror **in the world**, in `ripperdoc` mode, on the body
+family the character was created with, for a character that has no face yet.
+This is the call that answers [`needsCreation`](events.md#needs-creation), and
+the outcome arrives on the event channel as `created`.
 
 ```lua
 Open77.exports.call("opx77_appearance", "openCreator")
@@ -344,28 +368,47 @@ Open77.exports.call("opx77_appearance", "openCreator")
 **Returns** [`AppearanceQueued`](types.md#appearancequeued) —
 `{ ok = true, queued = true, citizenId = string }`
 
+`ok = true` means the creation has begun. The editor itself comes up on a thread,
+in three steps:
+
+1. It waits for a puppet a face may go on: the gameplay world, not a body that
+   is about to be replaced by a reload, and a player past the "continue" screen.
+   The character's placement can still be putting the puppet back up.
+2. When the puppet is on the other body family, it reloads the player with
+   `Open77.appearance.switchBodyFamily(gender, true)`, tells the player
+   `appearance.creatorSwitching`, and reopens the editor once
+   `Open77.appearance.takeBodyFamilyTransition()` answers `edit:<gender>` on the
+   other side of the reload. A reload that enters the world without that answer
+   reopens the editor all the same, or the readiness gate would wait on it for
+   ever. Each reload counts against
+   [`FAMILY_RETRIES`](config.md#family-retries).
+3. It opens `Open77.appearance.open({ mode = "ripperdoc", gender = gender })`.
+
+A failure in any of them does **not** reach this return value: it ends the
+creation, and the `created` event carries the reason — see
+[What happens when a character never gets a face](index.md#no-face).
+
 **Errors**
 
 | Code | Meaning |
 |---|---|
 | `export_call_required` | The call did not arrive through the export bus. |
 | `no_character` | No character is loaded on this client. |
-| `appearance_busy` | The creator is already up, this resource's editor is open, or the host reports a native modal on screen. |
-| `creation_refused` | This character's creator run already ended for good. It is not reopened until the character changes or this resource restarts. |
+| `appearance_busy` | A creation is already running, this resource's editor is open, the host reports a native modal on screen, or a captured face is still with the core. |
+| `creation_refused` | This character's creation already ended without a face. It is not reopened until the character changes or this resource restarts; [`openEditor`](#openeditor) still can. |
 | `already_has_a_face` | The character has a stored face. Use [`openEditor`](#openeditor). |
-| `bootstrap_already_spent` | The one-shot character bootstrap has been resolved, so the world is already loaded and there is no menu for the creator to run inside. |
-| `character_creator_unavailable` | The engine would not open the creator. |
 
 The checks run in exactly that order.
 
 **Side** `client export` — callable from any client resource, asynchronously,
 through `Open77.exports.call`.
 
-!!! warning "There is no deadline on the creator"
+!!! warning "There is no deadline on the editor"
     A player deliberating for an hour leaves the readiness gate closed for an
     hour, and that is deliberate. What **is** bounded is how long this resource
     waits for somebody to make this call: see
-    [`CREATION_WAIT_MS`](config.md#creation-wait-ms).
+    [`CREATION_WAIT_MS`](config.md#creation-wait-ms). A call that comes after
+    that wait ran out still opens the editor.
 
 ### Example {#opencreator-example}
 
@@ -373,9 +416,11 @@ through `Open77.exports.call`.
 -- a client script in your own resource: the needsCreation handshake
 AddEventHandler("opx77:appearance", function(payload)
   if payload.event ~= "needsCreation" then return end
-  -- payload.family is the body the creator must come back on
+  -- payload.family is the body the editor opens on
   CreateThread(function()
-    Open77.exports.call("opx77_appearance", "openCreator")
+    local promise = Open77.exports.call("opx77_appearance", "openCreator")
+    local result = promise and promise:await()
+    if result and not result.ok then print("refused: " .. tostring(result.error)) end
   end)
 end)
 ```
@@ -396,8 +441,10 @@ Open77.exports.call("opx77_appearance", "isOpen")
 - `open` is the host's own answer, so it is `true` for a native modal this
   resource did not raise.
 - `editing` and `creating` are this resource's own flags: the editor
-  [`openEditor`](#openeditor) asked for, and the character creator
-  [`openCreator`](#opencreator) asked for.
+  [`openEditor`](#openeditor) asked for, and a creation
+  [`openCreator`](#opencreator) began. `creating` covers the whole creation, from
+  the call to the core's answer, so it is `true` during a body reload and while a
+  captured face is with the core, not only while the editor is on screen.
 
 **Errors**
 
@@ -408,12 +455,82 @@ Open77.exports.call("opx77_appearance", "isOpen")
 **Side** `client export` — callable from any client resource, asynchronously,
 through `Open77.exports.call`.
 
+## openPanel {#openpanel}
+
+Puts this resource's appearance panel on screen, drawn by
+[`opx77_menu`](../opx77_menu/index.md): the saved look, the body family and the
+two ways into the native editor. See [The panel](index.md#panel).
+
+```lua
+Open77.exports.call("opx77_appearance", "openPanel")
+```
+
+**Returns** [`AppearanceQueued`](types.md#appearancequeued) —
+`{ ok = true, queued = true, citizenId = string }`
+
+The list opens on a thread, and `panelOpened` is published on
+[`opx77:appearance`](events.md#opx77-appearance) once `opx77_menu` has answered.
+A menu that refuses on the way out costs one log line and no event:
+
+```text
+the appearance panel did not open: <reason>
+```
+
+The owner calling it again while its panel is up **redraws** its own panel and
+answers the same; there is no level a caller can ask for, so a reopen is a
+redraw.
+
+**Errors**
+
+| Code | Meaning |
+|---|---|
+| `export_call_required` | The call did not arrive through the export bus. |
+| `menu_not_running` | `opx77_menu` is not running; there is nothing to draw the list on. |
+| `no_character` | No character is loaded on this client. |
+| `appearance_busy` | A native modal is on screen, this resource's editor is open, or a creation is running. A raise from `Open77.appearance.isOpen()` counts as on screen. |
+| `panel_busy` | Another resource owns the open panel. |
+
+The checks run in exactly that order.
+
+**Side** `client export` — callable from any client resource, asynchronously,
+through `Open77.exports.call`.
+
+!!! info "It closes itself"
+    The panel is taken down, and `panelClosed` published with a
+    [reason](types.md#appearancepanelreason), when a native modal comes up, when
+    its owner stops or reloads, when the character changes or unloads, and when
+    the player leaves it. Nobody has to remember to close it.
+
+## closePanel {#closepanel}
+
+Takes your own panel back down. A caller may not close another resource's.
+
+```lua
+Open77.exports.call("opx77_appearance", "closePanel")
+```
+
+**Returns** [`AppearanceResponse`](types.md#appearanceresponse) —
+`{ ok = true }`
+
+`panelClosed` is published with the reason `caller`.
+
+**Errors**
+
+| Code | Meaning |
+|---|---|
+| `export_call_required` | The call did not arrive through the export bus. |
+| `no_panel_open` | No panel is on screen. |
+| `not_owner` | The panel on screen belongs to another resource. |
+
+**Side** `client export` — callable from any client resource, asynchronously,
+through `Open77.exports.call`.
+
 ## isSettled {#issettled}
 
 Whether the appearance work for this world entry has finished — restored,
 created, or honestly failed — and, when it has not, what it is short of.
 [`open77:session:gameplayReady`](events.md#gameplay-ready) goes out on exactly
-this condition.
+this condition, and never before a character is loaded.
 
 ```lua
 Open77.exports.call("opx77_appearance", "isSettled")
@@ -424,11 +541,18 @@ Open77.exports.call("opx77_appearance", "isSettled")
 
 | `waiting` | What the session is short of |
 |---|---|
-| `"creator"` | the character creator is on screen |
-| `"creation"` | the character has no face and nothing has called [`openCreator`](#opencreator) |
+| `"creator"` | a creation is running: the editor, a body reload for it, or its capture with the core |
+| `"creation"` | the character has no face and nothing has called [`openCreator`](#opencreator) yet |
 | `"server"` | the face for this world entry has not been decided yet |
+| `"body"` | the world is reloading onto the character's body family |
 | `"restore"` | a restore is still in flight |
-| `nil` | nothing; `settled` is `true` |
+| `nil` | nothing that has a name; `settled` may still be `false` |
+
+The names are tested in that order, and the first that applies is answered.
+
+`waiting = nil` with `settled = false` is a session with no character loaded —
+the announcement is never sent for one — or a queued restore still waiting on the
+mirror's own confirmation and on `open77:playerReset:complete`.
 
 **Errors**
 
@@ -448,8 +572,9 @@ through `Open77.exports.call`.
 ## state {#state}
 
 What this client knows: which character it is dressing, whether the stored face
-is on the puppet, which of the two modals is open, and whether the readiness
-announcement has gone out. It exists to debug a face that did not come back.
+is on the puppet, which of the two modals is open, whether the panel is up, and
+whether the readiness announcement has gone out. It exists to debug a face that
+did not come back.
 
 ```lua
 Open77.exports.call("opx77_appearance", "state")
@@ -457,8 +582,8 @@ Open77.exports.call("opx77_appearance", "state")
 
 **Returns** [`AppearanceClientState`](types.md#appearanceclientstate) —
 `ok`, plus `citizenId`, `family`, `stored`, `wearing`, `decided`, `settled`,
-`restoring`, `committing`, `creating`, `editing`, `worldEligible` and
-`announced`.
+`restoring`, `committing`, `creating`, `editing`, `worldEligible`, `announced`
+and `panel`.
 
 **Errors**
 
@@ -508,11 +633,13 @@ Nothing inside this resource's own VM reaches the public surface, so a call with
 no invoking resource went somewhere by mistake. See
 [Identity comes from the host](../../concepts/export-contract.md#invoking-resource).
 
-Unlike [`opx77_notify`](../opx77_notify/exports.md#ownership) and
+The panel is the one thing on this surface that belongs to a caller: it is keyed
+on that name and on `GetInvokingResourceGeneration()`, so a caller that stops or
+reloads loses its panel within a second. Beyond it, and unlike
+[`opx77_notify`](../opx77_notify/exports.md#ownership) and
 [`opx77_status`](../opx77_status/exports.md#ownership), this resource keeps no
-per-owner registry and has nothing to sweep when a caller stops: it holds one
-face for one character, and it belongs to the player rather than to the resource
-that asked for the modal.
+per-owner registry: it holds one face for one character, and that belongs to the
+player rather than to the resource that asked for the modal.
 
 ## See also {#see-also}
 

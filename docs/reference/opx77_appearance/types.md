@@ -1,6 +1,6 @@
 ---
 title: opx77_appearance types
-description: Every shape opx77_appearance names — the aliases, the snapshot it captures and sends, the response tables its ten exports answer with, the payload its event channel carries, and where each error code can surface.
+description: Every shape opx77_appearance names — the aliases, the snapshot it captures and sends, the response tables its twelve exports answer with, the payload its event channel carries, the reasons a panel closes, and where each error code can surface.
 ---
 
 # Types
@@ -37,8 +37,11 @@ The character's body type.
 ```
 
 It is `charInfo.gender` on the character row, and the engine's two pristine
-puppets. **The core owns it**, this resource only reads it, and the value is what
-the engine's character bootstrap is resolved with.
+puppets. **The core owns it** and this resource only reads it. The character
+bootstrap is resolved with one of the two at join — the most recently played
+character's, else [`BOOTSTRAP.DEFAULT_FAMILY`](config.md#bootstrap-default-family)
+— and the world is reloaded onto the selected character's own value once it is
+chosen.
 
 !!! danger "Not the `gender` field of a snapshot"
     A snapshot's `gender` is the **engine's** opaque body-family hash, `"0x"` and
@@ -68,23 +71,33 @@ them so they can be shown in the player's language.
 | Code | Meaning | Where it surfaces |
 |---|---|---|
 | `export_call_required` | No invoking resource, so the call came from inside this VM. | every export |
-| `no_character` | `opx77_core` has no character loaded here. | [`getSkin`](exports.md#getskin), [`getFamily`](exports.md#getfamily), [`setSkin`](exports.md#setskin), [`saveSkin`](exports.md#saveskin), [`openEditor`](exports.md#openeditor), [`openCreator`](exports.md#opencreator) |
-| `appearance_busy` | A modal is on screen, or a capture is with the core. | [`setSkin`](exports.md#setskin), [`saveSkin`](exports.md#saveskin), [`openEditor`](exports.md#openeditor), [`openCreator`](exports.md#opencreator) |
-| `character_creation_in_progress` | The character is still being built. | [`openEditor`](exports.md#openeditor) |
+| `no_character` | `opx77_core` has no character loaded here. | [`getSkin`](exports.md#getskin), [`getFamily`](exports.md#getfamily), [`setSkin`](exports.md#setskin), [`saveSkin`](exports.md#saveskin), [`openEditor`](exports.md#openeditor), [`openCreator`](exports.md#opencreator), [`openPanel`](exports.md#openpanel) |
+| `appearance_busy` | A modal is on screen, a creation is running, or a capture is with the core. | [`setSkin`](exports.md#setskin), [`saveSkin`](exports.md#saveskin), [`openEditor`](exports.md#openeditor), [`openCreator`](exports.md#opencreator), [`openPanel`](exports.md#openpanel); a panel close reason |
+| `character_creation_in_progress` | A creation is running, from [`openCreator`](exports.md#opencreator) to the core's answer. | [`openEditor`](exports.md#openeditor) |
 | `invalid_mode` | Not `"ripperdoc"` or `"hairdresser"`. | [`openEditor`](exports.md#openeditor) |
 | `already_has_a_face` | [`openCreator`](exports.md#opencreator) on a character that has a stored face. | [`openCreator`](exports.md#opencreator) |
-| `bootstrap_already_spent` | [`openCreator`](exports.md#opencreator) after the world has already loaded. | [`openCreator`](exports.md#opencreator) |
-| `creation_refused` | This character's creator run ended for good. | [`openCreator`](exports.md#opencreator) |
-| `character_creator_unavailable` | The engine would not open the creator. | [`openCreator`](exports.md#opencreator) |
+| `creation_refused` | This character's creation already ended without a face. | [`openCreator`](exports.md#opencreator) |
+| `character_creator_unavailable` | The engine would not open the creation editor. | the `created` event |
+| `character_creation_cancelled` | The player closed the creation editor without confirming. | the `created` event |
+| `character_capture_failed` | The creation editor's face could not be read, and the capture gave no reason of its own. | the `created` event |
+| `menu_not_running` | The panel is `opx77_menu`'s, and it is not running. | [`openPanel`](exports.md#openpanel) |
+| `panel_busy` | Another resource owns the open panel. | [`openPanel`](exports.md#openpanel) |
+| `no_panel_open` | [`closePanel`](exports.md#closepanel) with nothing on screen. | [`closePanel`](exports.md#closepanel) |
+| `not_owner` | [`closePanel`](exports.md#closepanel) on another resource's panel. | [`closePanel`](exports.md#closepanel) |
 | `capture_failed` | The engine would not answer what the puppet is wearing. | [`captureSkin`](exports.md#captureskin), [`saveSkin`](exports.md#saveskin); a toast |
-| `not_sent` | The net event was not accepted. | the `created` and `saved` events |
+| `not_sent` | The net event was not accepted. | the `created` and `saved` events; a toast on an edit |
 | `save_timeout` | The core never answered a captured face. | the `created` event; a toast on an edit |
 | `invalid_snapshot` | The capture, or the snapshot given, is not a snapshot. | [`captureSkin`](exports.md#captureskin), [`setSkin`](exports.md#setskin), [`saveSkin`](exports.md#saveskin); a toast |
 | `invalid_option` | An entry of the option list is not a table. | the same |
 | `invalid_option_name` | An option name is not a string. | the same |
 | `stored_build_mismatch` | The face is from another game build. | [`setSkin`](exports.md#setskin), [`saveSkin`](exports.md#saveskin); the `settled` event |
-| `body_family_mismatch` | The creator came back on the other body. | the `created` event |
-| `character_bootstrap_failed` | The host would not load a world for this body. | the `created` event |
+| `body_family_mismatch` | The creation editor could not be kept on the right body: it came back on the other one past `FAMILY_RETRIES`, or the reload onto it failed. | the `created` event |
+
+!!! info "Removed in `0.6.0`"
+    `bootstrap_already_spent` and `character_bootstrap_failed` are gone. The
+    bootstrap is spent at join, before any character is chosen, so
+    [`openCreator`](exports.md#opencreator) is always called after it and no
+    creation ending fails it.
 
 **Decided by `opx77_core`**
 
@@ -112,6 +125,7 @@ reports.
 ---@alias AppearanceEventName
 ---| "gameplayReady" | "restored" | "settled" | "needsCreation"
 ---| "applied" | "created" | "saved" | "characterChanged"
+---| "panelOpened" | "panelClosed"
 ```
 
 | Name | The decision |
@@ -119,14 +133,37 @@ reports.
 | `gameplayReady` | The readiness announcement went out; the player may be placed. |
 | `restored` | A stored face was put on the puppet, or could not be. |
 | `settled` | This world entry's face was decided, and there is none to wear. |
-| `needsCreation` | This character has no face; call [`openCreator`](exports.md#opencreator) to open one. |
-| `applied` | [`setSkin`](exports.md#setskin) reached the puppet, or could not. |
-| `created` | A character was built and stored, or was not. |
+| `needsCreation` | This character has no face; call [`openCreator`](exports.md#opencreator) to open the editor. |
+| `applied` | [`setSkin`](exports.md#setskin), or the panel's **Wear it**, reached the puppet, or could not. |
+| `created` | A new character's face was built and stored, or was not. |
 | `saved` | An edit was committed, or was refused. |
 | `characterChanged` | The live character switched underneath this resource. |
+| `panelOpened` | This resource's own panel came up. |
+| `panelClosed` | It went down; `reason` says what took it down. |
 
 Which `ok` each carries, and which of them are only ever failures, is on
 [Events](events.md#opx77-appearance).
+
+### AppearancePanelReason {#appearancepanelreason}
+
+Why the panel closed, carried as `reason` on a `panelClosed` event.
+
+```lua
+---@alias AppearancePanelReason
+---| "caller" | "player" | "appearance_busy" | "character_changed"
+---| "no_character" | "owner_stopped" | "owner_reloaded" | "menu_closed"
+```
+
+| Reason | What took the panel down |
+|---|---|
+| `caller` | [`closePanel`](exports.md#closepanel), or a row that opens the native editor. |
+| `player` | Escape, the pause key, or BACK at the top of the list. |
+| `appearance_busy` | A native modal came up; the panel never draws over one. |
+| `character_changed` | The live character switched underneath the panel. |
+| `no_character` | The character unloaded. |
+| `owner_stopped` | The resource that opened it is no longer running. |
+| `owner_reloaded` | The resource that opened it reloaded. |
+| `menu_closed` | `opx77_menu` took the list down for a reason of its own. |
 
 ## The face {#face}
 
@@ -180,6 +217,7 @@ and a save the core would answer with silence.
 ### AppearanceResponse {#appearanceresponse}
 
 The shape every export answers with. None of them raises.
+[`closePanel`](exports.md#closepanel) answers exactly this and nothing more.
 
 **Fields**
 
@@ -191,8 +229,9 @@ The shape every export answers with. None of them raises.
 
 What a write or a modal call answers: that it was **asked for**, never that it
 has happened. [`setSkin`](exports.md#setskin),
-[`saveSkin`](exports.md#saveskin), [`openEditor`](exports.md#openeditor) and
-[`openCreator`](exports.md#opencreator) all answer this shape.
+[`saveSkin`](exports.md#saveskin), [`openEditor`](exports.md#openeditor),
+[`openCreator`](exports.md#opencreator) and
+[`openPanel`](exports.md#openpanel) all answer this shape.
 
 Extends [`AppearanceResponse`](#appearanceresponse)
 
@@ -243,9 +282,11 @@ Extends [`AppearanceResponse`](#appearanceresponse)
 - settled: `boolean` — the appearance work for this world entry has finished.
 - announced: `boolean` — [`open77:session:gameplayReady`](events.md#gameplay-ready)
   has gone out.
-- waiting: `"server"|"restore"|"creation"|"creator"|nil` — what the session is
-  short of. `"creation"` means the character has no face and nothing has called
-  [`openCreator`](exports.md#opencreator).
+- waiting: `"server"|"body"|"restore"|"creation"|"creator"|nil` — what the
+  session is short of. `"creation"` means the character has no face and nothing
+  has called [`openCreator`](exports.md#opencreator) yet; `"body"` that the
+  world is reloading onto the character's body family. The full table is on
+  [`isSettled`](exports.md#issettled).
 - citizenId: [`CitizenId`](#citizenid)`|nil`
 
 ### AppearanceOpenState {#appearanceopenstate}
@@ -259,7 +300,9 @@ Extends [`AppearanceResponse`](#appearanceresponse)
 - open: `boolean` — a native modal is on screen. The host's answer, so it is
   `true` for a modal this resource did not raise.
 - editing: `boolean` — and it is this resource's editor.
-- creating: `boolean` — and it is this resource's character creator.
+- creating: `boolean` — a creation this resource began is running, from
+  [`openCreator`](exports.md#opencreator) to the core's answer; not only while
+  the editor is on screen.
 
 ### AppearanceSkin {#appearanceskin}
 
@@ -298,12 +341,14 @@ Extends [`AppearanceResponse`](#appearanceresponse)
   apply is `decided = true`, `settled = false`.
 - restoring: `boolean` — a restore is in flight.
 - committing: `boolean` — a captured face is with the core, unanswered.
-- creating: `boolean` — the character creator is on screen.
+- creating: `boolean` — a creation is running, from
+  [`openCreator`](exports.md#opencreator) to the core's answer.
 - editing: `boolean` — this resource's editor is on screen.
 - worldEligible: `boolean` — this world attachment is the gameplay one rather
-  than the vanilla menu.
+  than the pre-game menu the join starts in.
 - announced: `boolean` — [`open77:session:gameplayReady`](events.md#gameplay-ready)
   has gone out.
+- panel: `boolean` — this resource's own panel is on screen. New in `0.5.0`.
 
 None of it is authority. `wearing` is a record of an accepted apply, not a
 reading of the puppet, and `announced` says the send succeeded, not that the
@@ -321,9 +366,11 @@ What arrives on [`OPX_APPEARANCE_CONFIG.EVENT`](config.md#event), with a bare
 - error: [`AppearanceError`](#appearanceerror)`|nil`
 - citizenId: [`CitizenId`](#citizenid)`|nil`
 - family: [`BodyFamily`](#bodyfamily)`|nil` — on `needsCreation`: the body the
-  creator must come back on.
+  editor opens on.
 - unchanged: `boolean|nil` — on `saved`: the face matched the stored one, so the
   core wrote nothing.
+- reason: [`AppearancePanelReason`](#appearancepanelreason)`|nil` — on
+  `panelClosed`: what took the panel down.
 
 ## See also {#see-also}
 

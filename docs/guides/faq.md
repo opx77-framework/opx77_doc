@@ -175,6 +175,26 @@ resource written to wait on it waits for ever. The official `open77_appearance`
 satisfies the same requirement, and the core's boot check accepts either name.
 See [Getting started](getting-started.md#the-appearance-requirement).
 
+And for the join itself, yes again. The platform's loading cover stays up until
+something spends the one-shot character bootstrap, and nothing a server resource
+draws shows through it — the roster included. `opx77_appearance` spends it at
+join, on the body of the account's most recently played character, so the world
+loads first and the character is chosen in it. See
+[The entry gate](../concepts/entry-gate.md#world-first).
+
+## Why is the character chosen in the world, not in a menu before it? {#select-in-world}
+
+Because there is no "before it" a server resource can draw on. Until the
+character bootstrap is spent, the player sees the platform's opaque loading
+cover and nothing else: a roster opened there is open, holds the keyboard, and
+is invisible, so nobody ever chooses. The platform's own model agrees — its
+`open77_appearance` README makes character selection the gamemode's job, after
+the world, with a body reload for a character on the other body.
+
+So OPX//77 loads a body it can guess before anybody is chosen — the last
+character played — and puts the roster, the identity form and the face editor
+in the gameplay world, with the camera turned to face the player's character.
+
 ## Why does nothing listen for `playerDropped`? {#no-playerdropped}
 
 Because the host never emits it. The departure event on this platform is

@@ -1,6 +1,6 @@
 ---
 title: opx77_appearance events
-description: The two net events opx77_appearance sends — the face it hands to opx77_core and the readiness announcement that clears the platform hold — the local channel it publishes every decision on, and everything it listens to from the core and from the host.
+description: The two net events opx77_appearance sends — the face it hands to opx77_core and the readiness announcement that clears the platform hold — the local channel it publishes every decision on, and everything it listens to from the core, from opx77_menu and from the host.
 ---
 
 # Events
@@ -8,7 +8,8 @@ description: The two net events opx77_appearance sends — the face it hands to 
 This resource sends **two** net events and registers **none**: there is no
 `RegisterNetEvent` anywhere in it, and no server half to answer one. Everything
 it hears arrives on the client's local bus, either from
-[`opx77_core`](../opx77_core/index.md)'s client half or from the host.
+[`opx77_core`](../opx77_core/index.md)'s client half,
+[`opx77_menu`](../opx77_menu/index.md) or the host.
 
 - **Networked** — crosses the wire. Sending one needs `network.events`, which
   this resource declares for exactly the two calls below.
@@ -61,7 +62,8 @@ answered with **silence**, and this resource completes that case itself.
     after the last one; a commit inside that window is held back rather than
     refused, because an `error.tooFast` would cost the capture. If nothing
     answers within [`COMMIT_MS`](config.md#commit-ms), the capture is given up
-    on and the stored face is put back on the puppet.
+    on: an edit puts the stored face back on the puppet, and a creation ends on
+    the default face.
 
 **Side** `net event` — sent by this resource's client half. Any client resource
 holding `network.events` can send the same name; the core re-derives everything
@@ -77,13 +79,14 @@ readiness hold.
 TriggerServerEvent("open77:session:gameplayReady")
 ```
 
-It is sent at most once per world entry, and only when all four of these hold:
+It is sent at most once per world entry, and only when all of these hold:
 
 | Condition | Meaning |
 |---|---|
 | not already announced | one per world entry; a new world entry resets it |
-| `worldEligible` | this world attachment is the gameplay one, not the vanilla menu the creator runs inside |
-| the face has settled | restored, committed, or honestly given up on — and no creator open, and no `create` commit outstanding. [`isSettled`](exports.md#issettled) is this condition, and `state().settled` is the same value |
+| `worldEligible` | this world attachment is the gameplay one: the character bootstrap phase read `"ready"` when it was entered. The pre-game menu world raises `open77:worldReady` too, with the phase still `"waiting"`, and its puppet also answers attached and alive — so only the phase tells them apart |
+| a character is loaded | nothing is announced before one is: until then `opx77_core` holds the player unplaced, which is intended |
+| the face has settled | the character's own body is on — no body reload outstanding — and its face restored, committed, or honestly given up on; no creation running, no `needsCreation` still unanswered, no `create` commit outstanding. [`isSettled`](exports.md#issettled) is this condition, and `state().settled` is the same value |
 | the player is in gameplay | the host reports the puppet attached, alive, and above zero health |
 
 A restore that was merely *queued* additionally waits for the mirror's own
@@ -91,7 +94,12 @@ confirmation and for `open77:playerReset:complete`; a restore that **failed** is
 an honest settled state and must not strand the player behind the gate.
 
 The conditions are re-tested every 200 ms by a worker thread, because the engine
-state behind the last two raises no event of its own.
+state behind the last one raises no event of its own. A send the host does not
+accept is one log line, and is tried again on the next pass:
+
+```text
+gameplay-ready not sent: <reason>
+```
 
 !!! danger "Nothing else on a stock install sends it"
     Without it, `Open77.ready.isReady` is permanently false and `onPlayerReady`
@@ -128,71 +136,83 @@ AddEventHandler("opx77:appearance", function(payload) end)
     - `error`: `string | nil` — present only when `ok` is `false`.
     - `citizenId`: `string | nil` — the character it concerns.
     - `family`: `string | nil` — on `needsCreation` only: the body family the
-      creator must come back on.
+      editor opens on.
     - `unchanged`: `boolean | nil` — on `saved` only: the face matched the
       stored one, so nothing was written.
+    - `reason`: [`AppearancePanelReason`](types.md#appearancepanelreason)`| nil`
+      — on `panelClosed` only: what took the panel down.
 
 | `event` | `ok` | Raised when |
 |---|---|---|
 | `gameplayReady` | `true` | The [readiness announcement](#gameplay-ready) went out. |
 | `restored` | `true` | A stored face was applied to the puppet. |
 | `restored` | `false` | The apply failed for good; `error` is the host's own reason. |
-| `settled` | `false` | The stored face is from a build [`GAME_BUILDS`](config.md#game-builds) does not accept; `error` is `stored_build_mismatch` and there is nothing to wear. |
-| `needsCreation` | `true` | The character has no stored face. **Nothing opens a creator until something calls [`openCreator`](exports.md#opencreator)** — see [the handshake](#needs-creation). `family` carries the body the creator must come back on. |
-| `applied` | `true` | A snapshot handed to [`setSkin`](exports.md#setskin) reached the puppet. |
+| `settled` | `false` | The stored face is from a build [`GAME_BUILDS`](config.md#game-builds) does not accept; `error` is `stored_build_mismatch` and the player enters on the default face of their own body. |
+| `needsCreation` | `true` | The character has no stored face. **Nothing opens an editor until something calls [`openCreator`](exports.md#opencreator)** — see [the handshake](#needs-creation). `family` carries the body the editor opens on. |
+| `applied` | `true` | A snapshot handed to [`setSkin`](exports.md#setskin), or the panel's **Wear it**, reached the puppet. |
 | `applied` | `false` | It did not; `error` is the host's own reason. |
-| `created` | `true` | The face the creator built was stored and the character bootstrap was spent. |
-| `created` | `false` | The creation stored nothing; `error` is a core refusal code, `not_sent`, `save_timeout`, `body_family_mismatch` or `character_bootstrap_failed`. |
+| `created` | `true` | The face the editor built was stored. The readiness announcement follows it. |
+| `created` | `false` | The creation stored nothing and the player keeps the default face; `error` is `character_creation_cancelled`, `character_creator_unavailable`, `body_family_mismatch`, the capture's reason or `character_capture_failed`, a core refusal code, `not_sent` or `save_timeout`. |
 | `saved` | `true` | An edit was stored — or the face matched the stored one, which the core answers with silence and this resource completes itself, carrying `unchanged = true`. |
-| `saved` | `false` | The core refused the save; `error` is the refusal code. |
+| `saved` | `false` | The core refused the save, or the net event was not accepted; `error` is the refusal code or `not_sent`. |
 | `characterChanged` | `true` | The live character changed underneath this resource. |
+| `panelOpened` | `true` | `opx77_menu` answered [`openPanel`](exports.md#openpanel) with a list on screen. |
+| `panelClosed` | `true` | The panel went down; `reason` says why. |
 
 #### The needsCreation handshake {#needs-creation}
 
-**This resource never opens a character creator on its own.** When the live
-character has no stored face, and the one-shot character bootstrap has not been
-spent, it publishes `needsCreation` and waits:
+**This resource never opens an editor on its own.** When the live character has
+no stored face it publishes `needsCreation`, once per character, and waits:
 
 ```lua
 AddEventHandler("opx77:appearance", function(payload)
   if payload.event ~= "needsCreation" then return end
-  -- payload.family is "female" or "male": the body the creator must build
+  -- payload.family is "female" or "male": the body the editor opens on
   CreateThread(function()
     Open77.exports.call("opx77_appearance", "openCreator")
   end)
 end)
 ```
 
+It is published in the gameplay world, after the character has been selected —
+the character bootstrap was spent at join, before anybody was chosen, and is not
+waited on here. [`openCreator`](exports.md#opencreator) opens Cyberpunk's own
+mirror in the world, on that body family, reloading the player onto it first when
+the world was loaded on the other one.
+
 Everything after the player confirms belongs to this resource again — the
-capture, the check that the body they built is the body their character is, the
-save through `opx77_core`, spending the character bootstrap and letting the world
-load. The outcome arrives as `created`.
+capture, the check that the body they built on is the body their character is,
+and the save through `opx77_core`. The outcome arrives as `created`.
 
-!!! danger "If nothing answers, the player sits in an empty menu"
+!!! danger "If nothing answers, the player enters on the default face"
 
-    They are in the vanilla character menu with no world behind it and nothing
-    on screen, which is undiagnosable from the outside. So after
+    The readiness announcement waits on the answer, so an unanswered
+    `needsCreation` would hold the gate for ever. After
     [`CREATION_WAIT_MS`](config.md#creation-wait-ms) this resource says so in the
-    log — **once**, naming the `openCreator` export that was never called. It
-    still does not open a creator: there is no deadline on a decision that
-    belongs to another resource.
+    log — **once**, naming the `openCreator` export that was never called — and
+    lets the player in on the default face of their own body:
 
-`needsCreation` is published in one place, and only while the bootstrap is
-unspent. A reload in the gameplay world cannot raise one, because the vanilla
-creator runs inside the character bootstrap and that has already been resolved —
-which is also what [`openCreator`](exports.md#opencreator) refuses with
-`bootstrap_already_spent`.
+    ```text
+    <citizenId> has no stored face and nothing called the `openCreator` export
+      the player enters on the default face; a character creator resource is
+      what opens the editor. See README, "Who opens the creator".
+    ```
+
+    No `created` is published for it. A later `openCreator` still opens the
+    editor.
 
 !!! info "`settled` is only ever a refusal"
     It is published in one place: the stored face is from a build this resource
     will not read back. Every other way a world entry settles — a restore, a
-    creation, or a character that simply has no face and no creator to open —
-    reports itself through `restored`, `created`, or nothing at all.
+    creation, or a character that simply has no face — reports itself through
+    `restored`, `created`, or nothing at all.
 
 Some failures are told to the player and **not** published: a capture that could
-not be turned into a payload, a save that timed out on an *edit*, an editor that
-would not open, and a body-family reload that a restore asked for. Those raise a
-toast and a log line only.
+not be turned into a payload on an edit, a save that timed out on an *edit*, an
+editor that would not open from [`openEditor`](exports.md#openeditor) or the
+panel, and a body-family reload that failed or ran out of
+[`FAMILY_RETRIES`](config.md#family-retries). Those raise a toast and a log line
+only.
 
 **Side** `client` — any client resource, no permission. It is a plain
 `TriggerEvent`, so treat it as untrusted like any other name on the local bus.
@@ -206,6 +226,8 @@ AddEventHandler("opx77:appearance", function(payload)
     -- the platform hold has been asked to clear; the player is playable
   elseif payload.event == "saved" and not payload.ok then
     print("the core refused a face: " .. tostring(payload.error))
+  elseif payload.event == "panelClosed" then
+    print("the panel went down: " .. tostring(payload.reason))
   end
 end)
 ```
@@ -219,22 +241,28 @@ Each of these is the core's own local re-emission of a wire event, so a bare
 
 | Event | What this resource does with it |
 |---|---|
-| `opx77:client:onPlayerLoaded` | Adopts the character: the citizen id, `charInfo.gender` as the body family, and `PlayerData.appearance` as the stored face. Then decides what this world entry's face is. |
+| `opx77:client:charactersReady` | Keeps the roster it carries. The join-time bootstrap reads it to find the account's most recently played character — see [The world comes first](index.md#world-first). |
+| `opx77:client:onPlayerLoaded` | Adopts the character: the citizen id, `charInfo.gender` as the body family, and `PlayerData.appearance` as the stored face. Then decides what this world entry's face is, putting the world on the character's own body first. |
 | `opx77:client:playerDataChanged` | The same call. Money and jobs move through this name constantly, so it returns immediately unless the citizen id changed. |
-| `opx77:client:onPlayerUnloaded` | Drops everything: a face belongs to a character. |
+| `opx77:client:onPlayerUnloaded` | Drops everything, and takes the panel down: a face belongs to a character. |
 | [`opx77:client:appearanceSaved`](#appearance-saved) | The core stored a face. |
 | [`opx77:client:refused`](#refused) | The core would not. |
 
-On start it also calls the core's `GetPlayerData` client export once, because a
-resource reload mid-session misses every emission above and there is no replay.
+It also calls two of the core's client exports. On start, `GetPlayerData` once,
+because a resource reload mid-session misses every emission above and there is no
+replay. During the join-time bootstrap, `GetCharacters`, every 250 ms until a
+roster is held or [`BOOTSTRAP.ROSTER_WAIT_MS`](config.md#bootstrap-roster-wait-ms)
+runs out. It never calls `RequestCharacters`: the core cools roster requests at
+2000 ms per player and drops the excess, so a request from here would land in
+the same window as the roster screen's own.
 
 #### opx77:client:appearanceSaved {#appearance-saved}
 
 The core's confirmation, carrying the canonical snapshot. What happens next
 depends on what this client was waiting for:
 
-- a **create** was outstanding — the creator's face is now stored, so the
-  character bootstrap is spent and the world is allowed to load;
+- a **create** was outstanding — the editor's face is now stored, `created` is
+  published, a toast goes up, and the readiness announcement may go out;
 - an **edit** was outstanding — the puppet is recorded as wearing it, `saved` is
   published and a toast goes up;
 - **nothing** was outstanding — the face was stored by something other than this
@@ -272,32 +300,52 @@ carries, so every one is shown in the player's language:
 | `error.unavailable` | The core's storage layer refused the write. |
 | `error.tooFast` | Two saves inside the core's 2000 ms cooldown. |
 
-A code outside that list is **still acted on** — the capture is given up, the
-stored face put back, and the player told — but it is logged as unlisted first.
+A code outside that list is **still acted on** — an edit is rolled back and the
+player told, a creation ends on the default face — but it is logged first:
+
+```text
+save refused with an unlisted code: <code>
+```
+
+### From opx77_menu {#from-menu}
+
+| Event | What this resource does with it |
+|---|---|
+| `opx77_appearance:panel` | The panel's own rows: **Wear it**, **Edit face** and **Hair only** on `select`, and `close` when `opx77_menu` took the list down by itself — a close it reports as `pause`, `back`, `item` or `select` is published as `player`, anything else as `menu_closed`. Only a payload for this resource's own `appearance` menu is read. |
 
 ### From the host {#from-host}
 
 | Event | What this resource does with it |
 |---|---|
-| `open77:worldReady` | A new world entry: the per-entry flags reset, this world is judged eligible or not from the character-bootstrap phase, and the character's face is decided again. |
-| `open77:appearance:confirmed` | The player confirmed a modal. Which one is decided by what is open, not by the event: the host raises the same name for the editor, the creator and a finalising restore mirror. |
-| `open77:appearance:cancelled` | The editor was cancelled; the native mutation transaction is released. |
+| `open77:worldReady` | A new world entry: the per-entry flags reset, this world is judged eligible or not from the character-bootstrap phase, the body reload that asked for it — if any — is taken as arrived, and the character's face is decided again. The pre-game menu world raises it too, with the phase still `"waiting"`, which is what begins the join-time bootstrap. |
+| `open77:appearance:confirmed` | The player confirmed a modal. Which one is decided by what is open, not by the event: the host raises the same name for the editor, the creation editor and a finalising restore mirror. |
+| `open77:appearance:cancelled` | A modal was cancelled; the native mutation transaction is released. A cancelled creation editor ends the creation with `character_creation_cancelled`, on the default face. |
 | `open77:appearance:restore_failed` | The mirror aborted a restore. A bootstrap restore that was never confirmed is re-dispatched up to [`RESTORE_RETRIES`](config.md#restore-retries) times; a puppet already wearing the right face is left alone. |
-| `open77:playerReset:complete` | One of the two confirmations a queued restore waits on before the readiness announcement may go out. |
-| `onClientResourceStart` | Checks the host's appearance, session and character APIs are present, re-establishes world eligibility (no `worldReady` follows a republish into a live world), catches up on the character, and starts the announcement worker. |
+| `open77:playerReset:complete` | One of the two confirmations a queued restore waits on before the readiness announcement may go out. A body reload that reached the world without a `worldReady` of its own is judged here instead, or nothing would ever go on the new puppet. |
+| `onClientResourceStart` | Checks the host's appearance, session and character APIs are present, re-establishes world eligibility (no `worldReady` follows a republish into a live world), begins the join-time bootstrap if the phase is still `"waiting"`, catches up on the character, and starts the announcement worker. |
 | `onClientResourceStop` | Releases the native mutation transaction. |
+
+It also reads one thing no event carries: every 200 ms the worker asks
+`Open77.appearance.takeBodyFamilyTransition()` what a body reload answered on the
+other side of it. `edit:<gender>` reopens a creation editor; `error:<reason>`
+tells the player `appearance.bodyChangeFailed` and judges the world again on the
+body it has.
 
 !!! warning "A missing host API is a logged line, not a crash"
     If `Open77.appearance`, `Open77.session` or `Open77.character` is absent at
-    start, this resource logs one error and does nothing further: no face is
-    stored or restored, and — since it is what sends
+    start, this resource logs one error and does nothing further: the bootstrap
+    is not spent, no face is stored or restored, and — since it is what sends
     [`open77:session:gameplayReady`](#gameplay-ready) — no player is let past
     the platform hold either.
+
+    ```text
+    native appearance API unavailable; no face will be stored or restored
+    ```
 
 ## See also {#see-also}
 
 - [Overview](index.md#storage) — the read and write channels in one table.
-- [Configuration](config.md) — the event name, the two deadlines and the two
-  retry counts named on this page.
+- [Configuration](config.md) — the event name, the deadlines, `BOOTSTRAP` and
+  the two retry counts named on this page.
 - [`opx77_core` events](../opx77_core/events.md) — the wire events behind the
   core's local re-emissions.

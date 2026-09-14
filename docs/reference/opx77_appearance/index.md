@@ -1,36 +1,39 @@
 ---
 title: The opx77_appearance resource
-description: opx77_appearance is the character's face for OPX//77 — a client-only resource that opens Cyberpunk's own customization modal, captures a snapshot, sends it to opx77_core to be validated and stored, and emits the one announcement that clears the platform's readiness hold.
+description: opx77_appearance is the character's face for OPX//77 — a client-only resource that spends the character bootstrap at join, puts the selected character's body and face on in the world, opens Cyberpunk's own customization mirror, sends what the player built to opx77_core, and emits the one announcement that clears the platform's readiness hold.
 ---
 
 # opx77_appearance
 
 | At a glance | |
 |---|---|
-| **Version** | `0.4.0` |
+| **Version** | `0.6.0` |
 | **Requires** | `open77_version ">=0.0.1"`. No `dependency` is declared |
 | **Auto start** | yes |
-| **Reload policy** | `local` — a reload is a script reload, not a reconnect: the face is re-read from `PlayerData` and nothing here survives one |
+| **Reload policy** | `local` — a reload is a script reload, not a reconnect: the face is re-read from `PlayerData`, the panel is taken down, and nothing here survives one |
 | **Permissions** | `network.events`, `player.appearance.read`, `player.appearance.edit` |
-| **Sides** | client only. There is no `server/`, no `sql/`, no table and no `database.access` |
-| **Exports** | ten, all client: [`getSkin`](exports.md#getskin), [`captureSkin`](exports.md#captureskin), [`getFamily`](exports.md#getfamily), [`setSkin`](exports.md#setskin), [`saveSkin`](exports.md#saveskin), [`openEditor`](exports.md#openeditor), [`openCreator`](exports.md#opencreator), [`isOpen`](exports.md#isopen), [`isSettled`](exports.md#issettled), [`state`](exports.md#state) |
+| **Sides** | client only. There is no `server/`, no `sql/`, no table, no `database.access` and no WebUI page |
+| **Exports** | twelve, all client: [`getSkin`](exports.md#getskin), [`captureSkin`](exports.md#captureskin), [`getFamily`](exports.md#getfamily), [`setSkin`](exports.md#setskin), [`saveSkin`](exports.md#saveskin), [`openEditor`](exports.md#openeditor), [`openCreator`](exports.md#opencreator), [`isOpen`](exports.md#isopen), [`openPanel`](exports.md#openpanel), [`closePanel`](exports.md#closepanel), [`isSettled`](exports.md#issettled), [`state`](exports.md#state) |
 | **Commands** | none |
 | **Events** | sends two net events, registers none; raises [`opx77:appearance`](events.md#opx77-appearance) after every decision — see [Events](events.md) |
-| **Reads** | [`opx77_core`](../opx77_core/index.md) for the character and the stored face; [`opx77_notify`](../opx77_notify/index.md) for toasts, optionally |
+| **Reads** | [`opx77_core`](../opx77_core/index.md) for the roster, the character and the stored face; [`opx77_menu`](../opx77_menu/index.md) to draw the panel, optionally; [`opx77_notify`](../opx77_notify/index.md) for toasts, optionally |
 
 ## What it is {#what-it-is}
 
-The character's face. `opx77_appearance` opens Cyberpunk's own customization
-mirror on demand, captures what the player built, and sends it to
-[`opx77_core`](../opx77_core/index.md), which validates it and stores it on the
-character row.
+The character's face, and the body it goes on. `opx77_appearance` spends the
+platform's one-shot character bootstrap at join, puts the selected character's
+own body family and stored face on the puppet in the gameplay world, opens
+Cyberpunk's own customization mirror on demand, captures what the player built,
+and sends it to [`opx77_core`](../opx77_core/index.md), which validates it and
+stores it on the character row.
 
 **It is a service, not a flow.** It reads, applies, stores and edits the live
-character's face; it never decides that a player should be sent to a creator.
+character's face; it never decides that a player should be sent to an editor.
 When the live character has no stored face it publishes
 [`needsCreation`](events.md#needs-creation) and waits for something to call
 [`openCreator`](exports.md#opencreator) — see
-[Who opens the creator](#who-opens-the-creator).
+[Who opens the creator](#who-opens-the-creator). On a stock install that is
+[`opx77_charcreator`](../opx77_charcreator/index.md).
 
 **It stores nothing itself.** The face is the `appearance` column of
 `opx77_characters`, `opx77_core` owns every write to it, and it travels in
@@ -50,9 +53,11 @@ permissions {
 ```
 
 `read` alone would let this resource save a face and never put it back on, which
-is why both appearance grants are taken. `database.access`, `players.life.*`,
-`world.*` and `combat.config` are declined in a comment naming each one: the core
-owns the face, and this resource only dresses a puppet.
+is why both appearance grants are taken. There is no `webui.*`: the panel is a
+list [`opx77_menu`](../opx77_menu/index.md) draws, and that resource owns the
+surface. `database.access`, `players.life.*`, `world.*` and `combat.config` are
+declined in a comment naming each one: the core owns the face, and this resource
+only dresses a puppet.
 
 !!! danger "This resource is what opens the readiness gate"
 
@@ -60,10 +65,65 @@ owns the face, and this resource only dresses a puppet.
     take or release and that has no deadline. It clears on exactly one thing:
     the client announcing
     [`open77:session:gameplayReady`](events.md#gameplay-ready), which this
-    resource sends once the local puppet is attached, alive and past the
-    "press any key to continue" screen. Without something emitting it,
-    `Open77.ready.isReady` is permanently false and `onPlayerReady` never fires
-    for anybody — see [The entry gate](../../concepts/entry-gate.md#platform-hold).
+    resource sends once a character is loaded, on its own body, with its face
+    settled, and the local puppet is attached, alive and past the "press any key
+    to continue" screen. Without something emitting it, `Open77.ready.isReady`
+    is permanently false and `onPlayerReady` never fires for anybody — see
+    [The entry gate](../../concepts/entry-gate.md#platform-hold).
+
+## The world comes first {#world-first}
+
+The platform's shell keeps an opaque loading cover over the client for as long as
+the character bootstrap — `Open77.session.characterBootstrap().phase` — is
+`"waiting"`, and **nothing a server resource draws is visible under it**. It
+starts loading the gameplay world only once a resource has called
+`Open77.session.resolveCharacterBootstrap(family)`, and lifts the cover once that
+world has streamed. A roster opened before then is on screen and unseen, and
+nothing is ever chosen.
+
+So this resource spends the bootstrap **at join, before any character is
+chosen**, and everything that involves the player — the roster, the identity
+form, the face editor — happens in the gameplay world afterwards:
+
+1. The pre-game menu world raises `open77:worldReady` with the phase still
+   `"waiting"`, or this resource starts into that state. Either one begins the
+   pick, once per connection.
+2. The pick reads the roster `opx77_core` already holds — the
+   `opx77:client:charactersReady` it broadcast, or the `GetCharacters` client
+   export — every 250 ms for up to
+   [`BOOTSTRAP.ROSTER_WAIT_MS`](config.md#bootstrap-roster-wait-ms). It never
+   *requests* one: the core cools roster requests at 2000 ms per player and
+   drops the excess, and a request from here would cost the roster screen its
+   own.
+3. The body family loaded is the `gender` of the account's most recently played
+   character — the highest `lastLoggedOut` in that roster. With no roster in
+   time, or no character ever played, it is
+   [`BOOTSTRAP.DEFAULT_FAMILY`](config.md#bootstrap-default-family).
+4. The shell loads the world on that body and lifts the cover. `opx77_core` holds
+   the player unplaced until a character is selected in it.
+
+The decision is one log line, with the reason:
+
+```text
+bootstrap (worldReady): loading the female body, the last character played
+character bootstrap resolved as female
+```
+
+The reason is one of `the last character played`, `no character played yet` or
+`no roster in time`, and the origin in brackets is `worldReady` or
+`resourceStart`.
+
+That body is a guess made before anybody is chosen, so it is not always the
+selected character's — see [Who owns the body family](#body-family).
+
+!!! warning "Known issue: a character on the other body can leave the cover up"
+
+    Selecting a character whose body family differs from the body loaded at join
+    reloads the world onto the right one, and that reload can leave the loading
+    cover up. It is being fixed. Until it is, the body loaded at join is the most
+    recently played character's, so entering as that character avoids the
+    reload altogether. See
+    [Troubleshooting](../../guides/troubleshooting.md#body-family-cover).
 
 ## What holds a player, and what does not {#readiness}
 
@@ -71,44 +131,113 @@ This resource takes **no readiness hold of its own** — it has no server half t
 take one from. What holds a player is the platform's `__platform` hold, and this
 resource decides when it falls.
 
-The announcement is withheld for as long as the player is still building a
-character — an hour included — and goes out the moment they are done, abandon it,
-or the face is otherwise settled. There is no deadline on the creator: a player
-deliberating is not a fault, and a player who quits out of it was never holding
-anything the server keeps.
+The announcement is **never sent before a character is loaded**. Until one is,
+`opx77_core` holds the player unplaced in the gameplay world, which is intended.
+After that it is withheld while the world reloads onto the character's body,
+while a stored face is still going on, and for as long as the player is still
+building a face in the editor — an hour included — and goes out the moment the
+face is settled, built, or honestly given up on. There is no deadline on an open
+editor: a player deliberating is not a fault, and a player who quits out of it
+was never holding anything the server keeps.
 
 `opx77_core` is the one thing the gate does not stop. It places the character and
 releases its own hold as part of `selectCharacter`, without consulting
 `Open77.ready`, so on a character with no stored face **the player is placed
-before the creator opens**. That is the core's own sequence, not this resource's.
+before the editor opens**. That is the core's own sequence, not this resource's.
 
 ## Who opens the creator {#who-opens-the-creator}
 
-Not this resource. When the live character has no stored face — and the one-shot
-character bootstrap is still unspent, because the vanilla creator runs inside it
-— it publishes [`needsCreation`](events.md#needs-creation) on its event channel
-and waits:
+Not this resource. When the live character has no stored face it publishes
+[`needsCreation`](events.md#needs-creation) on its event channel and waits:
 
 ```lua
 AddEventHandler("opx77:appearance", function(payload)
   if payload.event ~= "needsCreation" then return end
-  -- payload.family is the body the creator must come back on
+  -- payload.family is the body the editor opens on
   CreateThread(function()
     Open77.exports.call("opx77_appearance", "openCreator")
   end)
 end)
 ```
 
-Everything after the player confirms belongs here again — the capture, the check
-that the body they built is the body their character is, the save through
-`opx77_core`, spending the character bootstrap and letting the world load. The
-outcome arrives as `created`.
+[`openCreator`](exports.md#opencreator) opens Cyberpunk's own mirror **in the
+world**, in `ripperdoc` mode, on the body family the character was created with
+(`charInfo.gender`):
 
-If nothing answers, the player sits in the vanilla menu with no world behind it
-and nothing on screen. That is undiagnosable from the outside, so after
-[`CREATION_WAIT_MS`](config.md#creation-wait-ms) this resource says so in the
-log, once, naming the export that was never called. It still opens nothing
-itself.
+1. it waits for a puppet a face may go on — the gameplay world, not a body about
+   to be replaced by a reload, past the "continue" screen;
+2. when the world is on the other body it reloads the player with
+   `Open77.appearance.switchBodyFamily(gender, true)` — the `true` marks the
+   reload as an edit transition — and reopens the editor once
+   `Open77.appearance.takeBodyFamilyTransition()` answers `edit:<gender>` on the
+   other side of it;
+3. it opens `Open77.appearance.open({ mode = "ripperdoc", gender = gender })`.
+
+There is no pre-world creator. The vanilla character creator the platform can
+raise inside the bootstrap is never asked for: the bootstrap is already spent by
+the time anybody has a character to build a face for.
+
+Everything after the player confirms belongs here again — the capture, the check
+that the body they built on is the body their character is, and the save through
+`opx77_core`. The outcome arrives as `created`, and the readiness announcement
+follows it.
+
+The announcement waits for an answer to `needsCreation` for
+[`CREATION_WAIT_MS`](config.md#creation-wait-ms). If nothing has called
+`openCreator` by then, this resource says so in the log, once, naming the export
+that was never called, and lets the player in on the default face of their own
+body. It still opens nothing itself.
+
+## The panel {#panel}
+
+One resource owns the appearance panel, so a ripperdoc, a clothes store and a
+menu all call the same one instead of each shipping their own page. It is a
+**list, drawn by [`opx77_menu`](../opx77_menu/index.md)**:
+[`openPanel`](exports.md#openpanel) puts it up and
+[`closePanel`](exports.md#closepanel) takes it down, for the caller that opened
+it only.
+
+| Level | Rows |
+|---|---|
+| root | `Looks`, `Body`, `Outfits`, each carrying its own summary as a value |
+| `Looks` | the saved look, **Wear it**, **Edit face** and **Hair only** — the two ways into the native editor |
+| `Body` | the body family, stated and not offered: `opx77_core` owns it |
+| `Outfits` | one row saying it is not built |
+
+A row that cannot be used is drawn disabled with the reason as its value —
+`none`, `other build`, `worn`, `Not right now.` — rather than greyed out with
+nothing beside it. There is no section argument: `opx77_menu` publishes nothing
+that opens a list already inside one of its levels.
+
+**It is the frame around the face, not the face.** An appearance option is
+`{ part, name, value, choices }` where `name` is an opaque 64-bit catalogue hash
+with no human label anywhere on the platform, so there is nothing to label a
+slider with. Cyberpunk's own modal is the only face editor there is, and the
+panel's job is to open it.
+
+**The panel never draws over the native mirror.** There is no event for the
+mirror opening, and `opx77_menu` is a HUD surface that would keep drawing over it
+and take its arrow keys, so while the panel is up `Open77.appearance.isOpen()` is
+read every 200 ms and a modal — this resource's or anybody's — takes the panel
+down. A raise from that call counts as on screen: a closed list is recoverable, a
+list over the mirror is not. **Edit face** and **Hair only** take the panel down
+and wait for `opx77_menu` to answer the close *before* the mirror is asked for.
+
+One panel at a time, keyed on the invoking resource. It also closes when its
+owner stops or reloads, when the character changes or unloads, on Escape and the
+pause key, and on BACK at the top of the list. Every close is published as
+`panelClosed` with a [reason](types.md#appearancepanelreason).
+
+!!! info "One saved look, and why"
+    The core stores exactly one face per character — a single nullable JSON
+    column — with no slot number, so a wardrobe of saved looks is not possible
+    without core work. The panel shows the one stored look, says whether the
+    puppet is wearing it, and puts it back on when it is not. **Outfits** is
+    drawn so the gap is visible: it needs a clothing catalogue with human labels,
+    and nothing on this platform publishes one.
+
+`opx77_menu` is optional and is not declared a dependency. With it stopped,
+`openPanel` answers `menu_not_running` and every other export is unaffected.
 
 ## Where the face lives {#storage}
 
@@ -146,14 +275,26 @@ There is a **2000 ms cooldown** on that event in the core, under the key
 ## Who owns the body family {#body-family}
 
 `opx77_core` does. It is `charInfo.gender` on the character row, the player chose
-it when they created the character, and it is the value this resource resolves
-the engine's character bootstrap with.
+it when they created the character, and it is the body this resource puts the
+world on once the character is selected. The body the world first loads with at
+join is only [the guess made before anybody is chosen](#world-first).
 
-So **nothing here can change it**. The [`openEditor`](exports.md#openeditor)
-export never passes a gender to the native editor, and a character creator that
-comes back on the other body is refused and reopened,
-[`FAMILY_RETRIES`](config.md#family-retries) times. Changing a character's body
-type means changing the character, in `opx77_core`.
+A selected character whose `charInfo.gender` is not the body the world loaded is
+**reloaded onto it before any face goes on**, with
+`Open77.appearance.switchBodyFamily(gender, false)`. The old puppet is neither
+dressed nor announced while the reload runs — [`isSettled`](exports.md#issettled)
+answers `waiting = "body"` — and the world entry that follows the reload runs the
+restore again, on the new puppet. `body_family_already_active` counts as done. A
+restore that the engine answers with `body_gender_switch_requires_reload` is
+reloaded the same way, onto the character's family.
+
+So **nothing here can change it**. [`openEditor`](exports.md#openeditor) never
+passes a gender to the native editor; [`openCreator`](exports.md#opencreator)
+passes the character's own, and a creation editor that comes back on the other
+body is refused and reopened. The reloads and the reopened editors both count
+against [`FAMILY_RETRIES`](config.md#family-retries) for the character; past it
+the player keeps the body they are on. Changing a character's body type means
+changing the character, in `opx77_core`.
 
 !!! warning "The engine's `gender` is not the character's"
     A snapshot's `gender` field is the **engine's** opaque body-family hash. The
@@ -178,36 +319,43 @@ core keeps [its own list](config.md#game-builds) regardless.
 
 ## What happens when a character never gets a face {#no-face}
 
-Nobody is ever left unable to enter. Every ending below places the player, and
-none of them stores anything.
+Nobody is ever left unable to enter. The world is already loaded when a character
+is chosen, so **no ending fails the character bootstrap**: every one below lets
+the player in, and none of them stores anything. The character itself exists
+either way — only its face does not.
 
-| Ending | What the player gets |
-|---|---|
-| The creator is closed or cancelled | the character bootstrap is failed; there is no world to load |
-| Wrong body type, `FAMILY_RETRIES` times | the pristine face of their own body, nothing stored |
-| The core refuses the write, or never answers | the same, with the reason on screen |
+| Ending | What the player gets | `created` error |
+|---|---|---|
+| The editor is closed or cancelled | the pristine face of their own body | `character_creation_cancelled` |
+| Nothing calls `openCreator` within `CREATION_WAIT_MS` | the same, and one log warning | none: no `created` is published |
+| The editor will not open | the same, with the reason on screen | `character_creator_unavailable` |
+| The editor's face cannot be captured | the same, with the reason on screen | the capture's reason, else `character_capture_failed` |
+| Wrong body type, `FAMILY_RETRIES` times | the pristine face of whichever body they are on | `body_family_mismatch` |
+| The core refuses the write, or never answers | the pristine face of their own body, with the reason on screen | a core code, `not_sent` or `save_timeout` |
 
-In the last two the creator is **not** reopened for that character again this
-session, or it would come straight back up on top of somebody standing in Night
-City. [`openEditor`](exports.md#openeditor) is the way back: it opens an editor
-on a character with no stored face and saves the first one like any other
-capture.
+After any of them but the unanswered one — where a late `openCreator` still
+opens the editor — the editor is **not** reopened by `openCreator` for that
+character again this session (`creation_refused`), or it would come straight back
+up on top of somebody standing in Night City.
+[`openEditor`](exports.md#openeditor) is the way back: it opens an editor on a
+character with no stored face and saves the first one like any other capture.
 
 ## Why there is no command {#no-command}
 
 A chat command cannot be registered from a client resource on this platform, and
-this one has no server half to register one from. The editor is opened through
+this one has no server half to register one from. The panel is opened through
+[`openPanel`](exports.md#openpanel) and the native editor through
 [`openEditor`](exports.md#openeditor) — a menu, a ripperdoc prop or any other
 client resource makes the call.
 
 ## Where to go next {#next}
 
-- [Exports](exports.md) — the ten calls, their error codes, and which of them
+- [Exports](exports.md) — the twelve calls, their error codes, and which of them
   answer only that the work was asked for.
 - [Events](events.md) — the two net events it sends, the channel it publishes
   every decision on, and everything it listens to.
-- [Configuration](config.md) — the nine keys, the deadlines, and the locale
-  catalogue.
+- [Configuration](config.md) — the ten keys, `BOOTSTRAP` among them, the
+  deadlines, and the locale catalogue.
 - [Types](types.md) — every shape the exports answer with and every error code
   they can carry.
 - [The entry gate](../../concepts/entry-gate.md) — what `__platform` is and why
