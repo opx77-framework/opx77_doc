@@ -1591,10 +1591,13 @@ Loads an account's roster and sends the character list to that client; returns a
 when the database will not answer.
 
 ```lua
-local outcome = OPX.SendCharacters(source)
+local outcome = OPX.SendCharacters(source, pushed)
 ```
 
 - source: [`Source`](types.md#source)
+- pushed: `boolean` — optional
+    - `true` only for the core's own send on connect, which is neither cooled
+      nor cooling. Every other caller omits it.
 
 **Returns** [`Result`](types.md#result) — ok value is a list of
 [`CharacterSummary`](types.md#charactersummary).
@@ -1603,7 +1606,7 @@ local outcome = OPX.SendCharacters(source)
 
 | Code | Meaning |
 |---|---|
-| `error.tooFast` | A 2 000 ms per-source cooldown on the key `roster`. |
+| `error.tooFast` | A 2 000 ms per-source cooldown on the key `roster`. Never for a `pushed` send. |
 | `entry.noIdentity` | The host would not vouch for that slot. |
 | `error.unavailable` | The core booted with no usable schema. The client is also sent a refusal. |
 | `query-failed` / `no-database` | The account upsert or the roster read failed. |
@@ -1614,6 +1617,16 @@ Safe to run twice: a resource reload empties this VM's roster and the client
 re-announces itself. The cooldown lives here rather than at a doorway because
 the same work is reachable from the unrestricted `/opx77.characters` command,
 and a guard on one entry point is forgotten by the next one added.
+
+The push on connect is the exception, and the reason is timing. It goes out from
+[`OPX.Lifecycle.beginEntry`](#lifecyclebeginentry) before any of the client's
+resources run, so it usually lands nowhere. Were it cooled, the `READY` the
+core's client sends when it starts — a second or two later — would fall inside
+the window and be dropped, and the roster would arrive only on a retry, after the
+gameplay world had loaded. That is too late for
+[`opx77_appearance`](../opx77_appearance/index.md), which picks the body the
+world loads with from the roster and falls back to its default family without
+it.
 
 The summaries deliberately omit money, metadata and the stored position. Those
 are nobody's business until a character is loaded — the account owner's
@@ -2273,7 +2286,9 @@ OPX.Lifecycle.beginEntry(source)
 is moved onto its own thread.
 
 Called from the platform's connection event. Every failure path releases the
-gate rather than leaving the player held.
+gate rather than leaving the player held. The roster it sends is
+`OPX.SendCharacters(source, true)`, the one send the `roster` cooldown neither
+refuses nor starts — see [`OPX.SendCharacters`](#sendcharacters).
 
 ### OPX.Lifecycle.watch {#lifecyclewatch}
 

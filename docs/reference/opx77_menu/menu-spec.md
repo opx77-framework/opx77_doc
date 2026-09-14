@@ -27,6 +27,7 @@ something to guess about.
   cursor = "take",
   status = "connected",
   closeOnSelect = false,
+  reportFocus = false,
   steal = false,
 }
 ```
@@ -64,6 +65,13 @@ something to guess about.
 - closeOnSelect?: `boolean`
     - Close the menu after any `action` row fires. Has no effect on a toggle, a
       choice list or a slider, none of which raise `select`.
+    - Default: `false`
+- reportFocus?: `boolean`
+    - Raise [`focus`](events.md#focus) each time the cursor moves onto another
+      row, so a caller can follow the keyboard rather than wait for a choice.
+      Off unless asked for: a held arrow repeats every 55 ms, and a 200-row
+      list would otherwise raise an event per repeat for every caller. Honoured
+      by `update` as well as `open`.
     - Default: `false`
 - steal?: `boolean`
     - Take over another resource's open menu, closing theirs with

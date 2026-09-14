@@ -290,7 +290,9 @@ Takes no parameters.
 
 **Errors** none from this call. The server may still refuse it: it cools
 `opx77:server:ready` at one per two seconds per player and answers nothing when
-it does.
+it does, and the roster send behind it is cooled at the same rate under the key
+`roster`. The core's own push of the roster on connect starts neither, so the
+first request a client makes is answered.
 
 The answer arrives as `opx77:client:charactersReady` on the core's local
 channel, or as `opx77:client:characters` on the wire. A client that already has

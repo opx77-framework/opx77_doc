@@ -84,10 +84,12 @@ bare `AddEventHandler`.
 
 So the client side is split the way you would expect a framework to be split.
 `opx77_core` publishes a client half that mirrors the character and exposes it;
-`opx77_menu` and `opx77_status` are services that own one piece of the screen
-each; `opx77_hud`, `opx77_chat`, `opx77_weather`, `opx77_elevators` and
-`opx77_appearance` are consumers. Every one of them is reachable from any other
-resource, because on this side of the wire that is possible.
+`opx77_menu`, `opx77_input`, `opx77_notify` and `opx77_status` are services
+that own one piece of the screen each; `opx77_hud`, `opx77_chat`,
+`opx77_weather`, `opx77_elevators`, `opx77_appearance`, `opx77_charselector`,
+`opx77_charcreator`, `opx77_animations` and `opx77_admin` are consumers. Every
+one of them is reachable from any other resource, because on this side of the
+wire that is possible.
 
 Two of them bend the shape, and both are worth knowing about:
 [`opx77_status`](../reference/opx77_status/index.md) is the one satellite with a

@@ -1,6 +1,6 @@
 ---
 title: The entry gate — readiness holds, liveness and placement
-description: How the OPEN//77 join-time readiness gate really works — participating and holding, the liveness watchdog, the complete detail vocabulary, the undocumented __platform hold that never clears on a stock install, and why placement is kill then respawn.
+description: How the OPEN//77 join-time readiness gate really works — participating and holding, the liveness watchdog, the complete detail vocabulary, the undocumented __platform hold, the loading cover that makes the world come first, and why placement is kill then respawn.
 ---
 
 # The entry gate
@@ -164,14 +164,162 @@ before any resource's hold. It is not like the others:
 - **It clears on one thing only:** the client announcing
   `open77:session:gameplayReady`. In this resource set
   [`opx77_appearance`](../reference/opx77_appearance/index.md) is what sends it,
-  once it has seen that this world attachment is the *gameplay* one — not the
-  vanilla menu the character creator runs inside — that this world entry's face
-  has been settled, and that the announcement has not already gone out. The
-  resulting `detail` is `incarnated`.
+  once it has seen that this world attachment is the *gameplay* one — the
+  character bootstrap is `ready`, which is the only thing that tells it from the
+  pre-game menu world — that a character is loaded and stands on its own body,
+  that this world entry's face has been settled, and that the announcement has
+  not already gone out. The resulting `detail` is `incarnated`, and the host
+  says so:
+
+```text
+player 3 is incarnated: the client reports an attached, alive puppet past the
+continue screen
+```
 
 That is what makes an open gate worth something. It means "this player is
 incarnated and may be teleported, spawned, killed or respawned", not merely "the
 other resources have finished".
+
+## The world comes first {#world-first}
+
+Between connecting and the gameplay world there is a stretch of the join that no
+server resource can draw on, and the order of everything OPX//77 does at join
+follows from it. Every fact in this section was established on
+`open77-server-2.31.13+op77.63`, with a client probe relaying the client's
+state to the server log during a real join, and from the Lua source of the
+platform's own `open77_shell` and `open77_appearance`.
+
+### The loading cover {#loading-cover}
+
+On join, `open77_shell` — a system resource, running in a host of its own —
+keeps an opaque OPEN//77 loading cover up for as long as
+`Open77.session.characterBootstrap().phase` is `"waiting"`.
+
+- **Nothing a server resource draws is visible under it.** Moving a surface to
+  the `"system"` layer, with `webui.system` and a z-index above the shell's,
+  does not bring it through. That was tried with `opx77_menu`, `opx77_input` and
+  `opx77_notify`, and every OPX//77 surface stays on `"hud"`.
+- **A server resource cannot lift it.** `TriggerEvent("open77:shell:hide")`
+  from a server resource reaches nothing: the shell runs in another host, and a
+  local event does not cross from one host to the other.
+- **The one UI the shell lets through** before the world is the vanilla
+  character creator, `Open77.session.requestCharacterCreator()`, for which it
+  swaps the cover for a transparent notice while the bootstrap is in
+  `creator_requested`, `creator_open` or `awaiting_commit`. OPX//77 does not use
+  it.
+- **The world loads only once the bootstrap is spent.** The shell calls
+  `Open77.session.loadPristine(family)` once the phase is `"ready"` — that is,
+  once some resource has called
+  `Open77.session.resolveCharacterBootstrap(family)`, with `family` `"female"`
+  or `"male"`, once per connection. The cover lifts when that world has
+  streamed.
+
+!!! danger "A roster drawn before the bootstrap is spent deadlocks the join"
+    A framework that waits for the player to choose a character before it
+    resolves the bootstrap on that character's body never gets a choice: the
+    roster is open, and holds the keyboard, under a cover nobody can see
+    through. That was OPX//77's own order before this round, and a probe caught
+    it exactly so — `opx77_charselector` in phase `roster`, `opx77_menu` with a
+    menu open, the player on the loading screen for ever. See
+    [Troubleshooting](../guides/troubleshooting.md#stuck-loading-screen).
+
+Two things the client reports cannot tell the pre-game menu from the gameplay
+world:
+
+- **`open77:worldReady` fires for the pre-game menu world too**, while the
+  bootstrap is still `"waiting"` — the probe saw it about 1.5 s after connect.
+- **`Open77.character.state()` in that menu world answers** `attached = true`,
+  `alive = true`, `health = 100`, at a position near the origin. That is the
+  menu's puppet.
+
+Only the bootstrap phase `"ready"` distinguishes the gameplay world. Every
+OPX//77 resource that waits for it tests the phase together with the puppet.
+
+### The platform's own model {#platform-model}
+
+The official `open77_appearance` never draws UI of its own before the world. On
+`open77:worldReady` — the menu world's included — its client sends
+`open77:appearance:ready`, and its server answers one of three ways:
+
+| The server knows | It answers | The client |
+|---|---|---|
+| a character | `bootstrapReady(family, key)` | resolves the bootstrap on `family` |
+| nothing, because there is no database | the family `"female"`, key `"default"` | resolves the bootstrap on it |
+| a new player | `createRequired` | opens the vanilla creator, commits, then resolves |
+
+**Selecting a character is the roleplay framework's job, and it happens in the
+world.** The platform's README puts it in one line: a server-side gamemode
+switches the active character after its own authorisation and selection logic,
+with `TriggerEvent("open77:appearance:setCharacter", playerId, key)`. The server
+then sends the client `characterChanged`, and the client reconciles: when the
+record's family is not the body loaded, it calls
+`Open77.appearance.switchBodyFamily(family, false)`, which reloads the player's
+body — the world entry that follows runs the reconcile again, and
+`body_family_already_active` is not an error — then applies the face and
+announces `open77:session:gameplayReady`.
+
+The in-world editor opens on a body family with
+`Open77.appearance.open({ mode = "ripperdoc", gender = g })`; `gender` is
+accepted in `ripperdoc` mode only. When `g` is not the body loaded, the official
+client first calls `Open77.appearance.switchBodyFamily(g, true)` — `true` marks
+an edit transition — and reopens the editor after the reload, when
+`Open77.appearance.takeBodyFamilyTransition()` answers `"edit:<gender>"`, or
+gives up when it answers `"error:<reason>"`. Closing the editor raises the local
+events `open77:appearance:confirmed` or `open77:appearance:cancelled`;
+`Open77.appearance.capture()` reads the result, and `finishCommit()` releases
+the native mutation transaction. `open77:playerReset:complete` fires once the
+gameplay puppet is bootstrapped.
+
+### What OPX//77 does at join {#join-sequence}
+
+OPX//77 follows that model. The bootstrap is spent before anybody is chosen, so
+the cover lifts without any OPX//77 UI having been used, and the roster, the
+identity form and the face editor all happen in the gameplay world.
+
+1. **The player connects.** `opx77_core` takes its hold,
+   `opx77_character_selection`, and pushes the roster at once. That push goes
+   out before any of the client's resources run, so it usually lands nowhere,
+   and it is deliberately neither cooled nor cooling: the `READY` the core's
+   client sends when it starts a second or two later is answered.
+2. **The bootstrap is spent.** When the pre-game menu raises
+   `open77:worldReady`, or `opx77_appearance` starts with the phase still
+   `"waiting"`, it waits up to
+   [`BOOTSTRAP.ROSTER_WAIT_MS`](../reference/opx77_appearance/config.md#bootstrap)
+   for the roster the core already holds — read, never requested — and resolves
+   the bootstrap on the body of the account's most recently played character,
+   or on `BOOTSTRAP.DEFAULT_FAMILY` when there is none in time:
+
+    ```text
+    bootstrap (worldReady): loading the male body, the last character played
+    character bootstrap resolved as male
+    ```
+
+3. **The world loads**, on that body, and the cover lifts when it has streamed.
+4. **The roster goes up in the world.**
+   [`opx77_charselector`](../reference/opx77_charselector/index.md) opens it
+   through `opx77_menu` once the phase is `"ready"` and the gameplay puppet
+   exists, and puts the stage up with it: the camera orbits to face the
+   player's own character, and the character is held where it stands. A roster
+   that has not arrived is asked for again every
+   [`ROSTER_RETRY_MS`](../reference/opx77_charselector/config.md#roster-retry-ms).
+5. **A selection** goes to the core, which places the character and releases
+   its own hold. `opx77_appearance` then reloads the body when the character's
+   `charInfo.gender` is not the one the world loaded, puts the stored face on,
+   and announces. `__platform` falls with `incarnated`.
+6. **A creation** goes through
+   [`opx77_charcreator`](../reference/opx77_charcreator/index.md), which holds
+   the stage through its `opx77_input` form and writes the character through
+   the core. The player then selects it like any other, and a character with no
+   stored face gets Cyberpunk's own editor, opened in the world in `ripperdoc`
+   mode on the body chosen in the form.
+
+!!! warning "Known issue: a character on the other body can leave the cover up"
+    Selecting a character whose body family differs from the body the world
+    loaded sends the player through a body reload, and that reload can leave
+    the loading cover up. It is being fixed. Until then, the body loaded at join
+    is the most recently played character's, so a player entering as that
+    character does not reload at all. See
+    [Troubleshooting](../guides/troubleshooting.md#body-family-cover).
 
 ## Without an appearance resource the gate never opens {#never-opens}
 
@@ -209,8 +357,8 @@ Two things to know either way:
 - **The core is unaffected.** It neither reads `isReady` nor waits on
   `onPlayerReady`; it holds the gate, loads the character, places them and
   releases. That is also why a character with no stored face is placed *before*
-  the creator opens — the core's sequence never consulted `Open77.ready`, and no
-  appearance resource has ever gated it.
+  the face editor opens — the core's sequence never consulted `Open77.ready`,
+  and no appearance resource has ever gated it.
 - **Prefer the core's own signals anyway.** A satellite that parks work behind
   `Open77.ready.isReady` or resumes it on `onPlayerReady` hangs on any install
   where the announcement is missing. `opx77:client:onPlayerLoaded` on the client,

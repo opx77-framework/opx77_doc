@@ -26,8 +26,13 @@ export — has no equivalent here at all. Read
 [Converting from ESX or Qbox](guides/converting.md).
 
 **Installing a server?**
-Nine resources, one load order and one `server.jsonc` block, in the order that
-works. Read [Getting started](guides/getting-started.md).
+Fourteen resources, one load order and one `server.jsonc` block, in the order
+that works. Read [Getting started](guides/getting-started.md).
+
+**Players stuck on the loading screen, or never offered a character?**
+The world loads before anybody is chosen, and the character is chosen in it.
+Read [The entry gate](concepts/entry-gate.md#world-first), then
+[Troubleshooting](guides/troubleshooting.md#stuck-loading-screen).
 
 **Writing a resource?**
 Everything OPX//77 exposes to you is a *client* export answering a promise, and

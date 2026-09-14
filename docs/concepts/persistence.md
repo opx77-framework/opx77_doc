@@ -176,6 +176,51 @@ genuinely a placeholder rather than a character inside a string.
     comment, and the way to guarantee that is to never write the comment. Put
     the explanation on a Lua line above the string.
 
+## A `nil` parameter is dropped, not bound as `NULL` {#nil-parameters}
+
+The bridge builds its parameter list from the Lua table it is handed, and a key
+whose value is `nil` is not in that table at all. So `position = nil` does not
+bind `NULL`: the statement reaches MySqlConnector naming `@position` with no
+such parameter, and the connector refuses the **whole** statement. The host's
+database log says so:
+
+```text
+[ERR] [database] resource 'opx77_core' update failed: Parameter '@position' must be defined.
+```
+
+That was every character creation until this round — a new character has no
+position — and it answered the player `error.unavailable`. The same shape was
+waiting on every nullable column the core writes.
+
+Absence now travels as an empty string, and the statement turns it back into
+`NULL` with `NULLIF`:
+
+```lua
+OPX.Storage.execute([[
+UPDATE opx77_characters
+   SET position = NULLIF(@position, ''),
+       appearance = NULLIF(@appearance, '')
+ WHERE citizen_id = @citizen
+]], {
+  citizen = entity.citizenId,
+  position = entity.position ~= nil and json.encode(entity.position) or "",
+  appearance = entity.appearance ~= nil and json.encode(entity.appearance) or "",
+})
+```
+
+It is safe because no real value is ever empty: encoded JSON never is, and
+neither is a vehicle's appearance name. The columns read back
+exactly as before. In `opx77_core` the rule covers a character's `position` and
+`appearance` on every save, clearing a stored face, and a vehicle's
+`appearance`, `body` and `paint`, through a `nullable` helper in each storage
+file.
+
+!!! warning "Write every nullable column this way"
+    A statement that works in testing because the value happened to be present
+    fails the first time it is absent, with nothing to see until then. Any
+    column that may be written as `NULL` takes `NULLIF(@x, '')` and a parameter
+    that is never `nil`.
+
 ## `await` raises rather than returning a reason {#await-raises}
 
 The platform's stated convention is that failures are values: most APIs answer

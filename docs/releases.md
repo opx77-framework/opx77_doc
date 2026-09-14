@@ -7,7 +7,7 @@ description: The version each OPX//77 resource currently declares, what a versio
 
 Every resource carries its own version, declared on the second line of its
 `open77.lua` and reported by nothing else. There is no framework-wide release
-number: `opx77_core` at `0.3.0` and `opx77_appearance` at `0.4.0` are the
+number: `opx77_core` at `0.3.0` and `opx77_appearance` at `0.6.0` are the
 current state of two independently versioned resources that happen to ship
 together.
 
@@ -23,14 +23,19 @@ together.
 | Resource | Version | Reload policy |
 |---|---|---|
 | [`opx77_core`](reference/opx77_core/index.md) | `0.3.0` | `local` |
-| [`opx77_menu`](reference/opx77_menu/index.md) | `0.3.0` | `reconnect` |
+| [`opx77_menu`](reference/opx77_menu/index.md) | `0.4.0` | `reconnect` |
+| [`opx77_input`](reference/opx77_input/index.md) | `0.1.0` | `reconnect` |
 | [`opx77_hud`](reference/opx77_hud/index.md) | `0.3.0` | `reconnect` |
 | [`opx77_chat`](reference/opx77_chat/index.md) | `0.3.0` | `reconnect` |
 | [`opx77_status`](reference/opx77_status/index.md) | `0.4.0` | `reconnect` |
 | [`opx77_notify`](reference/opx77_notify/index.md) | `0.2.0` | `reconnect` |
 | [`opx77_weather`](reference/opx77_weather/index.md) | `0.3.0` | `local` |
 | [`opx77_elevators`](reference/opx77_elevators/index.md) | `0.4.0` | `local` |
-| [`opx77_appearance`](reference/opx77_appearance/index.md) | `0.4.0` | `local` |
+| [`opx77_appearance`](reference/opx77_appearance/index.md) | `0.6.0` | `local` |
+| [`opx77_charselector`](reference/opx77_charselector/index.md) | `0.3.0` | `local` |
+| [`opx77_charcreator`](reference/opx77_charcreator/index.md) | `0.1.0` | not declared |
+| [`opx77_animations`](reference/opx77_animations/index.md) | `0.1.0` | `local` |
+| [`opx77_admin`](reference/opx77_admin/index.md) | `0.1.0` | `local` |
 
 Each of those numbers is read from the resource's own manifest, and each is the
 value [`GetVersion`](reference/opx77_core/exports/client.md#getversion) answers
@@ -59,15 +64,58 @@ compatibility contract.
 
 ## What changed {#changes}
 
-There is no changelog file in any of the nine repositories. The commit history
-of each resource is the record, and this documentation is written against the
-code as it stands rather than against a release. If a page and the code you have
-disagree, the code is right and the page is a bug — see
+There is no changelog file in any of the fourteen repositories. The commit
+history of each resource is the record, and this documentation is written
+against the code as it stands rather than against a release. If a page and the
+code you have disagree, the code is right and the page is a bug — see
 [Contributing](guides/contributing.md) for how to report or fix one.
+
+### The world-first entry {#world-first-entry}
+
+The most recent round changes **the order a player joins in**. Nothing a server
+resource draws is visible under the platform's loading cover, and the cover
+stays up until the one-shot character bootstrap is spent; the framework spent it
+on the chosen character's body, so the roster that had to choose one was open
+under the cover and nobody ever got in. The world now comes first, and the
+character is chosen in it. The whole sequence is in
+[The entry gate](concepts/entry-gate.md#world-first).
+
+| Resource | Change |
+|---|---|
+| [`opx77_appearance`](reference/opx77_appearance/index.md) `0.6.0` | Spends the bootstrap at join, on the body of the account's most recently played character or [`BOOTSTRAP.DEFAULT_FAMILY`](reference/opx77_appearance/config.md#bootstrap). Reloads the body onto a selected character's `charInfo.gender` when it differs. [`openCreator`](reference/opx77_appearance/exports.md#opencreator) opens the in-world editor in `ripperdoc` mode; there is no pre-world creator, and no ending fails the bootstrap. |
+| [`opx77_charselector`](reference/opx77_charselector/index.md) | Opens the roster only in the gameplay world (`world_not_ready` before it), asks the core again every `ROSTER_RETRY_MS` until a roster arrives, and stages the character: the camera orbits to face it and it is held in place. New exports `holdStage` and `releaseStage`, new `STAGE` keys, new permissions `camera.preview` and `player.travel`. `PREVIEW` is gone. |
+| [`opx77_charcreator`](reference/opx77_charcreator/index.md) | Handles `world_not_ready`, hands the player back to the roster in the world, and holds the stage through its form (`HOLD_STAGE`). |
+| [`opx77_core`](reference/opx77_core/index.md) | Binds an absent column as `NULL` with `NULLIF`, which fixes every character creation — see [Persistence](concepts/persistence.md#nil-parameters). Its push of the roster on connect no longer cools the client's own request. |
+| [`opx77_input`](reference/opx77_input/index.md) | The form is drawn as `opx77_menu`'s strip. New `ANCHOR`; `WIDTH` ships at `340` and `DIM` at `false`. |
+| [`opx77_menu`](reference/opx77_menu/index.md) `0.4.0` | Reports where the cursor is, with the `focus` action, to a caller that sets `reportFocus`. |
+| `opx77_charselector`, `opx77_charcreator`, [`opx77_elevators`](reference/opx77_elevators/index.md) | Test the export promise for presence. It is a userdata, and a `type(promise) ~= "table"` guard refused every call — see [The export contract](concepts/export-contract.md#level-1). |
+
+Beside them:
+
+- **Two resources are new.** [`opx77_admin`](reference/opx77_admin/index.md) is
+  a staff desk: thirty-nine commands, every one restricted and answering to
+  `acl.jsonc` alone, and a menu that drives them.
+  [`opx77_animations`](reference/opx77_animations/index.md) plays emotes, from
+  a command or a picker drawn by `opx77_menu`. Both are optional.
+- **`opx77_input`, `opx77_charselector` and `opx77_charcreator` are documented**
+  for the first time; they shipped just after the export audit and had no
+  pages until now.
+- **`opx77_appearance`'s `0.5.0` is documented too**: its panel is drawn through
+  `opx77_menu`, with the [`openPanel`](reference/opx77_appearance/exports.md#openpanel)
+  and [`closePanel`](reference/opx77_appearance/exports.md#closepanel) exports.
+- **What breaks.** A caller of `openCreator` that relied on
+  `bootstrap_already_spent` no longer gets it, and `character_bootstrap_failed`
+  is gone. Anything that drew a character selection before the world will now
+  sit under the cover, and belongs after it.
+- **Known issue.** Selecting a character whose body family differs from the body
+  loaded at join can leave the loading cover up. It is being fixed; see
+  [Troubleshooting](guides/troubleshooting.md#body-family-cover).
+
+Written against `open77-server-2.31.13+op77.63`.
 
 ### The export audit {#export-audit}
 
-The most recent round is an audit of the **export surface**: eleven exports were
+The round before it was an audit of the **export surface**: eleven exports were
 renamed and one was deleted, across five resources. Nothing on the wire moved —
 no net event, no WebUI message and none of `opx77_core`'s PascalCase exports —
 so what breaks is caller code that names an export by string.

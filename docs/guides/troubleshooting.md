@@ -7,8 +7,8 @@ description: Symptom, the exact log line the code actually prints, cause and fix
 
 Every entry below is a symptom, the **exact** line the shipped code prints when it
 happens, the cause, and the fix. The lines are quoted from the resources rather
-than paraphrased, so they are safe to grep the platform log for; the two that come
-from the host itself rather than from OPX//77 say so.
+than paraphrased, so they are safe to grep the platform log for; the ones that
+come from the host itself rather than from OPX//77 say so.
 
 Every OPX//77 log line is written through `Open77.log`, the host's own logger,
 including the core's. The core prefixes a scope in square brackets —
@@ -58,6 +58,146 @@ on `Open77.ready.isReady` or on `onPlayerReady` — on your server they will wai
 for ever. `opx77_core` itself reads neither, so characters still load and are
 still placed. See [The entry gate](../concepts/entry-gate.md).
 
+## A player is stuck on the loading screen {#stuck-loading-screen}
+
+**Symptom.** A player connects, the OPEN//77 loading cover comes up, and it
+never lifts. The same host warning as above arrives once a minute, with
+`gameplay announced=False` and `snapshots=True` filled in:
+
+```text
+player 3 has been connected for 180000ms and the platform still cannot confirm
+they are in the world (gameplay announced=False, snapshots=True); nothing will
+place them until it can. A client still in the character creator is normal here;
+a client already walking around is not, and means no resource is emitting
+open77:session:gameplayReady
+```
+
+The client log shows `opx77_appearance` judging the pre-game menu, and then
+never the line that spends the bootstrap:
+
+```text
+world entry (worldReady): bootstrap phase=waiting -> menu, not announcing
+```
+
+On a working join, within `BOOTSTRAP.ROSTER_WAIT_MS` of that line, the client
+log carries both of these — the body and the reason vary — and the cover lifts
+once the world has streamed:
+
+```text
+bootstrap (worldReady): loading the female body, the last character played
+character bootstrap resolved as female
+```
+
+**Cause.** The platform's `open77_shell` keeps the cover up for as long as the
+character bootstrap is `"waiting"`, and nothing a server resource draws is
+visible under it. The world only loads once a resource has called
+`Open77.session.resolveCharacterBootstrap`. Two things leave it unspent:
+
+- **An OPX//77 build from before the world-first entry** — `opx77_appearance`
+  before `0.6.0`, which spent the bootstrap only on the chosen character's body.
+  The roster that had to choose one was open under the cover, holding the
+  keyboard, and nothing was ever chosen.
+- **Any resource that draws a character selection, or anything else it waits on
+  an answer to, before the bootstrap resolves.** The answer never comes.
+
+**Fix.** Run `opx77_appearance` `0.6.0` or later together with the
+`opx77_charselector`, `opx77_charcreator` and `opx77_core` of the same round;
+the reference overview lists [what ships together](../reference/index.md).
+Anything of your own that needs the player to choose belongs in the gameplay
+world, after the bootstrap. The reasoning, and the probe that established it,
+are in [The entry gate](../concepts/entry-gate.md#world-first).
+
+## The roster never arrives {#roster-never-arrives}
+
+**Symptom.** The world loads and the cover lifts, but no character list comes
+up. The client log says, once:
+
+```text
+no roster yet: asking opx77_core again every 3000 ms
+```
+
+**Cause.** That line is `opx77_charselector` noticing it holds no roster and no
+character, and starting to ask again: it reads `GetCharacters` and then calls
+`RequestCharacters` every
+[`ROSTER_RETRY_MS`](../reference/opx77_charselector/config.md#roster-retry-ms).
+Said once and followed by the list a few seconds later, it is the retry doing its
+job — the first roster can reach `opx77_core`'s client before
+`opx77_charselector` has started.
+
+Said and **never** followed by a list, the core is not answering. Before this
+round `opx77_core` cooled its own push on connect, so the client's first request
+fell inside the 2000 ms window and was dropped; that is fixed, and a current
+core answers the first request. What remains is a core that refuses, and the
+client log names the refusal when the list is not up:
+
+```text
+ready was refused: error.unavailable
+```
+
+`ready` is the roster request's operation. On the server, the core says which
+send failed:
+
+```text
+[lifecycle] could not send the character list to 3: <error>
+```
+
+**Fix.** `error.unavailable` on the roster is almost always no database — see
+[below](#no-database). `entry.noIdentity` is the host refusing to vouch for the
+slot. If the client log instead says
+`the roster could not be asked for: not_running`, `opx77_core` is not running on
+the client at all.
+
+## The stage camera is refused {#stage-camera-refused}
+
+**Symptom.** The roster is up, but the camera stays where the game left it
+rather than turning to face the character:
+
+```text
+the stage camera was refused: perspective_not_third_person
+```
+
+**Cause.** `opx77_charselector`'s stage is `Open77.camera.orbit`, and the orbit
+is a view of the third-person camera: the platform refuses it while the player's
+perspective is not third person. The stage asks `Open77.perspective` for third
+person when it goes up and asks for the orbit again every 250 ms, so a refusal
+while the world is still settling is normal. It is followed by:
+
+```text
+the stage camera is on the character again
+```
+
+**Fix.** Nothing, when that second line follows. When it never does, something
+keeps the player out of third person — most likely a perspective policy that
+does not allow it, declared by the gamemode or with the platform's
+`/perspective` command, which prints the policy in force. Allow third person,
+or set [`STAGE.ENABLED`](../reference/opx77_charselector/config.md#stage-enabled)
+to `false` to leave the camera alone. The roster works either way. See
+[the stage](../reference/opx77_charselector/stage.md#camera).
+
+## Selecting a character leaves the loading cover up {#body-family-cover}
+
+!!! warning "Known issue"
+    This is a bug being fixed, not a configuration fault. The workaround is
+    below.
+
+**Symptom.** A player selects a character, the loading cover comes back up, and
+it does not lift. It happens when the character's body family is not the body
+the world loaded at join; the client log shows the platform starting the body
+reload:
+
+```text
+Open77 scheduled a covered transition to the male pristine puppet.
+Open77 body-family transition requested a covered return to menu.
+```
+
+**Cause.** A character on the other body is reloaded onto its own with
+`Open77.appearance.switchBodyFamily`, which is a covered world transition, and
+that transition can leave the cover up.
+
+**Workaround.** `opx77_appearance` loads the body of the account's most recently
+played character at join, so entering as that character involves no reload. The
+body loaded is in the client log, on the `bootstrap (...)` line above.
+
 ## No player can connect at all {#nobody-connects}
 
 **Symptom.** The server starts, appears healthy, and every client is refused
@@ -81,7 +221,7 @@ does. `**` is only safe under `web_files`.
 and the host answers that the command is unknown or is not permitted. The
 resource's handler never ran, so there is nothing in the resource's own log.
 
-**Cause.** Sixteen of the twenty-four OPX//77 commands are registered with
+**Cause.** Fifty-five of the sixty-seven OPX//77 commands are registered with
 `true` as the third argument to `RegisterCommand`, which makes them **restricted**:
 the host resolves `command.<name>` against the caller's ACL *before* the handler
 runs. There is no permission check inside any OPX//77 command and there must not
@@ -324,6 +464,35 @@ The core refuses logins rather than writing characters into a shape it does not
 recognise. Fix the migration, do not work around it: the alternative is silent
 data loss on the next save.
 
+## Creating a character always answers `error.unavailable` {#create-unavailable}
+
+**Symptom.** The identity form is filled in and submitted, and every attempt
+comes back refused with `error.unavailable`. Logins and the roster work. The
+host's database log — the host's wording, not OPX//77's — says why:
+
+```text
+[ERR] [database] resource 'opx77_core' update failed: Parameter '@position' must be defined.
+```
+
+and `opx77_core`, turning the storage failure into a code the player can read:
+
+```text
+[core] "query-failed" has no catalogue entry; answering error.unavailable
+```
+
+**Cause.** A new character has no stored position, so the `INSERT` was handed
+`position = nil`. The host's database bridge **drops a `nil` parameter** instead
+of binding `NULL`, the statement reaches MySqlConnector naming a parameter it was
+never given, and the connector refuses all of it. The same shape waited on every
+nullable column the core writes — `position` and `appearance` on a save, a
+cleared face, and a vehicle's `appearance`, `body` and `paint` — so the same
+line naming `@appearance`, `@body` or `@paint` is the same fault.
+
+**Fix.** Update `opx77_core`: absence now travels as an empty string and each
+statement turns it back into `NULL` with `NULLIF(@x, '')`. A server plugin or a
+resource of your own that writes a nullable column needs the same treatment —
+see [Persistence](../concepts/persistence.md#nil-parameters).
+
 ## Two resources are placing the same player {#conflicting-placers}
 
 **Symptom.** A player spawns, is moved, and is then moved somewhere else — or
@@ -394,6 +563,9 @@ dropped.
   It deliberately does not agree with the client: a report that agreed would be
   useless for diagnosing a disagreement between the two.
 - `opx77.elevators.where [key]` (restricted) prints adoption state per lift.
+- `opx77.admin.read.status` (restricted) prints `opx77_admin`'s counts, uptime
+  and the state of every resource it depends on, and
+  `opx77.admin.read.players` every connected player's state and bucket.
 - `acl.check <playerId> <permission>` answers the exact question the host asks.
 - Raise the **host's** log level to see the core's own debug chatter. It is the
   host's setting: the framework has no log-level key of its own.

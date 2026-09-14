@@ -108,11 +108,14 @@ The character's body family, chosen at creation and owned by the core.
 ```
 
 Two values, and not a claim about anything else. It lives on
-[`CharInfo.gender`](#charinfo) on the character row, and it is what
-`opx77_appearance` resolves the engine's character bootstrap with — so nothing
-outside the core can change it, and a creator that comes back on the other body
-is refused there rather than accepted here. The engine's own opaque body-family
-hash is a different value and lives in
+[`CharInfo.gender`](#charinfo) on the character row, and it is the body
+`opx77_appearance` puts the character on in the world — reloading the player
+onto it when the world was loaded on the other one — so nothing outside the core
+can change it, and a face editor that comes back on the other body is refused
+there rather than accepted here. The body the world first loads with at join is
+the `gender` of the account's most recently played character, read from
+[`CharacterSummary`](#charactersummary) before anybody is chosen. The engine's
+own opaque body-family hash is a different value and lives in
 [`AppearanceSnapshot.gender`](#appearancesnapshot).
 
 ## Results {#results}
@@ -577,6 +580,8 @@ The trimmed shape sent to a client for the selection screen.
     - The gang's label, and `nil` for the default gang `"none"` — a character in
       no gang shows no gang rather than showing "None".
 - lastLoggedOut: `string|nil`
+    - `nil` for a character never played. `opx77_appearance` loads the body of
+      the character with the latest stamp at join.
 
 Money, metadata and the stored position are deliberately absent. They are
 nobody's business until a character is loaded, the account owner's included:

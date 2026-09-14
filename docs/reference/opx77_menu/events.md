@@ -81,7 +81,8 @@ for any handler here to be a `RegisterNetEvent`.
 ### Your own event name {#your-event}
 
 Fires once for every action the player takes on a row that resolves to this
-name — `select`, `change`, `open`, `back` — and once more when the menu closes,
+name — `select`, `change`, `open`, `back`, and `focus` for a menu that asked
+for it — and once more when the menu closes,
 whatever closed it.
 
 ```lua
@@ -135,7 +136,7 @@ One shape, for every action.
 | `menu` | `string` | The menu's `id`. |
 | `handle` | [`MenuHandle`](types.md#menuhandle) | Unique for the life of the client session. |
 | `owner` | `string` | The resource that opened the menu. From the host, never from an argument. |
-| `action` | [`MenuAction`](types.md#menuaction) | `"select"`, `"change"`, `"open"`, `"back"` or `"close"`. |
+| `action` | [`MenuAction`](types.md#menuaction) | `"select"`, `"change"`, `"open"`, `"back"`, `"focus"` or `"close"`. |
 | `itemId` | `string \| nil` | The row's id. Absent on a menu-level `back` and on every `close`. |
 | `label` | `string \| nil` | The row's label. Absent in the same two cases. |
 | `index` | `integer` | The cursor's 1-based position within the current screen's full row list — not within the drawn window. |
@@ -161,11 +162,37 @@ One shape, for every action.
 | `open` | A [`submenu`](menu-spec.md#kind-submenu) pushed by `ENTER` or `RIGHT` | Set, and `depth`/`index` already describe the **child** screen. |
 | `back` | `ENTER` on a [`back`](menu-spec.md#kind-back) row | Set — this is how you tell it from the key. |
 | `back` | `LEFT` or `BACKSPACE` popping a level | **Absent.** |
+| `focus` | `UP` or `DOWN` moving the cursor onto another row, on a menu opened with [`reportFocus`](menu-spec.md#spec) | Set, for the row the cursor is **now** on. |
 | `close` | The menu closing, for any reason at all | **Absent**, plus `reason`. |
 
 A [`close`](menu-spec.md#kind-close) row raises no `select` — only the `close`
 payload with `reason = "item"`. A slider that did not move raises nothing, and
 a choice list of one entry can never move.
+
+### focus, and why it is opt-in {#focus}
+
+`focus` names the row the cursor has just moved onto. It exists for a caller
+that has to follow the keyboard rather than wait for a choice — a character
+selector that remembers where the player left the cursor — and it is raised only
+for a menu whose spec set `reportFocus = true`. A caller that leaves it off is
+never sent one and pays nothing.
+
+- It is raised only where the cursor genuinely moved. A wrap onto the same row,
+  a screen with one selectable row, and every other keystroke raise nothing.
+- Only `UP` and `DOWN` raise it. Descending into a submenu and popping back out
+  move the cursor too, but they already report themselves as `open` and `back`,
+  and raise no `focus` beside them.
+- There is no throttle. A held arrow repeats every 55 ms after a 260 ms delay,
+  so an opted-in handler runs at that cadence on a long list. Dropping the last
+  position would leave the caller on the wrong row, which is the one thing the
+  action exists to prevent. Keep the handler cheap.
+
+!!! warning "A `focus` handler can close the menu under the tick"
+
+    Like `select`, the handler `focus` wakes runs inside the menu's input tick,
+    and it may open, update or close a menu. The tick stops reading keys if the
+    menu is gone when the handler returns. Do not do any of that from it unless
+    you mean to.
 
 ## Close reasons {#reasons}
 

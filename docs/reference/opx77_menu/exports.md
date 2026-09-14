@@ -149,9 +149,9 @@ are, or returns `ok = false` when no menu is open, the open menu is not yours,
 or the new spec is malformed.
 
 Only the fields present in the patch change. The honoured fields are `items`,
-`title`, `event`, `data`, `closeOnSelect` and `status`; `id`, `cursor` and
-`steal` are ignored, because `cursor` says where a menu *opens*, not where it
-moves. `items` is all-or-nothing: the whole tree is rebuilt, or the whole call
+`title`, `event`, `data`, `closeOnSelect`, `reportFocus` and `status`; `id`,
+`cursor` and `steal` are ignored, because `cursor` says where a menu *opens*,
+not where it moves. `items` is all-or-nothing: the whole tree is rebuilt, or the whole call
 is refused and the live menu is untouched.
 
 The navigation stack is re-walked onto the fresh tree **by id**, so an update
