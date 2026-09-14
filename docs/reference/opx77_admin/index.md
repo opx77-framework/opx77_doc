@@ -51,7 +51,7 @@ somebody has to be kicked. Each missing one costs one log line and its screens.
 |---|---|
 | [`opx77_menu`](../opx77_menu/index.md) | the menu itself; every command still runs typed |
 | [`opx77_input`](../opx77_input/index.md) | the forms: reasons, amounts, coordinates, announcements |
-| [`opx77_notify`](../opx77_notify/index.md) | the toast a target sees, "A staff member healed you." |
+| [`opx77_notify`](../opx77_notify/index.md) | the toast a target sees, "A staff member healed you.", and the toast answering each staff action; without it that answer is a chat line |
 | [`opx77_core`](../opx77_core/index.md) | the character rows: record, job, gang, money, save, characters online |
 | [`opx77_appearance`](../opx77_appearance/index.md) | the readiness gate opening at all — see [Nothing touches a body behind a closed gate](#readiness-gate) |
 | [`opx77_weather`](../opx77_weather/index.md) | the weather and time screens |
@@ -255,9 +255,11 @@ a screen. Running it again closes it.
   still resolves every line. It is re-read when you leave the root screen, so an
   `acl.reload` shows without reopening. On a host with no ACL reader every row
   is drawn enabled and the host answers for each one.
-- **A command's answer is written under the list**, and in the chat box as
-  usual. Only an answer to a command the menu sent in the last fifteen seconds
-  goes under the list.
+- **A command's answer is written under the list**, and also raised as a
+  toast, or a chat line for a report — see
+  [How a command answers](commands.md#answers). A refusal from the host — no
+  grant — is written there in words, and `opx77_chat` toasts it. Only an answer
+  to a command the menu sent in the last fifteen seconds goes under the list.
 - **Kill, kick, ban, clearing a loadout, the vehicle cleanup, an announcement
   and saving every character** go through a confirmation screen with Cancel
   first. Nothing else does.

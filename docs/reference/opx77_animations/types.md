@@ -58,9 +58,9 @@ played.*, except on the local player's failed pose, which is shown as
 line names the first of `EMOTE` and `ANIM` whose `NAME` is set, and drops the
 hint when neither is.
 
-A typed command shows `unknown_animation` and `invalid_variant` on
-`open77:command:result` rather than as a toast, followed by a hint naming
-`opx77.anim.list` — see [Commands](commands.md#opx77-anim).
+A typed command shows `unknown_animation` and `invalid_variant` as a warning
+toast of its own, sent by the server rather than mapped by the client, followed
+by a hint naming `opx77.anim.list` — see [Commands](commands.md#opx77-anim).
 
 ## AnimationOrigin {#animationorigin}
 

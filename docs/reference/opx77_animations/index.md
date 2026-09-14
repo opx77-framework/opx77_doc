@@ -24,7 +24,7 @@ plays and stops an animation through [client exports](exports.md).
 
 Nothing is declared as a hard dependency. Without `opx77_menu` there is no
 picker, and the commands and exports carry on; without `opx77_notify` a refusal
-is a chat line instead of a toast.
+or a command's answer is a chat line instead of a toast.
 
 !!! danger "The platform's animation service is the authority, not this resource"
 

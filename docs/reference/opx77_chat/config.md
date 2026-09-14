@@ -1,6 +1,6 @@
 ---
 title: opx77_chat configuration
-description: The seven keys of OPX_CHAT_CONFIG in opx77_chat/config.lua — where the box sits, how wide it is, how much it keeps, how long lines stay visible, the two limits on what a player may send, and the locale its own text is read from.
+description: The eight keys of OPX_CHAT_CONFIG in opx77_chat/config.lua — where the box sits, how wide it is, how much it keeps, how long lines stay visible, the two limits on what a player may send, whether a refused command is a toast, and the locale its own text is read from.
 ---
 
 # Configuration
@@ -9,7 +9,8 @@ Everything below lives in `opx77_chat/config.lua`. **The value shown in each fen
 shipped default**, so a key you never touch behaves exactly as written here.
 
 `config.lua` is one `shared_script`, so both halves read the same table. The page is sent
-everything except `RATE_MS`, which is a server rule with no meaning in the browser, and
+everything except `RATE_MS`, which is a server rule with no meaning in the browser,
+[`NOTIFY`](#notify), which the client's Lua reads before anything reaches the page, and
 [`LOCALE`](#locale), which never crosses as a code at all — the page is sent the one string it
 has to draw, already translated:
 
@@ -126,9 +127,8 @@ walked four times the cap and no further rather than to its end.
 !!! warning "It bounds the relay, not what another resource may send"
 
     `MAX_LENGTH` is applied to player messages arriving on `chat:submit`. A line your own
-    resource sends with [`chat:addMessage`](events.md#chat-addmessage) is not truncated by
-    anything, and neither is a command's `open77:command:result`. Long lines wrap in the box
-    rather than being cut.
+    resource sends with [`chat:addMessage`](events.md#chat-addmessage) — a command's report
+    included — is not truncated by anything. Long lines wrap in the box rather than being cut.
 
 ## RATE_MS {#rate-ms}
 
@@ -152,6 +152,27 @@ is kept per session player id and cleared on `onPlayerDisconnected`.
     own handler — `opx77_weather` floors its two open commands at 2 s per player and leaves
     the ACL-gated ones alone.
 
+## NOTIFY {#notify}
+
+Whether a refused command is an `opx77_notify` toast or a red line in the box.
+
+```lua
+NOTIFY = true,
+```
+
+**Type** `boolean` — only `false` turns it off
+
+Client-side only. With it on, a refusal on
+[`open77:command:result`](events.md#open77-command-result), a command line that could not be
+split into tokens and a command the transport would not send are each a toast titled
+`COMMAND`, in one slot the next one replaces. With `false` each is the red `COMMAND` line it
+used to be. The toast is best-effort either way: while `opx77_notify` is not running, or when it
+refuses the toast, the line is written instead and the client log says so once —
+`opx77_notify` is never a dependency.
+
+It governs refusals only. An **accepted** command result prints nothing whatever this is set
+to, and a chat message that could not be sent stays a `NETWORK` line in the box.
+
 ## LOCALE {#locale}
 
 Which catalogue in `locales/` the box's own text is read from.
@@ -169,8 +190,9 @@ register after that file loads and there is nothing to check it against yet. Eve
 falls back to `en`, and then to the key itself, so an untranslated string shows the player its
 raw key rather than nothing.
 
-Both halves read it: the client renders the command refusals, the author tags and the
-placeholder, and the server renders the `player <id>` fallback author on a relayed message.
+Both halves read it: the client renders the command refusals, the toast title, the author tags
+and the placeholder, and the server renders the `player <id>` fallback author on a relayed
+message.
 [Player-facing text](index.md#locales) lists everything it reaches — which is only what this
 resource writes itself, and never a line another resource hands it.
 

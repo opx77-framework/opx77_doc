@@ -1,6 +1,6 @@
 ---
 title: opx77_hud configuration
-description: The eight keys in OPX_HUD_CONFIG that decide which catalogue its text is read from, where the HUD sits, which blocks it builds and in what order, when a gauge hides itself, the name of the /hud command, and which of Cyberpunk's own HUD components are hidden.
+description: The keys in OPX_HUD_CONFIG that decide which catalogue its text is read from, where the HUD sits, which blocks it builds and in what order, when a gauge hides itself, the name of the /hud command and whether its refusal is a toast, and which of Cyberpunk's own HUD components are hidden.
 ---
 
 # Configuration
@@ -20,6 +20,7 @@ OPX_HUD_CONFIG = {
   BLOCKS = { "vitals", "cyber", "needs", "money", "identity" },
   NEEDS_THRESHOLD = 90,
   COMMAND = "hud",
+  NOTIFY = true,
 }
 ```
 
@@ -34,12 +35,12 @@ LOCALE = "en"
 **Type** `string` — a catalogue registered under `locales/`. `"en"` and `"fr"`
 ship.
 
-There are four strings behind this key, and they are the whole of the text this
-resource writes for a player to read: the `/hud` usage line, the command's chat
-suggestion, its argument help, and the `CRED` label on the street-cred line.
-Everything else on screen belongs to somebody else — a money type's key, a job's
-label, a chip's label — and none of it passes through here. Log lines stay in
-English whatever this is set to.
+There are five strings behind this key, and they are the whole of the text this
+resource writes for a player to read: the `/hud` usage line, the `HUD` title
+above it, the command's chat suggestion, its argument help, and the `CRED` label
+on the street-cred line. Everything else on screen belongs to somebody else — a
+money type's key, a job's label, a chip's label — and none of it passes through
+here. Log lines stay in English whatever this is set to.
 
 An unknown code is **accepted**, not rejected: `shared/locale.lua` reads this key
 before any catalogue has registered, so there is nothing to check it against yet.
@@ -159,6 +160,24 @@ one informational line at startup. See [Commands](commands.md#no-command). The
 value is interpolated into the usage line the server answers with, which comes
 from the [catalogue](#locale) and reads `usage: /<name> [on|off]`, so renaming
 the command renames it everywhere.
+
+## NOTIFY {#notify}
+
+Whether the command's refusal is an `opx77_notify` toast or a chat line.
+
+```lua
+NOTIFY = true
+```
+
+**Type** `boolean` — only `false` turns it off
+
+The one thing `/hud` answers is a word it does not recognise, with the usage
+line; showing or hiding answers nothing, since the HUD going up or down is the
+answer. With `true` that usage line is a warning toast, titled `hud.title`,
+raised by the client half. With `false` it is a chat line instead. The toast is
+best-effort either way: while `opx77_notify` is not running, or when it refuses
+the toast, the chat line is written and the client log says so once —
+`opx77_notify` is never a dependency. See [Commands](commands.md#hud).
 
 ## VANILLA {#vanilla}
 

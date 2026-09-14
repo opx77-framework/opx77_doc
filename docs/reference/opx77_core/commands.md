@@ -31,9 +31,29 @@ Commands are typed into the OPEN//77 developer terminal (`²`) in game, or sent
 as a slash command by a chat resource. Either way the client sends
 `open77:command:execute` to the host's authenticated dispatcher, which resolves
 the ACL **before any Lua runs**; `opx77_chat` is not in that path and stopping it
-changes nothing here. Answers come back on `open77:command:result`. The
-dedicated server console runs as `source = 0` and stays authorised for local
-administration.
+changes nothing here. The dedicated server console runs as `source = 0` and
+stays authorised for local administration.
+
+A command answers what it **did** as a toast and what it **reads** as a chat
+line, and neither on `open77:command:result`, whose accepted answers
+`opx77_chat` does not print:
+
+- **An outcome is a toast.** Selecting, creating or deleting a character,
+  clocking in, a money, job or gang edit and a save are answered through
+  [`OPX.CommandNotice`](server-api.md#commandnotice), raised by the core's client
+  half through `opx77_notify` at `NOTIFY_POSITION`: a success; a warning for a
+  usage line, a player with no session or a command run again too fast; an
+  error when it could not be done.
+- **A report is a chat line.** `opx77`, `opx77.where`, `opx77.whois`,
+  `opx77.here`, the `opx77.characters` list and the `opx77.group` list are
+  things someone asked to read — scrolled back, compared, pasted — so they are
+  sent with `chat:addMessage` through
+  [`OPX.CommandResult`](server-api.md#commandresult). Their bodies stay English
+  where this page says so.
+
+`opx77_notify` stays optional: while it is not running a toast is the chat line
+it replaced, and the client log says so once. The console reads every answer as
+a printed line.
 
 !!! warning "`command.opx77.*` does not grant `command.opx77`"
     A trailing wildcard matches the segment after the dot. `command.opx77.*`
@@ -95,7 +115,8 @@ position, job, gang and every balance — all of it what the **server** believes
 ```
 
 - playerId?: `integer`
-    - Defaults to the caller. A player with no session is reported as such.
+    - Defaults to the caller. A player with no session is answered with
+      `command.noSession`, a warning toast, and no report.
 
 A report that agreed with the client would be useless for diagnosing a
 disagreement between the two, so every line here is read server-side:
@@ -120,7 +141,8 @@ wants for `DEFAULT_SPAWN`, ready to paste.
 ```
 
 Takes no arguments. Must be run in game: the console has no position, and
-answers `opx77.here must be run in game`.
+answers `opx77.here must be run in game`. A position the host will not read
+right now is answered with `command.positionUnreadable`, an error toast.
 
 The heading is the last one the client reported, which is a hint the server
 keeps precisely because its own position snapshot carries none. A transposed
@@ -152,7 +174,8 @@ Prints a player's temporary id, their durable `userId` and their display name.
 ```
 
 - playerId?: `integer`
-    - Defaults to the caller.
+    - Defaults to the caller. A player with no session is answered with
+      `command.noSession`, a warning toast.
 
 The `userId` is the account, not the character, and it is what
 `SLOTS_BY_USER` is keyed on and what an ACL principal is written against. The
@@ -263,7 +286,7 @@ so a player fixing a mistyped name is never made to wait.
 | `character.limit` | Every character slot on the account is taken. |
 | `error.unavailable` | The database would not answer, or no free citizen id came up in five draws. |
 
-This command is unrestricted, so it prints the locale line for a refusal and
+This command is unrestricted, so a refusal shows the locale line and
 never the `detail` beside it — a detail can be a raw exception, and an
 unrestricted command is not the place to hand one to a player.
 
@@ -320,10 +343,14 @@ Toggles the caller's duty state on their primary job.
 
 Takes no arguments.
 
-Cooled at one run per two seconds per player. The refusal for this one arrives
-as an on-screen notification rather than a command result, because each run
-costs two full-`PlayerData` outbound events and the player needs to see why the
-second one did nothing.
+Cooled at one run per two seconds per player, because each run costs two
+full-`PlayerData` outbound events; a second run inside the window answers
+`error.tooFast`, a warning toast, like every other command here.
+
+A success is toasted once, not twice: `OPX.SetJobDuty` already tells the player
+they are on or off duty, so the command's own answer is sent with `toasted` set
+and only becomes a chat line on a client without `opx77_notify`. See
+[`OPX.CommandNotice`](server-api.md#commandnotice).
 
 **Errors**
 

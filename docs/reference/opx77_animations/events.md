@@ -163,7 +163,9 @@ TriggerEvent("chat:addMessage", { type = "system", author = "Animations", text =
 ```
 
 `author` is the locale's `animations.title`. Drawn by
-[`opx77_chat`](../opx77_chat/events.md#chat-addmessage).
+[`opx77_chat`](../opx77_chat/events.md#chat-addmessage). The player's form of
+[`opx77.anim.list`](commands.md#opx77-anim-list) arrives on the same name from
+the server instead — see [Networked: chat and commands](#chat-wire).
 
 **Side** `client local event` — raised here.
 
@@ -191,6 +193,7 @@ read.
 | `opx77_animations:answer` | server → client | `requestId`, `action`, `ok`, `code` (`""` on success), `{ animation, variant, playbackId }` |
 | `opx77_animations:picker` | server → client | `category`, or `""` — a command asked for the picker |
 | `opx77_animations:cancel` | server → client | none — `opx77.anim.stop` ran; release a client-owned playback too |
+| `opx77_animations:notice` | server → client | `kind`, `message` — a typed command's usage line or unknown name or variant, already in the configured locale; raised as a toast in the refusal slot, or a chat line. Not a verdict, so nothing is raised on [`result`](#result) |
 
 `source` on the server is always the authenticated connection, never a payload
 value, so a request can only ever play or stop the player who sent it.
@@ -222,7 +225,12 @@ within ten seconds is abandoned.
 |---|---|---|
 | `chat:ready` | client → server | a player's chat box is up; answered with suggestions, at most once every two seconds per player |
 | `chat:addSuggestions` | server → client | one suggestion per registered command, with help in the configured locale. See [`opx77_chat`](../opx77_chat/events.md#chat-addsuggestions) |
-| `open77:command:result` | server → client | a command's usage error, an unknown name or variant, and the player's form of `opx77.anim.list`. See [`opx77_chat`](../opx77_chat/events.md#open77-command-result) |
+| `chat:addMessage` | server → client | the player's form of `opx77.anim.list`, a report, authored `animations.title`. See [`opx77_chat`](../opx77_chat/events.md#chat-addmessage) |
+
+No command answers on `open77:command:result`: `opx77_chat` prints none of that
+event's accepted answers. A usage error and an unknown name or variant go to
+the client on `opx77_animations:notice`, as a toast — see
+[the two halves](#private-wire).
 
 ## See also {#see-also}
 

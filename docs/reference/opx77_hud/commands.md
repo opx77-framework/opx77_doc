@@ -30,14 +30,19 @@ only** — on this platform a chat command cannot be registered from the client,
 | `/hud` | toggle |
 | `/hud on`, `/hud show` | show |
 | `/hud off`, `/hud hide` | hide |
-| anything else | `usage: /hud [on\|off]`, and nothing changes |
+| anything else | `usage: /hud [on\|off]`, a warning toast, and nothing changes |
 
 The server decides nothing about the HUD. It turns the typed word into a mode,
 sends that mode straight back to the same player on the
 [`opx77_hud:visibility`](events.md#visibility) net event, and the client half
 calls the same code path [`setVisible`](exports.md#setvisible) calls. A word it
-does not recognise is answered on `open77:command:result` — the usage line the
-chat resource renders — and nothing else happens.
+does not recognise is answered with a warning toast carrying the usage line,
+sent on [`opx77_hud:notice`](events.md#notice) and raised by the client half
+through `opx77_notify`, and nothing else happens. Showing or hiding answers
+nothing: the HUD going up or down is the answer. `opx77_notify` stays optional —
+while it is stopped, or with [`NOTIFY = false`](config.md#notify), the same text
+is a chat line instead, and the client log says so once. None of it goes on
+`open77:command:result`, whose accepted answers `opx77_chat` does not print.
 
 Typing it from the server console, where there is no player to answer, logs one
 line saying it is a player command.

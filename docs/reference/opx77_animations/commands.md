@@ -47,12 +47,17 @@ At boot the server lists what it registered, each marked `[open]` or `[acl]`:
 commands: opx77.anim [open], e [open], opx77.anim.stop [open], opx77.anim.list [open]
 ```
 
-**Where the answers go.** A refusal about what was typed — a usage error, an
-unknown name or variant — is answered on the platform's
-`open77:command:result`, which [`opx77_chat`](../opx77_chat/index.md) draws in
-the chat box. Every other refusal — not ready, dead, in a vehicle, too fast — is
-the same toast the picker shows, through `opx77_notify` or as a chat line
-without it. A successful play has no line at all: the body moving is the answer.
+**Where the answers go.** Every answer but the list is a toast, in the one slot
+the picker's refusals use. A refusal about what was typed — a usage error, an
+unknown name or variant — is a warning that says what was typed wrong, sent from
+the server on [`opx77_animations:notice`](events.md#private-wire) for the
+client to raise. Every other refusal — not ready, dead, in a vehicle, too fast —
+is the same toast the picker shows. With `opx77_notify` stopped, or
+[`NOTIFY`](config.md#notify) off, each toast is a chat line instead. A
+successful play has no answer at all: the body moving is the answer.
+[`opx77.anim.list`](#opx77-anim-list) is a report and stays in the chat box,
+sent with `chat:addMessage`. None of it goes on `open77:command:result`, whose
+accepted answers [`opx77_chat`](../opx77_chat/index.md) does not print.
 
 **Suggestions.** When a player's chat box raises `chat:ready`, the server sends
 `chat:addSuggestions` for every command it registered, with help text in the
@@ -90,9 +95,9 @@ Anything with more than two arguments is a usage error.
 
 | Case | Answer |
 |---|---|
-| more than two arguments | `usage: [name [variant] \| category \| stop \| list]`, on `open77:command:result` |
-| `unknown_animation` | *That animation is not available here.* followed by *Run /opx77.anim.list to see the list.*, on `open77:command:result` |
-| `invalid_variant` | *That animation has no such variant.* with the same hint |
+| more than two arguments | `usage: [name [variant] \| category \| stop \| list]`, a warning toast |
+| `unknown_animation` | *That animation is not available here.* followed by *Run /opx77.anim.list to see the list.*, a warning toast |
+| `invalid_variant` | *That animation has no such variant.* with the same hint, a warning toast |
 | any other refusal | a toast, or a chat line — see [`AnimationError`](types.md#animationerror) |
 | played | nothing: the body moves |
 
@@ -122,7 +127,7 @@ stop or reload.
 > /opx77.anim relaxation
   (the picker opens on Relaxation)
 > /opx77.anim smoke 99
-That animation has no such variant. Run /opx77.anim.list to see the list.
+  (a warning toast) That animation has no such variant. Run /opx77.anim.list to see the list.
 ```
 
 ## e {#e}
@@ -150,7 +155,8 @@ Stops the caller's animation, whichever resource started it.
 opx77.anim.stop
 ```
 
-Takes no argument; any argument is answered `usage: no arguments`.
+Takes no argument; any argument is answered `usage: no arguments`, a warning
+toast.
 
 The server calls `Open77.animations.stop` on the caller and tells the caller's
 client to release a playback a client resource started over the service's own
@@ -173,11 +179,13 @@ by category, each with how many variants it offers.
 opx77.anim.list
 ```
 
-Takes no argument; any argument is answered `usage: no arguments`. At most once
-every two seconds per player; a faster run is dropped silently. `opx77.anim list`
-shares the same limit.
+Takes no argument; any argument is answered `usage: no arguments`, a warning
+toast. At most once every two seconds per player; a faster run is dropped
+silently. `opx77.anim list` shares the same limit.
 
-**Output, to a player**, on `open77:command:result`, in the configured locale:
+**Output, to a player**, in the configured locale, as a chat line sent with
+`chat:addMessage` and authored `animations.title` — a report someone asked to
+read, which a toast would cut short:
 
 ```text
 animations, by category (name, then its variant count):

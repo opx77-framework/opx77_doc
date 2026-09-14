@@ -39,8 +39,10 @@ opx77.elevators.where [key]
     - Default: every configured elevator
 
 **Output.** Every line is printed to the server console and, when a player typed
-it, echoed back to that player on
-[`open77:command:result`](events.md#command-result). The order is stable:
+it, echoed back to that player as a chat line of its own, one per line, on
+[`chat:addMessage`](events.md#chat-addmessage) — a report stays text, and
+`open77:command:result` would show nothing, since `opx77_chat` prints no
+accepted result there. The order is stable:
 `pairs` order would reshuffle the report between two runs, and comparing two
 dumps is the whole use for it.
 

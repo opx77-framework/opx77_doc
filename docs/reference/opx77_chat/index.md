@@ -58,7 +58,7 @@ handled too, so another resource on the same client can open or close the box.
   [`clearMessages`](exports.md#clearmessages) in `0.3.0`.
 - **[Events](events.md)** — every event in and out, split by networked and non-networked, and
   the full path a typed slash command takes to the dispatcher.
-- **[Configuration](config.md)** — the seven keys in `config.lua`.
+- **[Configuration](config.md)** — the eight keys in `config.lua`.
 
 ## The box {#the-box}
 
@@ -99,6 +99,27 @@ is logged as itself:
     game input is suppressed with no way out. That is why the third refusal exists and why it
     leaves `opened` false rather than latching it.
 
+## Command feedback {#command-feedback}
+
+The box is for what players say and for reports someone asked to read — a player list, a dump —
+not for command feedback. On
+[`open77:command:result`](events.md#open77-command-result), the dispatcher's answer to a typed
+command:
+
+- **An accepted result prints nothing.** It is the dispatcher's queue acknowledgement or a bare
+  "done". A command with something to say sends it itself: every OPX//77 resource answers what
+  a command did with a toast of its own, and a report with a
+  [`chat:addMessage`](events.md#chat-addmessage) line.
+- **A refused result is a toast** through `opx77_notify`, titled `COMMAND`: an unknown command,
+  a missing grant and a rate limit in the player's own words, any other refusal as the resource
+  wrote it.
+
+A line that cannot be split into a command — an unterminated quote, too many arguments — and a
+command the transport would not send are toasts the same way. While `opx77_notify` is not
+running, or with [`NOTIFY = false`](config.md#notify), each is a red `COMMAND` line in the box
+instead, and the client log says so once. A chat message that could not be sent stays a line in
+the box.
+
 ## Limits and rate {#limits}
 
 | Limit | Where | Behaviour |
@@ -124,9 +145,11 @@ It is a short list, because this resource mostly carries other people's text:
 
 | Rendered from the catalogue | Where |
 |---|---|
-| The four command-line refusals | A red `COMMAND` line, before anything is sent |
-| `The command could not be sent.` and `The message could not be sent.` | A red `NETWORK` line, when the trigger itself is refused |
-| The `COMMAND` and `NETWORK` author tags | Every line this resource writes itself |
+| The four command-line refusals | A warning toast, before anything is sent |
+| `The command could not be sent.` | An error toast, when the trigger itself is refused |
+| The dispatcher's refusals: `chat.command.unknown`, `chat.command.denied`, `chat.command.tooFast`, `chat.command.failed` | A toast, when a command comes back refused — see [Events](events.md#open77-command-result) |
+| `The message could not be sent.` | A red `NETWORK` line, when the trigger itself is refused |
+| The `COMMAND` and `NETWORK` author tags | `COMMAND` titles every toast above; both tag every line this resource writes itself, and a toast that could not be raised becomes a `COMMAND` line |
 | `player <id>` | The author on a relayed message, when the host has no display name for that connection |
 | The input's placeholder | Sent to the page with the rest of the config |
 
@@ -134,10 +157,10 @@ The page has no words of its own — every string it draws arrives from Lua alre
 the placeholder included — so there is no second catalogue in `web/`.
 
 Nothing else moves. A line another resource sends on
-[`chat:addMessage`](events.md#chat-addmessage) is drawn exactly as it arrives, and so is the
-dispatcher's answer on [`open77:command:result`](events.md#open77-command-result), including its
-`unknown_command` and `permission_denied:` codes. The client log stays English whatever the
-locale is.
+[`chat:addMessage`](events.md#chat-addmessage) is drawn exactly as it arrives, and so is a
+refusal on [`open77:command:result`](events.md#open77-command-result) that is not one of the
+dispatcher's own codes — it is a resource's text, toasted as sent. The client log stays English
+whatever the locale is.
 
 ## Layering {#layering}
 
@@ -199,8 +222,8 @@ call each other on this platform, so asking the host is the only way to ask at a
 
 ## See also {#see-also}
 
-- [`opx77_core`](../opx77_core/index.md) — `OPX.CommandResult`, and the suggestion list every
-  chat client is answered with.
+- [`opx77_core`](../opx77_core/index.md) — `OPX.CommandNotice` and `OPX.CommandResult`, and
+  the suggestion list every chat client is answered with.
 - [Getting started](../../guides/getting-started.md) — granting `command.*` permissions in
   `acl.jsonc`.
 - [The export contract](../../concepts/export-contract.md) — the three-level failure model

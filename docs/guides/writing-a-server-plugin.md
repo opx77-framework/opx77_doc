@@ -141,8 +141,10 @@ end
 RegisterCommand("bounty", function(source, _, raw)
   local player = OPX.GetPlayer(source)
   if not player then
-    return OPX.CommandResult(source, raw, false, locale("error.notLoggedIn"))
+    -- a refusal is an outcome: a toast, not a chat line
+    return OPX.CommandNotice(source, raw, "error", locale("error.notLoggedIn"))
   end
+  -- a figure the player asked to read is a report: a chat line
   OPX.CommandResult(source, raw, true,
     ("bounty on %s: %d"):format(player.PlayerData.citizenId, bountyOf(player)))
 -- unrestricted: reading your own bounty is not an operator action
@@ -161,7 +163,8 @@ RegisterCommand("bounty.set", function(source, args, raw)
   local amount = math.floor(tonumber(args[2]) or -1)
 
   if not target or amount < 0 then
-    return OPX.CommandResult(source, raw, false,
+    -- typed wrong: a warning, since the same command with the right words works
+    return OPX.CommandNotice(source, raw, "warning",
       "usage: bounty.set <playerId|citizenId> <amount>")
   end
 
@@ -172,7 +175,7 @@ RegisterCommand("bounty.set", function(source, args, raw)
   OPX.Logger.player(target, "bounty.set", ("set by %s"):format(tostring(source)),
     { amount = amount })
 
-  OPX.CommandResult(source, raw, true,
+  OPX.CommandNotice(source, raw, "success",
     ("bounty on %s is now %d"):format(target.PlayerData.citizenId, amount))
 end, true)
 
@@ -233,6 +236,15 @@ Three things in that file are the whole point of the page: `OPX.GetPlayer` is
 in scope because the file is in the same VM; `OPX.AddMoney` is checked for
 *both* return values; and the hook makes a rule that applies to every money
 movement in the framework, including ones written by somebody else.
+
+The two answers are not interchangeable either. What a command **did**, or why
+it did not, is [`OPX.CommandNotice`](../reference/opx77_core/server-api.md#commandnotice):
+a toast the core's client half raises through `opx77_notify`, or a chat line on
+a client without it. What a command **reads** — a figure, a list, a dump — is
+[`OPX.CommandResult`](../reference/opx77_core/server-api.md#commandresult), a
+chat line that can be scrolled back. Neither goes on `open77:command:result`:
+`opx77_chat` prints none of that event's accepted answers, so a command that
+answered there would be heard by nobody.
 
 ## Hooks {#hooks}
 
@@ -333,6 +345,7 @@ channels that do work, in the direction they work:
 | tell a client something | `TriggerClientEvent(name, source, …)` — the core holds `network.events` |
 | hear from a client | `RegisterNetEvent`, and validate everything except `source` |
 | notify a player | `OPX.Notify(source, message, kind, durationMs)` or `OPX.Refuse(source, code)` |
+| answer a command | `OPX.CommandNotice(source, raw, kind, message)` for what it did, `OPX.CommandResult(source, raw, accepted, message)` for what it reads |
 | know whether another resource is up | `GetResourceState("name")` — the only question you may ask it |
 | persist something across a restart | the database, through `OPX.Storage`, or `Open77.state.save` |
 | record what happened | `OPX.Logger.player` / `OPX.Logger.security` |

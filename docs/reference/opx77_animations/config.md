@@ -104,7 +104,9 @@ See [Who poses the bodies](index.md#presenter).
 
 ## NOTIFY {#notify}
 
-Whether a refusal is shown as an [`opx77_notify`](../opx77_notify/index.md) toast.
+Whether a refusal, and a typed command's answer, is shown as an
+[`opx77_notify`](../opx77_notify/index.md) toast. The list command is a report
+and stays in the chat either way.
 
 ```lua
 NOTIFY = true,
@@ -120,7 +122,7 @@ instead — see [`chat:addMessage`](events.md#chat-addmessage). It governs what 
 
 ## TOAST_MS {#toast-ms}
 
-How long a refusal toast stays up.
+How long a refusal toast, or a command's answer, stays up.
 
 ```lua
 TOAST_MS = 4000,

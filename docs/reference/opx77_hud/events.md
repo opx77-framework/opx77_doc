@@ -1,6 +1,6 @@
 ---
 title: opx77_hud events
-description: Every event opx77_hud listens to — the core's local character events, the needs and status strip payloads opx77_status publishes, and its own /hud net event — plus the complete message protocol between its Lua half and web/hud.js.
+description: Every event opx77_hud listens to — the core's local character events, the needs and status strip payloads opx77_status publishes, and its own two /hud net events — plus the complete message protocol between its Lua half and web/hud.js.
 ---
 
 # Events
@@ -32,8 +32,31 @@ RegisterNetEvent("opx77_hud:visibility", function(mode) end)
     name in your own resource, or sending it with `TriggerClientEvent` from a
     server resource holding `network.events`, works today and is not a contract.
 
-This one grant — `permissions { "network.events" }` — exists for this event and
-nothing else. Nothing that appears on screen comes over the network: the
+### opx77_hud:notice {#notice}
+
+Carries the `/hud` command's refusal — the usage line, already in the
+configured locale — from this resource's server half to the player who typed
+it, for the client half to show.
+
+```lua
+RegisterNetEvent("opx77_hud:notice", function(kind, message) end)
+```
+
+- kind: `string`
+    - `"warning"` from this resource. `info`, `success` and `error` are also
+      read; anything else is shown as `info`.
+- message: `string`
+    - An empty one is dropped.
+
+The client raises it through `opx77_notify`'s `show`, titled `hud.title`, in the
+one slot `opx77_hud.answer` that each answer replaces — a player repeating a
+typo sees one toast, not a stack. With [`NOTIFY = false`](config.md#notify),
+while `opx77_notify` is not running, or when it refuses the toast, the same
+text is a `chat:addMessage` line authored `hud.title`, and the client log says
+so once. It is internal, like [`visibility`](#visibility), and not a contract.
+
+This one grant — `permissions { "network.events" }` — exists for these two
+events and nothing else. Nothing that appears on screen comes over the network: the
 character is read from `opx77_core` through a client export, and the needs and
 the status chips arrive from `opx77_status` on the client's local bus.
 

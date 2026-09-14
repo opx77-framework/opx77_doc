@@ -2098,11 +2098,53 @@ deliberately not sent. A caller that "helpfully" replaces this with
 `OPX.Notify(source, "that character belongs to someone else")` has built an
 existence oracle.
 
+### OPX.CommandNotice {#commandnotice}
+
+Answers a chat command with what it did, or why it did not: a toast on the
+player's screen, the chat line it used to be on a client without
+`opx77_notify`; prints to the console when there is no source.
+
+```lua
+OPX.CommandNotice(source, raw, kind, message, toasted)
+```
+
+- source: [`Source`](types.md#source)`|nil`
+    - `nil` or `0` prints to the server console instead.
+- raw: `string|nil`
+    - The command line as typed. Becomes `""` when `nil`.
+- kind: `"success"|"warning"|"error"`
+    - `warning` for what was typed wrong or run again too fast — the same
+      command with the right words works — and `error` when it could not be
+      done. Anything else is shown as `error`.
+- message: `string`
+    - Already rendered, in the configured locale. An empty one shows nothing.
+- toasted?: `boolean`
+    - `true` when the action already raised this same toast through
+      [`OPX.Notify`](#notify): the client then raises nothing and writes the
+      chat line only while `opx77_notify` is not running. Compared with
+      `== true`.
+
+**Returns** nothing.
+
+**Side** `server` — inside `opx77_core` only. Does not yield.
+
+Fires [`opx77:client:commandAnswer`](events.md#commandanswer) at the player,
+and the core's client half raises it through `opx77_notify`'s `show`, titled
+`SERVER_NAME`, at `NOTIFY_POSITION`, in one slot each answer replaces. Not on
+`open77:command:result`: `opx77_chat` prints none of that event's accepted
+answers, and a refusal there would be toasted under the chat's own *COMMAND*
+title rather than the server's.
+
+Unlike [`OPX.Notify`](#notify) it is not deduplicated — each command typed is
+answered — and it does not depend on `Open77.notifications`, because the toast
+is raised on the client. `opx77.duty` passes `toasted`, since
+[`OPX.SetJobDuty`](#setjobduty) already tells the player they clocked in.
+
 ### OPX.CommandResult {#commandresult}
 
-Answers a chat command the way the shipped resources do, so console and in-game
-output land where a player already expects; prints to the console when there is
-no source.
+Answers a chat command with a report someone asked to read — a list, a dump, a
+config block to copy — as a chat line; prints to the console when there is no
+source.
 
 ```lua
 OPX.CommandResult(source, raw, accepted, message)
@@ -2111,16 +2153,22 @@ OPX.CommandResult(source, raw, accepted, message)
 - source: [`Source`](types.md#source)`|nil`
     - `nil` or `0` prints to the server console instead.
 - raw: `string|nil`
-    - The command line as typed. Becomes `""` when `nil`.
+    - The command line as typed. Kept for the signature; the chat line does not
+      carry it.
 - accepted: `boolean`
-    - Compared with `== true`.
+    - `true` draws the line as `info`, anything else as a red `error` line.
 - message: `string`
 
 **Returns** nothing.
 
 **Side** `server` — inside `opx77_core` only. Does not yield.
 
-Fires the platform event `open77:command:result`, which `opx77_chat` renders.
+Sends `chat:addMessage` to the player, authored `SERVER_NAME`, which
+`opx77_chat` draws exactly as it arrives. It used to fire
+`open77:command:result`; since `opx77_chat` 0.5.0 prints no accepted result on
+that event, a report sent there would reach nobody. What a command *did* is
+[`OPX.CommandNotice`](#commandnotice) instead — a toast is gone in five seconds,
+which is right for an outcome and wrong for a list.
 
 ### OPX.IsNotifyPosition {#isnotifyposition}
 

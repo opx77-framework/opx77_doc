@@ -33,8 +33,8 @@ ACL like a typed command.
 
 !!! warning "`ok = true` means asked, not allowed"
 
-    A player without the grant gets the host's refusal in the chat box and no
-    menu. The export cannot tell, because the answer to a command is not a
+    A player without the grant gets the host's refusal, which `opx77_chat`
+    toasts, and no menu. The export cannot tell, because the answer to a command is not a
     return value. A resource that wants to know whether the menu appeared asks
     [`state`](#state) a moment later.
 
@@ -112,7 +112,7 @@ CreateThread(function()
   local state = Open77.exports.call("opx77_admin", "state")
   local answer = state and state:await()
   if answer and answer.ok and not answer.open then
-    -- the host refused this player command.opx77.admin; the chat box already said so
+    -- the host refused this player command.opx77.admin; opx77_chat already toasted it
   end
 end)
 ```

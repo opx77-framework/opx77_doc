@@ -11,14 +11,14 @@ is doing; every client is told, and applies it.
 | At a glance | |
 |---|---|
 | **Version** | `0.3.0` |
-| **Requires** | `open77_version ">=0.0.1"`. Nothing else in OPX//77 |
+| **Requires** | `open77_version ">=0.0.1"`. Nothing else in OPX//77; [`opx77_notify`](../opx77_notify/index.md) shows command answers when it runs |
 | **Auto start** | yes |
 | **Reload policy** | `local` — the live authority is carried across a reload. See [below](#carried-state) |
 | **Permissions** | `network.events`, `world.environment` |
 | **Sides** | server, which owns the state and decides, and client, which projects and applies it |
 | **Exports** | one, client-side and read-only — see [Exports](exports.md) |
 | **Commands** | eight — six ACL-gated, two open. See [Commands](commands.md) |
-| **Events** | one snapshot outward, one request inward, and **no mutation event** — see [Events](events.md) |
+| **Events** | one snapshot outward, one request inward, one command answer to its own client half, and **no mutation event** — see [Events](events.md) |
 | **Locales** | `en` and `fr`; [`LOCALE`](config.md#locale) picks one. Logs stay English — see [below](#locales) |
 | **Conflicts with** | `open77_weather`, the official package it replaces. See [below](#official-package-conflict) |
 
@@ -270,13 +270,14 @@ which every file listed below it in `open77.lua` uses. A key missing from the ch
 falls back to `en`, and then to the key itself.
 
 The surface is the whole of what a **player** gets back: the status line and the preset list a
-[command](commands.md) answers with, the refusal sentences, the `usage:` lines and the chat
-completion help. Nothing else moves. Server logs, the answer the server console gets, the
-`reason` on a snapshot and the `error` codes on [`state`](exports.md#state) are English,
-because a code is what integrating code branches on rather than something a player reads.
+[command](commands.md) answers with, the refusal sentences, the `usage:` lines, the `WEATHER`
+title on a toast or chat line, and the chat completion help. Nothing else moves. Server logs,
+the answer the server console gets, the `reason` on a snapshot and the `error` codes on
+[`state`](exports.md#state) are English, because a code is what integrating code branches on
+rather than something a player reads.
 
-The two nearly meet in one place, and deliberately do not. The client half mirrors this
-resource's own [`open77:command:result`](events.md#open77-command-result) answers into the
+The two nearly meet in one place, and deliberately do not. The client half mirrors each of this
+resource's own answers, on [`opx77_weather:notice`](events.md#opx77-weather-notice), into the
 operator log, and the `message` on that event is the player's translated text — so the mirror
 logs the fact instead, in English:
 
@@ -288,19 +289,21 @@ command answered: opx77.weather.set (accepted)
 
 ```lua
 permissions {
-  "network.events",     -- snapshots out, sync requests in
+  "network.events",     -- snapshots out, sync requests in, command answers to the client half
   "world.environment",  -- Open77.environment.*; client-side only, and only this resource
 }
 ```
 
 `network.events` carries the whole protocol: snapshots out to clients, sync requests in from
-them. `world.environment` is what the client half needs to write the sky and the clock —
-`setWeather`, `setTime`, `setWeatherFrozen`, `setTimeFrozen`, `getTime`, `isWeatherFrozen`.
+them, and each command's answer to the client half that shows it. `world.environment` is what
+the client half needs to write the sky and the clock — `setWeather`, `setTime`,
+`setWeatherFrozen`, `setTimeFrozen`, `getTime`, `isWeatherFrozen`.
 
 **`world.environment` is client-side only.** `Open77.environment.*` does not exist in the
 server runtime; the authority never touches the sky, it only describes it. The client half
 checks all six are actually present before loading anything else, because every function below
-that point would otherwise be a call into `nil`.
+that point would otherwise be a call into `nil`. Only the command answers are handled above that
+check, so staff on such a client still hear back.
 
 **And only this resource should hold it.** The environment is a single global and the last
 writer wins. Two resources holding `world.environment` and writing the weather fight each
@@ -350,6 +353,7 @@ each other on this platform, so asking the host is the only way to ask at all; s
 
 - [Getting started](../../guides/getting-started.md) — `acl.jsonc`, and the `startup.commands`
   list in `server.jsonc` for pinning the clock at boot.
-- [`opx77_chat`](../opx77_chat/index.md) — where a command's answer is shown.
+- [`opx77_chat`](../opx77_chat/index.md) — where a report is shown.
+- [`opx77_notify`](../opx77_notify/index.md) — where an action's answer is shown, when it runs.
 - [Persistence](../../concepts/persistence.md) — the carried-state bag and the database, and
   which one a given fact belongs in.

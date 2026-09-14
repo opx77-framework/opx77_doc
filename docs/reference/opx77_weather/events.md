@@ -1,6 +1,6 @@
 ---
 title: opx77_weather events
-description: The wire protocol opx77_weather speaks — the one inbound sync request, the snapshot broadcast, the client-local update event other resources should listen to, and the in-VM event that is not reachable from outside.
+description: The wire protocol opx77_weather speaks — the one inbound sync request, the snapshot broadcast, the command answer to its own client half, the client-local update event other resources should listen to, and the in-VM event that is not reachable from outside.
 ---
 
 # Events
@@ -120,13 +120,48 @@ If you want to know what the weather is, do not register this name at all. Liste
 [`opx77:weather:updated`](#opx77-weather-updated), which fires only for snapshots that were
 actually accepted, or call [`state`](exports.md#state).
 
+### opx77_weather:notice {#opx77-weather-notice}
+
+A command's answer to the player who ran it, from this resource's server half to its own client
+half, already in the configured [locale](index.md#locales). Not part of the weather protocol.
+
+```lua
+RegisterNetEvent("opx77_weather:notice", function(raw, kind, message) end)
+```
+
+- raw: `string` — the command line as typed.
+- kind: `"report" | "success" | "warning" | "error"` — anything else is read as `error`.
+- message: `string` — an empty one is dropped.
+
+A `report` — [`opx77.weather`](commands.md#status) and
+[`opx77.weather.presets`](commands.md#presets) — is a `chat:addMessage` line authored
+`weather.title`. Anything else is a toast through `opx77_notify`'s `show`, titled `weather.title`,
+in the one slot `opx77_weather.answer` that each answer replaces, so staff stepping the clock see
+the last answer rather than a stack. With [`NOTIFY = false`](config.md#notify), while
+`opx77_notify` is not running, or when it refuses the toast, it is the same chat line instead,
+and the client log says so once. See [How a command answers](commands.md#answers) for which
+kind each answer is.
+
+It is handled above the client's environment-natives check, so staff on a client build without
+those natives still hear back. `message` is the player's text, so the log takes the fact
+instead, in English:
+
+```text
+command answered: opx77.weather.set (accepted)
+```
+
+It is private to this resource, and a peer on the same machine raising it locally draws a line
+or a toast on that player's own screen and nothing else.
+
 ### open77:command:result {#open77-command-result}
 
-The dispatcher's answer to a command that player typed. `opx77_weather`'s **client** half also
-registers this name, and logs the ones whose `raw` names one of its own commands — accepted at
-info level, refused at warn. It matches against the names in
-[`config.lua`](config.md#commands), so a rename carries; matching on the word `weather` would
-not.
+The dispatcher's word on a command that player typed. No command here answers on it —
+[`opx77_chat`](../opx77_chat/events.md#open77-command-result) prints none of its accepted
+answers — but `opx77_weather`'s **client** half registers the name and mirrors into the log the
+ones whose `raw` names one of its own commands: the dispatcher's queue acknowledgement, or a
+refusal such as a missing grant — accepted at info level, refused at warn. It matches against
+the names in [`config.lua`](config.md#commands), so a rename carries; matching on the word
+`weather` would not.
 
 ```lua
 RegisterNetEvent("open77:command:result", function(raw, accepted, message) end)
@@ -134,17 +169,12 @@ RegisterNetEvent("open77:command:result", function(raw, accepted, message) end)
 
 - raw: `string` — the command name as typed.
 - accepted: `boolean`
-- message: `string`
+- message: `string` — not read.
 
-It is a shared channel, not a private one: [`opx77_chat`](../opx77_chat/events.md#open77-command-result)
-renders it in the box, and this resource only mirrors its own into the client log. The server
-side of it is what every command handler here calls to answer the player.
-
-`message` is the player's [localised](index.md#locales) text, so the mirror does not log it. It
-logs the fact instead, in English:
+It is a shared channel, not a private one. The mirror logs the fact, in English:
 
 ```text
-command answered: opx77.weather.set (accepted)
+command dispatched: opx77.weather.set (accepted)
 ```
 
 ## Non-networked, client {#non-networked-client}

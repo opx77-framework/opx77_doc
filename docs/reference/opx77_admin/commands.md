@@ -109,8 +109,33 @@ followed there.
 
 ## How a command answers {#answers}
 
-A command typed in chat, or sent by the menu, answers the player over
-`open77:command:result`, in the catalogue [`LOCALE`](config.md#locale) names.
+A command typed in chat, or sent by the menu, answers the staff member who ran
+it in the catalogue [`LOCALE`](config.md#locale) names — never on
+`open77:command:result`, whose accepted answers `opx77_chat` does not print. The
+server half sends the answer to this resource's own client half, on
+[`opx77_admin:answer`](events.md#answer):
+
+- **An action's outcome is a toast** through `opx77_notify`, titled *STAFF*, in
+  one slot each answer replaces: a success when it was done; *info* when a
+  request is only on its way — `admin.done.weaponAsked`,
+  `admin.done.slotsCleared`; a warning for what was typed wrong — a usage line,
+  `admin.done.nothingToRefill`, and the refusals `too_fast`, `no_target`,
+  `bad_target`, `self_target`, `bad_number`, `bad_coordinates`, `bad_switch`,
+  `bad_duration`, `empty_text`, `unknown_vehicle`, `bad_scope`, `unknown_flag`,
+  `unknown_weapon`, `bad_slot`, `unknown_location` and `bad_location_name`,
+  where the same command with the right word works; and an error for every
+  other refusal, where something in the world has to change first.
+- **A report stays a chat line.** [`read.players`](#read-players),
+  [`read.status`](#read-status), [`read.audit`](#audit),
+  [`read.locations`](#read-locations) and [`weapon.read`](#weapon-read) are
+  lists someone asked to read, scrolled back and compared, which a toast would
+  cut short.
+- Either way, when the menu sent the command, the first line is also written
+  under the list.
+
+`opx77_notify` stays optional: while it is stopped, or when it refuses a toast,
+the same text is a chat line, and the client log says so once.
+
 The same command at the **server console** runs as `source = 0` and answers
 into the platform log in English — `info` when it succeeded, `warn` when it was
 refused — because that answer lands in a log an operator greps. **The sample
@@ -160,8 +185,8 @@ opx77.admin
 
 **In game only. Read.** The server answers with
 [`opx77_admin:open`](events.md#open) — the access map for this operator — then
-the roster and the destination list. It sends no command result: the menu
-opening is the answer, and a chat line per open is noise. Without `opx77_menu`
+the roster and the destination list. It sends no other answer: the menu
+opening is the answer, and a toast per open is noise. Without `opx77_menu`
 running the client says so in a toast and draws nothing. See
 [The menu](index.md#menu).
 
@@ -742,8 +767,9 @@ A destination from `config.lua` answers `seeded_location`: remove it there.
 
 ## Reading {#read}
 
-Every command in this family is **read**, and answers a listing. The menu shows
-its first line under the list; the chat box has all of it.
+Every command in this family is **read**, and answers a listing: a report, so a
+chat line rather than a toast. The menu shows its first line under the list; the
+chat box has all of it.
 
 ### opx77.admin.read.players {#read-players}
 

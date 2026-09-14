@@ -134,7 +134,7 @@ clears anything.
 - [Events](events.md) — what it listens to, and the whole message protocol
   between Lua and `web/hud.js`.
 - [Commands](commands.md) — `/hud`.
-- [Configuration](config.md) — the eight keys, including
+- [Configuration](config.md) — the nine keys, including
   [`LOCALE`](config.md#locale) and [`VANILLA`](config.md#vanilla), and what is
   deliberately not a key.
 - [`opx77_status`](../opx77_status/index.md) — the registry behind the strip.

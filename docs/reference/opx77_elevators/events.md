@@ -193,30 +193,33 @@ sending requests for an id nobody owns. Until a new
 
 **Side** `net event` — sent by this resource's server half only.
 
-### open77:command:result {#command-result}
+### chat:addMessage {#chat-addmessage}
 
 Sent by the server to echo one line of the diagnostic command's output back to
 the player who typed it; this resource sends it and does not listen for it.
 
 ```lua
--- a client script of your own resource
-RegisterNetEvent("open77:command:result", function(raw, accepted, message)
-end)
+TriggerClientEvent("chat:addMessage", player, {
+  type = "info",
+  author = locale("elevators.title"),
+  text = line,
+  color = { 120, 220, 232 },
+})
 ```
 
-- raw: `string`
-    - The raw command line, as the host handed it to the command handler.
-- accepted: `boolean`
-    - Always `true` from this resource: it only sends output lines, never
-      refusals. The host sends its own refusal when the ACL check fails.
-- message: `string`
-    - One line of the report.
+- type: `"info"` — always: this resource only sends output lines, never
+  refusals. The host sends its own refusal when the ACL check fails.
+- author: `string` — the locale's `elevators.title`, `ELEVATORS` in `en`.
+- text: `string` — one line of the report, in English.
 
-This is the platform's own console channel, which every resource on the server
-already speaks. See [Commands](commands.md) for what the lines say.
+The report is a diagnostic dump, so it stays text in the chat box, where two
+runs can be scrolled back and compared. It used to go on
+`open77:command:result`; `opx77_chat` prints none of that event's accepted
+answers, so there it would show staff nothing. See [Commands](commands.md) for
+what the lines say.
 
-**Side** `net event` — sent by this resource's server half; received by whatever
-draws the player's console, normally [`opx77_chat`](../opx77_chat/index.md).
+**Side** `net event` — sent by this resource's server half; drawn by
+[`opx77_chat`](../opx77_chat/events.md#chat-addmessage).
 
 ## Non-networked {#non-networked}
 

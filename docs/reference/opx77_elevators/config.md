@@ -445,6 +445,7 @@ one file per language, keyed `elevators.<thing>`. `en` and `fr` ship.
 ```lua
 -- locales/en.lua
 OpxElevators.Locale.register("en", {
+  ["elevators.title"]   = "ELEVATORS",
   ["elevators.locked"]  = "Locked",
   ["elevators.refused"] = "That floor is not available.",
   ["elevators.tooFar"]  = "You are too far from the elevator.",

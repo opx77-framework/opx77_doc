@@ -12,7 +12,7 @@ needs.
 
 | Table | Names | Registration | Permission |
 |---|---|---|---|
-| [`Client`](#networked-server-to-client) — networked, server → client | 9 | `RegisterNetEvent` | `network.events` |
+| [`Client`](#networked-server-to-client) — networked, server → client | 10 | `RegisterNetEvent` | `network.events` |
 | [`Local`](#client-local) — client-local, fired by the core's own client half | 9 | `AddEventHandler` | none |
 | [`Server`](#networked-client-to-server) — networked, client → server | 8 | `TriggerServerEvent` from a client | `network.events` |
 | [`Internal`](#resource-internal) — inside the core's server VM only | 7 | `AddEventHandler`, in a file inside the core | none |
@@ -61,6 +61,7 @@ registers with `RegisterNetEvent`.
 | [`opx77:client:onGangUpdate`](#ongangupdate) | the new `PlayerGang` |
 | [`opx77:client:onAppearanceUpdate`](#onappearanceupdate) | the stored `AppearanceSnapshot` |
 | [`opx77:client:notify`](#notify) | a refusal code, and the request it answers |
+| [`opx77:client:commandAnswer`](#commandanswer) | a command's outcome, already worded |
 
 ### opx77:client:characters {#characters}
 
@@ -233,6 +234,38 @@ same reason are still two answers.
 
 **Side** `client` — any resource holding `network.events`. The permission-free
 equivalent is [`opx77:client:refused`](#refused).
+
+### opx77:client:commandAnswer {#commandanswer}
+
+Carries what a command this player typed did, or why it did not, for the core's
+client half to show. Sent by
+[`OPX.CommandNotice`](server-api.md#commandnotice).
+
+```lua
+RegisterNetEvent("opx77:client:commandAnswer", function(raw, kind, message, toasted) end)
+```
+
+- raw: `string` — the command line as typed; `""` when the server had none.
+- kind: `string` — `success`, `warning` or `error`. Anything else is shown as
+  `error`.
+- message: `string` — already in the configured locale. An empty one is
+  dropped.
+- toasted: `boolean` — `true` when the action already raised the same toast
+  itself, through [`OPX.Notify`](server-api.md#notify).
+
+The core's client half raises it as a toast through `opx77_notify`'s `show`,
+titled `SERVER_NAME`, at `NOTIFY_POSITION`, in the one slot
+`opx77_core.command` that each answer replaces — a player retrying a command
+sees one answer, not a stack. While `opx77_notify` is not running, or when it
+refuses the toast, the same text is a `chat:addMessage` line authored
+`SERVER_NAME`, and the client log says so once. With `toasted` set, nothing is
+raised and the chat line is written only while `opx77_notify` is not running:
+`opx77.duty` is answered this way, because `OPX.SetJobDuty` already toasts.
+
+A report — a list, a dump — never comes on this event: it is a chat line sent
+from the server with [`OPX.CommandResult`](server-api.md#commandresult).
+
+**Side** `client` — the core's own client half. No `Local` equivalent is fired.
 
 ---
 

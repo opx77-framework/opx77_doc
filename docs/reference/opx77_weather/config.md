@@ -1,6 +1,6 @@
 ---
 title: opx77_weather configuration
-description: The keys of OPX_WEATHER_CONFIG in opx77_weather/config.lua — the locale, day length, start time, the freeze flags, the weighted weather table and the eight command entries — plus the cadence constants that deliberately are not operator settings.
+description: The keys of OPX_WEATHER_CONFIG in opx77_weather/config.lua — the locale, whether command answers are toasts, day length, start time, the freeze flags, the weighted weather table and the eight command entries — plus the cadence constants that deliberately are not operator settings.
 ---
 
 # Configuration
@@ -24,6 +24,7 @@ so which of these takes effect depends on the key:
 | [`WEATHER`](#weather) | Yes — the table is rebuilt from the file. The live *preset* is still the carried one, and a bag naming a row you deleted is refused whole, which sends everything back to this file. |
 | [`COMMANDS`](#commands) | Yes — the new VM registers the names in the file. |
 | [`LOCALE`](#locale) | Yes — the new VM re-reads the file and applies the code at load. |
+| [`NOTIFY`](#notify) | Yes — the client half reads it at every answer. |
 | [`DAY_LENGTH_MINUTES`](#day-length-minutes), [`START_TIME`](#start-time), [`TIME_FROZEN`](#time-frozen), [`WEATHER_FROZEN`](#weather-frozen), [`INITIAL_WEATHER`](#initial-weather) | No — these describe how the authority *boots*, and a reload does not boot it. Restart for these. |
 
 ## LOCALE {#locale}
@@ -42,7 +43,7 @@ catalogues register after that file loads, so there is nothing to check it again
 lookup then falls back to `en`, and then to the key itself — an untranslated string shows the
 player its raw key, which is the visible failure rather than the silent one.
 
-It reaches only the text a player is shown: the status line and the preset list in chat, the
+It reaches only the text a player is shown: the status line and the preset list, the
 refusal sentences, the `usage:` lines and the chat completion help. **Server logs, the answer a
 command run from the server console gets, the `reason` on a snapshot and the `error` codes on
 [`state`](exports.md#state) stay English** — a code is a branching surface, not a sentence
@@ -54,6 +55,29 @@ To add a language, copy `locales/en.lua` to `locales/<code>.lua`, change the cod
 `weather.<thing>` and substitute `{placeholder}` parameters; a placeholder with no value is left
 written as it stands, and a key missing from your file falls back to `en` rather than
 disappearing.
+
+## NOTIFY {#notify}
+
+Whether a command's answer is an `opx77_notify` toast or a chat line.
+
+```lua
+NOTIFY = true,
+```
+
+**Type** `boolean` — only `false` turns it off
+
+Read by the client half. With `true`, what [`set`](commands.md#set), [`next`](commands.md#next),
+[`freeze`](commands.md#freeze), [`time`](commands.md#time),
+[`time.freeze`](commands.md#time-freeze) and [`daylength`](commands.md#day-length) answer is a
+toast titled `WEATHER`: a success carrying the new status, a warning for a usage or a value typed
+wrong, an error when nothing could be done. With `false` each is the chat line it used to be.
+The toast is best-effort either way: while `opx77_notify` is not running, or when it refuses the
+toast, the chat line is written instead and the client log says so once — `opx77_notify` is
+never a dependency.
+
+Reports stay in the chat whatever this is set to: [`opx77.weather`](commands.md#status) and
+[`opx77.weather.presets`](commands.md#presets) are read, scrolled back and compared. See
+[How a command answers](commands.md#answers).
 
 ## DAY_LENGTH_MINUTES {#day-length-minutes}
 

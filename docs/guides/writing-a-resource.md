@@ -153,11 +153,11 @@ Name keys `<resource>.<thing>` — `shiftboard.onDuty`, `weather.usage.set`,
 `elevators.floorLocked` — and keep both catalogues carrying the same key set: a
 key present in one and missing in the other is a defect, not a fallback.
 
-What gets localised is anything a **player** reads: `open77:command:result`
-messages, toast and notification text, chat suggestions, refusal text shown in a
-UI. What does not: `Open77.log` lines, console output, ACL-gated diagnostic
-commands — those are for the operator reading a server log, and translating them
-makes a support request harder to answer. Error **codes** stay as they are too;
+What gets localised is anything a **player** reads: a command's answer, toast
+and notification text, chat suggestions, refusal text shown in a UI. What does
+not: `Open77.log` lines, console output, ACL-gated diagnostic commands — those
+are for the operator reading a server log, and translating them makes a support
+request harder to answer. Error **codes** stay as they are too;
 `not_owner` and `rate_limited` are a branching surface for a caller, not text,
 and a resource that wants to show one renders it through its own catalogue.
 

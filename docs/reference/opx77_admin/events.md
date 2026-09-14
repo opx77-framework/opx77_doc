@@ -1,17 +1,17 @@
 ---
 title: opx77_admin events
-description: The six private net events between opx77_admin's two halves, the platform command channel every staff action travels on, and the platform events both halves listen to.
+description: The seven private net events between opx77_admin's two halves, the platform command channel every staff action travels on, and the platform events both halves listen to.
 ---
 
 # Events
 
-This resource's two halves talk over six net events of its own, and **none of
+This resource's two halves talk over seven net events of its own, and **none of
 them carries a mutation**. Every staff action arrives at the server as a command
 line through the platform's `open77:command:execute`, never as an event of this
 resource's: a net event carries no authorisation on this platform, and one added
 here would be a hole.
 
-All six are private. Nothing outside this resource should raise or rely on them,
+All seven are private. Nothing outside this resource should raise or rely on them,
 and their payloads are free to change.
 
 !!! warning "On the client, a peer resource can raise every one of these"
@@ -36,12 +36,22 @@ token>` against the player's ACL before any handler runs. Tokens are cleaned of
 control characters and cut to 256 bytes each, and a line of more than 32 tokens
 is not sent: the transport refuses both outright.
 
-The answer comes back on `open77:command:result`, `(raw, accepted, message)`,
-which every resource that sends commands shares. The client half puts a line
-under the menu only when it answers a command the menu sent in the last fifteen
-seconds, and ignores the dispatcher's own queue acknowledgement, which arrives
-on the same event and is told apart only by its English wording. The chat box
-shows every answer regardless.
+This resource's own commands answer on [`opx77_admin:answer`](#answer), from
+its server half to its client half — a toast for an action, a chat line for a
+report. Not on `open77:command:result`: `opx77_chat` prints none of that event's
+accepted answers, so a staff member would hear nothing.
+
+The client half still listens to `open77:command:result`, `(raw, accepted,
+message)`, which every resource that sends commands shares, for what the
+dispatcher and the [`LINKS`](config.md#links) resources say about a row the menu
+sent. It drops the dispatcher's queue acknowledgement, which arrives on the same
+event and is told apart only by its English wording — any accepted message
+containing `queued by `, the fragment both known wordings share,
+`queued by <resource>` and `command '<name>' queued by resource <resource>`. It
+puts the dispatcher's `unknown_command` and `permission_denied:<grant>` in words,
+`admin.client.unknownCommand` and `admin.client.denied`. Either kind of answer
+goes under the menu only when it answers a command the menu sent in the last
+fifteen seconds; `opx77_chat` toasts a refusal as well.
 
 ## Server to client {#server-to-client}
 
@@ -121,6 +131,37 @@ A travel native missing from the client build is one log line and a toast:
 Open77.travel.setNoclip is not in this client build
 ```
 
+### opx77_admin:answer {#answer}
+
+A command's answer to the staff member who ran it, already in the configured
+locale.
+
+```lua
+RegisterNetEvent("opx77_admin:answer", function(raw, accepted, message, kind) end)
+```
+
+- raw: `string` — the command line as typed.
+- accepted: `boolean` — whether it was done.
+- message: `string` — an empty one is dropped.
+- kind: `"report" | "info" | "success" | "warning" | "error"` — `report` for
+  a listing, answered with `admin.text.lines`; otherwise the toast's kind, as
+  [How a command answers](commands.md#answers) sorts them. Anything else is
+  read from `accepted`: `success` or `error`.
+
+The client first puts the message under the list when the menu sent that
+command in the last fifteen seconds. Then a `report` is a `chat:addMessage`
+line authored *STAFF*, and anything else a toast through `opx77_notify`'s
+`show`, titled *STAFF*, in the one slot `opx77_admin` that each answer — and
+every other toast of this resource's — replaces. A toast that cannot be raised
+is the same chat line, logged once:
+
+```text
+no toast (not_running): staff answers go to the chat box instead
+```
+
+A forged one draws a line or a toast on the forger's own screen, and nothing
+else.
+
 ## Client to server {#client-to-server}
 
 ### opx77_admin:refresh {#refresh}
@@ -144,7 +185,7 @@ refresh is dropped, and running the opener again refreshes everything.
 
 | Event | Side | For |
 |---|---|---|
-| `open77:command:result` | client | the answer to a command the menu sent |
+| `open77:command:result` | client | the dispatcher's or another resource's answer to a command the menu sent; the queue acknowledgement is dropped |
 | `open77:map:picked` | client, local | a point double-clicked on the world map while map travel is armed, sent back as `opx77.admin.self.maptravel <x> <y> <z>` |
 | `opx77_admin:row` | client, local | a menu row used, raised by `opx77_menu`; only a payload whose `owner` is this resource is read |
 | `opx77_admin:form` | client, local | a form answered, raised by `opx77_input` |
@@ -159,12 +200,13 @@ refresh is dropped, and running the opener again refreshes everything.
 | Event | To | Carries |
 |---|---|---|
 | `open77:command:execute` | server | every staff action, as a command line — see [the command channel](#command-channel) |
-| `open77:command:result` | the operator | every command's answer |
 | `chat:addSuggestions` | one player | the staff commands that player may run |
 | `chat:addMessage` | every player | an announcement, when [`ANNOUNCE.CHAT`](config.md#announce) is on |
+| `chat:addMessage` | the operator, locally | a report, and any answer a toast could not carry — see [`answer`](#answer) |
 
-Toasts go through `Open77.notifications.send` on the server, which
-[`opx77_notify`](../opx77_notify/index.md) draws.
+A target's toast and an announcement go through `Open77.notifications.send` on the server, which
+[`opx77_notify`](../opx77_notify/index.md) draws. The operator's own answer is
+raised on the client instead, through `opx77_notify`'s `show` export.
 
 ## See also {#see-also}
 
