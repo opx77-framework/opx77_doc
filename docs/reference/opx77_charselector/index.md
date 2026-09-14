@@ -27,7 +27,7 @@ where it stands — [the stage](stage.md).
 | **Requires** | `open77_version ">=0.0.1"`. No `dependency` is declared; `opx77_menu` must be running for anything to be drawn |
 | **Auto start** | yes |
 | **Reload policy** | `local` — it has no CEF surface of its own. `opx77_menu` owns the only one, and drops this resource's roster when the generation changes |
-| **Permissions** | `camera.preview` — `Open77.camera.orbit` and `clearOrbit` for the stage camera; `player.travel` — `Open77.travel.teleport` for the stage's hold, and nothing else |
+| **Permissions** | `camera.preview` — `Open77.camera.orbit` and `clearOrbit` for the stage camera; `players.controls` — `freezeRotation`, `freezePosition`, the `allow*` blocks and `resetControls` for the stage's camera lock and hold; `player.travel` — `Open77.travel.teleport` for the fallback hold, and nothing else |
 | **Sides** | client only. No `server/`, no `sql/`, no table, no `database.access`, no `web/` |
 | **Exports** | six, all client: [`open`](exports.md#open), [`close`](exports.md#close), [`isOpen`](exports.md#isopen), [`state`](exports.md#state), [`holdStage`](exports.md#holdstage), [`releaseStage`](exports.md#releasestage) |
 | **Commands** | none |

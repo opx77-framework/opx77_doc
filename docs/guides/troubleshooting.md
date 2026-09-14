@@ -174,6 +174,28 @@ or set [`STAGE.ENABLED`](../reference/opx77_charselector/config.md#stage-enabled
 to `false` to leave the camera alone. The roster works either way. See
 [the stage](../reference/opx77_charselector/stage.md#camera).
 
+## The mouse still turns the stage camera {#stage-camera-unlocked}
+
+**Symptom.** The roster or the creation form is up, and the mouse turns the
+camera or the character walks. The client log said, once:
+
+```text
+Open77.players.freezeRotation is not on this client: the camera is not locked, and the character is held by teleport
+the player controls were refused (permission_denied:players.controls) -- the manifest must grant players.controls
+```
+
+**Cause.** The stage locks the camera and holds the character with the
+platform's player controls. The first line is a client build without them; the
+second a manifest without the `players.controls` grant, usually a copy of
+`opx77_charselector` from before the lock. Either way the camera cannot be
+locked, and the character is held by the fallback teleport pin.
+
+**Fix.** Deploy the current `opx77_charselector`, whose `open77.lua` grants
+`players.controls`, and reconnect: `state` answers `cameraLocked = true` once the
+lock holds. With no log line at all, check that
+[`STAGE.LOCK_CAMERA`](../reference/opx77_charselector/config.md#stage-lock-camera)
+is not `false`. See [the lock and the hold](../reference/opx77_charselector/stage.md#lock).
+
 ## Selecting a character leaves the loading cover up {#body-family-cover}
 
 !!! warning "Known issue"

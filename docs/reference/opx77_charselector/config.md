@@ -18,6 +18,7 @@ OPX_CHARSELECTOR_CONFIG = {
   STAGE = {
     ENABLED = true,
     ORBIT_DEGREES = 180,
+    LOCK_CAMERA = true,
     FREEZE = true,
   },
   REQUEST_TIMEOUT_MS = 20000,
@@ -112,22 +113,23 @@ no roster yet: asking opx77_core again every 3000 ms
 
 [The stage](stage.md): while the roster, or a creation form holding it through
 [`holdStage`](exports.md#holdstage), is up, the camera orbits to face the
-player's own character and the character is held where it stands. It goes when a
-character is loaded.
+player's own character, the mouse cannot turn it, and the character is held where
+it stands. It goes when a character is loaded.
 
 ```lua
 STAGE = {
   ENABLED = true,
   ORBIT_DEGREES = 180,
+  LOCK_CAMERA = true,
   FREEZE = true,
 }
 ```
 
 **Type** `table`. A `STAGE` that is not a table is said once and read as all
-three defaults:
+four defaults:
 
 ```text
-STAGE is not a table: the stage is up, facing, with the freeze on
+STAGE is not a table: the stage is up, facing, with the camera locked and the freeze on
 ```
 
 ### STAGE.ENABLED {#stage-enabled}
@@ -167,6 +169,29 @@ STAGE.ORBIT_DEGREES is outside -180..180: clamped to <n>
 STAGE.ORBIT_DEGREES is not a number: 180 is used
 ```
 
+### STAGE.LOCK_CAMERA {#stage-lock-camera}
+
+Whether the mouse is kept off the camera while the stage is up.
+
+```lua
+LOCK_CAMERA = true
+```
+
+**Type** `boolean` — only `false` turns it off.
+
+`Open77.players.freezeRotation(true)`, the platform's native camera and turn
+restriction, under `players.controls`, which `open77.lua` grants; the orbit is
+also asked for on every frame instead of every tick — see
+[The lock and the hold](stage.md#lock). It takes no input from a surface, so
+`opx77_menu` keeps reading its arrows. `false` lets the mouse turn the camera. A
+client without the controls, or a refused grant, cannot lock the camera at all,
+and says so once. Any value but a boolean or `nil` is said once and read as
+`true`:
+
+```text
+STAGE.LOCK_CAMERA is not a boolean: the camera is locked
+```
+
 ### STAGE.FREEZE {#stage-freeze}
 
 Whether the character is held in place while the stage is up.
@@ -177,12 +202,15 @@ FREEZE = true
 
 **Type** `boolean` — only `false` turns it off.
 
-The roster cannot take the keyboard to keep the walk keys from the game, because
-`opx77_menu` stops reading its arrows while anything holds focus, so a character
-that walks off is put back where it stood, 30 times a second — see
-[The hold](stage.md#hold). `false` lets it walk under the camera. It needs
-`player.travel`, which `open77.lua` grants. Any value but a boolean or `nil` is
-said once and read as `true`:
+`Open77.players.freezePosition(true)`, and no jump, crouch, dodge, weapon, aim,
+shot or world interaction, under `players.controls` — see
+[The lock and the hold](stage.md#lock). The roster cannot take the keyboard to
+keep the walk keys from the game, because `opx77_menu` stops reading its arrows
+while anything holds focus, and these controls do not take it. On a client
+without them, a character that walks off is put back where it stood 30 times a
+second instead, under `player.travel` — see [the fallback pin](stage.md#hold).
+`false` lets it walk under the camera. Any value but a boolean or `nil` is said
+once and read as `true`:
 
 ```text
 STAGE.FREEZE is not a boolean: the character is held

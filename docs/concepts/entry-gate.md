@@ -280,7 +280,9 @@ identity form and the face editor all happen in the gameplay world.
    `opx77_character_selection`, and pushes the roster at once. That push goes
    out before any of the client's resources run, so it usually lands nowhere,
    and it is deliberately neither cooled nor cooling: the `READY` the core's
-   client sends when it starts a second or two later is answered.
+   client sends when it starts a second or two later is answered. It also puts
+   the player in a routing bucket of their own, `ENTRY.BUCKET.BASE` plus their
+   player id — see [A bucket move is not a placement](#bucket-move) below.
 2. **The bootstrap is spent.** When the pre-game menu raises
    `open77:worldReady`, or `opx77_appearance` starts with the phase still
    `"waiting"`, it waits up to
@@ -299,11 +301,13 @@ identity form and the face editor all happen in the gameplay world.
    [`opx77_charselector`](../reference/opx77_charselector/index.md) opens it
    through `opx77_menu` once the phase is `"ready"` and the gameplay puppet
    exists, and puts the stage up with it: the camera orbits to face the
-   player's own character, and the character is held where it stands. A roster
+   player's own character, locked against the mouse, and the character is held
+   where it stands, all with the platform's player controls. Nobody else is in
+   the player's bucket to be seen. A roster
    that has not arrived is asked for again every
    [`ROSTER_RETRY_MS`](../reference/opx77_charselector/config.md#roster-retry-ms).
-5. **A selection** goes to the core, which places the character and releases
-   its own hold. `opx77_appearance` then reloads the body when the character's
+5. **A selection** goes to the core, which moves the player to the placement
+   bucket, places the character and releases its own hold. `opx77_appearance` then reloads the body when the character's
    `charInfo.gender` is not the one the world loaded, puts the stored face on,
    and announces. `__platform` falls with `incarnated`.
 6. **A creation** goes through
@@ -378,13 +382,20 @@ The sequence `OPX.PlaceCharacter` runs:
    opened — the core is still holding it — so this poll is the whole of what
    stands between placement and a player mid-transition. A `nil` snapshot is the
    platform's own prescribed test for "not yet incarnated" and is rejected here.
-2. **`Open77.players.kill`** with `cause = "script"` and
+2. **Move the player out of their selection bucket** into the placement bucket:
+   the stored one, or `ENTRY.BUCKET.WORLD` when there is none or it is itself a
+   selection bucket. Before the kill, as the platform's own gamemodes move a
+   player before placing them.
+3. **`Open77.players.kill`** with `cause = "script"` and
    `weapon = "opx77_core:placement"`.
-3. **`Open77.players.respawn`** with the target position, heading and bucket, the
-   character's stored health clamped to 0.15–1.0 of full, and a 5,000 ms grace
-   window.
-4. **Apply armour after the transaction.** Armour is not a respawn option, and
+4. **`Open77.players.respawn`** with the target position, heading and the same
+   bucket, the character's stored health clamped to 0.15–1.0 of full, and a
+   5,000 ms grace window.
+5. **Apply armour after the transaction.** Armour is not a respawn option, and
    the body is about to be replaced.
+
+A character that could not be placed is still moved to `WORLD` once it is
+loaded: it plays where it stands, and not alone.
 
 If the kill succeeded and the respawn did not, the core **revives** rather than
 leaving a corpse — and deliberately does not mark the position sampler as
@@ -408,6 +419,33 @@ The one exception is deliberate: if there is no stored position and
 `DEFAULT_SPAWN.SET` is false, placement declines and **does** allow sampling.
 Nothing was restored, so there is nothing to overwrite, and wherever the engine
 dropped them is the best answer available.
+
+## A bucket move is not a placement {#bucket-move}
+
+`opx77_core` moves a joining player into a routing bucket of their own at
+connect, while their gate is closed and before their world has loaded. That does
+not break the rule at the top of this page, and the reasoning is worth having in
+one place:
+
+- **What the rule protects.** Teleporting, spawning, killing or respawning acts
+  on the body of a client that may not have one yet, and that crashes it.
+- **What a bucket move is.** The host documents `Open77.routingBuckets.setPlayer`
+  as moving "authoritative visibility scope": which bodies, vehicles and props
+  are replicated to and from the player. It writes no transform, no life state
+  and no puppet.
+- **How the platform treats it.** The official `open77_appearance` replays
+  bodies on `onPlayerBucketChange` with no life or gate check. Of the
+  bucket-related refusal strings in the server assemblies — `invalid_bucket`,
+  `wrong_bucket`, `bucket_mismatch` and the like — none is about readiness, and
+  no manifest permission guards the call.
+- **Why at connect.** It is the one moment nothing from the shared world has
+  been replicated to the player yet, so nobody choosing a character is ever seen
+  by, or sees, anybody else.
+
+The move back out happens inside `OPX.PlaceCharacter`, after the life-state poll
+and just before the kill, and an unload puts the player back in their own bucket.
+The whole lifecycle, and what it means for `opx77_admin`'s `goto` and `bring`, is
+under [`ENTRY.BUCKET`](../reference/opx77_core/config.md#server-entry-bucket).
 
 ## Where to go next {#next}
 

@@ -130,7 +130,8 @@ Open77.exports.call("opx77_charselector", "state")
 `world` (whether the gameplay world is up, which the roster waits for),
 `characters` and `slots` from the roster it holds, `citizenId` for the row the
 cursor is on while the list is up, and the stage — `staged` (the camera is on the
-character), `frozen` (the character is held) and `stageHolder`.
+character), `cameraLocked` (the mouse is kept off it), `frozen` (the character is
+held, by the controls or the fallback pin) and `stageHolder`.
 
 It is the first thing to read for a player who reports an empty screen: `world =
 false` is the loading cover, `characters = 0, slots = 0` is a roster that never

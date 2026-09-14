@@ -173,6 +173,18 @@ touches the world at all.
 
 ---
 
+## Routing buckets, with no grant {#routing-buckets}
+
+`Open77.routingBuckets` — `getPlayer`, `setPlayer`, `setPopulationEnabled`,
+`setLockdownMode` — is installed for every server resource and appears in no
+permission, so there is nothing in the manifest for it. The core uses it to keep a
+player with no character loaded in a bucket of their own.
+
+**Used by** `server/buckets.lua`, called from the join, the placement, the unload
+and the stop. See [`ENTRY.BUCKET`](config.md#server-entry-bucket).
+
+---
+
 ## Deliberately not requested {#not-requested}
 
 Named here so that a fork knows it is changing a decision rather than filling a

@@ -139,7 +139,7 @@ player, so the camera does not move between the roster and the form.
 | When | This resource |
 |---|---|
 | a flow starts, before anything else yields | calls [`holdStage`](../opx77_charselector/exports.md#holdstage), inside the 5 s the roster keeps the stage after handing a creation over |
-| the form is up, or a registration is with the core | holds it. `opx77_input` focuses its form, so the game gets no walk keys |
+| the form is up, or a registration is with the core | holds it. `opx77_input` takes the keyboard for its form but not the mouse, so it is the stage's [lock](../opx77_charselector/stage.md#lock) that keeps the camera still |
 | the player backs out | calls `open` for the roster, **then** `releaseStage`: the stage lingers for the roster to take it over |
 | a character was created | waits a second for the core's roster, calls `open` if it did not come, then `releaseStage` |
 | `RETURN_TO_SELECTOR = false` | `releaseStage` at once, and the stage goes a moment later |

@@ -70,9 +70,28 @@ against the code as it stands rather than against a release. If a page and the
 code you have disagree, the code is right and the page is a bug — see
 [Contributing](guides/contributing.md) for how to report or fix one.
 
+### The locked stage and the selection bucket {#selection-lock-and-bucket}
+
+The most recent round closes two gaps found by playing the world-first entry. The
+mouse could still turn the stage camera under the roster and the creation form,
+and every player choosing a character stood in the shared world, in sight of
+everybody else.
+
+| Resource | Change |
+|---|---|
+| [`opx77_charselector`](reference/opx77_charselector/index.md) | Locks the camera with `Open77.players.freezeRotation` and holds the character with `freezePosition` and the `allow*` blocks, none of which takes `opx77_menu`'s keys — see [the lock and the hold](reference/opx77_charselector/stage.md#lock). New `STAGE.LOCK_CAMERA`, new permission `players.controls`, `cameraLocked` in `state`. The teleport pin is kept as the fallback. |
+| [`opx77_core`](reference/opx77_core/index.md) | Keeps a player with no character loaded in a routing bucket of their own, from connect until a character is placed, and again after an unload — [`ENTRY.BUCKET`](reference/opx77_core/config.md#server-entry-bucket). A stored position in the selection range is placed in the world bucket. |
+| [`opx77_charcreator`](reference/opx77_charcreator/index.md) | Documentation only: the form takes the keyboard, not the mouse. |
+
+**What changes for staff.** `opx77_admin`'s `goto` to a player back on the
+roster after an unload lands in that player's selection bucket; see
+[the note on `goto`](reference/opx77_admin/commands.md#player-goto).
+
+Written against `open77-server-2.31.13+op77.63`.
+
 ### The world-first entry {#world-first-entry}
 
-The most recent round changes **the order a player joins in**. Nothing a server
+The round before it changes **the order a player joins in**. Nothing a server
 resource draws is visible under the platform's loading cover, and the cover
 stays up until the one-shot character bootstrap is spent; the framework spent it
 on the chosen character's body, so the roster that had to choose one was open
