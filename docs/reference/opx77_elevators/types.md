@@ -5,9 +5,10 @@ description: The shapes opx77_elevators reads and answers with — the configura
 
 # Types
 
-The annotations in `types.lua`, as the code actually uses them. Nothing here is
-loaded at runtime: Lua tables carry no schema, and these are the shapes the
-resource reads and answers with.
+The annotations in `std/types.lua`, as the code actually uses them. Nothing here
+is loaded at runtime: Lua tables carry no schema, and these are the shapes the
+resource reads and answers with. The stubs of the namespace functions sit beside
+it, under `std/client/` and `std/shared/`.
 
 Field names are `UPPER_CASE` in the configuration — it is written by a human —
 and `lowerCamelCase` everywhere the code produces a value.
@@ -95,8 +96,8 @@ One stop this resource offers at an elevator. A floor with no `JOBS` is public.
 !!! warning "A job name here cannot be verified"
 
     Names must exist in [`opx77_core`'s `data/jobs.lua`](../opx77_core/data.md),
-    and this resource's VM cannot ask the core anything. A typo is not an error —
-    it is a floor nobody can take.
+    and this resource does not check them. A typo is not an error — it is a
+    floor nobody can take.
 
 ## JobSnapshot {#jobsnapshot}
 
@@ -207,8 +208,8 @@ Extends [`ElevatorResponse`](#elevatorresponse)
 
     An export handler is not a coroutine, so nothing inside one can wait for the
     server. The verdict arrives afterwards on
-    [`opx77:elevators`](events.md#opx77-elevators) with `source = "server"` — or
-    never arrives, when the refusal was `rate_limited`.
+    [`opx77:elevators`](events.md#opx77-elevators) with `source = "server"`, a
+    `rate_limited` refusal included.
 
 ## ElevatorClientState {#elevatorclientstate}
 

@@ -21,12 +21,12 @@ resources build on.
 ## Start where your question is {#start-here}
 
 **Coming from ESX or Qbox?**
-The habits transfer; the call shapes do not, and one of them — a server-side
-export — has no equivalent here at all. Read
+The habits transfer; the call shapes do not. Every export answers a promise,
+and the character lives in one resource that no other resource writes. Read
 [Converting from ESX or Qbox](guides/converting.md).
 
 **Installing a server?**
-Fourteen resources, one load order and one `server.jsonc` block, in the order
+Sixteen resources, one load order and one `server.jsonc` block, in the order
 that works. Read [Getting started](guides/getting-started.md).
 
 **Players stuck on the loading screen, or never offered a character?**
@@ -41,13 +41,13 @@ the failure model has three levels rather than one. Read
 [The export contract](concepts/export-contract.md) for the shape every call
 takes.
 
-**Want to know why the server side is one resource?**
-Because the OPEN//77 server runtime installs no `exports`, no
-`GetInvokingResource` and no cross-resource event bus, so a second server
-resource could never be asked for anything. Read
-[Architecture](concepts/architecture.md), and
-[Integration channels](concepts/integration-channels.md) for the three
-asynchronous channels that remain.
+**Want to know why the character lives in one resource?**
+Because every call between resources crosses an isolated Lua VM and answers a
+promise, so the state everything reads has one owner: `opx77_core`, which other
+server resources reach only through a handful of server exports it admits by
+caller. Read [Architecture](concepts/architecture.md), and
+[Integration channels](concepts/integration-channels.md) for the channels a
+resource of your own can use.
 
 ## The three registers {#registers}
 

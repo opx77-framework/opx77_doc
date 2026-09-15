@@ -14,17 +14,22 @@ declares it.
     `config.lua` is a `shared_script`: it is loaded by the server half **and
     shipped to every client**. Every job name, every grade, every door's wording
     and every shaft position is on the player's machine, readable in a text
-    editor. That is inherent to the design — the gate has to run on the client,
-    because the client is the only side that can reach `opx77_core` — and it is
-    another reason the job check is a hint. Put nothing here you would not
+    editor. That is inherent to the design — the gate runs on the client,
+    because the client is the only side where `opx77_core` answers a job — and
+    it is another reason the job check is a hint. Put nothing here you would not
     publish.
+
+Every radius, timer and rate below is read **once**, at load. One that is
+missing or is not a positive number is named in a warning at boot and read as
+zero, rather than raising mid-request; [`SCAN_MS`](#scan-ms) is the one whose
+zero stops something.
 
 ## LOCALE {#locale}
 
 Which catalogue in `locales/` the player-facing text is read from.
 
 ```lua
-LOCALE = "en",
+LOCALE = 'en',
 ```
 
 **Type** `string`
@@ -45,7 +50,7 @@ Decides what happens to a floor the player cannot reach: it appears greyed with
 its `REASON` beside it, or it does not appear at all.
 
 ```lua
-DENIED_FLOORS = "shown",
+DENIED_FLOORS = 'shown',
 ```
 
 **Type** `"shown" | "hidden"`
@@ -62,7 +67,7 @@ Decides what counts as holding a job: only the one being worked, or the whole
 membership map.
 
 ```lua
-MEMBERSHIP = "primary",
+MEMBERSHIP = 'primary',
 ```
 
 **Type** `"primary" | "any"`
@@ -126,7 +131,20 @@ SCAN_MS = 2000,
 A sighting is considered stale after **two** scans: a lift that stopped being
 reported is a lift the player walked away from, and that is what makes
 [`nearestElevator`](exports.md#nearestelevator) go quiet when the player leaves
-the lobby.
+the lobby. The same loop polls the core every [`POLL_MS`](#poll-ms).
+
+The value is read once as **whole milliseconds**: `'2000'` and `2000.5` both
+scan every 2000 ms.
+
+!!! warning "Below one millisecond, nothing is scanned"
+
+    A `SCAN_MS` that comes out below 1 — `0`, a negative number, or anything
+    that is not a number — is logged on the client as an error at start
+    (`SCAN_MS is not a whole number of milliseconds above zero; nothing will be
+    scanned`), and the loop does not run at all: no lift is sighted, no panel
+    opens, and the character is not polled until the value is fixed. The
+    snapshot from `opx77:client:onPlayerLoaded` and
+    `opx77:client:playerDataChanged` still arrives.
 
 ## EVENT {#event}
 
@@ -134,7 +152,7 @@ The name of the local client event raised after every decision this resource
 makes.
 
 ```lua
-EVENT = "opx77:elevators",
+EVENT = 'opx77:elevators',
 ```
 
 **Type** `string`
@@ -252,19 +270,20 @@ REQUESTS_PER_WINDOW = 6,
 
 **Type** `integer`
 
-!!! warning "A rate-limited request is answered with silence"
+!!! info "A rate-limited request is answered"
 
-    The limit governs the cabin, not the reply: a refused packet would otherwise
-    still cost one outbound event echoing whatever the client sent. Nothing is
-    sent back, so a caller waiting for a verdict must tolerate never receiving
-    one. See [`rate_limited` is silent](errors.md#rate-limited).
+    The limit governs the cabin, not the reply: a request past the limit is
+    answered `rate_limited` on
+    [`opx77_elevators:answer`](events.md#answer), one event per request, and
+    the built-in panel shows it as a toast (`elevators.rateLimited`). See
+    [`rate_limited`](errors.md#rate-limited).
 
 ## COMMAND {#command}
 
 The name of the ACL-restricted diagnostic command, or `false` to register none.
 
 ```lua
-COMMAND = "opx77.elevators.where",
+COMMAND = 'opx77.elevators.where',
 ```
 
 **Type** `string | false`
@@ -278,29 +297,28 @@ it. See [Commands](commands.md#where).
 The elevators themselves, each under a **durable key** — the name used by every
 export, every event and the diagnostic command.
 
+The first shipped entry, with numbered notes added for this page (the shipped
+`config.lua` carries no comments, and declares no `ENTITY`):
+
 ```lua
 ELEVATORS = {
-  arasaka_tower = {                 -- (1) the durable key
-    LABEL = "ARASAKA TOWER",        -- (2) the panel's title
-    X = -1521.40, Y = 892.75, Z = 42.10,   -- (3) where the shaft is
-    BUCKET = 0,                     -- (4) routing bucket, default 0
-    -- ENTITY = "0x0123456789ABCDEF",      -- (5) optional, pins WHICH lift
-    FLOOR_COUNT = 12,               -- (6) the NATIVE device's floor count
-    FLOORS = {                      -- (7) the stops this resource offers
-      { INDEX = 0, LABEL = "Plaza" },                    -- public
-      { INDEX = 2, LABEL = "Reception" },                -- public
-      { INDEX = 5, LABEL = "Analytics",
-        JOBS = { arasaka = 0 },                          -- (8) name -> min grade
-        REASON = "Arasaka staff only" },                 -- (9) shown when refused
-      { INDEX = 8, LABEL = "Counterintel",
-        JOBS = { arasaka = 2, militech = 3 },            -- (10) any one of them
-        REASON = "Arasaka Counterintel" },
-      { INDEX = 11, LABEL = "Executive Suite",
-        JOBS = { arasaka = 3 },
-        ON_DUTY = true,                                  -- (11) and clocked in
-        REASON = "Arasaka Executive, on duty" },
-    },
-  },
+	arasaka_tower = { -- (1) the durable key
+		LABEL = 'ARASAKA TOWER', -- (2) the panel's title
+		X = -1521.40, Y = 892.75, Z = 42.10, -- (3) where the shaft is
+		BUCKET = 0, -- (4) routing bucket, default 0
+		-- ENTITY = '0x0123456789ABCDEF', -- (5) optional, pins WHICH lift
+		FLOOR_COUNT = 12, -- (6) the NATIVE device's floor count
+		FLOORS = { -- (7) the stops this resource offers
+			{ INDEX = 0, LABEL = 'Plaza' }, -- public
+			{ INDEX = 2, LABEL = 'Reception' }, -- public
+			{ INDEX = 5, LABEL = 'Analytics', JOBS = { arasaka = 0 }, -- (8) name -> min grade
+				REASON = 'Arasaka staff only' }, -- (9) shown when refused
+			{ INDEX = 8, LABEL = 'Counterintel', JOBS = { arasaka = 2, militech = 3 }, -- (10) any one
+				REASON = 'Arasaka Counterintel' },
+			{ INDEX = 11, LABEL = 'Executive Suite', JOBS = { arasaka = 3 },
+				ON_DUTY = true, REASON = 'Arasaka Executive, on duty' }, -- (11) and clocked in
+		},
+	},
 }
 ```
 
@@ -344,8 +362,8 @@ ELEVATORS = {
    list is a floor no panel offers and no request can name.
 8. **`JOBS`** — a map of job name to **minimum grade level**. `{ arasaka = 0 }`
    means "any Arasaka grade". Names must exist in
-   [`opx77_core`'s `data/jobs.lua`](../opx77_core/data.md); this resource's VM
-   cannot verify them, so a typo reads as a floor nobody can take.
+   [`opx77_core`'s `data/jobs.lua`](../opx77_core/data.md); this resource does
+   not check them, so a typo reads as a floor nobody can take.
 9. **`REASON`** — the operator's own wording, shown beside a refused row. Write
    it as a door would be signed, not as an error message.
 10. **Several jobs on one floor** — the character needs to satisfy **one** of
@@ -400,6 +418,9 @@ Everything wrong with `ELEVATORS` that can be seen without a world is reported a
 boot, one warning line per problem, and again on demand from
 [the diagnostic command](commands.md#where):
 
+- a radius, timer or rate (`MATCH_RADIUS`, `USE_RADIUS`, `SCAN_RADIUS`,
+  `SCAN_MS`, `POLL_MS`, `JOB_MAX_AGE_MS`, `TRAVEL_MS`, `REQUEST_WINDOW_MS`,
+  `REQUESTS_PER_WINDOW`) that is not a finite number above zero;
 - an `X`, `Y` or `Z` that is not a finite number inside 1 000 000 of the origin;
 - an elevator with no `FLOORS`, so its panel would be empty;
 - a `FLOOR_COUNT` that is not a whole number of at least 1;
@@ -421,12 +442,12 @@ every `%.2f` in the diagnostic report, raises on an axis that holds a string.
     that describes it. Every problem here comes out as its own warning line and
     the rest of the report still runs.
 
-It cannot check a job **name**. Those live in `opx77_core`, and this VM cannot
-ask it anything — the same constraint that makes the job check a hint.
+It cannot check a job **name**. Those live in `opx77_core`, and the check runs at
+load, without waiting on another resource.
 
 ## Keys that do not exist {#nonexistent-keys}
 
-`types.lua` used to mention two settings that `config.lua` never declared and no
+The type annotations (now `std/types.lua`) used to mention two settings that `config.lua` never declared and no
 file read. Both references have been removed from the annotations; the keys are
 named here because earlier documentation described them, and neither ever did
 anything.
@@ -444,12 +465,15 @@ one file per language, keyed `elevators.<thing>`. `en` and `fr` ship.
 
 ```lua
 -- locales/en.lua
-OpxElevators.Locale.register("en", {
-  ["elevators.title"]   = "ELEVATORS",
-  ["elevators.locked"]  = "Locked",
-  ["elevators.refused"] = "That floor is not available.",
-  ["elevators.tooFar"]  = "You are too far from the elevator.",
-  -- …
+OpxElevators.Locale.register('en', {
+	['elevators.title'] = 'ELEVATORS',
+	['elevators.locked'] = 'Locked',
+	['elevators.refused'] = 'That floor is not available.',
+	-- …
+	['elevators.rateLimited'] = 'Slow down and try again in a moment.',
+	-- …
+	['elevators.tooFar'] = 'You are too far from the elevator.',
+	-- …
 })
 ```
 

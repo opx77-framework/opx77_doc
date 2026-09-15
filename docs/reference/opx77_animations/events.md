@@ -47,9 +47,9 @@ end)
     - `ok`, and `error` on a refusal.
     - `animation`, `variant`, and `playbackId` — the service's id for a playback
       that started.
-    - `source` — who asked: `"export"`, `"picker"`, `"command"`, `"presenter"`
-      (a local body that could not be posed) or `"owner_stopped"` (the resource
-      that started it stopped).
+    - `source` — who asked: `"export"`, `"picker"`, `"key"` (the stop key),
+      `"command"`, `"presenter"` (a local body that could not be posed) or
+      `"owner_stopped"` (the resource that started it stopped).
     - `owner` — the export caller's resource name, when there was one.
 
 **When it is raised.** Once per request, when the server's answer arrives. A
@@ -66,8 +66,8 @@ so that verdict lands between 15 and 20 seconds after the request.
 
 **The toast.** A refusal whose `source` is anything but `"export"` is also shown
 to the player — through `opx77_notify` when it runs and
-[`NOTIFY`](config.md#notify) is on, as a chat line otherwise. An export caller
-decides for itself.
+[`NOTIFY`](config.md#notify) is on, as a chat line otherwise, or when the toast's
+answer is anything but `ok = true`. An export caller decides for itself.
 
 **Side** `client local event` — raised in this resource's client VM, heard by
 every client resource on the machine.
@@ -160,14 +160,20 @@ looking at. See [`opx77_menu` events](../opx77_menu/events.md#your-event).
 ### chat:addMessage {#chat-addmessage}
 
 Raised locally on the client when a message to the player cannot be a toast —
-[`NOTIFY`](config.md#notify) is off, `opx77_notify` is not running, or it refused
-the toast.
+[`NOTIFY`](config.md#notify) is off, `opx77_notify` is not running, or its
+answer to the toast is anything but `ok = true`.
 
 ```lua
-TriggerEvent("chat:addMessage", { type = "system", author = "Animations", text = message })
+-- client/main.lua
+TriggerEvent('chat:addMessage', {
+	type = 'system',
+	author = locale('animations.title'),
+	text = message,
+})
 ```
 
-`author` is the locale's `animations.title`. Drawn by
+`author` is the locale's `animations.title`, `Animations` in `en`. No `color` is
+sent: `opx77_chat` styles the line from its `type`. Drawn by
 [`opx77_chat`](../opx77_chat/events.md#chat-addmessage). The player's form of
 [`opx77.anim.list`](commands.md#opx77-anim-list) arrives on the same name from
 the server instead — see [Networked: chat and commands](#chat-wire).
@@ -178,9 +184,10 @@ the server instead — see [Networked: chat and commands](#chat-wire).
 
 | Event | Side | What this resource does |
 |---|---|---|
-| `onClientResourceStart` | client | on its own start: starts the presenter, asks the server for the offer, and starts the 5 s sweep of unanswered requests |
+| `onClientResourceStart` | client | on its own start: starts the presenter, asks the server for the offer, starts the 5 s sweep of unanswered requests, and registers the two [key mappings](index.md#keys). On `opx77_prompts`' start: shows the stop key again if an animation is playing |
 | `onClientResourceStop` | client | on its own stop: stops posing and closes its picker. On **another** resource's stop: ends the local playback that resource started through an export, and forgets `opx77_menu`'s handle when the menu stops |
-| `onPlayerDisconnected` | server | forgets the player's rate windows, command cooldowns and offer throttle. It is the only departure event this platform raises |
+| `open77:keybinds:changed` | client | a player rebound or reset a mapping: an open root screen of the picker is redrawn so its **Stop** row names the key |
+| `onPlayerDisconnected` | server | forgets the player's rate windows, command cooldowns and offer throttle. It is the departure of an admitted player; a connection refused before admission raises `onPlayerRejected`, which this resource does not need |
 
 ## Networked: between the two halves {#private-wire}
 
@@ -196,7 +203,7 @@ read.
 | `opx77_animations:hello` | client → server | none — asks for the offer. Answered at most once a second per player |
 | `opx77_animations:offer` | server → client | `{ { name, variants = { … } }, … }` — what this build offers. A client reads at most 256 rows and 64 variants a row |
 | `opx77_animations:answer` | server → client | `requestId`, `action`, `ok`, `code` (`""` on success), `{ animation, variant, playbackId }` |
-| `opx77_animations:picker` | server → client | `category`, or `""` — a command asked for the picker |
+| `opx77_animations:picker` | server → client | `category`, or `""` — a command asked for the picker, on that category's screen when one is named |
 | `opx77_animations:cancel` | server → client | none — `opx77.anim.stop` ran; release a client-owned playback too |
 | `opx77_animations:notice` | server → client | `kind`, `message` — a typed command's usage line or unknown name or variant, already in the configured locale; raised as a toast in the refusal slot, or a chat line. Not a verdict, so nothing is raised on [`result`](#result) |
 
@@ -230,7 +237,7 @@ within ten seconds is abandoned.
 |---|---|---|
 | `chat:ready` | client → server | a player's chat box is up; answered with suggestions, at most once every two seconds per player |
 | `chat:addSuggestions` | server → client | one suggestion per registered command, with help in the configured locale. See [`opx77_chat`](../opx77_chat/events.md#chat-addsuggestions) |
-| `chat:addMessage` | server → client | the player's form of `opx77.anim.list`, a report, authored `animations.title`. See [`opx77_chat`](../opx77_chat/events.md#chat-addmessage) |
+| `chat:addMessage` | server → client | the player's form of `opx77.anim.list`, a report, `type = 'info'`, authored `animations.title`, with no colour of its own. See [`opx77_chat`](../opx77_chat/events.md#chat-addmessage) |
 
 No command answers on `open77:command:result`: `opx77_chat` prints none of that
 event's accepted answers. A usage error and an unknown name or variant go to

@@ -7,8 +7,8 @@ description: opx77_status owns two things for OPX//77 — the shared status-effe
 
 | At a glance | |
 |---|---|
-| **Version** | `0.4.0` — `version` in `open77.lua`, mirrored as `OpxStatus.VERSION` in `client/state.lua` because no Lua here can read the manifest. A release moves both lines |
-| **Requires** | `open77_version ">=0.0.1"`. No `dependency` is declared |
+| **Version** | `0.5.0` — `version` in `open77.lua`, mirrored as `OpxStatus.VERSION` in `client/state.lua` because no Lua here can read the manifest. A release moves both lines |
+| **Requires** | `open77_version ">=0.0.1"`. No `dependency` is declared; the needs load only while [`opx77_core`](../opx77_core/index.md) answers its server export [`GetIdentity`](../opx77_core/exports/server.md#getidentity) |
 | **Auto start** | yes |
 | **Reload policy** | `reconnect` |
 | **Permissions** | `network.events`, `database.access` — see [below](#permissions) |
@@ -72,10 +72,10 @@ travels **in the payload**, so the HUD never has to read this resource's config:
 
 ```lua
 {
-  anchor = "bottom-left",  -- OPX_STATUS_CONFIG.ANCHOR
-  offset = 120,            -- OPX_STATUS_CONFIG.OFFSET
-  chips  = { --[[ up to MAX_VISIBLE, already ordered ]] },
-  hidden = 0,              -- how many were left out of the cut
+	anchor = 'bottom-left', -- OPX_STATUS_CONFIG.ANCHOR
+	offset = 120, -- OPX_STATUS_CONFIG.OFFSET
+	chips = { --[[ up to MAX_VISIBLE, already ordered ]] },
+	hidden = 0, -- how many were left out of the cut
 }
 ```
 
@@ -117,13 +117,18 @@ The client owns the values during play. It decays them, serves them, raises
 back to the server half on a throttle; the server holds the last push and writes
 it. The whole path, event by event, is on [Events](events.md#needs-path).
 
-!!! danger "The citizen id and the values arrive from the client and are taken at face value"
-    There is no ownership proof and no server-side re-derivation. The server
-    checks the *shape* of the id, clamps every value into the bounds in
-    `config.lua` before it reaches a column, and rate limits both net events —
-    but a client that lies about its needs is believed. This is the project
-    owner's ruling rather than an oversight, and it is stated in the resource's
-    README in the same terms.
+!!! danger "The values arrive from the client and are not re-derived"
+    The **citizen id** is checked: a pull is admitted only when `opx77_core`'s
+    server export [`GetIdentity`](../opx77_core/exports/server.md#getidentity)
+    answers that this is the character the core has loaded for that connection,
+    and a push only ever lands on the character that player pulled. So a client
+    cannot read or write another character's needs — not someone else's, and not
+    one of its own account's that is not the one in play. The **values** are not
+    re-derived: the server clamps every value into the bounds in `config.lua`
+    before it reaches a column and rate limits both net events, but a client that
+    lies about its needs is believed. This is the project owner's ruling rather
+    than an oversight, and it is stated in the resource's README in the same
+    terms. See [the pull](events.md#net-pull).
 
 ### What stays in opx77_core {#core-owned}
 
@@ -161,9 +166,11 @@ read or written until that `CREATE TABLE` has succeeded; if it fails, the server
 half logs two lines and stops, and no character's needs load or save.
 
 There is deliberately **no foreign key** to `opx77_characters`. One would make
-this resource refuse to install until the core had migrated, and load order across
-resources is not ours to decide. It follows that a row here can outlive the
-character it names.
+this resource refuse to install until the core's schema existed, and load order
+across resources is not ours to decide. It follows that a row here can outlive
+the character it names. This resource reads no table but its own: which
+character a player has in play comes from `opx77_core`'s server export, not from
+`opx77_characters`.
 
 !!! danger "There is no migration in this framework"
     Nothing here upgrades an older database. A database from before this change
@@ -175,8 +182,8 @@ character it names.
 
 ```lua
 permissions {
-  "network.events", -- opx77_status:pull, :push, :values and :pushed
-  "database.access", -- opx77_character_status, this resource's own table
+  "network.events",
+  "database.access",
 }
 ```
 
@@ -184,7 +191,11 @@ It used to declare `permissions {}`, and that was honest at the time: the effect
 registry needs neither grant. It still does not.
 
 - An **export call** needs no permission on either side, so the seven exports
-  cost nothing.
+  cost nothing, and neither does the server half's call to `opx77_core`'s
+  `GetIdentity`. That export is a read, which the core's `EXPORTS.READ` admits
+  for every caller as shipped (`'*'`); an operator who narrows it must keep
+  `opx77_status` in it, or no pull is ever admitted. No `EXPORTS.CALLERS` entry
+  is needed.
 - The client's **local event bus** is host-wide, so a `TriggerEvent` here reaches
   a bare `AddEventHandler` in another resource without `network.events`. The
   three events this resource publishes are all on that bus.
@@ -208,3 +219,7 @@ Both grants are for the needs, and only for the needs:
 - [Configuration](config.md) — the strip, the needs and the write path.
 - [The client export contract](../../concepts/export-contract.md) — read this
   before calling anything here.
+
+The LuaLS types (`std/types.lua`) and one stub per `OpxStatus` function live in
+the resource's `std/`, never loaded; why the code is written the way it is — in
+French — is in its `docs/ARCHITECTURE.md`.

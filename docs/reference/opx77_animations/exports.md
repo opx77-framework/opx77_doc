@@ -5,10 +5,10 @@ description: The eight client exports of opx77_animations — play, stop, state,
 
 # Exports
 
-Eight exports, all **client-side**, because that is the only side exports exist
-on: the OPEN//77 server runtime installs none. A server resource that wants a
-player to play an animation sends a net event to its own client half, and that
-half calls these. [The client export contract](../../concepts/export-contract.md)
+Eight exports, all **client-side**: the requests, the mirror and the picker live
+on the player's machine, and this resource's server half publishes no export. A
+server resource that wants a player to play an animation sends a net event to
+its own client half, and that half calls these. [The client export contract](../../concepts/export-contract.md)
 covers the call shape and its three levels of failure.
 
 Every call answers a table carrying `ok` and never raises. `error` is a stable
@@ -253,24 +253,26 @@ Open77.exports.call("opx77_animations", "get", name)
 
 ## openPicker {#openpicker}
 
-Asks [`opx77_menu`](../opx77_menu/index.md) to put the picker's root screen up,
-with the cursor on one category's row when one is named.
+Asks [`opx77_menu`](../opx77_menu/index.md) to put the picker up — its root
+screen, or one category's screen when a category is named.
 
 ```lua
 Open77.exports.call("opx77_animations", "openPicker", category)
 ```
 
 - category?: `string`
-    - Where the cursor starts on the root screen. Advisory: a category with
-      nothing offered is not drawn, and the menu falls back to the first
-      selectable row. It does not open that category's screen.
+    - One of the six categories, without case. That category's screen opens
+      directly, with the root stacked under it and its cursor on that category,
+      so **Back** and Backspace return there. A category with nothing offered
+      has no row on the root, and naming it opens the root.
+    - Default: the root screen
 
 **Returns** an [`AnimationRequest`](types.md#animationrequest) — `ok = true,
 queued = true`. The menu is called on a thread, so the picker appears a moment
 later. A refusal from the menu after that is logged as
 `picker <screen> did not open: <reason>` and shown to the player as a toast —
 see [The picker](index.md#picker). A picker of this resource's already up is
-replaced by the root.
+replaced.
 
 The picker opens **one screen at a time**, each its own `opx77_menu` `open`,
 built from what is offered at the moment that screen is drawn: the root holds a

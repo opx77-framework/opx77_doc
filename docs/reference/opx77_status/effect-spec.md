@@ -73,7 +73,7 @@ an optional field that is `nil` is simply absent — it is never a refusal.
     96 are byte counts, and the character class they must match rules out
     multi-byte text anyway.
 
-    `label` and `icon` are **display text**, cleaned by `Text.clean` in
+    `label` and `icon` are **display text**, cleaned by `OpxStatus.Text.Clean` in
     `shared/text.lua`, and their limits of 32 and 2 are counted in **characters**.
     The cut is UTF-8 aware and never lands mid-sequence, so an `icon` of two
     emoji fits and arrives whole. The scan behind it is bounded in bytes at four

@@ -9,39 +9,40 @@ description: What opx77_core is, the state it owns, its manifest at a glance, th
 
 | At a glance | |
 |---|---|
-| **Version** | `0.3.0` |
+| **Version** | `0.6.0` |
 | **Requires** | `open77_version ">=0.0.1"`. **No `dependency` is declared**, in either direction: a declared dependency is hard, and this core must install on a bare server. |
 | **Auto start** | yes |
 | **Reload policy** | `local` — a reload is a script reload, not a reconnect: both halves rebuild |
-| **Permissions** | `network.events`, `database.access`, `players.life.read`, `players.life.kill`, `players.life.respawn`, `players.life.revive`, `players.damage.apply`, `world.vehicles` — see [Permissions](permissions.md) |
-| **Sides** | server, which owns every decision and the database, and client, which holds a read-only mirror and publishes the exports |
-| **Exports** | 16 client exports — see [client exports](exports/client.md). **No server exports, and none is possible** — see [server exports](exports/server.md) |
-| **Commands** | 14, ACL-restricted — see [Commands](commands.md) |
+| **Permissions** | `network.events`, `database.access`, `players.life.read`, `players.life.kill`, `players.life.respawn`, `players.life.revive`, `players.damage.apply`, `world.vehicles`, `acl.read`, `players.disconnect` — see [Permissions](permissions.md) |
+| **Sides** | server, which owns every decision and the database, and client, which holds a read-only mirror and publishes the client exports |
+| **Exports** | 17 client exports — see [client exports](exports/client.md) — and 11 server exports, for identity, a change cursor, a vehicle's plate and the inventory storage — see [server exports](exports/server.md) |
+| **Schema** | seven `opx77_` tables, created at boot from `server/storage/schema.lua`; `sql/schema.sql` is the copy an operator reads — see [Persistence](../../concepts/persistence.md#schema) |
+| **Commands** | 14 — nine ACL-restricted, five a player runs on their own character — see [Commands](commands.md) |
 | **Events** | four channels it owns — `Client` and `Server` on the wire, `Local` and `Internal` in-VM. `Client` and `Local` are deliberately disjoint vocabularies — see [Events](events.md) |
 | **Licence** | MIT |
 
 ## What it is {#what-it-is}
 
 `opx77_core` is the whole server side of OPX//77. It owns the character roster,
-the money ledger, jobs, gangs, per-character metadata, vehicle ownership, the
-database schema and the join-time readiness gate — and it owns all of them
-alone. Nothing else on the server writes to `opx77_characters`, and nothing else
-decides where a character stands when they enter the world.
+the money ledger, jobs, gangs, per-character metadata, the face and the clothing,
+vehicle ownership, the storage of every inventory, the database schema and the
+join-time readiness gate — and it owns all of them alone. Nothing else on the
+server writes to `opx77_characters`, and nothing else decides where a character
+stands when they enter the world.
 
-It is one resource rather than several because the OPEN//77 server runtime
-installs no `exports`, no `GetInvokingResource` and no cross-resource event bus:
-a second server resource could never be asked for anything. So the server side
-splits by **file**, not by resource, and what would be a plug-in resource on
-another platform is here one more file added to `opx77_core/server/` and one
-more line added to its manifest. The reasoning, and the four channels that do
-exist, are in [Architecture](../../concepts/architecture.md) and
+Its server API, `OPX.*`, lives in one Lua state, and a plug-in that needs it is
+one more file added to `opx77_core/server/` and one more line added to its
+manifest — which keeps one roster, one ledger and one writer. What another
+server resource needs from outside is published as **server exports**: who a
+player is, the characters loading and leaving, a spawned vehicle's plate, and
+the inventory storage `opx77_inventory` calls. The reasoning, and every channel
+a third party can use, are in [Architecture](../../concepts/architecture.md) and
 [Integration channels](../../concepts/integration-channels.md).
 
-The core's **client** half is the opposite: it draws nothing. It mirrors the
-character the server sent, publishes 16 exports over that mirror, and re-fires
-every change on a local event channel any resource on the host can hear. Pixels
-belong in satellite client resources reaching it through
-`Open77.exports.call("opx77_core", …)`.
+The core's **client** half draws nothing. It mirrors the character the server
+sent, publishes 17 exports over that mirror, and re-fires every change on a local
+event channel any resource on the host can hear. Pixels belong in satellite
+client resources reaching it through `Open77.exports.call("opx77_core", …)`.
 
 !!! warning
     Everything the client half answers is a **hint**. It is read from a copy of
@@ -57,12 +58,12 @@ belong in satellite client resources reaching it through
 | `data/` | Jobs, gangs, lifepaths. Definitions, not settings: changing one renames something players already hold. |
 | `locales/` | `en.lua` and `fr.lua`, registered immediately after the catalogue so no file below them can call `locale()` against an empty one. |
 | `shared/` | `OPX` itself — result, table, string, math, validate, hooks, locale, citizen ids. Loaded into both VMs. |
-| `sql/` | One `.sql` file per table, and the copy an operator reads. Not loaded by the manifest — see [Persistence](../../concepts/persistence.md#schema). |
-| `server/storage/` | Every SQL statement the resource actually runs, and the migrations. Nothing else in the resource writes SQL. |
-| `server/` | Sessions, players, groups, characters, appearance, vehicles, the gate, events, commands, loops. |
+| `sql/` | `schema.sql`, every `CREATE TABLE IF NOT EXISTS` statement the core runs, with a comment per table: the copy an operator reads, and may run by hand on an empty database. Not loaded by the manifest — see [Persistence](../../concepts/persistence.md#schema). |
+| `server/storage/` | Every SQL statement the resource actually runs: `main.lua` (the bridge and `OPX.Storage.applySchema`), `schema.lua` (`OPX.Schema`, the single schema), `players.lua`, `vehicles.lua` and `inventories.lua`. Nothing else in the resource writes SQL. |
+| `server/` | Sessions, players, groups, characters, appearance, clothing, vehicles, the gate, the selection bucket, events, commands, loops, and `exports.lua`, the server exports, loaded last. |
 | `client/` | The state mirror, the character-screen requests, the event re-emissions and the exports surface. |
-| `types.lua` | The LuaLS annotations for everything above. Not loaded by the manifest. |
-| `tools/` | `check_sql_parity.py`, which proves `sql/` and `server/storage/schema.lua` still carry the same statements. |
+| `std/` | The LuaLS annotations: `std/types.lua` for the shapes, and one stub per namespace function under `std/client/`, `std/server/` and `std/shared/`. Not loaded by the manifest. |
+| `docs/` | `ARCHITECTURE.md`, in French: why the code is written as it is — load order, one line per permission, invariants and known limits. |
 
 ## Load order is the contract {#load-order}
 
@@ -70,7 +71,8 @@ Scripts load in **manifest order**, and order inside each block of
 `open77.lua` is dependency order. A file publishes into the `OPX` table, and
 every file listed below it may read what was published. `shared/main.lua`
 creates the namespace; `server/functions.lua` publishes the getters that every
-file after it reaches for; `client/exports.lua` is last, because publishing the
+file after it reaches for; `server/exports.lua` and `client/exports.lua` are last
+in their blocks, because publishing the
 surface claims everything it reads.
 
 Two rules cost somebody something before they were written down.
@@ -93,8 +95,8 @@ Two rules cost somebody something before they were written down.
 
 ## Where to go next {#next}
 
-- [Client exports](exports/client.md) — the 16 the client half publishes.
-- [Server exports](exports/server.md) — why there are none, and the three things to use instead.
+- [Client exports](exports/client.md) — the 17 the client half publishes.
+- [Server exports](exports/server.md) — the 11 another server resource calls, and who may call them.
 - [Server API](server-api.md) — the `OPX.*` functions a file inside the core may call.
 - [Player](player.md) — the `Player` object and `PlayerData`.
 - [Hooks](hooks.md) — the four veto points.

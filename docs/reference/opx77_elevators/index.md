@@ -13,32 +13,34 @@ all live in `config.lua`.
 
 It is also the smallest complete example of a **satellite**: a resource that
 lives outside `opx77_core`, has to reach the core for the one fact it cares
-about, and can only reach it from the client. Read it before writing your own.
-Everything awkward about this platform shows up here in eighty lines.
+about, and today reads that fact on the client. Read it before writing your own.
 
 | At a glance | |
 |---|---|
-| **Version** | `0.4.0` |
+| **Version** | `0.5.0` |
 | **Requires** | `open77_version ">=0.0.1"`. No `dependency` is declared |
 | **Auto start** | yes |
 | **Reload policy** | `local` — no CEF surface; the server re-adopts from the next client sighting |
-| **Permissions** | `network.events`, `world.elevators`, `elevators.read` |
+| **Permissions** | `network.events`, `world.elevators`, `elevators.read`, `acl.read` |
 | **Sides** | client, which runs the gate, the scan and the panel, and server, which adopts, locks and re-derives every request |
 | **Exports** | six, all client-side — see [Exports](exports.md) |
 | **Commands** | one, ACL-restricted — see [Commands](commands.md) |
 | **Events** | five net events between the two halves, plus the answer channel — see [Events](events.md) |
-| **Optional at runtime** | [`opx77_menu`](../opx77_menu/index.md) for the panel, [`opx77_core`](../opx77_core/index.md) for the job |
+| **Optional at runtime** | [`opx77_menu`](../opx77_menu/index.md) for the panel, [`opx77_core`](../opx77_core/index.md) for the job, [`opx77_notify`](../opx77_notify/index.md) for the refusal toast |
 
 Nothing is declared as a hard dependency. Without `opx77_core` every gated floor
 closes and every public floor stays open; without `opx77_menu` the built-in
-panel is unavailable and the exports carry on unchanged.
+panel is unavailable and the exports carry on unchanged; without `opx77_notify`
+a floor refused from the panel is said in a chat line instead of a toast.
 
 !!! danger "The job check is a client-side hint, and no setting turns it into anything else"
 
-    The Open77 server runtime has no cross-resource event bus, so this
-    resource's **server half cannot ask `opx77_core` for a player's job**. There
-    is no message to send and no promise to await. The check runs on the client,
-    where the core can be reached, and a modified client skips every line of it.
+    This resource's **server half does not check a player's job**. A server
+    half can call another resource's server exports, but `opx77_core` has no
+    server export that answers a job: [`GetIdentity`](../opx77_core/exports/server.md#getidentity)
+    carries identity, connection and load state only. So the check runs on the
+    client, where the core's `PlayerData` can be read, and a modified client
+    skips every line of it.
 
     **Do not gate money, contraband or a body count on it.** Gate the flavour:
     which floor a lift stops at, which corridor a story happens in. A decision
@@ -76,7 +78,7 @@ On every floor request the server re-derives:
 | The player has a replicated position at all | `no_position` |
 | The player is in the elevator's routing bucket | `wrong_bucket` |
 | The player is within `USE_RADIUS` of the **declared** shaft position, across the ground | `too_far` |
-| The player is inside the rate limit | `rate_limited` |
+| The player is inside the rate limit — checked first, before any of the above | `rate_limited` |
 | The host accepted the move | `move_rejected` |
 
 Distance is measured against the declared shaft position, never the cabin's,
@@ -103,34 +105,43 @@ The general shape, stated once, because every satellite hits it:
 - **The client can ask the core anything.** `Open77.exports.call` reaches
   `opx77_core`'s client half, which holds `PlayerData`. This resource does that
   every `POLL_MS`, and again on every `opx77:client:playerDataChanged`.
-- **The server can ask the core nothing.** No `exports`, no
-  `GetInvokingResource`, no cross-resource bus; `TriggerEvent` walks only its own
-  VM. So the server half of a satellite knows what the host knows — positions,
-  buckets, entity ownership, rates — and nothing about a character.
-- **So a satellite's server half must re-derive, from the host, every clause it
-  intends to enforce**, and must be honest in its documentation about the one
-  clause it cannot.
+- **The server can ask the core only what its server exports answer.** A server
+  half reaches another resource through `Open77.exports.call`, as
+  `opx77_inventory` reads `opx77_core`'s identity and inventory exports; there is
+  still no cross-resource event bus, and `TriggerEvent` walks only its own VM.
+  `opx77_core`'s server exports answer who a player is and whether a character
+  is loaded, not the character's job. So this resource's server half knows what
+  the host knows — positions, buckets, entity ownership, rates — and nothing
+  about a job.
+- **So a satellite's server half must re-derive every clause it intends to
+  enforce**, from the host or from a server export, and must be honest in its
+  documentation about the clause it does not.
 
 [The client export contract](../../concepts/export-contract.md) explains the
 call shape and its three levels of failure;
 [Integration channels](../../concepts/integration-channels.md) sets out what
 each of the four channels can carry. If your decision has to be unforgeable, it
-is not a satellite — it is a file in `opx77_core/server/`.
+is not a satellite — it is a file in `opx77_core/server/`, or a server export the
+core answers it through.
 
 ## Where the pieces live {#layout}
 
 | File | Does |
 |---|---|
 | `config.lua` | shared. The elevators, the floors, the job requirements, the radii |
-| `shared/text.lua` | shared. `Text.span` and `Text.clean`, which measure and cut in **characters** while bounding the scan in bytes at `maximum * 4` |
+| `shared/text.lua` | shared. `OpxElevators.Text.Clean`, which cuts in **characters** while bounding the scan in bytes at `maximum * 4` through a local `span` |
 | `shared/locale.lua` | shared. The catalogue, and the `locale(key, params)` every file below it calls |
 | `locales/en.lua`, `locales/fr.lua` | shared. The player-facing text, keyed `elevators.<thing>` |
-| `shared/access.lua` | shared, pure. The gate: which floor, which job, which grade, how stale |
+| `shared/access.lua` | shared. The clock (`OpxElevators.NowMs`), the numbers read once from `config.lua`, and the gate: which floor, which job, which grade, how stale |
 | `client/state.lua` | what this client knows and how old each piece of it is |
 | `client/main.lua` | the link to `opx77_core`, the scan, the net events, the runtime API |
-| `client/panel.lua` | the floor list, borrowed from `opx77_menu` |
+| `client/panel.lua` | the floor list, borrowed from `opx77_menu`, and the refusal toast |
 | `client/exports.lua` | the six public exports |
 | `server/main.lua` | adoption, the lock, the re-derived request, the diagnostic command |
+
+The LuaLS types and stubs live in `std/` (`std/types.lua` for the shapes and
+the `ElevatorError` codes) and are never loaded. Why the code is written the way
+it is — in French — is in the resource's `docs/ARCHITECTURE.md`.
 
 `shared/access.lua` is loaded by both halves for different halves of the same
 question: the client asks *may this player press this button*, the server asks
@@ -142,16 +153,18 @@ character to ask about.
 ```lua
 permissions {
   "network.events",
-  "world.elevators", -- adopt a native lift, lock it, and move the cabin
+  "world.elevators",
   "elevators.read",
+  "acl.read",
 }
 ```
 
 | Permission | For |
 |---|---|
-| `network.events` | the five net events between the two halves — `sighted` and `request` upward, `bound`, `answer` and `released` downward. See [Events](events.md) |
+| `network.events` | the five net events between the two halves — `sighted` and `request` upward, `bound`, `answer` and `released` downward — plus the diagnostic's chat lines and its chat suggestion. See [Events](events.md) |
 | `world.elevators` | server-only. `adopt`, `get`, `all`, `setFlags` for the lock, and `goTo` to move the cabin |
 | `elevators.read` | the client's streamed snapshots — `Open77.elevators.nearby(radius)`, which is how a lift is sighted at all |
+| `acl.read` | server-only, read-only. `Open77.acl.isAllowed`, so the diagnostic command's chat suggestion is sent only to a player the ACL would let run it |
 
 !!! info "The permission it deliberately does not ask for"
 

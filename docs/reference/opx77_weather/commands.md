@@ -56,8 +56,8 @@ the platform log instead — `info` when accepted, `warn` when refused.
     Every answer on this page exists in two renderings of the same facts. A player is sent the
     text of the catalogue [`LOCALE`](config.md#locale) names, composed key by key in
     `server/commands.lua`; the console and the platform log are sent the operator's own English
-    line, which is `Authority.statusText()`. **The sample output on this page is the English
-    one.**
+    line, which is `OpxWeather.Authority.StatusText()`. **The sample output on this page is the
+    English one.**
 
 Every command that succeeds answers with the same status line:
 

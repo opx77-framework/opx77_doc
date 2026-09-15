@@ -53,17 +53,21 @@ places, and both prefer the operator's own words:
 - **Beside a greyed row**, the floor's `REASON`, or `elevators.locked` —
   *"Locked"* — where the floor declares none. A greyed row with nothing beside
   it reads as broken.
-- **On the status line under the list**, after a refusal: the `reason` the
-  refusal carried, or this resource's own wording for the code where it carried
-  none.
+- **In a toast**, after a floor picked from the list is refused, locally or by
+  the server: the `reason` the refusal carried, or this resource's own wording
+  for the code where it carried none. The list has already closed on the
+  selection, so the toast goes through `opx77_notify` (id
+  `opx77_elevators.answer`), and becomes a chat line when `opx77_notify` cannot
+  show it — see [the panel's refusals](events.md#panel-refusals).
 
 That wording is read from the catalogue in `locales/`, under
-`elevators.<thing>`, in the language [`LOCALE`](config.md#locale) names. Fifteen
+`elevators.<thing>`, in the language [`LOCALE`](config.md#locale) names. Sixteen
 codes have an entry of their own — `no_elevator_nearby`, `no_such_elevator`,
 `no_such_floor`, `not_adopted`, `floor_out_of_range`, `move_rejected`,
-`not_sent`, the [five hints](#hints), `no_position`, `wrong_bucket` and
-`too_far`. Any other code, and any code a later release adds, reads as
-`elevators.refused`: *"That floor is not available."*
+`not_sent`, `rate_limited` (`elevators.rateLimited`), the
+[five hints](#hints), `no_position`, `wrong_bucket` and `too_far`. Any other
+code, and any code a later release adds, reads as `elevators.refused`: *"That
+floor is not available."*
 
 A `REASON` and a `LABEL` in `config.lua` are the server owner's own words and
 are never translated. Neither are the codes themselves, the diagnostic command
@@ -76,8 +80,8 @@ or the `Open77.log` lines. See [Player-facing text](config.md#locales).
     They are decided on the client, from a snapshot of `PlayerData` that a
     modified client never has to read. They say what **this client believes**,
     which is what the player sees. They are not what a server would swear to,
-    and the server half of this resource cannot check any of them — it has no
-    way to ask `opx77_core` anything.
+    and the server half of this resource checks none of them — `opx77_core` has
+    no server export that answers a job.
 
     Use them to grey a row and to word a refusal. Do not use them to settle
     anything that must be unforgeable; see
@@ -100,25 +104,26 @@ two decisions are made from different evidence.
 
 A client that skipped the first still meets the second.
 
-## `rate_limited` is silent {#rate-limited}
+## `rate_limited` {#rate-limited}
 
-A rate-limited request gets **no** answer event at all. The limit governs the
-cabin, and a refused packet would otherwise still cost one outbound event
-echoing whatever the client sent — a client being told to slow down does not
-need telling more often than it is allowed to ask.
+The rate limit is the first thing the server checks, and it governs the cabin,
+not the reply: a request past `REQUESTS_PER_WINDOW` in `REQUEST_WINDOW_MS` is
+answered `rate_limited` on [`opx77_elevators:answer`](events.md#answer) like
+every other refusal, one answer event per request, so the player sees why
+nothing moved.
 
-Server-side refusal logging is capped the same way, at one line per player per
-second: the refusal path is the cheap one for an attacker, and it is the path
-that writes to disk.
+Server-side refusal logging is capped, at one line per player per second: the
+refusal path is the cheap one for an attacker, and it is the path that writes
+to disk.
 
-So a caller waiting on [`opx77:elevators`](events.md#opx77-elevators) for a
-verdict must tolerate never receiving one. Two other paths are silent for the
-same reason — a sighting the server rejects, and a request from a player whose
-`source` did not resolve.
+Two paths are still silent — a sighting the server rejects, and a request from
+a player whose `source` did not resolve — so a caller waiting on
+[`opx77:elevators`](events.md#opx77-elevators) for a verdict must tolerate never
+receiving one.
 
 ## Codes that no longer exist {#unreachable}
 
-`types.lua` used to declare two more codes that no shipped code path could
+The type annotations (now `std/types.lua`) used to declare two more codes that no shipped code path could
 answer. Both have been dropped from the annotations. Neither was ever produced,
 so a caller branching on either has a branch that never runs, and they are named
 here only because earlier documentation described them.
@@ -139,7 +144,10 @@ export errors, but they are what an operator reads in the console:
 | `not_running` | the target resource is not in the `running` state |
 | `not_dispatched` | `Open77.exports.call` refused to dispatch — level 1 |
 | `malformed_answer` | the target answered something that is not a table |
-| `refused` | the target answered `ok = false` with no code of its own |
+| `refused` | the target answered a table without `ok = true` and with no code of its own |
+
+Any answer whose `ok` is not exactly `true` is a refusal, not only `ok = false`,
+so a table without `ok` is never taken for a success.
 
 A call the core **answered** and refused is authoritative: there is no
 character, and the job snapshot is dropped at once. A call that **never landed**

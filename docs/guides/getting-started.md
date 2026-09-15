@@ -49,6 +49,7 @@ open77-server/
     ├── opx77_chat/
     ├── opx77_status/
     ├── opx77_notify/
+    ├── opx77_prompts/
     ├── opx77_weather/
     ├── opx77_elevators/
     ├── opx77_appearance/
@@ -106,13 +107,13 @@ only OPX//77 and nothing else, name the resources explicitly:
 "load": ["opx77_*"]
 ```
 
-That picks up all fifteen. Naming them one by one does the same and makes the
+That picks up all sixteen. Naming them one by one does the same and makes the
 set explicit:
 
 ```jsonc
 "load": [
   "opx77_core",
-  "opx77_menu", "opx77_input", "opx77_notify",
+  "opx77_menu", "opx77_input", "opx77_notify", "opx77_prompts",
   "opx77_appearance", "opx77_charselector", "opx77_charcreator",
   "opx77_hud", "opx77_chat", "opx77_status",
   "opx77_weather", "opx77_elevators", "opx77_animations", "opx77_admin",
@@ -167,16 +168,20 @@ to be enabled:
 Two resources hold `database.access`: `opx77_core`, for the character, and
 `opx77_status`, for the one table it owns. They talk to the same database with
 the same credential — there is no per-resource schema or table prefix — and
-every table either creates is prefixed `opx77_`. Each applies its own schema at
-boot; `opx77_core/sql/` and `opx77_status/sql/` hold the statements in a form an
-operator can read and run by hand.
+every table either creates is prefixed `opx77_`. Each creates its own tables at
+boot with `CREATE TABLE IF NOT EXISTS`, and there are no migrations:
+`opx77_core/sql/schema.sql` and `opx77_status/sql/status.sql` hold the same
+statements in a form an operator can read and run by hand on an empty database.
 
-!!! danger "There is no upgrade path from an older database"
-    The core's character tables were renamed inside their original migrations,
-    so a database created before this release keeps `opx77_accounts`,
+!!! danger "A missing table is created; an existing one is never altered"
+    A database created by `opx77_core` 0.5.0 already has every table the
+    single schema creates; the only thing left over is the `opx77_migrations`
+    table the old runner kept, which nothing reads and which can be dropped. A
+    database older than the table rename keeps `opx77_accounts`,
     `opx77_players` and `opx77_player_groups` while the code queries
-    `opx77_users`, `opx77_characters` and `opx77_character_groups`. Drop it and
-    let the runner recreate it. See
+    `opx77_users`, `opx77_characters` and `opx77_character_groups`, and a
+    table whose shape changed keeps its old shape. Drop the table, or the
+    database, and let the core create it again. See
     [Persistence](../concepts/persistence.md#schema).
 
 If the database is missing or unreachable, `opx77_core` logs
@@ -217,12 +222,12 @@ defers and never answers refuses **everybody**. See
 
 ## 3. Staff commands and the ACL {#acl}
 
-Seventy-six commands are registered across the fifteen resources. Sixty-four of
+Seventy-seven commands are registered across the sixteen resources. Sixty-five of
 them pass `true` as the third argument to `RegisterCommand`, which makes them
 **restricted**: the host resolves `command.<name>` against the caller's ACL
 *before* the resource's handler runs, so there is no permission check inside any
 OPX//77 command and there must not be one. The dedicated console runs as
-`source = 0` and is always authorised. Forty-three of the sixty-four are
+`source = 0` and is always authorised. Forty-four of the sixty-five are
 [`opx77_admin`](../reference/opx77_admin/index.md)'s, and every one of those is
 restricted with no setting to open it; five are
 [`opx77_inventory`](../reference/opx77_inventory/index.md)'s, likewise always
@@ -300,7 +305,7 @@ console. `acl.list` reports the path actually loaded, and
     ]
     ```
 
-    `command.opx77.*` covers all forty-three, the menu included — and with them
+    `command.opx77.*` covers all forty-four, the menu included — and with them
     every other OPX//77 staff command, the core's `opx77.money` and the
     inventory's `opx77.inventory.give` among them.
     Grant a narrower prefix, such as `command.opx77.admin.read.*` or
@@ -310,7 +315,7 @@ console. `acl.list` reports the path actually loaded, and
 ### Every restricted command {#restricted-commands}
 
 These twenty-one resolve an ACL permission before they run, and so do the
-forty-three of `opx77_admin` [below](#admin-commands). The permission is always
+forty-four of `opx77_admin` [below](#admin-commands). The permission is always
 `command.` plus the command name exactly as registered.
 
 | Permission | Resource | What the command does |
@@ -356,7 +361,7 @@ likewise `COMMAND` in `opx77_elevators/config.lua`, and the five
 `opx77_inventory/config.lua`, where `false` registers none — they are always
 restricted.
 
-### `opx77_admin`'s forty-three {#admin-commands}
+### `opx77_admin`'s forty-four {#admin-commands}
 
 Every one is registered restricted, and the names are fixed in the resource
 rather than read from its configuration. A `<player>` is a player id or `me`,
@@ -390,12 +395,13 @@ in full, with its refusals, under
 | `command.opx77.admin.moderate.ban` | `<player> [duration] [reason]` — an account ban on this server. |
 | `command.opx77.admin.vehicle.spawn` | `<vehicle>` — beside you. |
 | `command.opx77.admin.vehicle.give` | `<player> <vehicle>` — beside a player. |
-| `command.opx77.admin.vehicle.repair` | `<id\|near> [scope]`. |
+| `command.opx77.admin.vehicle.repair` | `[id\|near] [scope]`. |
 | `command.opx77.admin.vehicle.flag` | `<id\|near> <flag> [on\|off]`. |
 | `command.opx77.admin.vehicle.remove` | `[id\|near\|mine]`. |
 | `command.opx77.admin.vehicle.cleanup` | Removes every empty vehicle it spawned. |
-| `command.opx77.admin.weapon.give` | `<holder> <weapon> [rounds]` — a loaded weapon item in the bag, through `opx77_inventory`. |
-| `command.opx77.admin.weapon.ammo` | `<holder> [weapon\|all] [rounds]` — set the rounds of weapon items; a full load when left out. |
+| `command.opx77.admin.weapon.give` | `<holder> <weapon> [ammo]` — an empty weapon item in the bag, through `opx77_inventory`; with `ammo`, that many of its ammunition items beside it, both or neither. |
+| `command.opx77.admin.weapon.giveammo` | `<holder> <weapon\|ammo> [count]` — ammunition items; one full load when left out. Creates items: grant it like money. |
+| `command.opx77.admin.weapon.ammo` | `<holder> [weapon\|all] [count]` — ammunition items for the weapons in the bag, one stack per ammo type; one full load each when left out. |
 | `command.opx77.admin.weapon.remove` | `<holder> <weapon\|all>` — take weapon items out of the bag. |
 | `command.opx77.admin.weapon.holster` | `<player>` — holster, through the platform's weapon relay. |
 | `command.opx77.admin.weapon.read` | `<holder>` — the weapon items in the bag, and which one is drawn. |
@@ -495,7 +501,7 @@ If nothing on your server emits it, the readiness gate never opens for anybody:
 fires, and the host logs one WRN naming `__platform` per connected player every
 60 seconds.
 
-`opx77_core` is unaffected — it neither reads `isReady` nor waits on
+`opx77_core` is unaffected — it never waits on `isReady` or on
 `onPlayerReady`, so characters still load and are still placed — but it checks
 for the resource at boot and says so:
 
@@ -551,9 +557,9 @@ Anything an operator may want to change mid-session is a **tunable** instead and
 lives in `server/tunables.lua`, editable from the Warden operator panel without a
 restart.
 
-The satellites each have a single `config.lua`. Eleven of the fourteen — every one
-but `opx77_menu`, `opx77_status` and `opx77_notify` — carry their own locale
-catalogue in `locales/` and their own `LOCALE` key, because a satellite cannot
+The satellites each have a single `config.lua`. Thirteen of the fifteen — every
+one but `opx77_status` and `opx77_notify` — carry their own English and French
+catalogues in `locales/` and their own `LOCALE` key, because a satellite cannot
 read the core's: that export is client-only and asynchronous, and a satellite's
 server half can never call it.
 `LOCALE` ships `"en"` everywhere, `opx77_core` included. Every key of every file

@@ -59,6 +59,11 @@ successful play has no answer at all: the body moving is the answer.
 sent with `chat:addMessage`. None of it goes on `open77:command:result`, whose
 accepted answers [`opx77_chat`](../opx77_chat/index.md) does not print.
 
+**Keys are not commands.** The picker key (F3) and the stop key (X) act on the
+client, as the `openPicker` and `stop` exports do, so `RESTRICTED` on these
+entries does not gate them; set [`KEYS`](config.md#keys) to `false` for no key.
+See [Keys](index.md#keys).
+
 **Suggestions.** When a player's chat box raises `chat:ready`, the server sends
 `chat:addSuggestions` for every command it registered, with help text in the
 configured locale. At most once every two seconds per player.
@@ -81,9 +86,11 @@ opx77.anim [name [variant] | category | stop | list]
     - With a name: which variant, e.g. `opx77.anim smoke 3`.
     - Default: the first variant offered on this build
 - category: `string`
-    - Alone: opens the picker's root screen with the cursor on that category's
-      row, e.g. `opx77.anim social`; Enter opens the category. Shares the
-      once-a-second limit with the bare form. See [The picker](index.md#picker).
+    - Alone: opens the picker on that category's screen, e.g.
+      `opx77.anim social`, with the root under it and its cursor on that
+      category, so **Back** returns there. A category with nothing offered opens
+      the root. Shares the once-a-second limit with the bare form. See
+      [The picker](index.md#picker).
 - `stop`
     - Alone: the same as [`opx77.anim.stop`](#opx77-anim-stop).
 - `list`
@@ -126,7 +133,7 @@ stop or reload.
 > /opx77.anim smoke 3
   (the third variant of smoke plays)
 > /opx77.anim relaxation
-  (the picker opens with the cursor on Relaxation)
+  (the picker opens on the Relaxation screen; Back returns to the root)
 > /opx77.anim smoke 99
   (a warning toast) That animation has no such variant. Run /opx77.anim.list to see the list.
 ```
@@ -185,8 +192,9 @@ toast. At most once every two seconds per player; a faster run is dropped
 silently. `opx77.anim list` shares the same limit.
 
 **Output, to a player**, in the configured locale, as a chat line sent with
-`chat:addMessage` and authored `animations.title` — a report someone asked to
-read, which a toast would cut short:
+`chat:addMessage`, `type = 'info'`, authored `animations.title` and with no
+colour of its own — `opx77_chat` styles it — a report someone asked to read,
+which a toast would cut short:
 
 ```text
 animations, by category (name, then its variant count):

@@ -30,6 +30,10 @@ configuration problem that can be seen without a world.
     Renaming the command in `config.lua` renames the permission with it: the host
     derives `command.<lowercase name>` from whatever name is registered.
 
+    The chat suggestion follows the same grant: it is sent, on
+    [`chat:ready`](events.md#chat-ready), only to a player the ACL allows the
+    command, read with `Open77.acl.isAllowed` under the `acl.read` permission.
+
 ```text
 opx77.elevators.where [key]
 ```
@@ -40,7 +44,8 @@ opx77.elevators.where [key]
 
 **Output.** Every line is printed to the server console and, when a player typed
 it, echoed back to that player as a chat line of its own, one per line, on
-[`chat:addMessage`](events.md#chat-addmessage) — a report stays text, and
+[`chat:addMessage`](events.md#chat-addmessage), with `type = 'info'` and no
+colour of its own — a report stays text, and
 `open77:command:result` would show nothing, since `opx77_chat` prints no
 accepted result there. The order is stable:
 `pairs` order would reshuffle the report between two runs, and comparing two

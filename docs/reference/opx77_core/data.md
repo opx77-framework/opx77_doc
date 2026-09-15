@@ -42,9 +42,9 @@ that wants them asks for them:
 
 | You want | Call |
 |---|---|
-| Every job, with its grades | [`GetJobs`](exports/client.md) |
-| Every gang, with its grades | [`GetGangs`](exports/client.md) |
-| Every origin | [`GetOrigins`](exports/client.md) |
+| Every job, with its grades | [`GetJobs`](exports/client.md#getjobs) |
+| Every gang, with its grades | [`GetGangs`](exports/client.md#getgangs) |
+| Every origin | [`GetOrigins`](exports/client.md#getorigins) |
 
 !!! warning "`grades` comes back as a 1-based array, not the 0-keyed table"
     The source tables below are keyed from `0`. The exports hand back a 1-based
@@ -70,16 +70,16 @@ great deal inside them that is yours.
 
 ```lua
 merc = {
-  label = "Mercenary",
-  type = "merc",
-  defaultDuty = true,
-  offDutyPay = false,
-  grades = {
-    [0] = { name = "Street Merc", payment = 120 },
-    [1] = { name = "Solo", payment = 220 },
-    [2] = { name = "Edgerunner", payment = 380 },
-    [3] = { name = "Legend", payment = 600, isBoss = true },
-  },
+	label = 'Mercenary',
+	type = 'merc',
+	defaultDuty = true,
+	offDutyPay = false,
+	grades = {
+		[0] = { name = 'Street Merc', payment = 120 },
+		[1] = { name = 'Solo', payment = 220 },
+		[2] = { name = 'Edgerunner', payment = 380 },
+		[3] = { name = 'Legend', payment = 600, isBoss = true },
+	},
 },
 ```
 
@@ -95,7 +95,7 @@ merc = {
       without listing four job names.
 - defaultDuty: `boolean`
     - `true` for a job with no shift to clock into. A new holder starts on
-      duty, and [`SetJobDuty`](server-api.md) **refuses** with `job.noDuty` —
+      duty, and [`SetJobDuty`](server-api.md#setjobduty) **refuses** with `job.noDuty` —
       clocking out of "unemployed" is a state nothing reasons about.
 - offDutyPay: `boolean`
     - `true` pays the holder whether or not they are clocked in. This is the
@@ -302,13 +302,13 @@ gang is not an employer, so a gang grade carries **no `payment` and no duty**.
 
 ```lua
 maelstrom = {
-  label = "Maelstrom",
-  grades = {
-    [0] = { name = "Chromehead" },
-    [1] = { name = "Enforcer" },
-    [2] = { name = "Cyberpsycho" },
-    [3] = { name = "Warlord", isBoss = true, bankAuth = true },
-  },
+	label = 'Maelstrom',
+	grades = {
+		[0] = { name = 'Chromehead' },
+		[1] = { name = 'Enforcer' },
+		[2] = { name = 'Cyberpsycho' },
+		[3] = { name = 'Warlord', isBoss = true, bankAuth = true },
+	},
 },
 ```
 
@@ -372,18 +372,18 @@ Seven gangs have four grades; four have three. `none` has one.
 
 ```lua
 OPX.Origins = {
-  nomad = {
-    label = "Nomad",
-    description = "Raised in the Badlands, loyal to a clan and to nobody in the city.",
-  },
-  streetkid = {
-    label = "Streetkid",
-    description = "Born in Night City. Knows every alley and who owns it.",
-  },
-  corpo = {
-    label = "Corpo",
-    description = "Grew up inside a tower. Knows what the city looks like from above.",
-  },
+	nomad = {
+		label = 'Nomad',
+		description = 'Raised in the Badlands, loyal to a clan and to nobody in the city.',
+	},
+	streetkid = {
+		label = 'Streetkid',
+		description = 'Born in Night City. Knows every alley and who owns it.',
+	},
+	corpo = {
+		label = 'Corpo',
+		description = 'Grew up inside a tower. Knows what the city looks like from above.',
+	},
 }
 ```
 
@@ -398,11 +398,12 @@ round trip and again on the server, which is the check that decides — then
 stored on [`PlayerData.charInfo.origin`](types.md#charinfo) and **never read
 again by the core.** It is flavour a gameplay file may act on, not a mechanic.
 
-The three keys are also the [`Origin`](types.md) type alias, so adding a fourth
-means touching `types.lua` if you want your editor to stop complaining.
+The three keys are also the [`Origin`](types.md#origin) type alias, so adding a
+fourth means touching `std/types.lua` if you want your editor to stop
+complaining.
 
 Origins are flat and string-keyed, which is why
-[`GetOrigins`](exports/client.md) returns the table as it stands rather than
+[`GetOrigins`](exports/client.md#getorigins) returns the table as it stands rather than
 reshaping it the way `GetJobs` and `GetGangs` must.
 
 ---
@@ -418,7 +419,7 @@ already stored depends on what you changed:
 | A payment | Applied to the next paycheck for anyone who logs in after the restart. |
 | Adding a grade at the top | Nothing breaks; existing members keep their level. |
 | Adding a job, gang or origin | Nothing breaks. |
-| **Removing a grade in the middle** | The job is silently truncated at the gap — `OPX.TopGrade` counts up from `0` and stops. Anybody above the gap fails to resolve and falls back. |
+| **Removing a grade in the middle** | The job is silently truncated at the gap for anything that clamps with `OPX.TopGrade`, which counts up from `0` and stops. Anybody holding the removed grade fails to resolve and falls back to [`DEFAULT_JOB`](config.md#server-player-default-job) or [`DEFAULT_GANG`](config.md#server-player-default-gang) on their next login. |
 | **Removing a job or gang** | Every holder falls back to [`DEFAULT_JOB`](config.md#server-player-default-job) or [`DEFAULT_GANG`](config.md#server-player-default-gang) on their next login. Their membership row in `opx77_character_groups` is left alone, mid-edit or not. |
 | **Renaming a key** | The same as removing it, and there is no undo. See the danger callout at the top of this page. |
 

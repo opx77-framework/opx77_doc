@@ -7,30 +7,31 @@ description: Every key in OPX_STATUS_CONFIG — where the effect strip sits, how
 
 Everything lives in `config.lua`, in the global table `OPX_STATUS_CONFIG`. It is a
 `shared_script`: the client half reads all of it, and the server half reads
-[`NEEDS`](#needs) and [`AUTOSAVE_MS`](#autosave-ms) so that both ends clamp a
-value to the same bounds.
+[`NEEDS`](#needs) and [`AUTOSAVE_MS`](#autosave-ms). Both ends clamp a value to
+the same bounds because the rule is written once, in `shared/bounds.lua`
+(`OpxStatus.Bounds`), a shared script both halves load right after `config.lua`.
 
 **Every value shown on this page is the shipped default.**
 
 ```lua
 OPX_STATUS_CONFIG = {
-  ANCHOR = "bottom-left",
-  OFFSET = 120,
-  MAX_VISIBLE = 6,
+	ANCHOR = 'bottom-left',
+	OFFSET = 120,
+	MAX_VISIBLE = 6,
 
-  NEEDS_EVENT = "opx77:status:needs",
+	NEEDS_EVENT = 'opx77:status:needs',
 
-  NEEDS = {
-    hunger = { MIN = 0, MAX = 100, DEFAULT = 100, DECAY_PER_MINUTE = 0.20 },
-    thirst = { MIN = 0, MAX = 100, DEFAULT = 100, DECAY_PER_MINUTE = 0.28 },
-    stamina = { MIN = 0, MAX = 100, DEFAULT = 100 },
-    streetCred = { MIN = 0, MAX = 100000, DEFAULT = 0 },
-  },
+	NEEDS = {
+		hunger = { MIN = 0, MAX = 100, DEFAULT = 100, DECAY_PER_MINUTE = 0.20 },
+		thirst = { MIN = 0, MAX = 100, DEFAULT = 100, DECAY_PER_MINUTE = 0.28 },
+		stamina = { MIN = 0, MAX = 100, DEFAULT = 100 },
+		streetCred = { MIN = 0, MAX = 100000, DEFAULT = 0 },
+	},
 
-  DECAY_MS = 60000,
-  PUSH_MS = 120000,
-  PUSH_DELTA = 5,
-  AUTOSAVE_MS = 300000,
+	DECAY_MS = 60000,
+	PUSH_MS = 120000,
+	PUSH_DELTA = 5,
+	AUTOSAVE_MS = 300000,
 }
 ```
 
@@ -45,7 +46,7 @@ file. The rest are the needs.
 Which corner the effect strip sits in.
 
 ```lua
-ANCHOR = "bottom-left"
+ANCHOR = 'bottom-left'
 ```
 
 **Type** `"bottom-left" | "bottom-right" | "top-left" | "top-right"`
@@ -109,7 +110,7 @@ oldest effects.
 The local event name raised after every change to a need.
 
 ```lua
-NEEDS_EVENT = "opx77:status:needs"
+NEEDS_EVENT = 'opx77:status:needs'
 ```
 
 **Type** `string`
@@ -130,10 +131,10 @@ character and how fast it falls.
 
 ```lua
 NEEDS = {
-  hunger = { MIN = 0, MAX = 100, DEFAULT = 100, DECAY_PER_MINUTE = 0.20 },
-  thirst = { MIN = 0, MAX = 100, DEFAULT = 100, DECAY_PER_MINUTE = 0.28 },
-  stamina = { MIN = 0, MAX = 100, DEFAULT = 100 },
-  streetCred = { MIN = 0, MAX = 100000, DEFAULT = 0 },
+	hunger = { MIN = 0, MAX = 100, DEFAULT = 100, DECAY_PER_MINUTE = 0.20 },
+	thirst = { MIN = 0, MAX = 100, DEFAULT = 100, DECAY_PER_MINUTE = 0.28 },
+	stamina = { MIN = 0, MAX = 100, DEFAULT = 100 },
+	streetCred = { MIN = 0, MAX = 100000, DEFAULT = 0 },
 }
 ```
 
@@ -161,7 +162,7 @@ whatever [`DECAY_MS`](#decay-ms) is set to.
 !!! warning "Adding a key is not the whole job"
     Adding one here really does make it a need — the exports accept it, it decays
     if you give it a rate, and it is stored in the `needs` JSON column. But
-    `types.lua`'s `NeedKey` alias lists the four by name, and `opx77_hud` draws
+    `std/types.lua`'s `NeedKey` alias lists the four by name, and `opx77_hud` draws
     only `hunger`, `thirst`, `stamina` and `streetCred`. A fifth need is state that
     nothing on screen shows until you write the surface for it.
 
@@ -202,8 +203,8 @@ PUSH_MS = 120000
 
 Every two minutes by default, and only when something has actually moved since the
 last acknowledged push. It is a floor on the *routine* push;
-[`PUSH_DELTA`](#push-delta) is what jumps the queue, and this resource stopping
-forces one regardless.
+[`PUSH_DELTA`](#push-delta) is what jumps the queue, and this resource stopping, the
+character unloading or `opx77_core` stopping forces one regardless.
 
 !!! warning "The server's rate limit is a real ceiling"
     The server half accepts **12** pushes per player per ten seconds and drops the
@@ -248,13 +249,14 @@ written on the push itself.
 
 Three other paths write the same held row and do not wait for this interval:
 `onPlayerDisconnected`, for the player who has gone; this resource's own
-`onResourceStop`, for everyone still connected; and a **character swap on one
-player slot**, because nothing announces a character being put down, so the
-outgoing character's last push is written before the record holding it is
-replaced. A write that fails on either of
-those is logged and the row stays dirty, so the next pass tries again — except on
-the disconnect path, where the record is dropped before the write is attempted and
-a failure there is not retried.
+`onResourceStop`, for everyone still connected; and a **pull for another
+character** by the same player, because the server holds one record per player,
+so the outgoing character's last push is written before the record holding it is
+replaced. A pull for the **same** character does not write or replace anything:
+it is answered with the held push. A write that fails on any of those is logged
+and the row stays dirty, so the next pass tries again — except on the disconnect
+path, where the record is dropped before the write is attempted and a failure
+there is not retried.
 
 ## What is deliberately not a key {#not-configurable}
 
@@ -266,8 +268,8 @@ rate limit, not decisions an operator would make.
 | `TICK_MS` | `250` | client | How often deadlines and stopped owners are swept. |
 | `OWNER_SWEEP_MS` | `1000` | client | How often every owner is re-checked against the host, as a backstop for a generation that moved without a stop being seen. |
 | `MAX_PER_OWNER` | `24` | client | The most effects one resource may hold. See [ownership](exports.md#ownership). |
-| `GLOBAL_EVENT` | `"opx77:status"` | client | The event raised beside each effect's own, so one listener can watch them all. |
-| `EFFECTS_EVENT` | `"opx77:status:effects"` | client | The name the strip is published on. |
+| `GLOBAL_EVENT` | `'opx77:status'` | client | The event raised beside each effect's own, so one listener can watch them all. |
+| `EFFECTS_EVENT` | `'opx77:status:effects'` | client | The name the strip is published on. |
 | `MAX_DURATION_MS` | `3600000` | client | One hour, the longest `durationMs` accepted. |
 | `MAX_DATA_NODES` / `MAX_DATA_DEPTH` | `64` / `4` | client | The `data` budget. See [the effect spec](effect-spec.md#statusspec). |
 | `MAX_LABEL` / `MAX_ICON` / `MAX_EVENT` | `32` / `2` / `96` | client | The lengths a spec's text fields are held to. |
@@ -277,8 +279,7 @@ rate limit, not decisions an operator would make.
 | `MAX_LOGGED` | `64` | server | How much of a value that came off the wire may reach a log line. |
 
 The four wire names — `opx77_status:pull`, `:values`, `:push` and `:pushed` —
-are literals in both halves as well. They are listed in the manifest's
-`permissions` block as a comment, which is documentation and not a binding.
+are literals in both halves as well.
 
 The tone palette is not configurable here either: the eight
 [tones](effect-spec.md#tones) are a fixed list in `client/state.lua` and their

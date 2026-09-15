@@ -5,8 +5,8 @@ description: The shapes opx77_animations reads and answers with — AnimationErr
 
 # Types
 
-The annotations in `types.lua`, as the code actually uses them. Nothing here is
-loaded at runtime: Lua tables carry no schema, and these are the shapes the
+The annotations in `std/types.lua`, as the code actually uses them. Nothing here
+is loaded at runtime: Lua tables carry no schema, and these are the shapes the
 resource reads and answers with.
 
 ## AnimationError {#animationerror}
@@ -49,7 +49,7 @@ picker — sees, in `en`; an export caller is shown nothing.
 | `animation_owned` | service | another owner's playback is running | *Stop what you are doing before starting another one.* |
 | `interrupted` | service | the playback was interrupted | *Animation interrupted.* |
 | `timeout` | service | the service's own timeout | *The animation did not start in time. Try again.* |
-| `resource_stopped` | service | not in `types.lua`'s list; the client maps it to a message all the same | *Animations are unavailable right now.* |
+| `resource_stopped` | service | not in `std/types.lua`'s list; the client maps it to a message all the same | *Animations are unavailable right now.* |
 
 A code with no row of its own — another code the service answers, or a
 presentation code from the natives — is shown as *That animation could not be
@@ -67,13 +67,14 @@ by a hint naming `opx77.anim.list` — see [Commands](commands.md#opx77-anim).
 Who a request came from, as `source` on [`AnimationResult`](#animationresult).
 
 ```lua
----@alias AnimationOrigin "command"|"picker"|"export"|"presenter"|"owner_stopped"
+---@alias AnimationOrigin "command"|"picker"|"key"|"export"|"presenter"|"owner_stopped"
 ```
 
 | Value | The request came from |
 |---|---|
 | `"command"` | a typed command; `requestId` is `0` |
 | `"picker"` | a picker row |
+| `"key"` | the [stop key](index.md#keys) |
 | `"export"` | [`play`](exports.md#play) or [`stop`](exports.md#stop) |
 | `"presenter"` | the stop this resource sends when the local body could not be posed |
 | `"owner_stopped"` | the stop this resource sends when the resource that started the playback stopped |
