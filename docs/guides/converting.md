@@ -8,9 +8,10 @@ description: A three-column mapping from ESX Legacy and Qbox (qbx_core) onto OPX
 Most of what you know transfers. Characters, money, jobs with grades, gangs,
 metadata and a per-character save are all here, and they are spelled almost the
 way you expect. What does not transfer is the *shape of the call*, because
-OPEN//77 is not FiveM: the server runtime installs no `exports`, no
-`GetInvokingResource` and no cross-resource event bus, and the client runtime
-puts every export through a serialising codec and answers with a promise.
+OPEN//77 is not FiveM: every resource runs in a Lua VM of its own, the core's
+server API is a global inside the core's VM rather than an export, there is no
+cross-resource event bus on the server, and every export, on either side, puts
+its arguments through a serialising codec and answers with a promise.
 
 !!! info "Read this first"
 
@@ -264,7 +265,7 @@ answer is `{ ok = ... }`, never a bare value. See
 
 ## Four things with no equivalent {#no-equivalent}
 
-### 1. A server export {#no-server-exports}
+### 1. The player object from another server resource {#no-server-exports}
 
 ```lua
 -- ESX, from any third-party server resource:
@@ -273,18 +274,27 @@ local xPlayer = exports["es_extended"]:getSharedObject().GetPlayerFromId(source)
 -- Qbox, from any third-party server resource:
 local player = exports.qbx_core:GetPlayer(source)
 
--- OPX//77:
--- there is no line to write here, and there is no version of this that works.
+-- OPX//77, from a third-party server resource: no Player, only what the core exports.
+CreateThread(function()
+	local promise, reason = Open77.exports.call('opx77_core', 'GetIdentity', playerId)
+	if not promise then return Open77.log.warn('not dispatched: ' .. tostring(reason)) end
+	local answer, callError = promise:await()
+	if callError or type(answer) ~= 'table' or answer.ok ~= true then return end
+	print(answer.citizenId, answer.loaded)
+end)
 ```
 
-The OPEN//77 **server** runtime installs no `exports`, no
-`GetInvokingResource` and no cross-resource event bus. `TriggerEvent` on the
-server walks only its own VM. This is not an OPX//77 decision and no amount of
-framework design routes around it: the platform documents it, and it is the
-reason the platform's own gamemode kernel puts a gamemode's entire server side in
-one resource. The platform's own `pursuit` resource keeps a **byte-identical
-copy** of another resource's roster file for exactly this reason, and says so in
-its manifest.
+OPEN//77 server resources can publish and call exports, but an export copies
+plain values through a codec, and the core's server API is not plain values: a
+`Player` carries its `Functions`, a hook is a function, and `OPX` itself is a
+global in the core's own VM. So nothing hands you a `Player` from outside the
+core. What `opx77_core` exports to other server resources is
+[eleven server exports](../reference/opx77_core/exports/server.md): who a player
+id or citizen id is (`GetIdentity`), a cursor over characters loading, unloading
+and being deleted (`GetChanges`), an owned vehicle's plate (`GetVehiclePlate`),
+its version, and the inventory storage `opx77_inventory` is granted. None of
+them reads or moves money, a job or metadata. `TriggerEvent` on the server
+still walks only its own VM, so there is no server event to listen to either.
 
 **What to write instead**, in order of preference:
 
@@ -293,17 +303,20 @@ its manifest.
    plain global in that one VM and everything is reachable.
    [Writing a server plugin](writing-a-server-plugin.md) is the whole procedure,
    including how to survive a core update.
-2. **Go through your own client half.** Your server resource sends a net event
-   to its own client, the client calls the `opx77_core` export, and the client
-   sends the answer back. This is legitimate and several shipped resources do
-   it — but the answer came from the client, so it is a *hint*, not proof. Never
-   let money or access change on the strength of it.
-3. **Read the database directly.** Every resource holding `database.access`
+2. **Call the core's server exports**, when identity is all you need — which
+   character a player has loaded, or whether a citizen id exists. This is
+   authoritative, and `opx77_status` does it.
+3. **Go through your own client half.** Your server resource sends a net event
+   to its own client, the client calls the `opx77_core` client export, and the
+   client sends the answer back. This is legitimate — but the answer came from
+   the client, so it is a *hint*, not proof. Never let money or access change on
+   the strength of it.
+4. **Read the database directly.** Every resource holding `database.access`
    talks to the same database, and the `opx77_` tables are documented. Read-only
    is safe; writing behind the core's back is not, because the core holds the
    authoritative copy in memory and will overwrite you on its next autosave.
 
-[Integration channels](../concepts/integration-channels.md) sets out all three
+[Integration channels](../concepts/integration-channels.md) sets out the options
 with their exact costs.
 
 ### 2. A server callback {#no-server-callbacks}
@@ -311,11 +324,10 @@ with their exact costs.
 ESX's `RegisterServerCallback` and Qbox's `lib.callback` are both built on the
 same trick: a pair of templated net events, a random key, a table of pending
 closures, and a promise on the caller's side. Both live in a *library that is
-loaded into your resource*, and both reach the core through a cross-resource
-call at the far end.
+loaded into your resource*, and both hand the far end a closure to call back.
 
-Neither half is available here. There is no library to load into your VM, and the
-far end cannot be another server resource. So:
+Neither is available here. There is no library to load into another resource's
+VM, and a closure cannot cross a resource boundary. So:
 
 - **Client asks its own server half a question** — write it yourself. Two net
   events, a request carrying a correlation id and a reply carrying the same id.
@@ -323,9 +335,12 @@ far end cannot be another server resource. So:
   shipped resources do.
 - **Client asks another resource's client a question** — that is an export.
   `Open77.exports.call` already returns a promise, so this case is solved.
-- **Server asks another server resource a question** — impossible. Not "hard",
-  not "unsupported": there is no channel. Move the code into `opx77_core` or
-  restructure so the question is not asked.
+- **Server asks another server resource a question** — also an export, if the
+  other resource publishes one: `Open77.exports.call` on the server returns a
+  promise too, awaited from a thread, an event handler or a command handler. A
+  question the core does not export — a balance, a job — cannot be asked from
+  outside it: move the code into `opx77_core` or restructure so the question is
+  not asked.
 
 ### 3. A function reference through an event or export {#no-function-references}
 
@@ -364,10 +379,12 @@ the problem by copying the file: `pursuit/shared/roster.lua` is a byte-identical
 copy of `open77_vehiclepicker/shared/roster.lua`, and its manifest says why.
 
 **What to write instead:** copy the helpers you need into your own
-`shared/` directory and pin the version you copied in a comment. That is what the
-framework itself does: `shared/locale.lua` and `shared/text.lua` are carried by
-every resource that needs them — the same code under each resource's own
-namespace — rather than as a dependency anybody declares.
+`shared/` directory and note which version you copied. That is what the
+framework itself does: `shared/locale.lua` (`client/locale.lua` in a resource
+with no server half) and `shared/text.lua` are carried by every resource that
+needs them — the same code under each resource's own namespace — rather than as
+a dependency anybody declares. A server export does not replace this: a helper
+that runs at file scope, or on every frame, cannot wait on an asynchronous call.
 
 ## A worked conversion {#worked-example}
 
@@ -387,27 +404,44 @@ end)
 
 The OPX//77 shape. The purchase is a **hook-guarded core function**, so it lives
 in a file you add to `opx77_core/server/`, and your own resource keeps only the
-part that is genuinely yours:
+part that is genuinely yours. The file below is `opx77_core/server/plugins/shop.lua`,
+listed in `opx77_core/open77.lua`, and written in the core's house style —
+annotation blocks, tabs, single quotes (see [Contributing](contributing.md)):
 
 ```lua
--- opx77_core/server/plugins/shop.lua, listed in opx77_core/open77.lua
-RegisterNetEvent("myshop:buy", function(sku)
-  local src = tonumber(source)
-  if not src or src <= 0 then return end
+--- @author DemiAutomatic
+--- @file server/plugins/shop.lua
+--- @description A shop purchase, charged through the core and refused by code.
 
-  local price = Catalogue[sku]
-  if not price then return OPX.Refuse(src, "error.badRequest") end
+--- @author DemiAutomatic
+--- @type {table<string, integer>}
+--- @description Price of each item the shop sells, by sku.
+local CATALOGUE = {
+	medkit = 250,
+}
 
-  -- both return values: the second names which refusal it was
-  local ok, why = OPX.RemoveMoney(src, "EDDIES", price, "myshop:" .. sku)
-  if not ok then return OPX.Refuse(src, why) end
+--- @author DemiAutomatic
+--- @event myshop:buy
+--- @description Charges a player for one item and confirms the purchase.
+--- @param sku {string}
+RegisterNetEvent('myshop:buy', function(sku)
+	local src = tonumber(source)
+	if not src or src <= 0 then return end
 
-  TriggerClientEvent("myshop:bought", src, sku)
+	local price = CATALOGUE[sku]
+	if not price then return OPX.Refuse(src, 'error.badRequest') end
+
+	local ok, why = OPX.RemoveMoney(src, 'EDDIES', price, 'myshop:' .. sku)
+	if not ok then return OPX.Refuse(src, why) end
+
+	TriggerClientEvent('myshop:bought', src, sku)
 end)
 ```
 
 Note what changed and what did not. The validation moved server-side and stayed
-there. The callback became a pair of net events. The balance check disappeared
+there. The callback became a pair of net events. `OPX.RemoveMoney` is read for
+both return values, because the second names which refusal it was, and every
+one of them is a key `OPX.Refuse` can render. The balance check disappeared
 entirely, because `RemoveMoney` refuses rather than going negative and names the
 refusal — which is strictly better than the ESX original, whose
 `removeAccountMoney` cannot fail.
@@ -417,6 +451,6 @@ refusal — which is strictly better than the ESX original, whose
 - [Writing a resource](writing-a-resource.md) — the client half, end to end.
 - [Writing a server plugin](writing-a-server-plugin.md) — the server half, and
   what it costs.
-- [Integration channels](../concepts/integration-channels.md) — the three
+- [Integration channels](../concepts/integration-channels.md) — the
   server-side channels, ranked.
 - [FAQ](faq.md) — the shorter versions of the questions above.

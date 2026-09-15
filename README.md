@@ -24,22 +24,26 @@ scripts/
 └── check-api-coverage.sh   fails on a public name the reference does not document
 ```
 
-## README is marketing; the site is the API
+## The README is the resource's own document; the site is the reference
 
-Every resource in the framework carries a README, and a README is marketing
-material: what the resource is for, what it does, why you would install it. It
-is **not** technical documentation, and it is not where a public API lives.
+Every resource in the framework carries a README in English: what the resource
+is for, how to install it, and what an operator and an integrating developer
+need at hand — its configuration keys, commands, exports, events and error
+codes. Since the resources were restyled, `config.lua` carries no comments, so
+the README is also where operator guidance lives, and `docs/ARCHITECTURE.md`
+(in French) says why the code is shaped the way it is.
 
-The public API — every export, event, command, config key, error code and type —
-is documented under `docs/reference/`, and only there. That single policy is why
-no reference page opens with a feature pitch: the reader who lands on
-`reference/opx77_core/server-api.md` from a search result has already decided,
-and wants the signature.
+This site is the **complete reference**: every export, event, command, config
+key, error code and type has an entry under `docs/reference/`, with its
+parameters, its return, its codes and the side it can be called from, and the
+site carries what a README does not — the cross-resource concepts, the guides
+and the release notes. No reference page opens with a feature pitch: the reader
+who lands on `reference/opx77_core/server-api.md` from a search result has
+already decided, and wants the signature.
 
-The corollary matters as much. A README that lists config keys is a README that
-will eventually list config keys the resource no longer has, which is exactly
-what happened to three of the satellites. Keep the pitch in the README and the
-keys in `reference/<resource>/config.md`.
+The failure both exist to prevent is drift. A change that alters behaviour
+updates the README and the reference page together; see
+[Contributing](docs/guides/contributing.md#readme-policy).
 
 ## Building locally
 
@@ -67,7 +71,7 @@ has to be pointed at a checkout of the framework:
 OPX77_RESOURCES=/path/to/open77_serv/resources ./scripts/check-api-coverage.sh
 ```
 
-It collects every client export, in-core `OPX.*` function, chat command and
+It collects every client and server export, in-core `OPX.*` function, chat command and
 event-name constant the framework publishes, collects every explicit `{#anchor}`
 under `docs/reference/`, and fails on anything published that nothing documents.
 With no framework checkout in reach it prints a note and exits 0, which is what
