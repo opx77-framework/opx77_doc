@@ -5,6 +5,13 @@ description: How the OPEN//77 join-time readiness gate really works — particip
 
 # The entry gate
 
+!!! info "This is the second of two gates"
+
+    This page is the **readiness** gate: *when* a resource may act on a player
+    who has already been admitted. The gate that decides whether they are
+    admitted at all is [Connection control](connection-gate.md), and it runs
+    earlier — `onPlayerConnecting`, before there is a player id to act on.
+
 The readiness gate is the barrier that stops one resource acting on a player
 another resource has not finished with. The host owns it, because on the server
 resources cannot call each other and this is the only place the two sides can

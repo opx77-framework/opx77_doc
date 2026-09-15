@@ -643,8 +643,10 @@ RegisterCommand("bounty.claim", function(source)
     return OPX.Refuse(source, "error.noPermission")
   end
 
+  -- seconds since the epoch, NOT OPX.Now(): this value goes into the metadata
+  -- column, so it has to still mean something after a restart
   local claimed = player.Functions.GetMetaData("bountyClaimedAt")
-  if claimed and OPX.Now() - claimed < 600000 then
+  if claimed and Open77.time.unix() - claimed < 600 then
     return OPX.Refuse(source, "error.tooFast")
   end
 
@@ -656,7 +658,7 @@ RegisterCommand("bounty.claim", function(source)
   end
 
   -- through SetMetaData, so the autosave carries it
-  player.Functions.SetMetaData("bountyClaimedAt", OPX.Now())
+  player.Functions.SetMetaData("bountyClaimedAt", Open77.time.unix())
   OPX.NotifyLocale(source, "money.added",
     { amount = BOUNTY, type = "EDDIES" }, "success")
 end, false)
@@ -665,9 +667,17 @@ end, false)
 Five things that example is doing on purpose: it treats a missing Player as a
 normal condition, it checks the return of `AddMoney` and hands the refusal code
 straight to `OPX.Refuse`, it writes its own state through `SetMetaData` so the
-autosave can see it, it uses `OPX.Now()` rather than a wall clock — the server
-sandbox removes `os`, so there is no wall clock to use — and it logs through
-`Open77.log` with its own bracketed scope in the message. There is no `OPX.Log`
+autosave can see it, it stamps that state with `Open77.time.unix()` rather than
+`OPX.Now()`, and it logs through `Open77.log` with its own bracketed scope in
+the message.
+
+That fourth point is the one that bites. `OPX.Now()` counts from process start,
+so a cooldown written with it into a column that **survives a restart** is
+meaningless afterwards — every stored value is suddenly in the future, and the
+cooldown either never expires or expires instantly depending on the sign.
+`OPX.Now()` is for intervals inside one process; the wall clock is for anything
+persisted. Earlier revisions of this page used `OPX.Now()` here and called it
+good practice. There is no `OPX.Log`
 any more; see [Logging](server-api.md#logging).
 
 ## Where to go next {#next}

@@ -189,6 +189,32 @@ If the database is missing or unreachable, `opx77_core` logs
 and carries on with every login refused. See
 [Troubleshooting](troubleshooting.md#no-database).
 
+### The connection gate deadline {#connect-gate-timeout}
+
+One more key is worth knowing about even though no OPX//77 resource reads it:
+
+```jsonc
+"simulation": {
+  // how long a resource holding players.gate may hold a connecting player
+  "connectGateTimeoutSeconds": 8
+}
+```
+
+Default 8, allowed 0.5 to 9. The client abandons the handshake at 10 seconds
+either way, so a longer wait would only trade one error for another. At the
+deadline the player is refused with `connection_gate_timeout`.
+
+This matters the moment you add a whitelist or a ban list, because a gate that
+defers and never answers refuses **everybody**. See
+[Connection control](../concepts/connection-gate.md) for the gate itself and
+[Troubleshooting](troubleshooting.md#nobody-connects) for the symptom.
+
+!!! note "The ACL and the gate are different doors"
+
+    The ACL below governs *commands* — who may run `opx77.money`. The gate
+    governs *access* — who may connect at all. Neither one implies the other,
+    and an ACL entry does not let anybody past a whitelist.
+
 ## 3. Staff commands and the ACL {#acl}
 
 Seventy-six commands are registered across the fifteen resources. Sixty-four of

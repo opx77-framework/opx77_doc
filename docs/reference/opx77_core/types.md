@@ -536,11 +536,14 @@ selection screen has one of these and no [`Player`](#player).
 - source: [`Source`](#source)
 - userId: [`UserId`](#userid)
 - displayName: `string`
-    - From `GetPlayerName` at the moment the session was created. `""` when the
-      host would not answer.
+    - From `GetPlayerName` at the moment the session was created. `""` when
+      the host would not answer. Authenticated, but the player chooses it: a
+      label, never a key.
 - connectedAt: `integer`
     - `OPX.Now()` at creation — process-monotonic milliseconds, not a wall
-      clock. The sandbox removes `os`, so there is no wall clock to use.
+      clock, and therefore only ever useful as the start of an interval inside
+      this process. For an instant, use the server's
+      [`Open77.time.unix()`](server-api.md#now).
 - gateSession: `any|nil`
     - The opaque handle `Open77.ready.hold` returned, held for as long as the
       readiness gate is held for this player. Compared rather than
