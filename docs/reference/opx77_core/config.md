@@ -570,6 +570,100 @@ dead mid-screen and open the gate with `liveness_lost:opx77_core`. If you raise
 
 ---
 
+## ENTRY.BUCKET {#server-entry-bucket}
+
+Sets the routing bucket a player waits in while no character is loaded: one per
+player, so nobody choosing a character sees anybody else or is seen.
+
+```lua
+ENTRY = {
+  BUCKET = {
+    ISOLATE = true,
+    BASE = 77000,
+    WORLD = 0,
+    POPULATION = false,
+    LOCKDOWN = "relaxed",
+  },
+},
+```
+
+**Type** `table`
+
+**File** `config/server.lua` — server only, never sent to a client
+
+**Read by** `server/buckets.lua`, once at load. A value of the wrong type is said
+once and the shipped one is used.
+
+| Key | Does | Shipped |
+|---|---|---|
+| `ISOLATE` | `false` moves nobody: every player stays in `WORLD`, as before | `true` |
+| `BASE` | a player's own bucket is `BASE` plus their player id, up to `BASE + 65535`. Keep that range clear of every other resource's buckets: the platform's Deathmatch uses 4100–4287 and its Race 6500 | `77000` |
+| `WORLD` | where a character is placed when its stored position names no bucket, or one in the selection range. A `WORLD` inside the selection range turns isolation off, with an error | `0` |
+| `POPULATION` | ambient population in a selection bucket | `false` |
+| `LOCKDOWN` | the selection bucket's entity lockdown: `inactive`, `relaxed`, `strict` or `full`; `false` leaves it alone | `"relaxed"` |
+
+Population off and a `relaxed` lockdown are how the platform prepares its own
+isolated rounds. The routing bucket API needs **no manifest permission**.
+
+### The lifecycle {#server-entry-bucket-lifecycle}
+
+| When | The player's bucket |
+|---|---|
+| they connect | their own, at once, under the closed readiness gate. Taken again at their client's `READY` if the host refused it |
+| a character is selected | the placement bucket — the stored one, or `WORLD` — set just before the kill → respawn, which names the same bucket |
+| the character could not be placed | `WORLD` all the same: it is loaded, and plays where it stands |
+| the character is unloaded — a logout, or the deletion of the loaded one | their own again. The position is sampled **before** the move, so the row keeps the world bucket |
+| a switch from one character to another | no move, unless the switch fails after the first character was torn down |
+| they disconnect | nothing: the host drops the player, and their bucket with them |
+| `opx77_core` stops | everybody in a selection bucket goes to `WORLD` |
+| `opx77_core` starts again | a player still behind the readiness gate is isolated again at their `READY`; one past it has been in the world this session and stays in `WORLD` |
+
+Every move is one debug line:
+
+```text
+[bucket] 3 moved from 0 to 77003 (joined)
+[bucket] 3 moved from 77003 to 0 (placement)
+```
+
+and a refusal a warning:
+
+```text
+[bucket] 3 could not be moved from 0 to 77003 (joined): <reason>
+```
+
+A stored position in the selection range is never placed into: that bucket
+belongs to whoever holds the player id now. It is what a staff member who went
+to a player on the roster, and saved there, would otherwise come back to.
+
+### Under the closed gate {#server-entry-bucket-gate}
+
+[The gate's rule](../../concepts/entry-gate.md) is never to teleport, spawn, kill
+or force a respawn on a player whose gate is closed, because acting on the body of
+a client that is not incarnated crashes it. A bucket move is none of those. The
+host's `setPlayer` "moves authoritative visibility scope" — which bodies,
+vehicles and props are replicated to and from the player — and writes no
+transform, life state or puppet. The platform's own `open77_appearance` handles
+`onPlayerBucketChange` with no life or gate check, and none of the host's bucket
+refusals names readiness. So the core moves the player at connect, which is also
+the only moment nothing from the shared world has been replicated to them yet.
+
+### Other resources {#server-entry-bucket-others}
+
+- **`opx77_admin`** — `goto`, `bring` and `observe` place through kill → respawn
+  into a bucket, and refuse a target whose readiness gate is closed, which is
+  every player on the roster for the first time. A player back on the roster
+  after an unload has an open gate: `goto` then lands the staff member in that
+  player's selection bucket, and `bring` takes the player into the staff
+  member's. The core undoes neither; the next selection places the character in
+  the world as usual.
+- **`opx77_elevators`** answers `wrong_bucket` outside its lift's bucket, and
+  **`opx77_animations`** plays within a bucket: neither is reachable from the
+  roster.
+- **The face editor** of a character with no stored face opens after the
+  character is placed, so it opens in `WORLD`.
+
+---
+
 ## PLAYER.STARTING_METADATA {#server-player-starting-metadata}
 
 Sets what a brand new character starts with; it becomes the initial

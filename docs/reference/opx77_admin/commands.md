@@ -351,6 +351,15 @@ You land at [`PLACEMENT.BESIDE`](config.md#placement) from them.
 Teleported to Kiroshi [7], bucket 0.
 ```
 
+!!! note "A player on the roster"
+    `opx77_core` keeps a player with no character loaded in a bucket of their
+    own, [`ENTRY.BUCKET`](../opx77_core/config.md#server-entry-bucket). A player
+    on the roster for the first time has a closed gate and is refused. One back on
+    the roster after an unload has an open gate: `goto` lands you in their
+    selection bucket, 77000 plus their id as shipped, and `bring` takes them out of
+    it into yours. The core undoes neither; their next selection places the
+    character in the world as usual.
+
 ### opx77.admin.player.bring {#player-bring}
 
 Teleports a player beside you, into your bucket.
