@@ -5,8 +5,8 @@ description: Every shape opx77_menu names — the aliases, the spec and item tab
 
 # Types
 
-`opx77_menu` ships its annotations in `types.lua`, a `---@meta` file that is
-never loaded at runtime. The types below are what those annotations describe.
+`opx77_menu` ships its annotations in `std/types.lua`, a `---@meta` file that
+is never loaded at runtime. The types below are what those annotations describe.
 
 The first two groups are the ones you write and read. The
 [internal shapes](#internal) are documented because they appear in the source
@@ -76,6 +76,7 @@ The table you hand to [`open`](exports.md#open), and the patch you hand to
 - status?: `string` — a transient line written as the menu opens.
 - closeOnSelect?: `boolean` — close after any `action` row fires. Default: `false`.
 - reportFocus?: `boolean` — raise `focus` as the cursor moves. Default: `false`.
+- prompts?: `boolean` — show the menu's keys in `opx77_prompts`' strip; only `false` turns them off. Default: `true`.
 - steal?: `boolean` — take over another resource's open menu. Read on `open` only. Default: `false`.
 
 Field-by-field detail, including every default and every limit, is on
@@ -225,7 +226,7 @@ not your business, so the answer is deliberately truncated otherwise:
 ## Internal shapes {#internal}
 
 None of these crosses the export boundary. They are named here because they
-appear in `types.lua` and in the source, and a reader following a stack trace
+appear in `std/types.lua` and in the source, and a reader following a stack trace
 needs to know what they are — not because anything outside `opx77_menu` may
 depend on them.
 
@@ -237,8 +238,8 @@ depend on them.
   `id` is what lets [`update`](exports.md#update) re-walk the stack onto a
   freshly built tree and put the player back where they were.
 - **`MenuRecord`** — the one open menu: handle, owner, owner generation, id,
-  title, event, data, `closeOnSelect`, `reportFocus`, the built tree, the node
-  count and the frame stack.
+  title, event, data, `closeOnSelect`, `reportFocus`, `prompts`, the built
+  tree, the node count, the frame stack and the status line.
 - **`MenuStatus`** — the transient line: `text`, `ok`, and the millisecond it
   was written at, after which it has six seconds to live.
 - **`MenuView`** — one frame as the WebUI page receives it: the title, the

@@ -9,7 +9,7 @@ The chat box, and the only path a typed command takes to the server.
 
 | At a glance | |
 |---|---|
-| **Version** | `0.3.0` |
+| **Version** | `0.6.0` |
 | **Requires** | `open77_version ">=0.0.1"`. Nothing else in OPX//77 |
 | **Auto start** | yes |
 | **Reload policy** | `reconnect` — a CEF surface is never replaced in place |
@@ -58,7 +58,7 @@ handled too, so another resource on the same client can open or close the box.
   [`clearMessages`](exports.md#clearmessages) in `0.3.0`.
 - **[Events](events.md)** — every event in and out, split by networked and non-networked, and
   the full path a typed slash command takes to the dispatcher.
-- **[Configuration](config.md)** — the eight keys in `config.lua`.
+- **[Configuration](config.md)** — the nine keys in `config.lua`.
 
 ## The box {#the-box}
 
@@ -66,13 +66,19 @@ handled too, so another resource on the same client can open or close the box.
   session — the page keeps the last 40 submitted lines, separately from the log. Walking past
   the newest entry gives you an empty input back. While the completion list is up the arrow
   keys move the selection in it instead; history takes over once there is nothing to select.
-- **Completion.** ++tab++ replaces the input with the selected command plus a trailing space.
-  The list appears only while the input starts with `/` and has no space in it yet, matches on
-  prefix, sorts by name and shows at most eight rows. It is drawn above the input, because a
-  list growing downward from a box at the bottom of the screen would leave the screen.
+- **Completion.** While the input starts with `/` and is still on the command name, the list
+  shows every entry the name starts, ignoring case, sorted by name, at most eight rows; ++tab++
+  replaces the input with the selected command plus a trailing space. Each entry is drawn as its
+  name, its arguments as `<required>` or `[optional]`, and its help. Once the name is typed and
+  an argument is being typed, the list narrows to that one entry, the argument under the caret
+  is lit, and its own help is drawn on a line under the entry. The list is drawn above the
+  input, because a list growing downward from a box at the bottom of the screen would leave the
+  screen.
 - **Submit and cancel.** ++enter++ sends the line and closes the box; ++escape++ closes it
-  without sending. The box closes on submit either way, including when a command is refused
-  before it is sent.
+  without sending. In game the plugin swallows Escape and raises `open77:pauseKey`, which
+  closes the box too. The box closes on submit either way, including when a command is refused
+  before it is sent, and a second ++enter++ before the close lands is ignored rather than
+  submitting again.
 - **The fade.** Lines are visible for `FADE_MS` and then fade out while the box is closed.
   Opening it brings the whole retained log back, and a new message resets the timer for every
   line on screen. `FADE_MS = 0` never fades. The log is history, not furniture.
@@ -80,7 +86,10 @@ handled too, so another resource on the same client can open or close the box.
   only while it is open** — focus on open, released on close, and released again on resource
   stop before the page handle is dropped. It is requested *before* the page is told to open,
   because both travel the same ordered pipe and the element focus has to land in a browser
-  that already holds focus.
+  that already holds focus. On close the order is reversed: Lua hands the keyboard back first
+  and only then sends the page `chat:close`, and the page draws nothing of its close until that
+  arrives — a close painted while the surface still held the keyboard never reached the
+  screen.
 
 Refusals are printed, never silent. "The key does nothing" has four different causes and each
 is logged as itself:
@@ -120,6 +129,11 @@ running, or with [`NOTIFY = false`](config.md#notify), each is a red `COMMAND` l
 instead, and the client log says so once. A chat message that could not be sent stays a line in
 the box.
 
+The red lines this resource writes itself carry `type = "error"` and no colour: the
+`.line.error` style paints them, author included. `.line.info` styles an information line the
+same way. No OPX//77 resource sends a `color` on a chat line any more; the page keeps its
+`color` support for third-party senders — see [`chat:addMessage`](events.md#chat-addmessage).
+
 ## Limits and rate {#limits}
 
 | Limit | Where | Behaviour |
@@ -150,7 +164,7 @@ It is a short list, because this resource mostly carries other people's text:
 | The dispatcher's refusals: `chat.command.unknown`, `chat.command.denied`, `chat.command.tooFast`, `chat.command.failed` | A toast, when a command comes back refused — see [Events](events.md#open77-command-result) |
 | `The message could not be sent.` | A red `NETWORK` line, when the trigger itself is refused |
 | The `COMMAND` and `NETWORK` author tags | `COMMAND` titles every toast above; both tag every line this resource writes itself, and a toast that could not be raised becomes a `COMMAND` line |
-| `player <id>` | The author on a relayed message, when the host has no display name for that connection |
+| `player <id>` | The author on a relayed message, when the host has no display name for that connection. `<id>` is the first eight characters of the player's account id, or the session id when there is none |
 | The input's placeholder | Sent to the page with the rest of the config |
 
 The page has no words of its own — every string it draws arrives from Lua already translated,
@@ -216,8 +230,8 @@ shared event names and the shared surface.
 
 The check is a `GetResourceState("open77_chat")` from a deferred thread rather than at file
 scope — a conflicting resource listed after this one in `resources.load` is still `discovered`
-at load time, and the warning would silently depend on load order. Server resources cannot
-call each other on this platform, so asking the host is the only way to ask at all; see
+at load time, and the warning would silently depend on load order. Asking the host is the
+one check that needs nothing from the other package; see
 [Integration channels](../../concepts/integration-channels.md).
 
 ## See also {#see-also}

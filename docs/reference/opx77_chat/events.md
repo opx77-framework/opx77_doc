@@ -109,16 +109,18 @@ RegisterNetEvent("chat:submit", function(text) end)
 `opx77_chat` replaces control characters with spaces, truncates the line to `MAX_LENGTH`
 **characters** with a trailing `...`, drops it if it is blank or inside the `RATE_MS` floor for
 that player, and rebroadcasts it as `chat:addMessage` to `-1` with `type = "chat"` and an
-`author` read server-side from `Open77.players.name` — or the catalogue's `player <id>` fallback
-when the host has no name for that connection. The truncation counts characters and not bytes, so it
-never cuts a multi-byte one in half; see [`MAX_LENGTH`](config.md#max-length).
+`author` read server-side from `Open77.players.identity(source)` — its `name`, or, when the host
+has no name for that connection, the catalogue's `player <id>` fallback with `<id>` the first
+eight characters of the identity's `userId` (the session id only when there is no identity).
+Reading the identity needs no permission. The truncation counts characters and not bytes, so
+it never cuts a multi-byte one in half; see [`MAX_LENGTH`](config.md#max-length).
 
 !!! warning "The author is a label, never an identity"
 
     The relay attributes every message to `source`, the authenticated connection inside the
     net event handler, and never to a name in the payload — a client cannot speak as somebody
     else. The display name in the box is player-changeable, so treat it as a label: if you are
-    logging or moderating, log the citizen id, not the tag on screen.
+    logging or moderating, log the account or citizen id, not the tag on screen.
 
 ### chat:ready {#chat-ready}
 
@@ -181,11 +183,15 @@ RegisterNetEvent("chat:addMessage", function(message) end)
 
 - message: `table | string`
     - A bare string is taken as `{ text = message }`.
-    - `type`: `string` — the line's CSS class. `chat`, `info` and `error` are what this
-      resource uses.
+    - `type`: `string` — the line's CSS class. The stylesheet styles `chat`, `info`, `error`
+      and `system`: `.line.info` and `.line.error` are how an information line and an error line
+      look, author included.
     - `author`: `string` — the tag before the text, rendered as text and never as markup.
     - `text`: `string`
-    - `color`: `{ r, g, b }` — tints the author tag only.
+    - `color`: `{ r, g, b }` — tints the author tag only, overriding the colour its `type`
+      gives it. Kept for third-party senders; no OPX//77 resource sends a `color`, and
+      `opx77_chat`'s own red lines are `type = "error"` alone. Leave it out to let the line
+      type style the line.
 
 This is also the channel a command's **report** takes — a player list, a dump, a status line
 someone asked to read — because the box keeps it to scroll back to. A command's outcome is a
@@ -209,7 +215,11 @@ RegisterNetEvent("chat:addSuggestion", function(command, help, parameters) end)
 
 - command: `string` — with or without the leading slash; the page adds one if you omit it.
 - help?: `string` — the one-line description drawn beside the name.
-- parameters?: `table` — a list of `{ name = string, help = string }`.
+- parameters?: `table` — a list of `{ name, help?, optional? }`, in the order the arguments are
+  typed; see [Publishing suggestions](#publishing-suggestions).
+
+The three may also arrive as one `ChatSuggestion` table in the first argument, as
+[`chat:addSuggestions`](#chat-addsuggestions) carries them.
 
 ### chat:addSuggestions {#chat-addsuggestions}
 
@@ -383,6 +393,18 @@ TriggerEvent("chat:close")
 
 Carries no arguments. A no-op if the box is not open.
 
+### open77:pauseKey {#open77-pausekey}
+
+Raised by the platform when the player presses Escape: the plugin swallows the key in the
+window procedure, so the page never sees it. `opx77_chat` closes an open box on it, exactly as
+[`chat:close`](#chat-close) does.
+
+```lua
+AddEventHandler("open77:pauseKey", function() end)
+```
+
+Carries no arguments. Do not re-raise it.
+
 ### chat:commandSubmitted {#chat-commandsubmitted}
 
 Raised locally by `opx77_chat` the moment a slash command has been tokenised, immediately
@@ -413,36 +435,42 @@ contract is two events:
    [`chat:addSuggestion`](#chat-addsuggestion), from its **server** half.
 
 ```lua
---- server/main.lua of your own resource.
---- Suggestions for the chat autocomplete. Sent on the client's `chat:ready` rather than at
---- boot: suggestions sent before that surface is up land nowhere.
+-- server/main.lua of your own resource
+
 local lastSuggestedMs = {}
 
-RegisterNetEvent("chat:ready", function()
-  local player = tonumber(source) or 0
-  if player <= 0 then return end
+RegisterNetEvent('chat:ready', function()
+	local player = tonumber(source) or 0
+	if player <= 0 then return end
 
-  -- `chat:ready` is a net event any client is free to send, and it is answered
-  -- with several hundred bytes. Floor it.
-  local atMs = math.floor(Open77.time.monotonic() * 1000)
-  local previous = lastSuggestedMs[player]
-  if previous ~= nil and atMs - previous < 10000 then return end
-  lastSuggestedMs[player] = atMs
+	local atMs = GetGameTimer()
+	local previous = lastSuggestedMs[player]
+	if previous ~= nil and atMs - previous < 10000 then return end
+	lastSuggestedMs[player] = atMs
 
-  TriggerClientEvent("chat:addSuggestions", player, {
-    { command = "/ripperdoc.heal", help = "Patch yourself up at this clinic.",
-      parameters = { { name = "bodyPart", help = "arm, leg, torso; omit for all" } } },
-    { command = "/ripperdoc.prices", help = "List what this clinic charges." },
-  })
+	TriggerClientEvent('chat:addSuggestions', player, {
+		{ command = '/ripperdoc.heal', help = 'Patch yourself up at this clinic.',
+			parameters = { { name = 'bodyPart', help = 'arm, leg, torso; omit for all', optional = true } } },
+		{ command = '/ripperdoc.prices', help = 'List what this clinic charges.' },
+	})
 end)
 
--- playerId arrives as a string, like every host event argument. An id that
--- will not convert is worth a line, not a `-1` key no player will ever hold.
-AddEventHandler("onPlayerDisconnected", function(playerId)
-  local player = tonumber(playerId)
-  if player ~= nil then lastSuggestedMs[player] = nil end
+AddEventHandler('onPlayerDisconnected', function(playerId)
+	local player = tonumber(playerId)
+	if player == nil then
+		Open77.log.warn(('onPlayerDisconnected: unusable player id %q'):format(tostring(playerId)))
+		return
+	end
+	lastSuggestedMs[player] = nil
 end)
 ```
+
+`chat:ready` is a net event any client is free to send, and it is answered with several hundred
+bytes, so the answer is floored. `GetGameTimer` is the server scheduler's monotonic clock in
+milliseconds, which is all a floor needs. `playerId` arrives as a string, like every host event
+argument: `tonumber` absorbs that, and an id that will not convert is worth a log line rather
+than a key no player will ever hold. The `onPlayerDisconnected` handler is the one
+`opx77_chat`'s own server half uses for its message floor.
 
 !!! warning "Publish on `chat:ready`, never at boot"
 
@@ -451,11 +479,18 @@ end)
     there is somewhere to put them, and it arrives again after every reload of `opx77_chat`,
     which is what makes the list survive one.
 
-A suggestion is a table of `command`, `help` and `parameters`. A leading `/` is added if you
-omit it, and the page keys entries by name, so publishing the same name twice replaces rather
-than duplicates. Each parameter is a table with a `name`; the page appends every parameter
-name to the help text in square brackets and reads nothing else from it, so an `optional` or
-`help` key is documentation for whoever reads your code next.
+A suggestion is a table of `command`, `help` and `parameters`; `name` and `params` are read
+where `command` and `parameters` are absent, as lists written for other chat packages spell
+them. A leading `/` is added if you omit it, and the page keys entries by name, so publishing
+the same name twice replaces rather than duplicates.
+
+Each parameter names one argument, in the order it is typed:
+`{ name, help?, optional? }`, or a bare string taken as the name. The entry is drawn as the
+command, each parameter as `<name>` — or `[name]` with `optional = true` — and the help. Once
+the command name is typed, the list narrows to that entry, the argument being typed is lit, and
+its `help` is drawn on a line of its own under it. Write `help` in the player's language. The
+page keeps the first 16 parameters, cuts a name to 40 characters and a help to 240; an entry
+without parameters is its name and help alone.
 
 ## See also {#see-also}
 

@@ -1,12 +1,39 @@
 ---
 title: opx77_chat configuration
-description: The eight keys of OPX_CHAT_CONFIG in opx77_chat/config.lua — where the box sits, how wide it is, how much it keeps, how long lines stay visible, the two limits on what a player may send, whether a refused command is a toast, and the locale its own text is read from.
+description: The nine keys of OPX_CHAT_CONFIG in opx77_chat/config.lua — where the box sits and how far above its corner, how wide it is, how much it keeps, how long lines stay visible, the two limits on what a player may send, whether a refused command is a toast, and the locale its own text is read from.
 ---
 
 # Configuration
 
 Everything below lives in `opx77_chat/config.lua`. **The value shown in each fence is the
 shipped default**, so a key you never touch behaves exactly as written here.
+
+```lua
+--- @author DemiAutomatic
+--- @file config.lua
+--- @description Operator configuration for the box, message caps and command feedback.
+--- @field ANCHOR {string} bottom-left or top-left; anything else reads as bottom-left.
+--- @field OFFSET {integer} Pixels above the anchored inset on 1080 high; 0..1080.
+--- @field WIDTH {integer} Box width in pixels on the 1920-wide surface.
+--- @field HISTORY {integer} Messages kept on screen; older ones fall off the top.
+--- @field FADE_MS {integer} Milliseconds a line stays visible while closed; 0 never fades.
+--- @field MAX_LENGTH {integer} Longest message a player may send, in characters.
+--- @field RATE_MS {integer} Milliseconds between two messages from one player.
+--- @field NOTIFY {boolean} Refused commands as opx77_notify toasts; false prints a red line.
+--- @field LOCALE {string} Catalogue code in locales/ player-facing text is read from.
+
+OPX_CHAT_CONFIG = {
+	ANCHOR = 'bottom-left',
+	OFFSET = 155,
+	WIDTH = 620,
+	HISTORY = 60,
+	FADE_MS = 12000,
+	MAX_LENGTH = 240,
+	RATE_MS = 800,
+	NOTIFY = true,
+	LOCALE = 'en',
+}
+```
 
 `config.lua` is one `shared_script`, so both halves read the same table. The page is sent
 everything except `RATE_MS`, which is a server rule with no meaning in the browser,
@@ -15,20 +42,21 @@ everything except `RATE_MS`, which is a server rule with no meaning in the brows
 has to draw, already translated:
 
 ```lua
-send("chat:config", {
-  anchor = Config.ANCHOR,
-  width = Config.WIDTH,
-  history = Config.HISTORY,
-  fadeMs = Config.FADE_MS,
-  maxLength = Config.MAX_LENGTH,
-  placeholder = locale("chat.placeholder"),
+send('chat:config', {
+	anchor = Config.ANCHOR,
+	offset = Config.OFFSET,
+	width = Config.WIDTH,
+	history = Config.HISTORY,
+	fadeMs = Config.FADE_MS,
+	maxLength = Config.MAX_LENGTH,
+	placeholder = locale('chat.placeholder'),
 })
 ```
 
 The page validates each value on the way in and keeps its own built-in default for anything
-that does not survive: a `WIDTH` that is not a finite number above zero, a `HISTORY` that is
-not above zero, a negative `FADE_MS` or a `MAX_LENGTH` that is not above zero are ignored
-rather than applied. A wrong value therefore shows up as "the setting did nothing", not as a
+that does not survive: an `OFFSET` outside `0..1080`, a `WIDTH` that is not a finite number
+above zero, a `HISTORY` that is not above zero, a negative `FADE_MS` or a `MAX_LENGTH` that is
+not above zero are ignored rather than applied. A wrong value therefore shows up as "the setting did nothing", not as a
 broken box.
 
 Changing any of these needs a restart of `opx77_chat`. There is no live reload of the config
@@ -39,7 +67,7 @@ table and no tunable declaration.
 Which corner the box sits in.
 
 ```lua
-ANCHOR = "bottom-left",
+ANCHOR = 'bottom-left',
 ```
 
 **Type** `"bottom-left" | "top-left"`
@@ -48,6 +76,25 @@ ANCHOR = "bottom-left",
 page tests for the one string and falls through. The completion list is always drawn above the
 input, whichever anchor is in use, so a list growing downward from a box at the bottom of the
 screen cannot leave the screen.
+
+## OFFSET {#offset}
+
+How far the box sits from its anchored edge, in pixels past the standard inset, measured
+against the 1080-high surface.
+
+```lua
+OFFSET = 155,
+```
+
+**Type** `integer` — `0..1080`; `0` puts the box back on the inset
+
+Shipped at 155 so the box clears [`opx77_hud`](../opx77_hud/index.md) in the same corner: its
+gauges end 130 px above the bottom of the 1080-high surface and
+[`opx77_status`](../opx77_status/index.md)'s chip strip 171 px, and the box starts 12 px above
+that. No resource can read another's config, so moving the HUD or the strip means setting this
+again. Whatever it is set to, the column stays on screen: the oldest log lines give way before
+the suggestions or the input line do. A value outside `0..1080`, or not a number, is ignored
+and the page keeps its own default.
 
 ## WIDTH {#width}
 
@@ -106,11 +153,12 @@ Enforced twice, and the second one is the one that counts. The page sets it as t
 `MAX_LENGTH` and appends `...`, because everything off the wire is treated as hostile.
 
 The server counts **characters**, by counting UTF-8 lead bytes, so a cut never lands in the
-middle of a multi-byte one. `shared/text.lua` does the measuring: `Text.span` answers the byte
-length of the first `MAX_LENGTH` characters, and `Text.clean` skips the measuring entirely when
-the whole line is already shorter in bytes than the cap is in characters.
+middle of a multi-byte one. `shared/text.lua` does the measuring: `OpxChat.Text.Clean` skips
+the measuring entirely when the whole line is already no longer in bytes than the cap is in
+characters, and otherwise asks `span`, a function local to that file, for the byte length of
+the first `MAX_LENGTH` characters.
 
-The scan `Text.span` runs is **bounded in bytes** at `maximum * 4` — the widest a UTF-8
+The scan `span` runs is **bounded in bytes** at `maximum * 4` — the widest a UTF-8
 character can be — so a line made of continuation bytes, which start no character at all, is
 walked four times the cap and no further rather than to its end.
 
@@ -142,7 +190,11 @@ RATE_MS = 800,
 
 Server-side only. A message that arrives inside the floor is **dropped silently** — the sender
 is not told, on purpose: an answer would cost more than the message it refused. The timestamp
-is kept per session player id and cleared on `onPlayerDisconnected`.
+is kept per session player id and cleared on `onPlayerDisconnected`. It moves for every
+message outside the floor, including a blank one that is then dropped, so a flood of
+whitespace does not buy a scan per packet. The clock is `Open77.time.monotonic`; when it cannot
+be read the server falls back to `GetGameTimer` and logs that once, rather than freezing the
+floor.
 
 !!! warning "Commands are not rate limited here"
 
@@ -178,12 +230,12 @@ to, and a chat message that could not be sent stays a `NETWORK` line in the box.
 Which catalogue in `locales/` the box's own text is read from.
 
 ```lua
-LOCALE = "en",
+LOCALE = 'en',
 ```
 
 **Type** `string` — a code registered in `locales/`. `en` and `fr` ship.
 
-`shared/locale.lua` calls `Locale.set` with this value at load, on both halves, which is what
+`shared/locale.lua` calls `OpxChat.Locale.Set` with this value at load, on both halves, which is what
 makes the key do anything at all; it is listed after `config.lua` in the manifest for exactly
 that reason. An unknown code is **accepted** rather than refused, because the catalogues
 register after that file loads and there is nothing to check it against yet. Every lookup then

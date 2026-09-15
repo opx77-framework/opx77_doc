@@ -126,8 +126,9 @@ Open77.exports.call("opx77_notify", "update", handle, patch)
 
 !!! info "A patch that says nothing about the duration keeps the deadline"
     Omitting `durationMs` **and** `duration` carries the existing deadline over,
-    so a changed message does not restart the bar underneath it. Passing either
-    restarts the countdown from now.
+    so a changed message does not restart the bar underneath it: the page is
+    sent what is left of the lifetime and the bar continues from there. Passing
+    either restarts the countdown from now.
 
 !!! warning "A patch can change a field, it cannot clear one"
     Absent means *keep*. There is no patch that sets an optional field back to
@@ -360,6 +361,15 @@ them would make this resource behave differently from the package it stands in
 for, so they live in the code rather than in `config.lua`. A resource that sees
 `notification_limit` has a leak.
 
+!!! note "The global ceiling is checked before a position is evicted"
+    [`show`](#show) refuses `notification_limit` as soon as 32 toasts are held,
+    **before** it would evict the oldest toast of a full position. A new toast
+    aimed at a position that already holds eight is therefore refused while 32
+    are held, although its arrival would have removed one. The official
+    `open77_notifications` package checks in the same order, and a drop-in must
+    not behave differently, so the order is kept. A `replace` of a toast you
+    already hold is not a new toast and is not refused by the ceiling.
+
 ### Holding and replay {#replay}
 
 A toast raised before the page has reported ready is **held and replayed** the
@@ -374,7 +384,7 @@ your toasts down, and none of them needs a line of code from you:
 
 | Trigger | How it is noticed | Reason reported |
 |---|---|---|
-| Your resource **stops** | `onClientResourceStop` fires with your name and your toasts are dropped on the spot. The sweep catches it in any case within a second. | `owner_stopped` |
+| Your resource **stops** | `onClientResourceStop` fires with your name and your toasts are dropped on the spot. The sweep catches it in any case within a second: an owner that is neither `running` nor `starting` loses its toasts. `starting` counts as alive, so a toast raised from your own start handler stays up. | `owner_stopped` |
 | Your resource **reloads** | The host hands over a generation alongside your name on every export call. A generation that differs from the one last seen means the code that raised those toasts no longer exists, and they are dropped before the new call is served. The sweep checks the same thing independently. | `owner_reloaded` |
 | A **deadline** elapses | The tick, every 100 ms. | `expired` |
 | A position **overflows** | A ninth toast joins it. | `queue_limit` |

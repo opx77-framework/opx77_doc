@@ -7,7 +7,7 @@ description: opx77_notify is the toast service for OPX//77 — seven client expo
 
 | At a glance | |
 |---|---|
-| **Version** | `0.2.0` |
+| **Version** | `0.3.0` |
 | **Requires** | `open77_version ">=0.0.1"`. No `dependency` is declared |
 | **Auto start** | yes |
 | **Reload policy** | `reconnect`, because it owns a WebUI surface |

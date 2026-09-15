@@ -1,6 +1,6 @@
 ---
 title: opx77_input configuration
-description: The four keys in opx77_input's config.lua — the language, the anchor and width it shares with opx77_menu, and the scrim that ships off — the locale catalogue, and what is deliberately not configurable.
+description: The four keys in opx77_input's config.lua — the language, the anchor that ships centred, the width it shares with opx77_menu, and the scrim that ships off — the locale catalogue, and what is deliberately not configurable.
 ---
 
 # Configuration
@@ -9,11 +9,19 @@ description: The four keys in opx77_input's config.lua — the language, the anc
 which defines one global table:
 
 ```lua
+--- @author DemiAutomatic
+--- @file config.lua
+--- @description Operator configuration: language, form anchor, strip width and scrim.
+--- @field LOCALE {string} Catalogue code in locales/ player-facing text is read from.
+--- @field ANCHOR {string} center, top-left, top-right, left or right; unknown means center.
+--- @field WIDTH {integer} Strip width in pixels on the 1920-wide surface.
+--- @field DIM {boolean} Dim the scene behind an open form.
+
 OPX_INPUT_CONFIG = {
-  LOCALE = "en",
-  ANCHOR = "top-left",
-  WIDTH = 340,
-  DIM = false,
+	LOCALE = 'en',
+	ANCHOR = 'center',
+	WIDTH = 340,
+	DIM = false,
 }
 ```
 
@@ -21,25 +29,27 @@ OPX_INPUT_CONFIG = {
 and `DIM` are pushed to the page once, when it reports ready, so changing one
 needs a resource restart.
 
-!!! info "Keep `ANCHOR` and `WIDTH` on `opx77_menu`'s values"
+!!! info "Keep `WIDTH` on `opx77_menu`'s value"
 
     The form is drawn as [`opx77_menu`](../opx77_menu/config.md)'s strip, and a
     form usually follows a menu — the character roster, then the identity form.
-    Both ship on `top-left` and `340`. Moving one and not the other puts the two
-    halves of one flow in two places.
+    Both ship at `340` pixels. The anchor differs on purpose: the menu ships
+    `top-left`, the form `center`.
 
 ## LOCALE {#locale}
 
 Which `locales/<code>.lua` catalogue this resource's own lines are read from.
 
 ```lua
-LOCALE = "en"
+LOCALE = 'en'
 ```
 
 **Type** `string` — `"en"` or `"fr"` as shipped.
 
-Unlike `opx77_menu`, which renders only its caller's text, this resource owns
-lines a player reads — the key line under the fields and the four refusals a
+An unknown code falls back to `en`, key by key.
+
+Unlike `opx77_menu`, whose only own strings are its five key-prompt labels,
+this resource owns lines a player reads — the key line under the fields and the four refusals a
 text field answers with — so it carries a catalogue. See [Locales](#locales).
 
 ## ANCHOR {#anchor}
@@ -47,15 +57,18 @@ text field answers with — so it carries a catalogue. See [Locales](#locales).
 Where the strip sits on screen.
 
 ```lua
-ANCHOR = "top-left"
+ANCHOR = 'center'
 ```
 
-**Type** `"top-left" | "top-right" | "left" | "right"` — `left` and `right` are
-mid-height.
+**Type** `"center" | "top-left" | "top-right" | "left" | "right"` — `left` and
+`right` are mid-height.
 
-The same four positions as [`opx77_menu`'s `ANCHOR`](../opx77_menu/config.md#anchor),
-so a form can sit where the list before it sat. Anything unrecognised falls back
-to `top-left` on the page.
+`"center"` ships: the form is drawn in the menu's style, but it is a question
+the player has to answer before anything else happens, so it sits in the middle
+of the screen rather than where a menu does. The other four are the positions of
+[`opx77_menu`'s `ANCHOR`](../opx77_menu/config.md#anchor), for a server that
+wants the form where the list before it sat. Anything unrecognised falls back to
+`center` on the page.
 
 ## WIDTH {#width}
 
@@ -83,9 +96,7 @@ DIM = false
 **Type** `boolean` — only `true` turns it on.
 
 Off as shipped, because `opx77_menu` draws none: the strip is the same panel the
-menu is, and a scene dimmed behind one and not the other reads as two UIs. Before
-the form was restyled as the menu's strip it was a centred modal, and this
-shipped `true` beside a 460-pixel `WIDTH` and no `ANCHOR`.
+menu is, and a scene dimmed behind one and not the other reads as two UIs.
 
 ## Locales {#locales}
 
@@ -117,8 +128,8 @@ set [`LOCALE`](#locale) to it.
 
 ## What is deliberately not configurable {#not-configurable}
 
-**The keys.** `Open77.input` exposes no key-mapping API, and the keys are the
-ones the menu uses.
+**The keys.** They are the ones the menu uses, reported by the page while the
+form holds the keyboard; they are not key mappings and cannot be rebound.
 
 **The limits.** Eight fields, 64 options, a 512-character text ceiling: each is
 a bound against the host's payload, or the point where a form becomes a list.

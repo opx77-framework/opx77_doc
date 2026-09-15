@@ -5,7 +5,7 @@ description: Every shape opx77_input names — the aliases, the spec, field, opt
 
 # Types
 
-`opx77_input` ships its annotations in `types.lua`, a `---@meta` file that is
+`opx77_input` ships its annotations in `std/types.lua`, a `---@meta` file that is
 never loaded at runtime. The types below are what those annotations describe.
 
 ## InputHandle {#inputhandle}
@@ -174,8 +174,8 @@ the contract.
 
 - **`InputEntry`** — a normalised field with its `kind` resolved: a text field's
   accepted buffer, its `maxLength`, `pattern`, the Lua character class its
-  `charset` resolved to, and `required`; a choice's options and `selected`; a
-  slider's bounds.
+  `charset` resolved to, `required`, and `patternFailed` once a raising match
+  has been logged; a choice's options and `selected`; a slider's bounds.
 - **`InputRecord`** — the one open form: handle, owner, owner generation, id,
   title, description, event, data, the entries, the focused index and the status.
 - **`InputStatus`** — the transient line: `text`, `ok`, and the millisecond it

@@ -22,9 +22,8 @@ else.
 local promise, reason = Open77.exports.call("opx77_chat", "addMessage", { text = "hello" })
 ```
 
-There are no server exports, here or anywhere in OPX//77: the server runtime installs no
-export machinery at all. A server resource that wants to put a line in one player's box sends
-that player `chat:addMessage` instead — see [Events](events.md).
+There are no server exports here. A server resource that wants to put a line in one player's
+box sends that player `chat:addMessage` instead — see [Events](events.md).
 
 ## What every export answers {#result-shape}
 
@@ -33,7 +32,7 @@ also carries `error`, a stable snake_case code meant for branching rather than f
 read — a caller that wants to show one renders it through its own catalogue, because these
 codes are not translated.
 
-The shapes have names, annotated in `opx77_chat/types.lua`, which the manifest never loads:
+The shapes have names, annotated in `opx77_chat/std/types.lua`, which the manifest never loads:
 `ChatResponse` and `ChatEnabledState` for the answers, `ChatMessage` for one line,
 `ChatSuggestion` and `ChatSuggestionParameter` for a completion entry, `ChatError` for the codes
 below, and `ChatConfig` for `config.lua`.
@@ -44,7 +43,7 @@ below, and `ChatConfig` for `config.lua`.
 | `no_surface` | `WebUI.create` failed at start. There is no box in this generation and there never will be. |
 | `page_not_ready` | The surface exists but has not raised `chat:ready` yet. Try again. |
 | `invalid_message` | The message was neither a string nor a table. |
-| `invalid_command` | The command name was empty, which the page would silently drop. |
+| `invalid_command` | The command name was empty — including a suggestion table that names none — which the page would silently drop. |
 
 The four exports that put something on the page check the surface before answering, because
 the client's internal `send` is silent when the surface is missing or still starting, and
@@ -69,12 +68,14 @@ Open77.exports.call("opx77_chat", "addMessage", message)
 
 - message: `table | string`
     - A bare string is taken as `{ text = message }`.
-    - `type`: `string` — becomes the line's CSS class. The resource itself uses `chat`, `info`
-      and `error`; anything else is rendered with no styling of its own.
+    - `type`: `string` — becomes the line's CSS class. The stylesheet styles `chat`, `info`,
+      `error` and `system`; anything else is rendered with no styling of its own.
     - `author`: `string` — the tag drawn before the text. Rendered as text and never as
       markup.
     - `text`: `string` — the line.
-    - `color`: `{ r, g, b }` — tints the **author tag only**, not the body.
+    - `color`: `{ r, g, b }` — tints the **author tag only**, not the body, and overrides the
+      colour the line's `type` gives it. Kept for third-party senders: no OPX//77 resource sends
+      one, and a line meant as information or an error is better sent with its `type` alone.
 
 **Returns** `table` — a `ChatResponse`: `{ ok = true }`
 
@@ -100,7 +101,6 @@ CreateThread(function()
     type = "info",
     author = "RIPPERDOC",
     text = "You are patched up.",
-    color = { 120, 220, 232 },
   })
   if not promise then return Open77.log.warn("not dispatched: " .. tostring(reason)) end
 
@@ -152,18 +152,26 @@ Adds or replaces the completion entry for one slash command, and answers
 
 ```lua
 Open77.exports.call("opx77_chat", "addSuggestion", command, help, parameters)
+Open77.exports.call("opx77_chat", "addSuggestion", suggestion)
 ```
 
-- command: `string`
+- command: `string | table`
     - The page keys entries by name and prefixes the slash itself, so `"heal"` and `"/heal"`
       are the same entry.
+    - A whole `ChatSuggestion` table is accepted in its place: `{ command, help, parameters }`,
+      with `name` read where `command` is absent and `params` where `parameters` is. The
+      table's own `help` and `parameters` are used, and `help` and `parameters` arguments are
+      then ignored. A table that names no command is refused with `invalid_command`.
 - help?: `string`
     - The one-line description drawn beside the name. Anything not a string is stringified.
     - Default: `""`
 - parameters?: `table`
-    - A list of `{ name = string, help = string }`. The page appends every parameter's `name`
-      to the help text in square brackets and reads nothing else from the table, so a `help`
-      or `optional` key on a parameter is documentation for whoever reads your code next.
+    - A list of `ChatSuggestionParameter`, in the order the arguments are typed:
+      `{ name = string, help? = string, optional? = boolean }`, or a bare string taken as the
+      name. Each is drawn after the command as `<name>`, or `[name]` when `optional = true`;
+      while the player types that argument it is lit and its `help` is drawn on a line of its
+      own under the entry. The page keeps the first 16, names cut to 40 characters and help to
+      240.
     - Default: `{}`
 
 **Returns** `table` — a `ChatResponse`: `{ ok = true }`
@@ -175,7 +183,7 @@ Open77.exports.call("opx77_chat", "addSuggestion", command, help, parameters)
 | `export_call_required` | Called with no invoking resource. |
 | `no_surface` | The WebUI surface was never created. |
 | `page_not_ready` | The page has not raised `chat:ready` yet. |
-| `invalid_command` | The command name was empty. |
+| `invalid_command` | The command name was empty, or the table named no `command` or `name`. |
 
 **Side** `client export` — callable from any client resource through `Open77.exports.call`.
 Local only: it adds the entry to this player's completion list.
@@ -195,7 +203,7 @@ Local only: it adds the entry to this player's completion list.
 CreateThread(function()
   local promise = Open77.exports.call("opx77_chat", "addSuggestion",
     "/ripperdoc.heal", "Patch yourself up at this clinic.", {
-      { name = "bodyPart", help = "arm, leg, torso; omit for all" },
+      { name = "bodyPart", help = "arm, leg, torso; omit for all", optional = true },
     })
   if not promise then return end
   local answer = promise:await()

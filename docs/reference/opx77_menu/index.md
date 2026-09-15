@@ -7,7 +7,7 @@ description: opx77_menu owns the single keyboard-driven menu surface on the clie
 
 !!! warning "Early development"
 
-    `opx77_menu` is version `0.4.0`. The exports, the payload shape and the
+    `opx77_menu` is version `0.6.0`. The exports, the payload shape and the
     error codes are subject to change without notice. Do not build a production
     resource on the current surface.
 
@@ -28,8 +28,8 @@ same one `open77_zones` and `open77_worldui` use, is the subject of
 
 | At a glance | |
 |---|---|
-| **Version** | `0.4.0` |
-| **Requires** | `open77_version ">=0.0.1"`. No `dependency` is declared, and nothing needs to be running for it to start |
+| **Version** | `0.6.0` |
+| **Requires** | `open77_version ">=0.0.1"`. No `dependency` is declared, and nothing needs to be running for it to start. [`opx77_prompts`](../opx77_prompts/index.md) is a soft dependency: the [key prompts](#key-prompts) are shown only while it runs |
 | **Auto start** | yes |
 | **Reload policy** | `reconnect` — handles and owner generations belong to the client session, so a generation change needs a clean reconnect rather than a hot swap |
 | **Permissions** | `input.actions` — `Open77.input.isDown` and `isCaptured`. It never takes focus, so it needs no `webui` permission |
@@ -90,9 +90,11 @@ mechanisms sit behind that, and each closes the menu with its own `reason`:
   every export call. A call at a different generation closes that owner's open
   menu with `reason = "owner_reloaded"` before doing anything else.
 - **A caller that stopped or crashed.** A sweep runs once a second while a menu
-  is open, checking that the owner is still `running` and still at the
-  generation it opened at. A caller that died mid-menu loses its menu within
-  that second, with `reason = "owner_stopped"`. A menu therefore outlives its
+  is open, checking that the owner is still `running` (or `starting`) and still
+  at the generation it opened at. `starting` counts as alive because a resource
+  that opens a menu from its own start handler still reads `starting` there.
+  A caller that died mid-menu loses its menu within that second, with
+  `reason = "owner_stopped"`. A menu therefore outlives its
   owner by up to one second, never more.
 - **`opx77_menu` itself stopping.** It closes the open menu with
   `reason = "menu_stopped"` from `onClientResourceStop`, while there is still a
@@ -102,8 +104,8 @@ mechanisms sit behind that, and each closes the menu with its own `reason`:
 
 Six actions, and the key each drives. These are not an operator setting and
 they are not rebindable: they are the keys everyone already tries on a list,
-and the platform exposes no key-mapping API of any kind — `Open77.input` has
-exactly `isDown` and `isCaptured`.
+read directly through `Open77.input.isDown` only while a menu is open, never
+registered as key mappings.
 
 | Action | Key |
 |---|---|
@@ -151,6 +153,30 @@ Both pop one level, but they differ at the two edges:
 - **At the root they part ways.** `BACKSPACE` at the root closes the menu with
   `reason = "back"`. `LEFT` at the root does nothing.
 
+## Key prompts {#key-prompts}
+
+Nothing on the strip itself names the keys. While a menu is open and
+[`opx77_prompts`](../opx77_prompts/index.md) is running, its corner strip shows
+them: `UP DOWN` to choose, `ENTER` to select, `LEFT RIGHT` to change while the
+cursor is on an enabled toggle, choice list or slider, and `BACKSPACE` to go
+back — or to close, on the first screen. The rows follow the cursor and the
+depth, and come down with the menu.
+
+- **A soft dependency.** Without `opx77_prompts` the menu works as before, and
+  one log line says the keys are not shown. A refusal from `opx77_prompts` is
+  logged once as well.
+- **Opting out.** `prompts = false` in a [spec](menu-spec.md#spec), or in an
+  `update` patch, turns them off for that menu — for a caller that prints its
+  own hint. [`PROMPTS = false`](config.md#prompts) turns them off for every
+  menu.
+- **No blinking.** The strip is brought in line a frame after the last change,
+  so a caller that closes one menu and opens the next at once costs neither a
+  gap nor two calls. A restarted `opx77_prompts` is sent the keys again.
+- **Priority 40** in the strip, under a staff tool's travel controls (50) and
+  above what a gameplay resource puts up. The group is named `menu`.
+- The labels come from this resource's [locale](config.md#locale); the key
+  names are drawn by `opx77_prompts` itself.
+
 ## Treat the menu as optional {#optional}
 
 Nothing forces a caller to hard-depend on this resource, and a declared
@@ -166,6 +192,6 @@ exports doing exactly what they did before.
 - [Exports](exports.md) — the six calls, their error codes and what each refuses.
 - [The menu spec](menu-spec.md) — the spec table, the eight item kinds and every limit.
 - [Events](events.md) — how a chosen row reaches you, and why there is no callback.
-- [Configuration](config.md) — the three keys in `config.lua`.
+- [Configuration](config.md) — the five keys in `config.lua` and the two locales.
 - [Types](types.md) — every shape named on these pages.
 - [The client export contract](../../concepts/export-contract.md) — how to call an export correctly, and the three levels of failure.

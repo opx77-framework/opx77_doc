@@ -115,7 +115,7 @@ The name the roster's rows are raised on. Anything can raise it, so the payload'
 | `close` | The list is gone, if the payload's `handle` is the list this resource holds. For `pause`, `back` or `item` — a dismissal — it goes back up 250 ms later while the player still has nothing to choose with. |
 
 A close is not always something this resource asked for — `opx77_menu` sends
-ten reasons, seven of which nobody asked for — so the stage is judged again
+ten reasons, six of which nobody asked for — so the stage is judged again
 from the `close` branch rather than after the export call, and lingers there for
 the list that goes back up. Only the three dismissals reopen the list.
 

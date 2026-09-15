@@ -7,7 +7,9 @@ description: Every event opx77_hud listens to — the core's local character eve
 
 `opx77_hud` **raises no event of its own on the Lua bus.** Every entry on this
 page is either something it listens to, or a message on the private channel
-between its client half and its page.
+between its client half and its page. The one event it raises at all is
+`opx77_chat`'s local [`chat:addMessage`](../opx77_chat/events.md#chat-addmessage),
+as the fallback for a toast it could not raise — see [`opx77_hud:notice`](#notice).
 
 ## Networked (server → client) {#networked}
 
@@ -51,14 +53,19 @@ RegisterNetEvent("opx77_hud:notice", function(kind, message) end)
 The client raises it through `opx77_notify`'s `show`, titled `hud.title`, in the
 one slot `opx77_hud.answer` that each answer replaces — a player repeating a
 typo sees one toast, not a stack. With [`NOTIFY = false`](config.md#notify),
-while `opx77_notify` is not running, or when it refuses the toast, the same
-text is a `chat:addMessage` line authored `hud.title`, and the client log says
-so once. It is internal, like [`visibility`](#visibility), and not a contract.
+while `opx77_notify` is not running, or when it refuses the toast — any answer
+without `ok = true` counts as a refusal — the same text is a local
+`chat:addMessage` line authored `hud.title`, and the client log says so once.
+The line carries `type = "error"` for a warning or an error and `type = "info"`
+otherwise, and **no colour**: `opx77_chat` styles it from its own `.line.info`
+and `.line.error` rules. It is internal, like [`visibility`](#visibility), and
+not a contract.
 
-This one grant — `permissions { "network.events" }` — exists for these two
-events and nothing else. Nothing that appears on screen comes over the network: the
-character is read from `opx77_core` through a client export, and the needs and
-the status chips arrive from `opx77_status` on the client's local bus.
+The `network.events` grant exists for these two events and for the command's
+chat suggestion, and nothing else. Nothing that appears on screen comes over the
+network: the character is read from `opx77_core` through a client export, and
+the needs and the status chips arrive from `opx77_status` on the client's local
+bus.
 
 ## Non-networked (the client local bus) {#non-networked}
 
@@ -111,9 +118,28 @@ payload.
 AddEventHandler("opx77:client:onPlayerUnloaded", function() end)
 ```
 
-The visibility flag is **not** touched here. It lives beside the snapshot, not
-inside it, so a player who typed `/hud off` before switching characters comes
-back to a hidden HUD.
+It also drops the needs. The visibility flag is **not** touched here. It lives
+beside the snapshot, not inside it, so a player who typed `/hud off` before
+switching characters comes back to a hidden HUD.
+
+### onClientResourceStop {#onclientresourcestop}
+
+Watches three resources stop.
+
+```lua
+AddEventHandler("onClientResourceStop", function(name) end)
+```
+
+- **`opx77_core`** — treated as a character unload, exactly as
+  [`opx77:client:onPlayerUnloaded`](#onplayerunloaded): a stop or restart of the
+  core raises no unload event on the client, so without this the HUD would keep
+  drawing the last character, frozen. The character and its needs leave the
+  frame, the status chips it does not own stay, and they come back on the next
+  `opx77:client:onPlayerLoaded`.
+- **`opx77_status`** — its needs are blanked, since it raises no farewell for
+  them; see [`opx77:status:needs`](#status-needs).
+- **`opx77_hud` itself** — the page handle is forgotten. The game HUD components
+  it hid are not touched: the platform releases its hide claims on the way out.
 
 ### opx77:status:needs {#status-needs}
 

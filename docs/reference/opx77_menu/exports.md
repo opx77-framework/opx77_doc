@@ -85,7 +85,6 @@ included).
 | `export_call_required` | The call did not arrive through the export mechanism, so the host named no calling resource. |
 | `spec_must_be_a_table` | `spec` was not a table. |
 | `menu_busy` | Another resource has a menu open and you did not pass `steal = true`. |
-| `invalid_owner` | The calling resource's name failed name validation. |
 
 **Errors — structure. The spec is refused whole**
 
@@ -149,10 +148,12 @@ are, or returns `ok = false` when no menu is open, the open menu is not yours,
 or the new spec is malformed.
 
 Only the fields present in the patch change. The honoured fields are `items`,
-`title`, `event`, `data`, `closeOnSelect`, `reportFocus` and `status`; `id`,
-`cursor` and `steal` are ignored, because `cursor` says where a menu *opens*,
-not where it moves. `items` is all-or-nothing: the whole tree is rebuilt, or the whole call
-is refused and the live menu is untouched.
+`title`, `event`, `data`, `closeOnSelect`, `reportFocus`, `prompts` and
+`status`; `id`, `cursor` and `steal` are ignored, because `cursor` says where a
+menu *opens*, not where it moves. `items` is all-or-nothing: the whole tree is
+rebuilt, or the whole call is refused and the live menu is untouched. A `title`
+that is empty or not text falls back to your resource name, upper-cased, as on
+[`open`](#open). The menu is redrawn once after every accepted patch.
 
 The navigation stack is re-walked onto the fresh tree **by id**, so an update
 does not throw the player back to the root — a submenu they are standing in
@@ -213,8 +214,8 @@ nothing else on success.
 | `invalid_choice` | An entry in `choices` is neither a string nor a number. |
 | `empty_choices` | `choices` came out with no entries. |
 
-`menu_busy`, `invalid_owner` and `invalid_menu_id` cannot occur here: none of
-the three applies to a patch.
+`menu_busy` and `invalid_menu_id` cannot occur here: neither applies to a
+patch.
 
 **Side** `client export` — callable by any client resource through
 `Open77.exports.call`. Asynchronous: it answers a promise, and `await` is only
@@ -240,8 +241,9 @@ Closes your own menu, or returns `ok = false` when nothing is open or the open
 menu belongs to another resource — a caller may never close a menu it did not
 open.
 
-The close raises a [`close` payload](events.md#payload) with `reason = "caller"`
-before the menu goes, so your own handler still hears about it.
+The close raises a [`close` payload](events.md#payload) with `reason = "caller"`,
+so your own handler still hears about it. The menu is already gone when the
+payload is raised, so a close handler may open another menu.
 
 ```lua
 Open77.exports.call("opx77_menu", "close")
@@ -380,8 +382,10 @@ fails, and `ok` is always `true`.
 
 A resource that prints its own *"press ENTER to confirm"* hint should print
 what this says rather than hardcode a key name. The six actions are not
-rebindable — the platform exposes no key-mapping API — but the backend can be
-`"none"`, in which case no key drives anything and a hint would be a lie.
+rebindable, but the backend can be `"none"`, in which case no key drives
+anything and a hint would be a lie. While [`opx77_prompts`](../opx77_prompts/index.md)
+runs, the menu already shows its own keys there; a caller printing its own hint
+turns those off with [`prompts = false`](menu-spec.md#spec).
 
 Like [`state`](#state), this answers even when the WebUI surface failed.
 
