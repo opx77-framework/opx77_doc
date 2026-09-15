@@ -52,9 +52,10 @@ raises.
 | [`isSettled`](#issettled) | whether this world entry's appearance work has finished |
 | [`state`](#state) | what this client knows, for a face that did not come back |
 
-**Client-side only.** The OPEN//77 server runtime installs no export mechanism,
-so there is nothing to call from a server resource — see
-[`opx77_core`'s server exports page](../opx77_core/exports/server.md).
+**Client-side only.** This resource publishes no server export: its one server
+file hands looks out and registers nothing else. The clothing the character
+wears has no export here either; `opx77_core` carries it in `PlayerData` — see
+[What the character wears](index.md#clothing).
 
 !!! warning "What moved, by version"
 
@@ -71,6 +72,18 @@ so there is nothing to call from a server resource — see
     character's body rather than the pre-world vanilla creator, and no longer
     refuses with `bootstrap_already_spent`. [`isSettled`](#issettled) can answer
     `waiting = "body"` while the world reloads onto the character's body family.
+
+    **`0.7.0`** — a body reload ends when its new puppet has been through its
+    reset, so `waiting = "body"` lasts until then. [`state`](#state) reports
+    `body` and `bodyReloading`.
+
+    **`0.9.0`** — [`state`](#state) reports `clothing`, and the event channel
+    carries `clothingRestored` and `clothingSaved`.
+
+    **`0.10.0`** — [`isOpen`](#isopen), [`openEditor`](#openeditor) and
+    [`openCreator`](#opencreator) no longer raise when the engine cannot say
+    whether a native modal is up: `isOpen` answers `open = true` and the other
+    two `appearance_busy`. No export was added or removed.
 
 ## It is a service, not a flow {#service}
 
@@ -243,6 +256,10 @@ The outcome arrives on [`opx77:appearance`](events.md#opx77-appearance) as
 **silence**, so this resource completes that case itself and publishes `saved`
 with `unchanged = true`.
 
+The save names the character live when the call was made. A character switch
+during the cooldown wait makes the core refuse it with `appearance.stale`, which
+arrives as `saved` with `ok = false`.
+
 **Errors**
 
 | Code | Meaning |
@@ -315,7 +332,7 @@ so a caller cannot learn about that case from the event channel.
 | `export_call_required` | The call did not arrive through the export bus. |
 | `invalid_mode` | `mode` is neither `"ripperdoc"` nor `"hairdresser"`. |
 | `character_creation_in_progress` | A creation is running, from [`openCreator`](#opencreator) to the core's answer. Checked before the busy test, so the specific refusal is not hidden by the general one. |
-| `appearance_busy` | This resource's editor is already open, the host reports a native modal on screen, or a captured face is still with the core. |
+| `appearance_busy` | This resource's editor is already open, the host reports a native modal on screen — or cannot say, because `Open77.appearance.isOpen()` raised — or a captured face is still with the core. |
 | `no_character` | `opx77_core` has no character loaded on this client. |
 
 The checks run in exactly that order.
@@ -394,7 +411,7 @@ creation, and the `created` event carries the reason — see
 |---|---|
 | `export_call_required` | The call did not arrive through the export bus. |
 | `no_character` | No character is loaded on this client. |
-| `appearance_busy` | A creation is already running, this resource's editor is open, the host reports a native modal on screen, or a captured face is still with the core. |
+| `appearance_busy` | A creation is already running, this resource's editor is open, the host reports a native modal on screen — or `Open77.appearance.isOpen()` raised — or a captured face is still with the core. |
 | `creation_refused` | This character's creation already ended without a face. It is not reopened until the character changes or this resource restarts; [`openEditor`](#openeditor) still can. |
 | `already_has_a_face` | The character has a stored face. Use [`openEditor`](#openeditor). |
 
@@ -439,7 +456,9 @@ Open77.exports.call("opx77_appearance", "isOpen")
 `{ ok = true, open = boolean, editing = boolean, creating = boolean }`
 
 - `open` is the host's own answer, so it is `true` for a native modal this
-  resource did not raise.
+  resource did not raise. When `Open77.appearance.isOpen()` raises, the export
+  still answers, with `open = true`: a modal that cannot be ruled out counts as
+  on screen, as it does for the panel.
 - `editing` and `creating` are this resource's own flags: the editor
   [`openEditor`](#openeditor) asked for, and a creation
   [`openCreator`](#opencreator) began. `creating` covers the whole creation, from
@@ -488,7 +507,7 @@ redraw.
 | `menu_not_running` | `opx77_menu` is not running; there is nothing to draw the list on. |
 | `no_character` | No character is loaded on this client. |
 | `appearance_busy` | A native modal is on screen, this resource's editor is open, or a creation is running. A raise from `Open77.appearance.isOpen()` counts as on screen. |
-| `panel_busy` | Another resource owns the open panel. |
+| `panel_busy` | Another resource owns the open panel — including this resource itself, when a player opened the panel with [the panel key](index.md#key). |
 
 The checks run in exactly that order.
 
@@ -499,7 +518,10 @@ through `Open77.exports.call`.
     The panel is taken down, and `panelClosed` published with a
     [reason](types.md#appearancepanelreason), when a native modal comes up, when
     its owner stops or reloads, when the character changes or unloads, and when
-    the player leaves it. Nobody has to remember to close it.
+    the player leaves it — Escape, the pause key, BACK at the top, or
+    [the panel key](index.md#key), which closes a panel whoever opened it. An
+    owner that reads `starting` counts as running. Nobody has to remember to
+    close it.
 
 ## closePanel {#closepanel}
 
@@ -564,7 +586,7 @@ mirror's own confirmation and on `open77:playerReset:complete`.
 through `Open77.exports.call`.
 
 !!! info "`settled` here and `settled` on `state` are the same value"
-    Both are `State.appearanceSettled()`. [`state`](#state) additionally carries
+    Both are `OpxAppearance.State.AppearanceSettled()`. [`state`](#state) additionally carries
     `decided`, the coarser flag underneath it: `decided` says this world entry's
     face was decided, `settled` says every piece of work behind that decision has
     also finished. A queued apply is `decided = true`, `settled = false`.
@@ -572,8 +594,9 @@ through `Open77.exports.call`.
 ## state {#state}
 
 What this client knows: which character it is dressing, whether the stored face
-is on the puppet, which of the two modals is open, whether the panel is up, and
-whether the readiness announcement has gone out. It exists to debug a face that
+is on the puppet, which of the two modals is open, which body the puppet is on,
+whether the panel is up, what it is doing with the clothes, and whether the
+readiness announcement has gone out. It exists to debug a face, or clothes, that
 did not come back.
 
 ```lua
@@ -582,8 +605,12 @@ Open77.exports.call("opx77_appearance", "state")
 
 **Returns** [`AppearanceClientState`](types.md#appearanceclientstate) —
 `ok`, plus `citizenId`, `family`, `stored`, `wearing`, `decided`, `settled`,
-`restoring`, `committing`, `creating`, `editing`, `worldEligible`, `announced`
-and `panel`.
+`restoring`, `committing`, `creating`, `editing`, `worldEligible`, `announced`,
+`body`, `bodyReloading`, `panel` and `clothing`.
+
+`clothing` is one of `idle`, `waiting`, `restoring`, `worn`, `saving`, `unsaved`
+and `failed` — see
+[`AppearanceClothingPhase`](types.md#appearanceclothingphase).
 
 **Errors**
 
@@ -635,7 +662,9 @@ no invoking resource went somewhere by mistake. See
 
 The panel is the one thing on this surface that belongs to a caller: it is keyed
 on that name and on `GetInvokingResourceGeneration()`, so a caller that stops or
-reloads loses its panel within a second. Beyond it, and unlike
+reloads loses its panel within a second, while a caller still `starting` keeps
+it. A panel the player opened with [the panel key](index.md#key) belongs to
+`opx77_appearance` itself. Beyond it, and unlike
 [`opx77_notify`](../opx77_notify/exports.md#ownership) and
 [`opx77_status`](../opx77_status/exports.md#ownership), this resource keeps no
 per-owner registry: it holds one face for one character, and that belongs to the

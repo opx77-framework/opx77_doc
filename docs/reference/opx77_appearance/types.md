@@ -1,17 +1,19 @@
 ---
 title: opx77_appearance types
-description: Every shape opx77_appearance names — the aliases, the snapshot it captures and sends, the response tables its twelve exports answer with, the payload its event channel carries, the reasons a panel closes, and where each error code can surface.
+description: Every shape opx77_appearance names — the aliases, the snapshot it captures and sends, the clothing record it puts on and saves, the response tables its twelve exports answer with, the payload its event channel carries, the reasons a panel closes, the look handed to other players, and where each error code can surface.
 ---
 
 # Types
 
-`opx77_appearance` ships its annotations in `types.lua`, a `---@meta` file that
-is never loaded at runtime. The shapes below are what those annotations
+`opx77_appearance` ships its annotations in `std/types.lua`, a `---@meta` file
+that is never loaded at runtime: it is not in the manifest, and the editor reads
+it through the `std/` library. The shapes below are what those annotations
 describe.
 
-The snapshot itself is **not this resource's shape**: `opx77_core` defines it,
-validates it and stores it, and what is written here is the client's view of the
-same table. Where the two pages differ, the core's is the contract — see
+The snapshot and the clothing record are **not this resource's shapes**:
+`opx77_core` defines them, validates them and stores them, and what is written
+here is the client's view of the same tables. Where the two pages differ, the
+core's is the contract — see
 [`AppearanceSnapshot`](../opx77_core/types.md#appearancesnapshot).
 
 ## Aliases {#aliases}
@@ -23,10 +25,14 @@ grouped form `"H7K-M4X3"`.
 
 ```lua
 ---@alias CitizenId string
+---| # opx77_core's character id, "H7K-M4X3". The character this resource is dressing.
 ```
 
-Issued by the core and carried in `PlayerData`. This resource never derives one
-and never sends one — see [`CitizenId`](../opx77_core/types.md#citizenid).
+Issued by the core and carried in `PlayerData`. This resource never derives one.
+It sends the live one back with every face and clothing save, only so the core
+can refuse a save captured for the character before a switch — the core takes
+the character from the connection either way. See
+[`CitizenId`](../opx77_core/types.md#citizenid).
 
 ### BodyFamily {#bodyfamily}
 
@@ -34,6 +40,7 @@ The character's body type.
 
 ```lua
 ---@alias BodyFamily "female"|"male"
+---| # opx77_core's `charInfo.gender`, and the engine's two pristine puppets. The core owns it.
 ```
 
 It is `charInfo.gender` on the character row, and the engine's two pristine
@@ -62,9 +69,10 @@ hairdresser's chair calls `openEditor("hairdresser")`.
 
 ### AppearanceError {#appearanceerror}
 
-Why something was refused. Codes this resource decides are hints; codes from
-`opx77_core` are locale keys, and this resource's catalogue carries all six of
-them so they can be shown in the player's language.
+Why something was refused. Codes this resource decides are hints. Of the codes
+from `opx77_core`, the seven a face save can be refused with are locale keys this
+resource's catalogue carries, so they can be shown in the player's language; the
+clothing codes are published and logged, never displayed.
 
 **Decided here**
 
@@ -72,7 +80,7 @@ them so they can be shown in the player's language.
 |---|---|---|
 | `export_call_required` | No invoking resource, so the call came from inside this VM. | every export |
 | `no_character` | `opx77_core` has no character loaded here. | [`getSkin`](exports.md#getskin), [`getFamily`](exports.md#getfamily), [`setSkin`](exports.md#setskin), [`saveSkin`](exports.md#saveskin), [`openEditor`](exports.md#openeditor), [`openCreator`](exports.md#opencreator), [`openPanel`](exports.md#openpanel) |
-| `appearance_busy` | A modal is on screen, a creation is running, or a capture is with the core. | [`setSkin`](exports.md#setskin), [`saveSkin`](exports.md#saveskin), [`openEditor`](exports.md#openeditor), [`openCreator`](exports.md#opencreator), [`openPanel`](exports.md#openpanel); a panel close reason |
+| `appearance_busy` | A modal is on screen — or `Open77.appearance.isOpen()` raised — a creation is running, or a capture is with the core. | [`setSkin`](exports.md#setskin), [`saveSkin`](exports.md#saveskin), [`openEditor`](exports.md#openeditor), [`openCreator`](exports.md#opencreator), [`openPanel`](exports.md#openpanel); a panel close reason |
 | `character_creation_in_progress` | A creation is running, from [`openCreator`](exports.md#opencreator) to the core's answer. | [`openEditor`](exports.md#openeditor) |
 | `invalid_mode` | Not `"ripperdoc"` or `"hairdresser"`. | [`openEditor`](exports.md#openeditor) |
 | `already_has_a_face` | [`openCreator`](exports.md#opencreator) on a character that has a stored face. | [`openCreator`](exports.md#opencreator) |
@@ -86,12 +94,13 @@ them so they can be shown in the player's language.
 | `not_owner` | [`closePanel`](exports.md#closepanel) on another resource's panel. | [`closePanel`](exports.md#closepanel) |
 | `capture_failed` | The engine would not answer what the puppet is wearing. | [`captureSkin`](exports.md#captureskin), [`saveSkin`](exports.md#saveskin); a toast |
 | `not_sent` | The net event was not accepted. | the `created` and `saved` events; a toast on an edit |
-| `save_timeout` | The core never answered a captured face. | the `created` event; a toast on an edit |
+| `save_timeout` | The core never answered a captured face, or a clothing save — published for clothing when it is the second failed save in a row. | the `created` event; the `clothingSaved` event; a toast on an edit |
 | `invalid_snapshot` | The capture, or the snapshot given, is not a snapshot. | [`captureSkin`](exports.md#captureskin), [`setSkin`](exports.md#setskin), [`saveSkin`](exports.md#saveskin); a toast |
 | `invalid_option` | An entry of the option list is not a table. | the same |
 | `invalid_option_name` | An option name is not a string. | the same |
 | `stored_build_mismatch` | The face is from another game build. | [`setSkin`](exports.md#setskin), [`saveSkin`](exports.md#saveskin); the `settled` event |
 | `body_family_mismatch` | The creation editor could not be kept on the right body: it came back on the other one past `FAMILY_RETRIES`, or the reload onto it failed. | the `created` event |
+| `clothing_not_restored` | The stored clothing never read back on the puppet after five put-ons. | the `clothingRestored` event |
 
 !!! info "Removed in `0.6.0`"
     `bootstrap_already_spent` and `character_bootstrap_failed` are gone. The
@@ -101,20 +110,25 @@ them so they can be shown in the player's language.
 
 **Decided by `opx77_core`**
 
-| Code | Meaning |
-|---|---|
-| `appearance.invalid` | The core could not read the snapshot. |
-| `appearance.tooLarge` | The encoded JSON is over the core's limit. |
-| `error.badRequest` | The payload was not a table. |
-| `error.notLoggedIn` | No character loaded on the core for this connection. |
-| `error.tooFast` | Two saves inside the core's 2000 ms cooldown. |
-| `error.unavailable` | The core's storage layer refused the write. |
+| Code | Meaning | Where it surfaces |
+|---|---|---|
+| `appearance.invalid` | The core could not read the snapshot. | the `saved` and `created` events; a toast |
+| `appearance.stale` | A face captured for the character loaded before a switch. | the same |
+| `appearance.tooLarge` | The encoded JSON is over the core's limit. | the same |
+| `error.badRequest` | The payload was not a table. | the same; `clothingSaved` |
+| `error.notLoggedIn` | No character loaded on the core for this connection. | the `saved` and `created` events; a toast. Nothing for a clothing save |
+| `error.tooFast` | Two saves inside the core's 2000 ms cooldown. | the `saved` and `created` events; a toast. A clothing save is sent again |
+| `error.unavailable` | The core's storage layer refused the write, or the character's stored clothing could not be read at login. | the `saved` and `created` events; a toast; `clothingSaved` after two in a row |
+| `clothing.invalid` | The core could not read the clothing record. | `clothingSaved` |
+| `clothing.tooLarge` | The clothing record is over the core's limit. | `clothingSaved` |
+| `clothing.stale` | A clothing save read for the character loaded before a switch. | nothing: the save is dropped |
 
 !!! info "A failed restore carries a code from neither list"
     The `error` on a `restored` event is whatever the host's own apply answered —
     `restore_timeout` when the attempts ran out, or one of the reasons the host
     reports. Those strings are the platform's and are not enumerated in
-    `types.lua`; treat them as opaque and log them rather than branching on them.
+    `std/types.lua`; treat them as opaque and log them rather than branching on
+    them.
 
 ### AppearanceEventName {#appearanceeventname}
 
@@ -123,9 +137,18 @@ reports.
 
 ```lua
 ---@alias AppearanceEventName
----| "gameplayReady" | "restored" | "settled" | "needsCreation"
----| "applied" | "created" | "saved" | "characterChanged"
----| "panelOpened" | "panelClosed"
+---| "gameplayReady"    the readiness announcement went out; the player may be placed
+---| "restored"         a stored face was put on the puppet, or could not be
+---| "settled"          this world entry's face was decided, and there is none to wear
+---| "needsCreation"    this character has no face; call `openCreator` to open the editor
+---| "applied"          `setSkin` reached the puppet, or could not
+---| "created"          a new character's face was built and stored, or was not
+---| "saved"            an edit was committed, or was refused
+---| "characterChanged" the live character switched underneath this resource
+---| "panelOpened"      this resource's own panel came up
+---| "panelClosed"      it went down; `reason` says what took it down
+---| "clothingRestored" the stored clothing, or the default record, is on the puppet, or is not
+---| "clothingSaved"    a clothing change was stored, or was refused, or saves have stopped
 ```
 
 | Name | The decision |
@@ -140,6 +163,8 @@ reports.
 | `characterChanged` | The live character switched underneath this resource. |
 | `panelOpened` | This resource's own panel came up. |
 | `panelClosed` | It went down; `reason` says what took it down. |
+| `clothingRestored` | The stored clothing, or the default record, read back on the puppet, or never did. |
+| `clothingSaved` | A clothing change was stored, or was refused, or saves stopped for the character. |
 
 Which `ok` each carries, and which of them are only ever failures, is on
 [Events](events.md#opx77-appearance).
@@ -150,20 +175,45 @@ Why the panel closed, carried as `reason` on a `panelClosed` event.
 
 ```lua
 ---@alias AppearancePanelReason
----| "caller" | "player" | "appearance_busy" | "character_changed"
----| "no_character" | "owner_stopped" | "owner_reloaded" | "menu_closed"
+---| "caller"            `closePanel`, or a row that opens the native editor
+---| "player"            Escape, the pause key, BACK at the top of the list, or the panel key
+---| "appearance_busy"   a native modal came up, and the panel never draws over one
+---| "character_changed" the live character switched underneath the panel
+---| "no_character"      the character unloaded
+---| "owner_stopped"     the resource that opened it is no longer running
+---| "owner_reloaded"    the resource that opened it reloaded
+---| "menu_closed"       opx77_menu took the list down for a reason of its own
 ```
 
 | Reason | What took the panel down |
 |---|---|
 | `caller` | [`closePanel`](exports.md#closepanel), or a row that opens the native editor. |
-| `player` | Escape, the pause key, or BACK at the top of the list. |
+| `player` | Escape, the pause key, BACK at the top of the list, or [the panel key](index.md#key) — which closes a panel whoever opened it. |
 | `appearance_busy` | A native modal came up; the panel never draws over one. |
 | `character_changed` | The live character switched underneath the panel. |
-| `no_character` | The character unloaded. |
-| `owner_stopped` | The resource that opened it is no longer running. |
+| `no_character` | The character unloaded, or `opx77_core` stopped with a character loaded. |
+| `owner_stopped` | The resource that opened it is neither running nor starting. |
 | `owner_reloaded` | The resource that opened it reloaded. |
-| `menu_closed` | `opx77_menu` took the list down for a reason of its own. |
+| `menu_closed` | `opx77_menu` took the list down for a reason of its own. A close for another list, or one with the reason `reopened`, closes nothing. |
+
+### AppearanceClothingPhase {#appearanceclothingphase}
+
+What this client is doing with the clothes, carried as `clothing` on
+[`state`](exports.md#state).
+
+```lua
+---@alias AppearanceClothingPhase
+---| "idle"      no character, or opx77_core carries no clothing for it: nothing is touched
+---| "waiting"   the stored clothing goes on once the face has settled and been announced
+---| "restoring" it was put on and has not read back yet
+---| "worn"      it is on, and what the player changes is saved
+---| "saving"    worn, with a save still unanswered
+---| "unsaved"   worn, and saves have stopped for this character
+---| "failed"    it never read back; nothing is saved until the next world entry
+```
+
+`idle` also covers [`CLOTHING.PERSIST = false`](config.md#clothing-persist) and a
+running `open77_appearance`.
 
 ## The face {#face}
 
@@ -202,7 +252,7 @@ A whole face, in the form `opx77_core` stores and this resource sends.
   `"female"`/`"male"`.
 - options: [`AppearanceOption[]`](#appearanceoption)
 
-The payload this resource sends is these five fields and nothing else: the
+The snapshot this resource sends is these five fields and nothing else: the
 editor-only metadata the host's capture carries is stripped, because the
 runtime's value codec will not carry it.
 
@@ -211,6 +261,32 @@ Two snapshots are treated as the same face when `gameBuild`, `catalogDigest`,
 `choices` is deliberately outside that comparison — it describes the catalogue,
 not the choice. The comparison is what skips an apply the puppet does not need,
 and a save the core would answer with silence.
+
+## The clothes {#clothes}
+
+### AppearanceClothing {#appearanceclothing}
+
+What `opx77_core` stores as a character's clothing, and carries as
+`PlayerData.clothing`: the platform's own record shape.
+
+```lua
+---@class AppearanceClothing
+---@field schemaVersion integer  1
+---@field equipment table<string, string|false>  the nine equipment slots: a record name, or false
+---@field wardrobe { active: integer|nil, outfits: table<string, table<string, string|false>> }
+```
+
+- equipment — `Head`, `Face`, `InnerChest`, `OuterChest`, `Legs`, `Feet`,
+  `Outfit`, `UnderwearTop` and `UnderwearBottom`, each a record name or `false`.
+- wardrobe — `active`, the outfit index `0` to `6` or none, and `outfits` keyed
+  `"0"` to `"6"`, each overriding any of the first seven slots with a record, or
+  hiding one with `false`. An outfit that overrides nothing is left out.
+
+`PlayerData.clothing` is `false` for a character with none stored yet, which
+wears the platform's default record — every slot empty but
+`Items.Underwear_Basic_01_Bottom`, no outfit — and it is absent for an
+`opx77_core` older than `0.5.0`, or a row the core could not read, in which case
+this resource touches nothing. See [What the character wears](index.md#clothing).
 
 ## What the exports answer {#responses}
 
@@ -289,6 +365,8 @@ Extends [`AppearanceResponse`](#appearanceresponse)
   [`isSettled`](exports.md#issettled).
 - citizenId: [`CitizenId`](#citizenid)`|nil`
 
+Clothing is not part of it: the stored clothes go on after the announcement.
+
 ### AppearanceOpenState {#appearanceopenstate}
 
 What [`isOpen`](exports.md#isopen) answers.
@@ -298,7 +376,8 @@ Extends [`AppearanceResponse`](#appearanceresponse)
 **Fields**
 
 - open: `boolean` — a native modal is on screen. The host's answer, so it is
-  `true` for a modal this resource did not raise.
+  `true` for a modal this resource did not raise, and `true` when the host's
+  call raised.
 - editing: `boolean` — and it is this resource's editor.
 - creating: `boolean` — a creation this resource began is running, from
   [`openCreator`](exports.md#opencreator) to the core's answer; not only while
@@ -348,7 +427,14 @@ Extends [`AppearanceResponse`](#appearanceresponse)
   than the pre-game menu the join starts in.
 - announced: `boolean` — [`open77:session:gameplayReady`](events.md#gameplay-ready)
   has gone out.
-- panel: `boolean` — this resource's own panel is on screen. New in `0.5.0`.
+- body: [`BodyFamily`](#bodyfamily)`|nil` — the body the puppet is on, as far as
+  this client can tell: the engine's `captureBody`, else the family this client
+  loaded, else the one the bootstrap resolved.
+- bodyReloading: `boolean` — a body reload has not been through its new
+  puppet's reset yet.
+- panel: `boolean` — this resource's own panel is on screen, whoever opened it.
+- clothing: [`AppearanceClothingPhase`](#appearanceclothingphase) — what this
+  client is doing with the clothes.
 
 None of it is authority. `wearing` is a record of an accepted apply, not a
 reading of the puppet, and `announced` says the send succeeded, not that the
@@ -380,10 +466,11 @@ One player's look as the presence halves hand it to the other players, on
 `0.8.0`.
 
 ```lua
+--- One player's look as the presence halves hand it to the other players. Never stored.
 ---@class AppearanceLook
 ---@field body AppearanceBody
 ---@field equipment table<string, string|false>  the nine equipment slots: a record name, or false
----@field wardrobe { active: integer|nil, outfits: table<string, table>, names: table|nil }
+---@field wardrobe { active: integer|nil, outfits: table<string, table> }
 
 ---@class AppearanceBody
 ---@field family BodyFamily
@@ -398,7 +485,8 @@ One player's look as the presence halves hand it to the other players, on
   `Outfit`, `UnderwearTop` and `UnderwearBottom`, each a record name or `false`.
   Anything else in a slot becomes `false`.
 - wardrobe — `active`, the outfit index `0` to `6` or none, and `outfits` by
-  index, each overriding any of the first seven slots.
+  index, each overriding any of the first seven slots. The client sends only the
+  active outfit's overrides.
 
 ## See also {#see-also}
 
