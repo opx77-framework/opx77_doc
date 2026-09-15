@@ -16,9 +16,17 @@ Confusing any two of them produces a bug that looks like something else.
 | `userId` | Durable | The account. Issued by the Master, stable across sessions and reinstalls, cryptographically signed. Persist this. |
 | `playerId` (also `source`) | One connection | The slot. **Recycled** — the number that was yours last night belongs to somebody else tonight. |
 | `displayName` | Editable | A profile field the player changes when they like. Presentation only. |
+| `publicKey` | Durable | The identity public key, base64. |
+| `fingerprint` | Durable | `sha256:<hex>` of the public key. The client prints the same string for `identity.dump`, so a player can read it out to an operator over voice. |
 
 `userId` is the key to everything durable: characters, bans, ACL entries, slot
 limits. `playerId` is a lookup key and nothing more.
+
+`Open77.players.identity(playerId)` (alias `GetPlayerIdentity`) answers all five
+at once — `{ userId, name, publicKey, fingerprint, joinedAt }` — or `nil` for a
+player the host will not vouch for. It needs no permission, and it is how a
+command that takes the short session id an operator can see turns it into the
+durable `userId` a stored row must be keyed against.
 
 ### The certificate {#certificate}
 
@@ -33,7 +41,13 @@ During connection the game server verifies that certificate together with a
 fresh P-256 session proof bound to its own challenge. Changing only the name in
 a modified client invalidates the certificate, so the forged name is rejected
 **before the session becomes active** — which is why a server resource may treat
-`GetPlayerName` as verified rather than as a claim.
+`GetPlayerName` as *authenticated* rather than as a claim.
+
+Authenticated is not the same as stable. The player owns the field and can
+change it at the Master whenever they like, so it is a label and never a key.
+The platform's own guidance is blunt about it: match on a name for convenience,
+never for security, and a ban that stopped working is a ban that was keyed on a
+name somebody has since changed.
 
 `GetPlayerIdentifier(playerId)` returns the durable `userId`;
 `GetPlayerName(playerId)` returns the Master-verified `displayName`.
@@ -77,9 +91,9 @@ every entry point goes through, and it does two things nothing else does:
 The effect is that a departure nobody reported becomes a non-event instead of a
 security hole: the next thing that touches that slot notices the account behind
 it changed and clears the old session. That net matters, because
-`onPlayerDisconnected` is the platform's only departure event and it is
-undocumented — see
-[the platform corrections](the-platform.md#corrections).
+`onPlayerDisconnected` is the platform's only departure event — see
+[Connection control](connection-gate.md). It now carries a `reason` as well as
+the player id.
 
 A `Player` also exists in an **offline** form — `Offline = true` and
 `PlayerData.source = nil` — so a staff command can act on a character who is not

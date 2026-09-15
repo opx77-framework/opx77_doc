@@ -11,7 +11,8 @@ authorises anything. [The client export contract](../../concepts/export-contract
 covers the call shape and its three levels of failure.
 
 Every call answers a table carrying `ok` and never raises — an
-[`AdminResponse`](types.md#adminresponse).
+[`AdminResponse`](types.md#adminresponse). Read anything but `ok = true` as a
+refusal.
 
 !!! info "Called from another resource, always"
 
@@ -28,13 +29,13 @@ Open77.exports.call("opx77_admin", "open")
 ```
 
 It sends `/opx77.admin` through `open77:command:execute`, exactly as the chat
-box would, so the host resolves `command.opx77.admin` against **this player's**
-ACL like a typed command.
+box and the [menu key](config.md#keys) would, so the host resolves
+`command.opx77.admin` against **this player's** ACL like a typed command.
 
 !!! warning "`ok = true` means asked, not allowed"
 
-    A player without the grant gets the host's refusal in the chat box and no
-    menu. The export cannot tell, because the answer to a command is not a
+    A player without the grant gets the host's refusal, which `opx77_chat`
+    toasts, and no menu. The export cannot tell, because the answer to a command is not a
     return value. A resource that wants to know whether the menu appeared asks
     [`state`](#state) a moment later.
 
@@ -106,13 +107,13 @@ CreateThread(function()
   local promise, reason = Open77.exports.call("opx77_admin", "open")
   if not promise then return print("not dispatched: " .. tostring(reason)) end
   local asked = promise:await()
-  if not (asked and asked.ok) then return end
+  if type(asked) ~= "table" or asked.ok ~= true then return end
 
   Wait(1000)
   local state = Open77.exports.call("opx77_admin", "state")
   local answer = state and state:await()
-  if answer and answer.ok and not answer.open then
-    -- the host refused this player command.opx77.admin; the chat box already said so
+  if type(answer) == "table" and answer.ok == true and not answer.open then
+    -- the host refused this player command.opx77.admin; opx77_chat already toasted it
   end
 end)
 ```

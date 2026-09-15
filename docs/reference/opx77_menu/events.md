@@ -127,6 +127,18 @@ already the name resolved at step 1 or 2, so a menu that declares
     handler sees traffic from every other resource's menus by design. Check
     `payload.owner` before you act on anything.
 
+!!! note "`opx77:menu` can hear a `close` before the action that caused it"
+
+    The menu's own event (step 1 or 2) is raised first, and `opx77:menu` after
+    it with the payload already built. When the handler of the menu's own event
+    closes the menu during a `select` or a `focus` — through the
+    [`close`](exports.md#close) export, or by opening another menu — the whole
+    `close` (own event, then `opx77:menu`) runs inside that handler, so
+    `opx77:menu` receives the `close` **before** the `select` or `focus` that
+    caused it. The order is kept as it is. No OPX//77 resource listens to
+    `opx77:menu`; only a third-party listener can see it, and it should not
+    assume a `close` is the last payload of a menu on this event.
+
 ## The payload {#payload}
 
 One shape, for every action.
@@ -211,11 +223,13 @@ carries one, so a handler can always tell why its menu went away.
 | `owner_reloaded` | The owner called an export at a new generation: its code was reloaded under it. |
 | `owner_stopped` | The once-a-second sweep found the owner no longer running, or running at a different generation. |
 | `menu_stopped` | `opx77_menu` itself is stopping. |
-| `closed` | The fallback when a close was requested with no reason. No shipped path produces it. |
+
+The menu is already gone when its `close` payload is raised, so a close
+handler may call [`open`](exports.md#open) again.
 
 !!! info "A `close` payload is the only reliable teardown signal"
 
-    Seven of those eleven reasons are nothing you asked for. If your resource
+    Six of those ten reasons are nothing you asked for. If your resource
     holds state while its menu is open — a camera, a frozen player, a held
     vehicle — release it from the `close` branch of your handler rather than
     after the export call that opened the menu, because the export call is not
@@ -285,7 +299,7 @@ AddEventHandler(EVENT, function(payload)
   end
 
   if payload.action == "close" then
-    -- Seven of the eleven reasons are nothing you asked for. Release here.
+    -- Six of the ten reasons are nothing you asked for. Release here.
     ReleaseVehicleCamera(plate)
     Open77.log.info("panel gone: " .. tostring(payload.reason))
   end

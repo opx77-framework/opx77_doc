@@ -32,19 +32,32 @@ there is no command behind it.
 
 ## How a command answers {#answers}
 
-A command typed in chat answers over `open77:command:result`, which
-[`opx77_chat`](../opx77_chat/index.md) renders as a cyan `COMMAND` line when accepted and a red
-one when refused. The same command typed at the **server console** runs as `source = 0`, is
-never rate limited, and answers into the platform log instead — `info` when accepted, `warn`
-when refused.
+What a command **does** is answered with a toast, what it **reads** with a chat line. Both go
+from the server half to this resource's own client half on
+[`opx77_weather:notice`](events.md#opx77-weather-notice), never on `open77:command:result`,
+whose accepted answers [`opx77_chat`](../opx77_chat/index.md) does not print:
+
+- [`set`](#set), [`next`](#next), [`freeze`](#freeze), [`time`](#time),
+  [`time.freeze`](#time-freeze) and [`daylength`](#day-length) answer with a toast through
+  `opx77_notify`, titled `WEATHER`: a success carrying the new status line, a warning for a
+  `usage:` line or a value typed wrong — `unknown_preset`, `invalid_time`,
+  `invalid_transition`, `invalid_day_length`, `day_too_short` — and an error when nothing could
+  be done: `no_presets`, or a code the catalogue does not name.
+- [`opx77.weather`](#status) and [`opx77.weather.presets`](#presets) are reports someone asked
+  to read, so they are a chat line, where they can be scrolled back and compared.
+
+`opx77_notify` stays optional: while it is stopped, or with [`NOTIFY = false`](config.md#notify),
+a toast becomes the chat line it replaced, and the client log says so once. The same command
+typed at the **server console** runs as `source = 0`, is never rate limited, and answers into
+the platform log instead — `info` when accepted, `warn` when refused.
 
 !!! info "A player reads the locale catalogue; the console and the log stay English"
 
     Every answer on this page exists in two renderings of the same facts. A player is sent the
     text of the catalogue [`LOCALE`](config.md#locale) names, composed key by key in
     `server/commands.lua`; the console and the platform log are sent the operator's own English
-    line, which is `Authority.statusText()`. **The sample output on this page is the English
-    one.**
+    line, which is `OpxWeather.Authority.StatusText()`. **The sample output on this page is the
+    English one.**
 
 Every command that succeeds answers with the same status line:
 
@@ -52,7 +65,8 @@ Every command that succeeds answers with the same status line:
 weather: 21:30:04  day=180min  weather=rain (next roll in 214s)  rev=42
 ```
 
-The same moment as a player reads it in the box, with the shipped `en` catalogue:
+The same moment as a player reads it — in the toast, or in the box for
+[`/opx77.weather`](#status) — with the shipped `en` catalogue:
 
 ```text
 It is 21:30:04. A day lasts 180 real minutes. The sky is rain. Next roll in 214s. Revision 42.
@@ -93,9 +107,9 @@ suggestions go out.
 /opx77.weather
 ```
 
-Takes no arguments. Answers the status line described [above](#answers): the current time, the
-day length, the clock freeze, the preset, the schedule freeze or the seconds to the next roll,
-and the revision.
+Takes no arguments. Answers the status line described [above](#answers), as a chat line rather
+than a toast, since it is a report: the current time, the day length, the clock freeze, the
+preset, the schedule freeze or the seconds to the next roll, and the revision.
 
 Floored at one run per player every 2 s. A run inside the floor is dropped silently. The server
 console is never floored — an operator's own terminal is not a rate to limit.
@@ -117,10 +131,10 @@ weather: 21:30:04  day=180min  weather=rain (next roll in 214s)  rev=42
 /opx77.weather.presets
 ```
 
-Takes no arguments. Answers one line per row of `OPX_WEATHER_CONFIG.WEATHER`, in config order:
-the `NAME` staff type, the REDengine `PRESET` behind it, the weight, the duration band in real
-seconds, and the crossfade. This is the list [`/opx77.weather.set`](#set) accepts, and the
-refusal for an unknown preset points at it by name.
+Takes no arguments. Answers in the chat box, a report, with one line per row of
+`OPX_WEATHER_CONFIG.WEATHER`, in config order: the `NAME` staff type, the REDengine `PRESET`
+behind it, the weight, the duration band in real seconds, and the crossfade. This is the list
+[`/opx77.weather.set`](#set) accepts, and the refusal for an unknown preset points at it by name.
 
 Floored at one run per player every 2 s, like the status command.
 
@@ -374,5 +388,5 @@ day_too_short
 ## See also {#see-also}
 
 - [Configuration](config.md#commands) — renaming, opening and disabling each of these.
-- [`opx77_chat`](../opx77_chat/index.md) — the box a command's answer is rendered in.
+- [`opx77_chat`](../opx77_chat/index.md) — the box a report is rendered in.
 - [Getting started](../../guides/getting-started.md) — writing the grants into `acl.jsonc`.

@@ -227,10 +227,10 @@ cycle and **nothing at all is said**, to them or to the log.
 
 Every hook is invoked under `pcall`, because it belongs to somebody else's file
 and a broken one must not take a money transfer down with it. A hook that raises
-is logged:
+is logged at error level:
 
 ```text
-hook money:beforeAdd (#3) raised: server/plugins/bounty.lua:88: attempt to index a nil value
+[hooks] money:beforeAdd (#3) raised: server/economy_rules.lua:88: attempt to index a nil value
 ```
 
 and is then **treated as having no opinion**. The operation proceeds.

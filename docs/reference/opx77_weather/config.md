@@ -1,6 +1,6 @@
 ---
 title: opx77_weather configuration
-description: The keys of OPX_WEATHER_CONFIG in opx77_weather/config.lua — the locale, day length, start time, the freeze flags, the weighted weather table and the eight command entries — plus the cadence constants that deliberately are not operator settings.
+description: The keys of OPX_WEATHER_CONFIG in opx77_weather/config.lua — the locale, whether command answers are toasts, day length, start time, the freeze flags, the weighted weather table and the eight command entries — plus the cadence constants that deliberately are not operator settings.
 ---
 
 # Configuration
@@ -24,6 +24,7 @@ so which of these takes effect depends on the key:
 | [`WEATHER`](#weather) | Yes — the table is rebuilt from the file. The live *preset* is still the carried one, and a bag naming a row you deleted is refused whole, which sends everything back to this file. |
 | [`COMMANDS`](#commands) | Yes — the new VM registers the names in the file. |
 | [`LOCALE`](#locale) | Yes — the new VM re-reads the file and applies the code at load. |
+| [`NOTIFY`](#notify) | Yes — the client half reads it at every answer. |
 | [`DAY_LENGTH_MINUTES`](#day-length-minutes), [`START_TIME`](#start-time), [`TIME_FROZEN`](#time-frozen), [`WEATHER_FROZEN`](#weather-frozen), [`INITIAL_WEATHER`](#initial-weather) | No — these describe how the authority *boots*, and a reload does not boot it. Restart for these. |
 
 ## LOCALE {#locale}
@@ -31,18 +32,18 @@ so which of these takes effect depends on the key:
 Which catalogue in `locales/` player-facing text is read from.
 
 ```lua
-LOCALE = "en",
+LOCALE = 'en',
 ```
 
 **Type** `string` — a code registered in `locales/`. `en` and `fr` ship.
 
-`shared/locale.lua` calls `Locale.set` with this value at load, on both sides, which is what
+`shared/locale.lua` calls `OpxWeather.Locale.Set` with this value at load, on both sides, which is what
 makes the key do anything at all. An unknown code is **accepted** rather than refused: the
 catalogues register after that file loads, so there is nothing to check it against yet. Every
 lookup then falls back to `en`, and then to the key itself — an untranslated string shows the
 player its raw key, which is the visible failure rather than the silent one.
 
-It reaches only the text a player is shown: the status line and the preset list in chat, the
+It reaches only the text a player is shown: the status line and the preset list, the
 refusal sentences, the `usage:` lines and the chat completion help. **Server logs, the answer a
 command run from the server console gets, the `reason` on a snapshot and the `error` codes on
 [`state`](exports.md#state) stay English** — a code is a branching surface, not a sentence
@@ -54,6 +55,29 @@ To add a language, copy `locales/en.lua` to `locales/<code>.lua`, change the cod
 `weather.<thing>` and substitute `{placeholder}` parameters; a placeholder with no value is left
 written as it stands, and a key missing from your file falls back to `en` rather than
 disappearing.
+
+## NOTIFY {#notify}
+
+Whether a command's answer is an `opx77_notify` toast or a chat line.
+
+```lua
+NOTIFY = true,
+```
+
+**Type** `boolean` — only `false` turns it off
+
+Read by the client half. With `true`, what [`set`](commands.md#set), [`next`](commands.md#next),
+[`freeze`](commands.md#freeze), [`time`](commands.md#time),
+[`time.freeze`](commands.md#time-freeze) and [`daylength`](commands.md#day-length) answer is a
+toast titled `WEATHER`: a success carrying the new status, a warning for a usage or a value typed
+wrong, an error when nothing could be done. With `false` each is the chat line it used to be.
+The toast is best-effort either way: while `opx77_notify` is not running, or when it refuses the
+toast, the chat line is written instead and the client log says so once — `opx77_notify` is
+never a dependency.
+
+Reports stay in the chat whatever this is set to: [`opx77.weather`](commands.md#status) and
+[`opx77.weather.presets`](commands.md#presets) are read, scrolled back and compared. See
+[How a command answers](commands.md#answers).
 
 ## DAY_LENGTH_MINUTES {#day-length-minutes}
 
@@ -92,9 +116,10 @@ START_TIME = { HOUR = 12, MINUTE = 0, SECOND = 0 },
 **Type** `{ HOUR: integer, MINUTE: integer, SECOND: integer }` — 24-hour
 
 An hour that does not exist is a mistake rather than a wrap, so the whole table falls back to
-`12:00:00` if any of the three is out of range. There is no wall-clock option: the authority is
-a second-of-day plus a rate anchored to the host's monotonic clock, and never reads the
-operating system's time.
+`12:00:00` if any of the three is out of range. There is no wall-clock option: the time of day
+is a second-of-day plus a rate anchored to the host's monotonic clock, and never follows the
+real time. The host's wall clock is read only to order server incarnations and to seed the
+rolls — see [the authority model](index.md#ordering).
 
 This applies at boot and after a restart. **A reload keeps the live time instead** — that is
 the point of the carried state, and it is why reloading the resource at 21:40 does not send
@@ -116,8 +141,7 @@ moment of the freeze, so releasing resumes from where the clock stood rather tha
 
 A held clock is held in the **engine** too: the client takes
 `Open77.environment.setTimeFrozen` when the flag changes, so REDengine's own clock does not run
-underneath a frozen authority. That is new in `0.3.0` — see
-[the clock lock](index.md#time-lock).
+underneath a frozen authority — see [the clock lock](index.md#time-lock).
 
 ## WEATHER_FROZEN {#weather-frozen}
 
@@ -132,9 +156,9 @@ WEATHER_FROZEN = false,
 !!! warning "This is not the engine's weather lock"
 
     It holds the automatic countdown between rolls. The client keeps
-    `Open77.environment.setWeatherFrozen(true)` taken on every accepted snapshot regardless, so
-    REDengine's own cycle never runs underneath the projection whether this is `true` or
-    `false`. [`/opx77.weather.next`](commands.md#next) still rolls while it is on, and
+    `Open77.environment.setWeatherFrozen(true)` taken on every accepted snapshot that carries a
+    preset, so REDengine's own cycle never runs underneath the projection whether this is
+    `true` or `false`. [`/opx77.weather.next`](commands.md#next) still rolls while it is on, and
     [`/opx77.weather.set`](commands.md#set) still crosses.
 
 ## INITIAL_WEATHER {#initial-weather}
@@ -142,7 +166,7 @@ WEATHER_FROZEN = false,
 The preset the sky starts on, on a boot.
 
 ```lua
-INITIAL_WEATHER = "sunny",
+INITIAL_WEATHER = 'sunny',
 ```
 
 **Type** `string` — a `NAME` or an engine `PRESET` from [`WEATHER`](#weather), matched without
@@ -165,23 +189,22 @@ long it takes to get there.
 
 ```lua
 WEATHER = {
-  -- name / engine preset / weight, relative and 0 never rolls / min..max seconds / crossfade
-  { NAME = "sunny", PRESET = "24h_weather_sunny", WEIGHT = 28,
-    MIN_SECONDS = 480, MAX_SECONDS = 900, TRANSITION_SECONDS = 18 },
-  { NAME = "lightclouds", PRESET = "24h_weather_light_clouds", WEIGHT = 24,
-    MIN_SECONDS = 360, MAX_SECONDS = 720, TRANSITION_SECONDS = 20 },
-  { NAME = "cloudy", PRESET = "24h_weather_cloudy", WEIGHT = 18,
-    MIN_SECONDS = 300, MAX_SECONDS = 600, TRANSITION_SECONDS = 24 },
-  { NAME = "rain", PRESET = "24h_weather_rain", WEIGHT = 12,
-    MIN_SECONDS = 180, MAX_SECONDS = 420, TRANSITION_SECONDS = 30 },
-  { NAME = "heavyclouds", PRESET = "24h_weather_heavy_clouds", WEIGHT = 8,
-    MIN_SECONDS = 240, MAX_SECONDS = 480, TRANSITION_SECONDS = 26 },
-  { NAME = "fog", PRESET = "24h_weather_fog", WEIGHT = 5,
-    MIN_SECONDS = 180, MAX_SECONDS = 360, TRANSITION_SECONDS = 28 },
-  { NAME = "pollution", PRESET = "24h_weather_pollution", WEIGHT = 3,
-    MIN_SECONDS = 180, MAX_SECONDS = 360, TRANSITION_SECONDS = 28 },
-  { NAME = "sandstorm", PRESET = "24h_weather_sandstorm", WEIGHT = 2,
-    MIN_SECONDS = 120, MAX_SECONDS = 300, TRANSITION_SECONDS = 35 },
+	{ NAME = 'sunny', PRESET = '24h_weather_sunny', WEIGHT = 28,
+		MIN_SECONDS = 480, MAX_SECONDS = 900, TRANSITION_SECONDS = 18 },
+	{ NAME = 'lightclouds', PRESET = '24h_weather_light_clouds', WEIGHT = 24,
+		MIN_SECONDS = 360, MAX_SECONDS = 720, TRANSITION_SECONDS = 20 },
+	{ NAME = 'cloudy', PRESET = '24h_weather_cloudy', WEIGHT = 18,
+		MIN_SECONDS = 300, MAX_SECONDS = 600, TRANSITION_SECONDS = 24 },
+	{ NAME = 'rain', PRESET = '24h_weather_rain', WEIGHT = 12,
+		MIN_SECONDS = 180, MAX_SECONDS = 420, TRANSITION_SECONDS = 30 },
+	{ NAME = 'heavyclouds', PRESET = '24h_weather_heavy_clouds', WEIGHT = 8,
+		MIN_SECONDS = 240, MAX_SECONDS = 480, TRANSITION_SECONDS = 26 },
+	{ NAME = 'fog', PRESET = '24h_weather_fog', WEIGHT = 5,
+		MIN_SECONDS = 180, MAX_SECONDS = 360, TRANSITION_SECONDS = 28 },
+	{ NAME = 'pollution', PRESET = '24h_weather_pollution', WEIGHT = 3,
+		MIN_SECONDS = 180, MAX_SECONDS = 360, TRANSITION_SECONDS = 28 },
+	{ NAME = 'sandstorm', PRESET = '24h_weather_sandstorm', WEIGHT = 2,
+		MIN_SECONDS = 120, MAX_SECONDS = 300, TRANSITION_SECONDS = 35 },
 },
 ```
 
@@ -207,7 +230,7 @@ still loads:
 
 | Wrong | What happens |
 |---|---|
-| `NAME` or `PRESET` is not a string | The row is dropped: `weather row 4 ignored: NAME and PRESET must be strings` |
+| The row is not a table, or `NAME` or `PRESET` is not a string | The row is dropped: `weather row 4 ignored: NAME and PRESET must be strings` |
 | `MIN_SECONDS` missing or unusable | Falls back to `300`, floored at `1` |
 | `MAX_SECONDS` below `MIN_SECONDS` | Raised to `MIN_SECONDS` |
 | `WEIGHT` missing or unusable | Falls back to `0` — the row can be set, never rolled |
@@ -218,8 +241,10 @@ still loads:
 
     With no usable row the authority reports `ready = false`: every weather mutation answers
     `no_presets`, nothing rolls, and the status line carries
-    `DEGRADED: no usable preset in OPX_WEATHER_CONFIG.WEATHER`. The **clock still runs** — the
-    two halves of the authority fail independently on purpose.
+    `DEGRADED: no usable preset in OPX_WEATHER_CONFIG.WEATHER`. The **clock still runs**, and
+    clients still get the time: snapshots carry `weather` and `weatherPreset` as `''`, and each
+    client applies the time and releases the engine's weather lock rather than holding a sky
+    nothing drives. The two halves of the authority fail independently on purpose.
 
 The roll never repeats the sky already up: candidates are every row whose `NAME` differs from
 the current one *and* whose weight is above zero. If nothing is left — a one-row table, or every
@@ -232,17 +257,23 @@ The eight command entries: what each is called, and whether the host checks a pe
 running it.
 
 ```lua
-COMMANDS = { -- RESTRICTED gates on command.<NAME> in acl.jsonc; NAME = false registers none
-  STATUS = { NAME = "opx77.weather", RESTRICTED = false }, -- time, preset, freezes, roll
-  PRESETS = { NAME = "opx77.weather.presets", RESTRICTED = false }, -- what .set accepts
-  SET = { NAME = "opx77.weather.set", RESTRICTED = true }, -- <name|preset> [seconds]
-  NEXT = { NAME = "opx77.weather.next", RESTRICTED = true }, -- roll now, even if frozen
-  FREEZE = { NAME = "opx77.weather.freeze", RESTRICTED = true }, -- <on|off>, the SCHEDULE
-  TIME = { NAME = "opx77.weather.time", RESTRICTED = true }, -- <HH:MM[:SS]>
-  TIME_FREEZE = { NAME = "opx77.weather.time.freeze", RESTRICTED = true }, -- <on|off>
-  DAY_LENGTH = { NAME = "opx77.weather.daylength", RESTRICTED = true }, -- <realMinutes>
+COMMANDS = {
+	STATUS = { NAME = 'opx77.weather', RESTRICTED = false },
+	PRESETS = { NAME = 'opx77.weather.presets', RESTRICTED = false },
+	SET = { NAME = 'opx77.weather.set', RESTRICTED = true },
+	NEXT = { NAME = 'opx77.weather.next', RESTRICTED = true },
+	FREEZE = { NAME = 'opx77.weather.freeze', RESTRICTED = true },
+	TIME = { NAME = 'opx77.weather.time', RESTRICTED = true },
+	TIME_FREEZE = { NAME = 'opx77.weather.time.freeze', RESTRICTED = true },
+	DAY_LENGTH = { NAME = 'opx77.weather.daylength', RESTRICTED = true },
 },
 ```
+
+`RESTRICTED` gates the command on `command.<NAME>` in `acl.jsonc`; `NAME = false` registers
+none. `STATUS` reports the time, preset, freezes and next roll; `PRESETS` lists what `SET`
+accepts; `SET` takes `<name|preset> [seconds]`; `NEXT` rolls now, even while the schedule is
+held; `FREEZE` takes `<on|off>` and holds the schedule; `TIME` takes `<HH:MM[:SS]>`;
+`TIME_FREEZE` takes `<on|off>` and holds the clock; `DAY_LENGTH` takes the real minutes.
 
 **Type** `{ [KEY]: { NAME: string | false, RESTRICTED: boolean } }`
 
@@ -292,6 +323,7 @@ that reason.
 | `DRIFT_TOLERANCE_SECONDS` | `120` | Game seconds of drift before the client writes to the engine |
 | `MAX_LATENCY_MS` | `2000` | Ceiling on the half-round-trip added to a received timestamp |
 | `MIN_REQUEST_MS` | `1000` | Floor between two sync requests from the same player |
+| `SYNC_FLOOR_MS` | `100` | Floor between two snapshots a client applies; one arriving inside it is deferred to its end. A local in `client/main.lua`, not part of `SYNC` |
 | `INITIAL_WEATHER_SECONDS` | `180` | How long the boot preset holds before the first roll |
 | `WEATHER_PRIORITY` | `5` | The priority `setWeather` is submitted at |
 | `MAX_TRANSITION_SECONDS` | `300` | The longest crossfade either half accepts, and what a configured row is clamped to |

@@ -28,6 +28,7 @@ something to guess about.
   status = "connected",
   closeOnSelect = false,
   reportFocus = false,
+  prompts = true,
   steal = false,
 }
 ```
@@ -73,6 +74,14 @@ something to guess about.
       list would otherwise raise an event per repeat for every caller. Honoured
       by `update` as well as `open`.
     - Default: `false`
+- prompts?: `boolean`
+    - Show this menu's keys in [`opx77_prompts`](../opx77_prompts/index.md)'
+      strip while it is open. `prompts = false` turns them off for this menu,
+      for a caller that prints its own hint; any other value leaves them on.
+      Honoured by `update` as well as `open`. The operator switch
+      [`PROMPTS = false`](config.md#prompts) turns them off for every menu,
+      whatever the spec says. See [Key prompts](index.md#key-prompts).
+    - Default: `true`
 - steal?: `boolean`
     - Take over another resource's open menu, closing theirs with
       `reason = "superseded"`. Without it, an open menu belonging to somebody

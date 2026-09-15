@@ -11,7 +11,8 @@ following the core, and showing it again does not need a refresh. The third
 reports what became of *Cyberpunk's own* HUD, which this resource turns off at
 boot so that its health bar and clock are not drawn underneath this one. Each
 answers a table carrying `ok` and never raises; the answer shapes are annotated
-in `types.lua`, which is a language-server file and is never loaded at runtime.
+in `std/types.lua`, which is a language-server file and is never loaded at
+runtime.
 
 !!! info "Read the export contract first"
     There is no `exports.opx77_hud:setVisible()` proxy. The only entry point is
@@ -26,7 +27,8 @@ it never answers `ok = false` and never returns `nil`.
 !!! warning "Nothing else puts it back"
     The visibility flag is this resource's own. No event, no character change and
     no reconnect of the core resets it — only another `setVisible`, the
-    [`/hud`](commands.md#hud) command, or the player reconnecting. If you hide the
+    [`/hud`](commands.md#hud) command, the [show/hide key](commands.md#key), or
+    the player reconnecting. If you hide the
     HUD around something that can fail, restore it in the same thread that hid it.
 
 ```lua
@@ -130,7 +132,7 @@ Open77.exports.call("opx77_hud", "vanilla")
 | Field | Meaning |
 |---|---|
 | `available` | Whether `Open77.hud` exists on this client at all. `false` on a client older than the `ui.vanilla.hud` capability, and then nothing was hidden. |
-| `found` | Component → the visibility it had **before** this resource touched it, which is what is put back when the resource stops. `nil` until the first apply. A component the client would not report reads `nil` and is left alone on the way out. |
+| `found` | Component → the visibility it had **before** this resource first touched it, recorded once. `nil` until the first apply, and a component the client would not report reads `nil`. Nothing is written back from it: the platform releases this resource's hide claims when it stops. |
 | `state` | Whatever `Open77.hud.state()` reports right now, verbatim, or `nil` if the client will not say. |
 
 **Errors**
@@ -171,8 +173,8 @@ end)
 
 ## A server resource cannot call these {#from-the-server}
 
-Server resources have no `exports` and no cross-resource bus on this platform.
-A server plug-in that wants the HUD hidden registers its own net event, sends it
+All three are client exports, and `opx77_hud` publishes none on the server. A
+server plug-in that wants the HUD hidden registers its own net event, sends it
 to the player with `TriggerClientEvent`, and calls `setVisible` from the client
 handler in its own resource. See
 [Integration channels](../../concepts/integration-channels.md#wire-events).

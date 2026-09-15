@@ -12,11 +12,11 @@ needs.
 
 | Table | Names | Registration | Permission |
 |---|---|---|---|
-| [`Client`](#networked-server-to-client) — networked, server → client | 9 | `RegisterNetEvent` | `network.events` |
-| [`Local`](#client-local) — client-local, fired by the core's own client half | 9 | `AddEventHandler` | none |
-| [`Server`](#networked-client-to-server) — networked, client → server | 8 | `TriggerServerEvent` from a client | `network.events` |
-| [`Internal`](#resource-internal) — inside the core's server VM only | 7 | `AddEventHandler`, in a file inside the core | none |
-| [`Platform`](#platform) — raised by the host, handled by the core | 8 | — | — |
+| [`Client`](#networked-server-to-client) — networked, server → client | 11 | `RegisterNetEvent` | `network.events` |
+| [`Local`](#client-local) — client-local, fired by the core's own client half | 10 | `AddEventHandler` | none |
+| [`Server`](#networked-client-to-server) — networked, client → server | 9 | `TriggerServerEvent` from a client | `network.events` |
+| [`Internal`](#resource-internal) — inside the core's server VM only | 9 | `AddEventHandler`, in a file inside the core | none |
+| [`Platform`](#platform) — raised by the host, handled by the core | 5 in `OPX.Events.Platform`, more handled by name | — | — |
 
 ## Which channel a satellite should use {#choosing}
 
@@ -60,12 +60,21 @@ registers with `RegisterNetEvent`.
 | [`opx77:client:onJobUpdate`](#onjobupdate) | the new `PlayerJob` |
 | [`opx77:client:onGangUpdate`](#ongangupdate) | the new `PlayerGang` |
 | [`opx77:client:onAppearanceUpdate`](#onappearanceupdate) | the stored `AppearanceSnapshot` |
+| [`opx77:client:onClothingUpdate`](#onclothingupdate) | the stored `ClothingRecord` |
 | [`opx77:client:notify`](#notify) | a refusal code, and the request it answers |
+| [`opx77:client:commandAnswer`](#commandanswer) | a command's outcome, already worded |
 
 ### opx77:client:characters {#characters}
 
 Carries the selection roster, sent on join, on a client re-announcing itself,
-and after any change to the character list.
+on `/opx77.characters`, and after a creation or a deletion.
+
+It is sent only while the player has **no character loaded**. The core checks
+again after its database reads, so a roster asked for during a character switch
+never lands after `playerLoaded` and opens a selection screen over a character
+already playing. The resends after a creation and a deletion are not dropped by
+the roster's two-second cooldown: those requests are already cooled at their own
+doors.
 
 ```lua
 RegisterNetEvent("opx77:client:characters", function(payload) end)
@@ -204,6 +213,29 @@ changed nothing raises nothing. The core's client half mirrors it onto
 `PlayerData.appearance` and re-fires it as
 [`opx77:client:appearanceSaved`](#appearancesaved).
 
+It is published only while the character the face was written for is still the
+one on that connection: a player who switched character while the write was
+under way receives nothing of the old one.
+
+**Side** `client` — any resource holding `network.events`.
+
+### opx77:client:onClothingUpdate {#onclothingupdate}
+
+Fires when the core has stored new clothing for the live character.
+
+```lua
+RegisterNetEvent("opx77:client:onClothingUpdate", function(record) end)
+```
+
+- record: [`ClothingRecord`](types.md#clothingrecord) — the canonical form the
+  core wrote: the nine equipment slots, the wardrobe's outfits and the active
+  one.
+
+Sent only to the character's own client, only when the stored record actually
+changed, and only while that character is still the one on the connection. The
+core's client half mirrors it onto `PlayerData.clothing` and re-fires it as
+[`opx77:client:clothingSaved`](#clothingsaved).
+
 **Side** `client` — any resource holding `network.events`.
 
 ### opx77:client:notify {#notify}
@@ -222,17 +254,61 @@ RegisterNetEvent("opx77:client:notify", function(payload) end)
     - kind: `string` — `error` in every case the core currently sends.
     - operation: `string` — a value of `OPX.Operations`, naming the request this
       refusal answers: `entry`, `ready`, `selectCharacter`, `createCharacter`,
-      `deleteCharacter`, `saveAppearance`, `spawnVehicle` or `storeVehicle`.
-      `unknown` when the refusal names none.
+      `deleteCharacter`, `saveAppearance`, `saveClothing`, `spawnVehicle` or
+      `storeVehicle`. `unknown` when the refusal names none.
 
 The reason behind the code is deliberately not sent: a refusal that explains
-itself tells an attacker which half of the guess was right. Repeats of the same
-code to the same player inside a short window are suppressed at the source — the
-operation is part of that dedupe key, so two different requests refused for the
-same reason are still two answers.
+itself tells an attacker which half of the guess was right.
+
+**Every refusal is sent**, an identical one included. A satellite releases a
+pending request when its refusal arrives, so a second identical refusal inside a
+few seconds — an in-use character selected twice — must reach it too. Each
+request is already cooled at its own door, so a refusal costs at most one small
+event per admitted request. Only toasts are deduplicated.
+
+Which refusals also raise a toast with the same text:
+
+| Operation | Toast |
+|---|---|
+| `selectCharacter` | no — the selector renders the refusal in its own status line |
+| `createCharacter` | yes — for a client whose form is already closed |
+| `spawnVehicle`, `storeVehicle` | yes |
+| every other | no |
 
 **Side** `client` — any resource holding `network.events`. The permission-free
 equivalent is [`opx77:client:refused`](#refused).
+
+### opx77:client:commandAnswer {#commandanswer}
+
+Carries what a command this player typed did, or why it did not, for the core's
+client half to show. Sent by
+[`OPX.CommandNotice`](server-api.md#commandnotice).
+
+```lua
+RegisterNetEvent("opx77:client:commandAnswer", function(raw, kind, message, toasted) end)
+```
+
+- raw: `string` — the command line as typed; `""` when the server had none.
+- kind: `string` — `success`, `warning` or `error`. Anything else is shown as
+  `error`.
+- message: `string` — already in the configured locale. An empty one is
+  dropped.
+- toasted: `boolean` — `true` when the action already raised the same toast
+  itself, through [`OPX.Notify`](server-api.md#notify).
+
+The core's client half raises it as a toast through `opx77_notify`'s `show`,
+titled `SERVER_NAME`, at `NOTIFY_POSITION`, in the one slot
+`opx77_core.command` that each answer replaces — a player retrying a command
+sees one answer, not a stack. While `opx77_notify` is not running, or when it
+refuses the toast, the same text is a `chat:addMessage` line authored
+`SERVER_NAME`, and the client log says so once. With `toasted` set, nothing is
+raised and the chat line is written only while `opx77_notify` is not running:
+`opx77.duty` is answered this way, because `OPX.SetJobDuty` already toasts.
+
+A report — a list, a dump — never comes on this event: it is a chat line sent
+from the server with [`OPX.CommandResult`](server-api.md#commandresult).
+
+**Side** `client` — the core's own client half. No `Local` equivalent is fired.
 
 ---
 
@@ -252,6 +328,7 @@ been updated. Register with a plain `AddEventHandler`, from any resource, with
 | [`opx77:client:jobChanged`](#jobchanged) | the new `PlayerJob` |
 | [`opx77:client:gangChanged`](#gangchanged) | the new `PlayerGang` |
 | [`opx77:client:appearanceSaved`](#appearancesaved) | the stored `AppearanceSnapshot` |
+| [`opx77:client:clothingSaved`](#clothingsaved) | the stored `ClothingRecord` |
 | [`opx77:client:refused`](#refused) | a refusal code, its kind and its operation |
 
 ### opx77:client:charactersReady {#charactersready}
@@ -396,6 +473,23 @@ a capture identical to the stored face, because the core writes nothing for one.
 
 **Side** `client` — any resource, no permission.
 
+### opx77:client:clothingSaved {#clothingsaved}
+
+Fires when the core has stored new clothing and the mirror carries it, so a
+handler can read [`GetClothing`](exports/client.md#getclothing) and see it.
+
+```lua
+AddEventHandler("opx77:client:clothingSaved", function(record) end)
+```
+
+- record: [`ClothingRecord`](types.md#clothingrecord)
+
+The local re-emission of
+[`opx77:client:onClothingUpdate`](#onclothingupdate). Nothing is raised for a
+save identical to the stored record, because the core writes nothing for one.
+
+**Side** `client` — any resource, no permission.
+
 ### opx77:client:refused {#refused}
 
 Fires when the server refused something this client asked for.
@@ -411,19 +505,21 @@ AddEventHandler("opx77:client:refused", function(code, kind, operation) end)
 - kind: `string` — `error` in every case the core currently sends.
 - operation: `string` — which request this refusal answers, from
   `OPX.Operations`: `entry`, `ready`, `selectCharacter`, `createCharacter`,
-  `deleteCharacter`, `saveAppearance`, `spawnVehicle` or `storeVehicle`, and
-  `unknown` when the refusal names none.
+  `deleteCharacter`, `saveAppearance`, `saveClothing`, `spawnVehicle` or
+  `storeVehicle`, and `unknown` when the refusal names none.
 
 This is the failure half of every character-screen request: the export said the
 request was sent, and this says the server would not do it. Common codes are
-`character.notFound`, `character.inUse`, `character.badName`, `error.tooFast`,
-`entry.timedOut` and `entry.failed`.
+`character.notFound`, `character.inUse`, `character.badName`,
+`character.badBirthdate`, `character.limit`, `error.tooFast`, `entry.timedOut`
+and `entry.failed`. Every one is sent, an identical repeat included, so a client
+waiting on a request always gets its answer.
 
 **Branch on `operation`, not on the code.** A client waiting on one request out
 of several cannot otherwise tell whose `error.tooFast` it is holding — an
 `error.tooFast` raised by a vehicle spawn is not the answer to a captured face
 still in flight. `OPX.Operations` lives in the core's own VM and a satellite
-cannot import it, so a satellite compares the string; the values are the eight
+cannot import it, so a satellite compares the string; the values are the nine
 above and they are named after the `opx77:server:*` request that starts them.
 
 **Side** `client` — any resource, no permission.
@@ -448,7 +544,8 @@ half validates every one of them.
 | [`opx77:server:createCharacter`](#createcharacter) | the registration | 1 s |
 | [`opx77:server:deleteCharacter`](#deletecharacter) | `{ citizenId }` | 1 s |
 | [`opx77:server:reportPosition`](#reportposition) | `{ heading }` | 1 s |
-| [`opx77:server:saveAppearance`](#saveappearance) | `{ snapshot }` | 2 s |
+| [`opx77:server:saveAppearance`](#saveappearance) | `{ snapshot, citizenId? }` | 2 s |
+| [`opx77:server:saveClothing`](#saveclothing) | `{ citizenId, clothing }` | 2 s |
 | [`opx77:server:spawnVehicle`](#spawnvehicle) | `{ plate }` | 3 s |
 | [`opx77:server:storeVehicle`](#storevehicle) | `{ plate }` | 3 s |
 
@@ -468,7 +565,10 @@ TriggerServerEvent("opx77:server:ready")
 
 Takes no arguments. Answered with [`opx77:client:characters`](#characters), or
 with [`opx77:client:playerLoaded`](#playerloaded) if a character is already
-loaded.
+loaded. A player still behind the readiness gate is put back in their own
+selection bucket first, in case the move at connect was refused. A second
+announce inside two seconds is ignored, and the core booted degraded answers
+`error.unavailable` on the `ready` operation.
 
 **Side** `net event` — sent from a client resource holding `network.events`.
 [`RequestCharacters`](exports/client.md#requestcharacters) is the export that
@@ -486,7 +586,9 @@ TriggerServerEvent("opx77:server:selectCharacter", { citizenId = citizenId })
     - citizenId: `string` — ownership is re-checked against the database.
 
 Answered with [`opx77:client:playerLoaded`](#playerloaded), or refused with
-[`opx77:client:notify`](#notify).
+[`opx77:client:notify`](#notify) and nothing else: a refused selection raises no
+toast, because the selector renders the refusal itself. A payload with no string
+`citizenId` is refused with `error.badRequest`.
 
 **Side** `net event` — `network.events`. Prefer
 [`SelectCharacter`](exports/client.md#selectcharacter).
@@ -500,11 +602,16 @@ TriggerServerEvent("opx77:server:createCharacter", registration)
 ```
 
 - registration: `table` — `firstName`, `lastName`, `origin`, `gender`, `birthDate`.
-  Every field is validated server-side against the same rules the client half
-  applies.
+  Every field is validated server-side. `gender` must be `female` or `male`
+  (`error.badRequest`). A `birthDate` of the shape `YYYY-MM-DD` must be a real
+  day from 1900 on, or it is refused with `character.badBirthdate`; a missing
+  or otherwise shaped one becomes `2050-01-01`. No future-date check is made.
 
-Answered with a fresh [`opx77:client:characters`](#characters), or refused with
-[`opx77:client:notify`](#notify).
+Answered with a success toast and a fresh [`opx77:client:characters`](#characters)
+— sent even inside the roster's two-second cooldown, and not sent to a player
+who has a character loaded. A refusal comes on [`opx77:client:notify`](#notify)
+**and** as an error toast with the same text, for a client whose form is already
+closed. `character.limit` names the account's own slot count in both.
 
 **Side** `net event` — `network.events`. Prefer
 [`CreateCharacter`](exports/client.md#createcharacter).
@@ -524,6 +631,12 @@ TriggerServerEvent("opx77:server:deleteCharacter", { citizenId = citizenId })
     A refused delete is audited, and an accepted one takes every row in
     `CASCADE_TABLES` with it for real. Do not wire this to anything a stray
     keypress reaches.
+
+Answered with a success toast and a fresh [`opx77:client:characters`](#characters),
+sent even inside the roster's cooldown while no character is loaded; a deleted
+character that was loaded is logged out first, so its roster goes out. A refusal
+comes on [`opx77:client:notify`](#notify) only. The core also raises
+[`opx77:player:characterDeleted`](#internal-characterdeleted).
 
 **Side** `net event` — `network.events`. Prefer
 [`DeleteCharacter`](exports/client.md#deletecharacter).
@@ -553,14 +666,21 @@ Commits a captured face for the live character. Sent by
 the mirror; nothing else should send it.
 
 ```lua
-TriggerServerEvent("opx77:server:saveAppearance", { snapshot = snapshot })
+TriggerServerEvent("opx77:server:saveAppearance", { snapshot = snapshot, citizenId = citizenId })
 ```
 
 - payload: `table`
     - snapshot: [`AppearanceSnapshot`](types.md#appearancesnapshot) — the
       capture. A bare snapshot with no `snapshot` key is accepted too.
+    - citizenId?: `string` — the character the face was captured for. When
+      given and it is not the character loaded on the connection — a save sent
+      just before a character switch — the save is refused with
+      `appearance.stale`. A save without it is still accepted.
 
-The character comes from the connection and never from the payload, and the
+The character comes from the connection and never from the payload: the
+`citizenId` only refuses, it never selects the row. The loaded character is read
+before anything yields, and the face is published back only while that
+character is still the one on the connection. The
 snapshot is put into canonical form before anything is written: an unknown
 schema version, a game build outside
 `OPX.Config.SHARED.APPEARANCE.GAME_BUILDS`, a bad catalogue digest, a sparse or
@@ -576,10 +696,50 @@ caller waiting for one of those on an unchanged confirm waits forever, which is
 why `opx77_appearance` completes that case on the client.
 
 Refusals arrive as [`opx77:client:notify`](#notify) with `operation` set to
-`saveAppearance`, so the six codes that path answers with —
-`appearance.invalid`, `appearance.tooLarge`, `error.badRequest`,
-`error.notLoggedIn`, `error.tooFast` and `error.unavailable` — can be told apart
-from a refusal answering some other request.
+`saveAppearance`, so the seven codes that path answers with —
+`appearance.invalid`, `appearance.tooLarge`, `appearance.stale`,
+`error.badRequest`, `error.notLoggedIn`, `error.tooFast` and
+`error.unavailable` — can be told apart from a refusal answering some other
+request. The canonical-form reason (`unsupported_game_build`,
+`duplicate_option` and the rest) is written to the server log, not sent.
+
+**Side** `net event` — `network.events`.
+
+### opx77:server:saveClothing {#saveclothing}
+
+Stores what the live character wears. Sent by
+[`opx77_appearance`](../opx77_appearance/index.md) when the equipment or the
+wardrobe changes; nothing else should send it.
+
+```lua
+TriggerServerEvent("opx77:server:saveClothing", { citizenId = citizenId, clothing = record })
+```
+
+- payload: `table`
+    - citizenId: `string` — **required**: the character the record was read
+      for. Anything but the character loaded on the connection, a missing one
+      included, is refused with `clothing.stale`. It never selects the row.
+    - clothing: [`ClothingRecord`](types.md#clothingrecord) —
+      `{ schemaVersion = 1, equipment, wardrobe }`.
+
+The record is put into canonical form before anything is written. `equipment`
+names only the nine slots — `Head`, `Face`, `InnerChest`, `OuterChest`, `Legs`,
+`Feet`, `Outfit`, `UnderwearTop`, `UnderwearBottom` — each a record name of 1–160
+letters, digits, `_`, `.` or `-`, or `false`. `wardrobe` is `{ active, outfits }`:
+`active` an integer from 0 to 6 or absent, `outfits` at most seven keyed `0` to
+`6`, each overriding only the seven visible slots. Anything else is refused with
+`clothing.invalid`, and a document over 16 KiB encoded with `clothing.tooLarge`.
+
+A record identical to the stored one is written nowhere and announces nothing. A
+character whose stored clothing could not be read at login answers
+`error.unavailable` rather than overwriting what it never saw. A stored record is
+pushed back with [`opx77:client:onClothingUpdate`](#onclothingupdate) and
+[`opx77:player:clothingChange`](#internal-clothingchange), and not to a player
+who switched character while the write yielded.
+
+Refusals arrive as [`opx77:client:notify`](#notify) with `operation` set to
+`saveClothing`: `clothing.invalid`, `clothing.tooLarge`, `clothing.stale`,
+`error.badRequest`, `error.notLoggedIn`, `error.tooFast` or `error.unavailable`.
 
 **Side** `net event` — `network.events`.
 
@@ -597,7 +757,8 @@ TriggerServerEvent("opx77:server:spawnVehicle", { plate = plateId })
 
 Ownership comes from the row, and the character from the connection. Refusals
 arrive on [`opx77:client:notify`](#notify) with codes such as
-`vehicle.notFound`, `vehicle.limit` or `vehicle.spawnRefused`.
+`vehicle.notFound`, `vehicle.noPosition` or `vehicle.spawnRefused`, and each is
+also raised as an error toast; a success is a toast naming the plate.
 
 **Side** `net event` — `network.events`.
 
@@ -615,7 +776,10 @@ TriggerServerEvent("opx77:server:storeVehicle", { plate = plateId })
 
 Ownership is checked before anything is taken off the world: `live` is keyed by
 plate, and a player could otherwise store somebody else's car by naming its
-plate.
+plate. A vehicle that is not out, or not the connection's character's, is
+refused with `vehicle.notFound`. Every refusal arrives on
+[`opx77:client:notify`](#notify) and as an error toast with the same text, as a
+refused spawn does; a success is a toast naming the plate.
 
 **Side** `net event` — `network.events`.
 
@@ -625,8 +789,11 @@ plate.
 
 Fired with `TriggerEvent` inside the core's **server** VM, and heard there only.
 A server `TriggerEvent` walks its own VM and no further, so these are reachable
-from a file added to `opx77_core/server/` and from nowhere else — which is the
-point of them.
+from a file added to `opx77_core/server/` and from nowhere else. Server exports
+do not change that. A server resource outside the core follows `loaded`,
+`unloaded` and `deleted` through the
+[`GetChanges`](exports/server.md#getchanges) cursor, which the core feeds from
+these same events.
 
 | Event | Payload |
 |---|---|
@@ -636,7 +803,9 @@ point of them.
 | [`opx77:player:jobUpdate`](#internal-jobupdate) | `source`, `job` |
 | [`opx77:player:gangUpdate`](#internal-gangupdate) | `source`, `gang` |
 | [`opx77:player:appearanceChange`](#internal-appearancechange) | `source`, `citizenId`, `snapshot` |
+| [`opx77:player:clothingChange`](#internal-clothingchange) | `source`, `citizenId`, `record` |
 | [`opx77:player:paycheck`](#internal-paycheck) | `source`, `amount`, `jobName` |
+| [`opx77:player:characterDeleted`](#internal-characterdeleted) | `source`, `citizenId` |
 
 ### opx77:player:loaded {#internal-playerloaded}
 
@@ -734,6 +903,25 @@ face is written nowhere and announced nowhere.
 
 **Side** `server` — inside `opx77_core` only.
 
+### opx77:player:clothingChange {#internal-clothingchange}
+
+Fires inside the core's server VM after a character's clothing has been written
+to `opx77_character_clothing`.
+
+```lua
+AddEventHandler("opx77:player:clothingChange", function(source, citizenId, record) end)
+```
+
+- source: `integer|nil` — nil for an offline character.
+- citizenId: [`CitizenId`](types.md#citizenid)
+- record: [`ClothingRecord`](types.md#clothingrecord) — canonical form.
+
+Raised only when the stored record actually changed, by
+[`OPX.SaveClothing`](server-api.md#saveclothing) — the net event and a plug-in
+alike.
+
+**Side** `server` — inside `opx77_core` only.
+
 ### opx77:player:paycheck {#internal-paycheck}
 
 Fires inside the core's server VM after a paycheck has been paid — after the
@@ -754,6 +942,23 @@ To *veto* a paycheck rather than observe one, use the `paycheck:before`
 
 **Side** `server` — inside `opx77_core` only.
 
+### opx77:player:characterDeleted {#internal-characterdeleted}
+
+Fires inside the core's server VM after a character has been soft-deleted — and,
+when it was loaded, after it was logged out.
+
+```lua
+AddEventHandler("opx77:player:characterDeleted", function(source, citizenId) end)
+```
+
+- source: `integer` — the player who deleted it.
+- citizenId: [`CitizenId`](types.md#citizenid)
+
+The core's own `server/exports.lua` listens on this one, with `loaded` and
+`unloaded`, to record the change for [`GetChanges`](exports/server.md#getchanges).
+
+**Side** `server` — inside `opx77_core` only.
+
 ---
 
 ## Platform events the core handles {#platform}
@@ -764,19 +969,22 @@ place to look when the platform moves them.
 
 | Event | Side | What the core does with it |
 |---|---|---|
-| `onPlayerConnected` | server | Begins entry: makes the session, takes the readiness hold, sends the roster. Arguments arrive as `(rawPlayerId, playerName)` and the id is a **string**, because the bare `source` global is populated only for network events. |
-| `onPlayerDisconnected` | server | Logs the character out, forgets the session and clears the per-source cooldowns. The only departure event this platform raises. |
+| `onPlayerConnecting` | server | **Nothing — deliberately.** The core does not request `players.gate`; see [Connection control](../../concepts/connection-gate.md#opx77) for why a gate belongs in a resource of its own. |
+| `onPlayerConnected` | server | Begins entry: makes the session, takes the readiness hold, isolates the player, sends the roster. It carries `(rawPlayerId)` and nothing else — the id is a **string**, because the bare `source` global is populated only for network events. The connect line — display name, account and player id — is written by the lifecycle once the session exists, not read from a second argument, which the platform never sends. A connection the host vouches no identity for is disconnected — see [`players.disconnect`](permissions.md#players-disconnect). |
+| `onPlayerRejected` | server | **Nothing.** Raised in every resource with no permission for every refused connection; the core keeps no audit of connections it was never part of. Useful in a gatekeeper resource. |
+| `onPlayerDisconnected` | server | Arguments are `(playerId, reason)`: `reason` is `connection_closed`, or the text a disconnect, kick or ban was queued with. Writes a `session.disconnect` audit line with the reason, the account and the citizen id of the character loaded, read before anything is torn down; then logs the character out, forgets the session, clears the per-source cooldowns and toast windows, and forgets the audit dedupe keys of that player and that character. The only *departure* event this platform raises — a refusal before admission is `onPlayerRejected`, which is a different thing. |
 | `onPlayerReady` | server | The readiness gate opened. Read for its `detail` note. |
 | `onClientResourceStart` | client | The core's client half announces itself and re-requests the roster. This is what makes a core reload survivable. |
 | `open77:worldReady` | client | Announces again, because a client can start before the world is up. |
-| `onResourceStop` | server | Dispatches a best-effort save for every loaded character, and stores every vehicle this resource owns. |
-| `onVehicleRemoved` | server | Forgets a vehicle the host removed rather than trying to write through its id. |
-| `chat:ready` | server | Sends the five unrestricted commands to the chat autocomplete. Cooled at one per ten seconds per player: anybody can raise it. |
+| `onResourceStop` | server | Dispatches a best-effort save for every loaded character, stores every vehicle this resource owns, and moves everybody in a selection bucket to `WORLD`. |
+| `onVehicleRemoved` | server | Forgets a vehicle the host removed rather than trying to write through its id, and marks its row stored from a thread. |
+| `chat:ready` | server | Sends the chat autocomplete: the five unrestricted commands, and each restricted one the player's ACL grants. Cooled at one per ten seconds per player: anybody can raise it. See [Commands](commands.md#chat-suggestions). |
 
 ### onPlayerReady {#onplayerready}
 
-The gate opened for a player. The `detail` string is the one channel a server
-resource on this platform has for telling every other server VM something.
+The gate opened for a player. The `detail` string is the one thing a server
+resource can tell every other server VM without that VM asking — the rest goes
+through [server exports](exports/server.md), which have to be called.
 
 ```lua
 AddEventHandler("onPlayerReady", function(rawPlayerId, detail) end)
@@ -797,9 +1005,11 @@ resource passed to `release`. The core passes
     release and which has **no deadline**. It clears on one thing only: a client
     announcing `open77:session:gameplayReady`. In this resource set
     [`opx77_appearance`](../opx77_appearance/index.md) is what sends it. Without
-    it — or without the official `open77_appearance`, which the core's boot check
-    also accepts — `Open77.ready.isReady` stays false forever and this handler
-    can never fire. The core is unaffected, because it reads neither, and says so
+    it `Open77.ready.isReady` stays false forever and this handler can never
+    fire. The core's boot check also accepts the official `open77_appearance`,
+    which sends it too, but that package is not a drop-in for this set, and
+    running both conflicts — see
+    [The entry gate](../../concepts/entry-gate.md#platform-hold). The core is unaffected, because it reads neither, and says so
     with one warning at boot. See
     [The entry gate](../../concepts/entry-gate.md).
 

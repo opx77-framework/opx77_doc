@@ -5,11 +5,12 @@ description: The six client exports of opx77_elevators — floors, isFloorAllowe
 
 # Exports
 
-Six exports, all **client-side**, because that is the only side exports exist
-on: the Open77 server runtime installs none. A server resource that wants an
-elevator panel sends a net event to its own client half, and that half calls
-these. [The client export contract](../../concepts/export-contract.md) covers
-the call shape and its three levels of failure.
+Six exports, all **client-side**: the gate, the sightings and the panel live on
+the player's machine, and this resource's server half publishes no export. A
+server resource that wants an elevator panel sends a net event to its own client
+half, and that half calls these.
+[The client export contract](../../concepts/export-contract.md) covers the call
+shape and its three levels of failure.
 
 Every call answers a table carrying `ok` and never raises. `error` is a stable
 `snake_case` code meant for branching; every code is listed in
@@ -33,7 +34,7 @@ drawing its own panel needs nothing else.
     Each export reads the caller from `GetInvokingResource()` and refuses
     `export_call_required` when there is none. A call with no invoking resource
     is a call made from inside this VM, which went somewhere it did not mean to —
-    `OpxElevators.runtime` and `OpxElevators.panel` are right there.
+    `OpxElevators.Runtime` and `OpxElevators.Panel` are right there.
 
 ## floors {#floors}
 
@@ -246,6 +247,11 @@ Opens the floor list through [`opx77_menu`](../opx77_menu/index.md), or answers
     `await` is coroutine-only and an export handler is not a coroutine, so the
     call to `opx77_menu` is queued on a thread. A menu that failed to open is a
     log line, not a return value.
+
+A floor picked from this list is requested with `source = "panel"`. The list
+closes on the selection, so a refusal — the local gate's or the server's — is
+shown to the player as an `opx77_notify` toast, or a chat line without it; see
+[the panel's refusals](events.md#panel-refusals).
 
 ```lua
 Open77.exports.call("opx77_elevators", "openPanel", elevator)

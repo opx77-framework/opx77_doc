@@ -1,6 +1,6 @@
 ---
 title: opx77_animations configuration
-description: Every key of OPX_ANIMATIONS_CONFIG with its shipped default, its accepted range and what replaces a bad value — the language, the presenter, toasts, disabled animations, looping and durations, the rate limit, the picker and the four commands — plus the locale catalogues and the constants that are not keys.
+description: Every key of OPX_ANIMATIONS_CONFIG with its shipped default, its accepted range and what replaces a bad value — the language, the presenter, toasts, the stop prompt, disabled animations, looping and durations, the rate limit, the picker, the keys and the four commands — plus the locale catalogues and the constants that are not keys.
 ---
 
 # Configuration
@@ -10,25 +10,38 @@ Everything lives in `config.lua`, in one global table, `OPX_ANIMATIONS_CONFIG`.
 
 ```lua
 OPX_ANIMATIONS_CONFIG = {
-  LOCALE = "en",
-  PRESENTER = "auto",
-  NOTIFY = true,
-  TOAST_MS = 4000,
-  DISABLED = {},
-  LOOP_BY_DEFAULT = true,
-  ONE_SHOT_MS = 10000,
-  MAX_DURATION_MS = 600000,
-  RATE_LIMIT = { WINDOW_MS = 10000, REQUESTS = 6 },
-  PICKER = {
-    CLOSE_ON_SELECT = true,
-    SHOW_VARIANT_WORDS = true,
-  },
-  COMMANDS = {
-    ANIM = { NAME = "opx77.anim", RESTRICTED = false },
-    EMOTE = { NAME = "e", RESTRICTED = false },
-    STOP = { NAME = "opx77.anim.stop", RESTRICTED = false },
-    LIST = { NAME = "opx77.anim.list", RESTRICTED = false },
-  },
+	LOCALE = 'en',
+
+	PRESENTER = 'auto',
+
+	NOTIFY = true,
+	TOAST_MS = 4000,
+	PROMPTS = true,
+
+	DISABLED = {},
+
+	LOOP_BY_DEFAULT = true,
+	ONE_SHOT_MS = 10000,
+	MAX_DURATION_MS = 600000,
+
+	RATE_LIMIT = { WINDOW_MS = 10000, REQUESTS = 6 },
+
+	PICKER = {
+		CLOSE_ON_SELECT = true,
+		SHOW_VARIANT_WORDS = true,
+	},
+
+	KEYS = {
+		PICKER = 'F3',
+		STOP = 'X',
+	},
+
+	COMMANDS = {
+		ANIM = { NAME = 'opx77.anim', RESTRICTED = false },
+		EMOTE = { NAME = 'e', RESTRICTED = false },
+		STOP = { NAME = 'opx77.anim.stop', RESTRICTED = false },
+		LIST = { NAME = 'opx77.anim.list', RESTRICTED = false },
+	},
 }
 ```
 
@@ -53,7 +66,7 @@ The lines are written by the server half only. Each key below quotes its own.
 Which `locales/<code>.lua` catalogue player-facing text is read from.
 
 ```lua
-LOCALE = "en",
+LOCALE = 'en',
 ```
 
 **Type** `string` — `"en"` or `"fr"` as shipped.
@@ -69,7 +82,7 @@ own catalogue, so this is set here as well as in
 Who poses the bodies on each client.
 
 ```lua
-PRESENTER = "auto",
+PRESENTER = 'auto',
 ```
 
 **Type** `"auto" | "always" | "never"`
@@ -104,7 +117,9 @@ See [Who poses the bodies](index.md#presenter).
 
 ## NOTIFY {#notify}
 
-Whether a refusal is shown as an [`opx77_notify`](../opx77_notify/index.md) toast.
+Whether a refusal, and a typed command's answer, is shown as an
+[`opx77_notify`](../opx77_notify/index.md) toast. The list command is a report
+and stays in the chat either way.
 
 ```lua
 NOTIFY = true,
@@ -120,13 +135,29 @@ instead — see [`chat:addMessage`](events.md#chat-addmessage). It governs what 
 
 ## TOAST_MS {#toast-ms}
 
-How long a refusal toast stays up.
+How long a refusal toast, or a command's answer, stays up.
 
 ```lua
 TOAST_MS = 4000,
 ```
 
 **Type** `integer` — milliseconds, 750 to 120000. Fallback `4000`.
+
+## PROMPTS {#prompts}
+
+Whether the stop key is shown in [`opx77_prompts`](../opx77_prompts/index.md)'
+strip while the local player's own animation plays.
+
+```lua
+PROMPTS = true,
+```
+
+**Type** `boolean` — read as `PROMPTS ~= false`.
+
+With `false` nothing is shown. Nothing is shown either with
+[`KEYS.STOP`](#keys) set to `false`, or while `opx77_prompts` is not running,
+which is logged once on the client. See
+[The stop key while an animation plays](index.md#stop-prompt).
 
 ## DISABLED {#disabled}
 
@@ -233,8 +264,8 @@ How the picker behaves.
 
 ```lua
 PICKER = {
-  CLOSE_ON_SELECT = true,
-  SHOW_VARIANT_WORDS = true,
+	CLOSE_ON_SELECT = true,
+	SHOW_VARIANT_WORDS = true,
 },
 ```
 
@@ -242,8 +273,44 @@ PICKER = {
 
 | Field | Meaning |
 |---|---|
-| `CLOSE_ON_SELECT` | close the picker once an animation or **Stop** is chosen. Passed to `opx77_menu` as `closeOnSelect` |
+| `CLOSE_ON_SELECT` | close the picker once an animation or **Stop** is chosen. Each row that plays or stops is marked `close` for `opx77_menu`; a row that opens another screen, and **Back**, never close it |
 | `SHOW_VARIANT_WORDS` | show the engine's own clip words beside **Variant n** — `rub chin 1`, `stretch arms 3`. They are identifiers and are never translated |
+
+## KEYS {#keys}
+
+The default keys of the two key mappings.
+
+```lua
+KEYS = {
+	PICKER = 'F3',
+	STOP = 'X',
+},
+```
+
+**Type** `table`
+
+| Field | Fallback | Mapping id | Does |
+|---|---|---|---|
+| `PICKER` | `'F3'` | `opx77_animations.picker` | opens the picker at its root, or closes it when it is up |
+| `STOP` | `'X'` | `opx77_animations.stop` | stops the local player's animation, whoever started it |
+
+Each is a default, not a binding: it is handed to `RegisterKeyMapping`, and a
+player's own rebind in the pause menu's key bindings tab overrides it. `false`
+registers no mapping, and `KEYS.STOP = false` also means no
+[stop prompt](#prompts). An absent field takes its fallback. A value that is
+neither a key name (a string of 1 to 32 characters without spaces) nor `false`
+is named at server boot and replaced by the fallback; the two set to the same key
+keep the picker's alone:
+
+```text
+config: KEYS.PICKER must be a key name or false; using "F3"
+config: KEYS.PICKER and KEYS.STOP are both "F3"; the stop key is not registered
+config: KEYS must be a table; using the default keys
+```
+
+The keys act on the client, not through [`COMMANDS`](#commands), so `RESTRICTED`
+does not gate them. A press while the chat box, a form or the pause menu holds
+the keyboard does nothing. See [Keys](index.md#keys).
 
 ## COMMANDS {#commands}
 
@@ -252,10 +319,10 @@ it on the ACL.
 
 ```lua
 COMMANDS = {
-  ANIM = { NAME = "opx77.anim", RESTRICTED = false },
-  EMOTE = { NAME = "e", RESTRICTED = false },
-  STOP = { NAME = "opx77.anim.stop", RESTRICTED = false },
-  LIST = { NAME = "opx77.anim.list", RESTRICTED = false },
+	ANIM = { NAME = 'opx77.anim', RESTRICTED = false },
+	EMOTE = { NAME = 'e', RESTRICTED = false },
+	STOP = { NAME = 'opx77.anim.stop', RESTRICTED = false },
+	LIST = { NAME = 'opx77.anim.list', RESTRICTED = false },
 },
 ```
 
@@ -282,8 +349,8 @@ See [Commands](commands.md).
 Player-facing text lives in `locales/en.lua` and `locales/fr.lua`, keyed
 `animations.<thing>`, with `{placeholder}` parameters filled from a table. Both
 halves load them: the server renders the command answers and suggestions, the
-client the toasts, the picker and the labels [`list`](exports.md#list) answers
-with.
+client the toasts, the picker, the key mapping names in the pause menu, the stop
+prompt and the labels [`list`](exports.md#list) answers with.
 
 To add a language: copy `locales/en.lua` to `locales/<code>.lua`, change the code
 in the `register` call and translate every value, add
@@ -311,6 +378,13 @@ imposes.
 | List cooldown | `2000 ms` | per player, for `opx77.anim.list` |
 | Offer throttle | `1000 ms` | per player, for a client asking for the offer |
 | Name and clip bounds | `64`, `128` bytes | the longest profile id and clip either half accepts |
+| Picker rows per screen | `40` | past it a screen ends in a disabled *n more not shown* row |
+
+Every cooldown and rate window runs on `OpxAnimations.Common.NowMs`. When
+`Open77.time.monotonic` cannot be read, the server falls back to `GetGameTimer`,
+logging `Open77.time.monotonic unreadable; falling back to GetGameTimer` once, so
+the command cooldowns and the rate window keep expiring; `GetGameTimer` is
+server-only, so a client keeps its last reading.
 
 ## See also {#see-also}
 

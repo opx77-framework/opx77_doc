@@ -7,7 +7,7 @@ description: opx77_input owns the one form on the client — text fields, choice
 
 !!! warning "Early development"
 
-    `opx77_input` is version `0.1.0`. The exports, the payload shape and the
+    `opx77_input` is version `0.2.0`. The exports, the payload shape and the
     error codes are subject to change without notice. Do not build a production
     resource on the current surface.
 
@@ -21,7 +21,7 @@ together, in one form.
 
 | At a glance | |
 |---|---|
-| **Version** | `0.1.0` |
+| **Version** | `0.2.0` |
 | **Requires** | `open77_version ">=0.0.1"`. No `dependency` is declared, and nothing needs to be running for it to start |
 | **Auto start** | yes |
 | **Reload policy** | `reconnect` — swapping a live CEF surface mid-session is unstable, so a generation change reconnects |
@@ -30,7 +30,7 @@ together, in one form.
 | **Exports** | four, all client: [`open`](exports.md#open), [`close`](exports.md#close), [`state`](exports.md#state), [`setStatus`](exports.md#setstatus) |
 | **Commands** | none |
 | **Events** | one local event per form, on the caller's name and on [`opx77:input`](events.md#opx77-input) — see [Events](events.md) |
-| **Reads** | nothing in the framework. [`opx77_charcreator`](../opx77_charcreator/index.md) is its one caller on a stock install |
+| **Reads** | nothing in the framework. [`opx77_charcreator`](../opx77_charcreator/index.md) and [`opx77_admin`](../opx77_admin/index.md) are its callers on a stock install |
 
 ## Why a form, and not one value at a time {#why-a-form}
 
@@ -88,8 +88,10 @@ carries the menu's values. Going from a list to the form it leads to — the
 character roster to the identity form is the stock case — reads as one UI rather
 than a switch to another.
 
-- The strip sits at the menu's [`ANCHOR`](config.md#anchor) and is the menu's
-  [`WIDTH`](config.md#width), with the same slide-in.
+- The strip is the menu's [`WIDTH`](config.md#width), with the same slide-in,
+  but it ships in the **middle of the screen** ([`ANCHOR`](config.md#anchor)
+  `"center"`): a form is a question the player has to answer before anything
+  else happens. The menu's four anchors are still accepted.
 - A title plate carries the yellow accent rule and the scanline.
 - One cut plate per field: the label on the left, the value on the right, and
   `‹›` beside a value that `LEFT` and `RIGHT` change.
@@ -163,7 +165,9 @@ There is one open form on the client, or none.
 - A form never outlives the code that opened it. The caller's generation is read
   from the host on every export call, and a sweep runs once a second while a form
   is open: an owner that stopped or reloaded has its form cancelled within that
-  second, with `owner_reloaded` or `owner_stopped`.
+  second, with `owner_reloaded` or `owner_stopped`. An owner still `starting`
+  counts as alive, so a form opened from its owner's own start handler stays
+  up.
 
 ## Where to go next {#next}
 

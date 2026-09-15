@@ -5,26 +5,29 @@ description: opx77_animations is emotes for OPX//77 — a command, a picker draw
 
 # opx77_animations
 
-Emotes and animations. A player types `/e dance`, or `/e` on its own for a
-categorised picker, and everyone in the routing bucket sees it. Another resource
-plays and stops an animation through [client exports](exports.md).
+Emotes and animations. A player types `/e dance`, or `/e` on its own — or
+presses F3 — for a categorised picker, and everyone in the routing bucket sees
+it. Another resource plays and stops an animation through
+[client exports](exports.md).
 
 | At a glance | |
 |---|---|
-| **Version** | `0.1.0` |
+| **Version** | `0.3.0` |
 | **Requires** | `open77_version ">=0.0.1"`. No `dependency` is declared |
 | **Auto start** | yes |
 | **Reload policy** | `local` — the picker is `opx77_menu`'s surface, not this resource's, and the mirror of who plays what is rebuilt from the service's next snapshot |
-| **Permissions** | `network.events`, `players.animations.control`, `animations.presentation` |
-| **Sides** | server, which decides what is asked of the platform's service; client, which mirrors the service, poses bodies, draws the picker and publishes the exports |
+| **Permissions** | `network.events`, `players.animations.control`, `animations.presentation`, `input.actions` |
+| **Sides** | server, which decides what is asked of the platform's service; client, which mirrors the service, poses bodies, draws the picker, holds the keys and publishes the exports |
 | **Exports** | eight, all client — see [Exports](exports.md) |
 | **Commands** | four, all open as shipped, all renamable — see [Commands](commands.md) |
+| **Keys** | two rebindable mappings: the picker on F3, stop on X — see [Keys](#keys) |
 | **Events** | three local events a caller listens on — see [Events](events.md) |
-| **Optional at runtime** | [`opx77_menu`](../opx77_menu/index.md) for the picker, [`opx77_notify`](../opx77_notify/index.md) for refusal toasts |
+| **Optional at runtime** | [`opx77_menu`](../opx77_menu/index.md) for the picker, [`opx77_notify`](../opx77_notify/index.md) for refusal toasts, [`opx77_prompts`](../opx77_prompts/index.md) for the stop key while an animation plays |
 
 Nothing is declared as a hard dependency. Without `opx77_menu` there is no
 picker, and the commands and exports carry on; without `opx77_notify` a refusal
-is a chat line instead of a toast.
+or a command's answer is a chat line instead of a toast; without
+`opx77_prompts` the stop key is not shown, and one log line says so.
 
 !!! danger "The platform's animation service is the authority, not this resource"
 
@@ -169,6 +172,94 @@ The owner is only remembered for the playback that is running. [`stop`](exports.
 ends the local player's animation whoever started it — a command, the picker, or
 another resource.
 
+## The picker {#picker}
+
+A list drawn by [`opx77_menu`](../opx77_menu/index.md), **one screen at a
+time**:
+
+| Screen | Rows |
+|---|---|
+| root | **Stop**, then one row per category with something offered |
+| a category | its animations: one with a single offered variant plays when chosen, one with several opens its variants screen |
+| an animation's variants | one **Variant n** row per offered variant, with the engine's clip words beside it when [`SHOW_VARIANT_WORDS`](config.md#picker) is on |
+
+Every screen below the root ends in a **Back** row, and Backspace steps up a
+screen as well — on the root it closes the picker, as Escape does anywhere.
+
+**A named category opens its own screen.** `/e <category>`, or
+[`openPicker`](exports.md#openpicker) with a category, puts that category's
+screen up directly, with the root stacked under it and its cursor on that
+category, so **Back** and Backspace return there. A category with nothing
+offered in it has no row on the root, so naming it opens the root; so does `/e`
+with nothing after it and the [picker key](#keys).
+
+Each screen is its own `opx77_menu` `open`, with the stack of screens kept in
+this resource, not a submenu of one tree: the whole catalogue in one menu is past
+the host's bound of 1,024 values on an export call, which drops the call without
+a word. A screen lists at most 40 rows and ends in a disabled *n more not shown*
+row past that; the shipped catalogue comes nowhere near it. Every open replaces
+a picker of this resource's already up.
+
+**A picker that cannot open is a toast as well as a log line**, so the key or
+the command never seems to do nothing:
+
+| Why | The player sees |
+|---|---|
+| another resource's menu is up (`menu_busy`) | *Another menu is open. Close it first.*, as info |
+| `opx77_menu` is not running | the [`menu_not_running`](types.md#animationerror) toast |
+| any other refusal, a refused spec included | *The animation picker could not be opened.*, as a warning |
+
+```text
+picker root did not open: menu_busy
+```
+
+When a lower screen cannot open, the picker stays on the screen still up.
+
+## Keys {#keys}
+
+Two key mappings, declared with `RegisterKeyMapping` when the resource starts:
+
+| Mapping id | Name in the pause menu (`en`) | Default | Does |
+|---|---|---|---|
+| `opx77_animations.picker` | *Animations: open or close the picker* | `F3` | opens the picker at its root, or closes it when it is up |
+| `opx77_animations.stop` | *Animations: stop* | `X` | stops the local player's animation, whoever started it, as the picker's **Stop** row does |
+
+The pause menu's key bindings tab lists both under those names, read from the
+configured locale, and every player can rebind them there.
+[`KEYS.PICKER` and `KEYS.STOP`](config.md#keys) set the defaults a player's own
+rebind overrides, and `false` registers no mapping. A press while another
+surface holds the keyboard — the chat box, a form, the pause menu — does
+nothing; that is read with `Open77.input.isCaptured`, which is why the manifest
+declares `input.actions`.
+
+The keys act on the client, as the [`openPicker`](exports.md#openpicker) and
+[`stop`](exports.md#stop) exports do, not through the commands: `RESTRICTED` on a
+command gates what is typed, and the server applies the same policy to a request
+from a key as to any other. A key's refusal is the same toast the picker shows,
+and its verdict is raised on [`result`](events.md#result) with
+`source = "key"`. A mapping the host refuses is one warning,
+`key mapping <id> (<key>) not registered: <reason>`.
+
+The picker's **Stop** row names the stop key the player actually has, and an open
+root screen is redrawn when a player rebinds it (`open77:keybinds:changed`).
+
+### The stop key while an animation plays {#stop-prompt}
+
+While the local player's own animation plays — looping or not, whoever started
+it — the stop key is shown in [`opx77_prompts`](../opx77_prompts/index.md)'
+strip as *Stop animation*, under the key the player actually has. It follows the
+presenter's mirror, the same state [`state`](exports.md#state) reads, and comes
+down when that says the playback ended; so it needs the presentation natives the
+mirror needs.
+
+Nothing is shown with [`PROMPTS = false`](config.md#prompts), with
+`KEYS.STOP = false` (a prompt with no key has nothing to say), or while
+`opx77_prompts` is not running, which is logged once:
+
+```text
+opx77_prompts is not running; the stop key is not shown
+```
+
 ## Compatibility with the platform's packages {#compatibility}
 
 **`open77_animations`.** This resource does what that package's `/anim` command
@@ -201,7 +292,7 @@ nor replaces.
 | File | Does |
 |---|---|
 | `config.lua` | shared. Every operator setting — see [Configuration](config.md) |
-| `shared/common.lua` | shared. The monotonic clock, the loop guard, and the wire value tests both halves apply |
+| `shared/common.lua` | shared. The clock (`OpxAnimations.Common.NowMs`, with a `GetGameTimer` fallback on the server only), the loop guard, and the wire value tests both halves apply |
 | `shared/locale.lua` | shared. The catalogue, and the `locale(key, params)` every file below it calls |
 | `locales/en.lua`, `locales/fr.lua` | shared. Player-facing text, keyed `animations.<thing>` |
 | `shared/catalogue.lua` | shared. The fifteen animations and their clips |
@@ -211,8 +302,15 @@ nor replaces.
 | `server/main.lua` | the inbound net events, the departure hook, the boot banner |
 | `client/presenter.lua` | the mirror of the service's wire, and the bodies posed from it |
 | `client/main.lua` | requests, verdicts, refusal toasts, export ownership |
-| `client/picker.lua` | the picker, borrowed from `opx77_menu` |
+| `client/keys.lua` | the key mappings, and following a player's rebinds |
+| `client/picker.lua` | the picker, borrowed from `opx77_menu` one screen at a time, its stack of screens, and the two keys' actions |
+| `client/prompt.lua` | the stop key in `opx77_prompts`' strip while the local player's animation plays |
 | `client/exports.lua` | the eight public exports |
+
+The LuaLS types live in `std/types.lua`, with one stub per namespace function
+under `std/client`, `std/server` and `std/shared`; none of it is loaded. Why the
+code is written the way it is — in French — is in the resource's
+`docs/ARCHITECTURE.md`.
 
 ## Permissions {#permissions}
 
@@ -221,6 +319,7 @@ permissions {
   "network.events",
   "players.animations.control",
   "animations.presentation",
+  "input.actions",
 }
 ```
 
@@ -229,6 +328,7 @@ permissions {
 | `network.events` | this resource's own request and answer events both ways, and on the client the service's state and snapshot wire, which the presenter mirrors |
 | `players.animations.control` | server: `Open77.animations.play`, `stop`, `get` and `list` against a player |
 | `animations.presentation` | client: `Open77.animations._context`, and posing streamed bodies with `_playProfile` and `stop`. Only used while this client presents |
+| `input.actions` | client: the two [key mappings](#keys), the key a mapping answers to now, and whether chat or a form holds the keyboard |
 
 Without the server grant, or on a build without the service, every request is
 refused and the server says so once at boot:

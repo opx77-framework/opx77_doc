@@ -15,8 +15,8 @@ description: state, the one read-only client export opx77_weather publishes — 
 
 There is deliberately no export that moves the authority. An authority another resource can
 move is not one — every mutation goes through an ACL-gated [command](commands.md), and the
-only inbound wire event is a request for a snapshot. There is no server export either, here or
-anywhere in OPX//77: the server runtime installs no export machinery at all.
+only inbound wire event is a request for a snapshot. This resource publishes no server export
+either: its server half is reached only through its commands.
 
 ## state {#state}
 
@@ -39,10 +39,10 @@ Takes no arguments.
 | `minute` | `integer` | `0..59` |
 | `second` | `integer` | `0..59` |
 | `secondsOfDay` | `number` | The same instant unrounded, `0..86399.999`. |
-| `weather` | `string` | The configured `NAME`, for example `"rain"`. |
-| `weatherPreset` | `string` | The REDengine preset behind it, for example `"24h_weather_rain"`. |
+| `weather` | `string` | The configured `NAME`, for example `"rain"`. `''` when the authority has no usable preset. |
+| `weatherPreset` | `string` | The REDengine preset behind it, for example `"24h_weather_rain"`. `''` together with `weather`. |
 | `timeFrozen` | `boolean` | The clock is held. |
-| `weatherFrozen` | `boolean` | The roll **schedule** is held. Not the engine's weather lock, which the client keeps taken regardless. |
+| `weatherFrozen` | `boolean` | The roll **schedule** is held. Not the engine's weather lock, which the client keeps taken whenever there is a preset. |
 | `revision` | `integer` | The authority's mutation counter, as of the last accepted snapshot. |
 | `weatherRevision` | `integer` | Bumped only when the preset changes. |
 | `latencyCompensationMs` | `number` | Half the round trip that was added to the last accepted snapshot; `0` for one that arrived as a broadcast. |
@@ -57,7 +57,10 @@ Takes no arguments.
 Both are codes rather than sentences, and [`LOCALE`](config.md#locale) does not reach them: a
 resource that wants to show one to a player renders it through its own catalogue. The same goes
 for `weather` and `weatherPreset`, which are the configured `NAME` and the engine preset, not
-display text.
+display text. The codes are listed as `WeatherError` in the resource's `std/types.lua`.
+
+With no usable preset in the server's weather table, `ok` is still `true` and the time fields
+are live: the authority keeps the clock running, and only the two names come back empty.
 
 **Side** `client export` — callable from any client resource through `Open77.exports.call`.
 Local only: it reads this machine's projection, not the server's state.

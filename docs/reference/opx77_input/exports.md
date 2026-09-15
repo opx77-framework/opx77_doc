@@ -63,7 +63,6 @@ nothing.
 | `input_busy` | Another resource owns the open form. There is no `steal`. |
 | `keyboard_busy` | Another surface already holds the keyboard — chat's composer, the pause menu. |
 | `no_keyboard` | The host refused to give the keyboard to this surface. No form is left open. |
-| `invalid_owner` | The calling resource's name failed name validation. |
 
 **Errors — the form. The spec is refused whole**
 
@@ -101,7 +100,7 @@ nothing.
 | `invalid_placeholder` | `placeholder` is not text, or is longer than 64 characters. |
 | `invalid_charset` | `charset` is not a string. |
 | `unknown_charset` | `charset` names none of the [five sets](form-spec.md#charsets). |
-| `invalid_pattern` | `pattern` is empty, longer than 64 characters, or not a Lua pattern that compiles. |
+| `invalid_pattern` | `pattern` is not a string, is empty, is longer than 64 characters, or is malformed: a trailing lone `%`, a `%b` without its two characters, a `%f` not followed by `[`, an unclosed `[` set, a `)` with no open capture, an unclosed capture, more than 32 captures, or a `%1`..`%9` back reference to a capture not yet closed. See [pattern](form-spec.md#kind-text). |
 | `invalid_value` | A text field's initial `value` is not text, is past `maxLength`, or is refused by the field's own `charset` or `pattern` — a caller's bug, not a player's. |
 
 **Side** `client export` — callable by any client resource through

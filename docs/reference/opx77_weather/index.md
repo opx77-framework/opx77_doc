@@ -10,15 +10,15 @@ is doing; every client is told, and applies it.
 
 | At a glance | |
 |---|---|
-| **Version** | `0.3.0` |
-| **Requires** | `open77_version ">=0.0.1"`. Nothing else in OPX//77 |
+| **Version** | `0.5.0` |
+| **Requires** | `open77_version ">=0.0.1"`. Nothing else in OPX//77; [`opx77_notify`](../opx77_notify/index.md) shows command answers when it runs |
 | **Auto start** | yes |
 | **Reload policy** | `local` — the live authority is carried across a reload. See [below](#carried-state) |
 | **Permissions** | `network.events`, `world.environment` |
 | **Sides** | server, which owns the state and decides, and client, which projects and applies it |
 | **Exports** | one, client-side and read-only — see [Exports](exports.md) |
 | **Commands** | eight — six ACL-gated, two open. See [Commands](commands.md) |
-| **Events** | one snapshot outward, one request inward, and **no mutation event** — see [Events](events.md) |
+| **Events** | one snapshot outward, one request inward, one command answer to its own client half, and **no mutation event** — see [Events](events.md) |
 | **Locales** | `en` and `fr`; [`LOCALE`](config.md#locale) picks one. Logs stay English — see [below](#locales) |
 | **Conflicts with** | `open77_weather`, the official package it replaces. See [below](#official-package-conflict) |
 
@@ -35,17 +35,23 @@ preset name and two freeze flags — and nothing on a client contributes to it. 
 one inbound event, a request for a snapshot, and there is deliberately **no mutation event**: a
 client can ask, and cannot tell.
 
-The authority publishes a snapshot on every mutation and a heartbeat every 5 s when nothing
-has changed. A client answers a snapshot with nothing; it either adopts it or drops it.
+The authority publishes a snapshot on every mutation, a heartbeat every 5 s when nothing
+has changed, and one to each player as they are admitted. A client answers a snapshot with
+nothing; it either adopts it or drops it.
 
 ## The pages {#pages}
 
 - **[Exports](exports.md)** — `state`, the one read-only client export.
 - **[Commands](commands.md)** — the eight staff commands and the ACL keys that gate them.
-- **[Events](events.md)** — the two wire events, the local one every other resource should
-  listen to, and the in-VM one that is not reachable from outside.
+- **[Events](events.md)** — the two wire events, the command answer to the client half, and
+  the local one every other resource should listen to.
 - **[Configuration](config.md)** — `config.lua`, and the cadence constants that deliberately
   are not in it.
+
+The LuaLS types live in the resource's `std/types.lua` (the `WeatherError` codes, the snapshot
+and projection shapes), beside one stub per namespace function under `std/`; none of it is
+loaded at runtime. Why the code is written the way it is — in French — is in its
+`docs/ARCHITECTURE.md`.
 
 ## The authority model {#authority-model}
 
@@ -54,40 +60,57 @@ has changed. A client answers a snapshot with nothing; it either adopts it or dr
 Two counters order the stream:
 
 - **`authorityEpoch`** — which incarnation of the authority this is. It is stamped once, when
-  the server anchors its clock on the first real tick, from the host's monotonic clock in
-  microseconds. A restart produces a new one; a reload carries the old one across.
+  the server anchors its clock — on the first scheduler tick, or earlier if a snapshot has to
+  be built first — from the host's **wall clock**, `Open77.time.unix`, in milliseconds
+  (`OpxWeather.UnixMs`). Only a wall clock keeps rising across a process restart; where there
+  is none it falls back to the monotonic clock in microseconds. A restart produces a new,
+  higher one; a reload carries the old one across.
 - **`revision`** — bumped by every mutation, within one epoch.
 
 A third counter, `weatherRevision`, is bumped only when the preset actually changes, so a
 client can skip a `setWeather` that would repeat what the sky is already doing.
 
+The same wall clock seeds the weather rolls, so a restarted server does not replay the sky it
+rolled last time. Every interval — heartbeats, rolls, cooldowns — stays on the monotonic clock.
+
 A client orders snapshots with those two, in that order:
 
 ```lua
--- client/main.lua, Projection.apply
-if value.authorityEpoch < held.authorityEpoch then return { ok = false, error = "stale" } end
-if value.authorityEpoch == held.authorityEpoch and value.revision < held.revision then
-  return { ok = false, error = "stale" }
+-- client/main.lua, apply
+local held = Projection.state
+if held ~= nil then
+	if value.authorityEpoch < held.authorityEpoch then return end
+	if value.authorityEpoch == held.authorityEpoch and value.revision < held.revision then return end
 end
 ```
 
 A **higher epoch wins outright** — a new server generation is adopted whatever its revision,
 because its revision counter started again at 1 and comparing it against the previous
 generation's would refuse every genuine snapshot. Within one epoch, a lower revision is
-refused as `stale`.
+refused as stale, silently.
 
 Before any of that the snapshot is validated whole, field by field: a wrong `protocol`, a
 non-integer or out-of-range epoch or revision, a `secondsOfDay` outside `0..86399`, a rate
-outside `0 < rate <= Clock.MAX_RATE`, a freeze flag that is not a boolean, an empty `weather` or
-`weatherPreset`, a non-integer `weatherPriority`, a transition outside `0..300` seconds, a
-remaining transition outside `0..300000` ms, a `nextRollInMs` that is present and negative, or a
-`reason` that is not a string. Any one of them and the **whole** snapshot is rejected as
-`invalid_snapshot`, with nothing applied.
+outside `0 < rate <= Clock.MAX_RATE`, a freeze flag that is not a boolean, a `weather` or
+`weatherPreset` that is not a string, only one of the two empty, a non-integer
+`weatherPriority`, a transition outside `0..300` seconds, a remaining transition outside
+`0..300000` ms, a `nextRollInMs` that is present and negative, or a `reason` that is not a
+string. Any one of them and the **whole** snapshot is rejected, with nothing applied and
+`invalid snapshot rejected` in the client log. Both names empty together is valid: it is an
+authority with [no usable preset](#fails-open).
 
-Every number there is tested with `Clock.finite`, which is one test standing in for three
-mistakes: a NaN sits *inside* every bound written above, an infinity sits outside all of them,
-and `% 1 ~= 0` cannot see a non-integer past 2⁵³. A NaN through that gate would hold the clock
-silently; an infinity would raise out of the first `%d` that reached it.
+Every number there is tested with `OpxWeather.Clock.Finite`, and every counter with
+`Clock.Whole`, which builds on it. That is one test standing in for three mistakes: a NaN sits
+*inside* every bound written above, an infinity sits outside all of them, and `% 1 ~= 0` cannot
+see a non-integer past 2⁵³. A NaN through that gate would hold the clock silently; an infinity
+would raise out of the first `%d` that reached it.
+
+The client applies at most one snapshot every 100 ms. One that arrives inside that floor is
+**deferred**, not dropped: it takes a single waiting slot, the latest arrival replacing an
+earlier one, and is applied when the floor ends — unless the resource stopped meanwhile or a
+later snapshot already replaced it. It keeps its own arrival time as its anchor and for the
+latency compensation, and the epoch and revision order still refuses it if it is older than
+what is held.
 
 ### Latency compensation {#latency}
 
@@ -145,11 +168,12 @@ a correction would strobe a whole day every two minutes of game time.
 
 ### The weather lock {#weather-lock}
 
-REDengine runs its own weather cycle. On every accepted snapshot the client takes
-`Open77.environment.setWeatherFrozen(true)`, which stops that cycle running underneath the
-projection, and a thread re-checks the lock every 5 s (`ENFORCE_MS`). A lock found false is
-evidence something else took the sky: the client re-takes it, and re-submits the preset if no
-transition is still running.
+REDengine runs its own weather cycle. On every accepted snapshot that carries a preset the
+client takes `Open77.environment.setWeatherFrozen(true)`, which stops that cycle running
+underneath the projection, and a thread re-checks the lock every 5 s (`ENFORCE_MS`). A lock
+found false is evidence something else took the sky: the client re-takes it, and re-submits
+the preset if no transition is still running. A snapshot with no preset releases the lock
+instead, and the thread leaves it released.
 
 The re-submission is deliberately conditional. An unconditional forced re-apply on every pass
 is not a native no-op — each submission re-evaluates world state, and the platform's own
@@ -166,17 +190,29 @@ drives.
 - **On stop, the world is handed back.** `onClientResourceStop` releases both locks —
   `setTimeFrozen(false)` and `setWeatherFrozen(false)` — so a player left after the resource
   goes away is under the engine's own cycle rather than a held sky with no authority behind it.
+  The client loops check for the stop after each wait, so no slice runs after it to take a
+  lock back, and a snapshot deferred by the 100 ms floor is not applied.
 - **On start, the time lock is released before anything else**, so a client reconnecting into a
   lock an older generation left behind always thaws.
 - **Without the environment natives, the client loads nothing.** It logs
   `environment natives unavailable; restart Cyberpunk to activate them` and returns;
   [`state`](exports.md#state) then answers `environment_unavailable` rather than raising.
 - **With no usable preset row**, the authority reports `ready = false`, every weather mutation
-  answers `no_presets`, and the status line carries a `DEGRADED` marker. The clock still runs.
+  answers `no_presets`, and the status line carries a `DEGRADED` marker. The clock still runs,
+  and clients still get the time: the snapshot goes out with `weather` and `weatherPreset` both
+  `''`, a client accepts it and applies the time, submits no preset, and **releases** the
+  engine's weather lock so REDengine keeps its own cycle rather than a frozen sky.
+  [`state`](exports.md#state) then answers `weather` and `weatherPreset` as `''`.
 - **A loop slice that raises does not end its loop.** Every slice runs inside
-  `OpxWeather.guarded`, which `pcall`s it and logs `<label> slice failed: …` at warn level. A
-  raise from a host call inside a bare `CreateThread` ends that loop for the rest of the
+  `OpxWeather.Guarded`, which `pcall`s it and logs `<label> slice failed: …` at warn level —
+  once per run of failures: the label is logged again only after its loop has had a
+  successful slice, so a native that keeps raising in the 500 ms time loop does not fill the
+  log. A raise from a host call inside a bare `CreateThread` ends that loop for the rest of the
   session, which is the failure this exists to prevent.
+- **A clock that stops answering does not stop the server.** When `Open77.time.monotonic`
+  cannot be read, the server falls back to `GetGameTimer`, with one warning; a frozen clock
+  would stop the heartbeat, every roll and every command cooldown at once. `GetGameTimer` is
+  server-only, so a client in that case keeps its last reading.
 
 ## Reload keeps the sky {#carried-state}
 
@@ -270,13 +306,14 @@ which every file listed below it in `open77.lua` uses. A key missing from the ch
 falls back to `en`, and then to the key itself.
 
 The surface is the whole of what a **player** gets back: the status line and the preset list a
-[command](commands.md) answers with, the refusal sentences, the `usage:` lines and the chat
-completion help. Nothing else moves. Server logs, the answer the server console gets, the
-`reason` on a snapshot and the `error` codes on [`state`](exports.md#state) are English,
-because a code is what integrating code branches on rather than something a player reads.
+[command](commands.md) answers with, the refusal sentences, the `usage:` lines, the `WEATHER`
+title on a toast or chat line, and the chat completion help. Nothing else moves. Server logs,
+the answer the server console gets, the `reason` on a snapshot and the `error` codes on
+[`state`](exports.md#state) are English, because a code is what integrating code branches on
+rather than something a player reads.
 
-The two nearly meet in one place, and deliberately do not. The client half mirrors this
-resource's own [`open77:command:result`](events.md#open77-command-result) answers into the
+The two nearly meet in one place, and deliberately do not. The client half mirrors each of this
+resource's own answers, on [`opx77_weather:notice`](events.md#opx77-weather-notice), into the
 operator log, and the `message` on that event is the player's translated text — so the mirror
 logs the fact instead, in English:
 
@@ -288,19 +325,21 @@ command answered: opx77.weather.set (accepted)
 
 ```lua
 permissions {
-  "network.events",     -- snapshots out, sync requests in
-  "world.environment",  -- Open77.environment.*; client-side only, and only this resource
+  "network.events",
+  "world.environment",
 }
 ```
 
 `network.events` carries the whole protocol: snapshots out to clients, sync requests in from
-them. `world.environment` is what the client half needs to write the sky and the clock —
-`setWeather`, `setTime`, `setWeatherFrozen`, `setTimeFrozen`, `getTime`, `isWeatherFrozen`.
+them, and each command's answer to the client half that shows it. `world.environment` is what
+the client half needs to write the sky and the clock — `setWeather`, `setTime`,
+`setWeatherFrozen`, `setTimeFrozen`, `getTime`, `isWeatherFrozen`.
 
 **`world.environment` is client-side only.** `Open77.environment.*` does not exist in the
 server runtime; the authority never touches the sky, it only describes it. The client half
 checks all six are actually present before loading anything else, because every function below
-that point would otherwise be a call into `nil`.
+that point would otherwise be a call into `nil`. Only the command answers are handled above that
+check, so staff on such a client still hear back.
 
 **And only this resource should hold it.** The environment is a single global and the last
 writer wins. Two resources holding `world.environment` and writing the weather fight each
@@ -340,16 +379,17 @@ There is no export or command collision: `Open77.exports.call` is resource-scope
 naming `open77_weather` can never reach `opx77_weather`; the commands here are all
 `opx77.weather.*`, and the wire events are all `opx77:weather:*`.
 
-The check is a `GetResourceState("open77_weather")` from a deferred thread rather than at file
+The check is a `GetResourceState('open77_weather')` from a deferred thread rather than at file
 scope — a conflicting resource listed after this one in `resources.load` is still `discovered`
-at load time, and the warning would silently depend on load order. Server resources cannot call
-each other on this platform, so asking the host is the only way to ask at all; see
-[Integration channels](../../concepts/integration-channels.md).
+at load time, and the warning would silently depend on load order. The official package
+publishes no server export this resource could ask, so the host's resource state is the
+question to ask; see [Integration channels](../../concepts/integration-channels.md).
 
 ## See also {#see-also}
 
 - [Getting started](../../guides/getting-started.md) — `acl.jsonc`, and the `startup.commands`
   list in `server.jsonc` for pinning the clock at boot.
-- [`opx77_chat`](../opx77_chat/index.md) — where a command's answer is shown.
+- [`opx77_chat`](../opx77_chat/index.md) — where a report is shown.
+- [`opx77_notify`](../opx77_notify/index.md) — where an action's answer is shown, when it runs.
 - [Persistence](../../concepts/persistence.md) — the carried-state bag and the database, and
   which one a given fact belongs in.

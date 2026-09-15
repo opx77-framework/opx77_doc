@@ -436,13 +436,24 @@ your effects down, and none of them needs a line of code from you:
 
 | Trigger | How it is noticed |
 |---|---|
-| Your resource **stops** | `onClientResourceStop` fires with your name and your effects are dropped on the spot, and the sweep below catches it in any case within 250 ms. |
+| Your resource **stops** | `onClientResourceStop` fires with your name and your effects are dropped on the spot, and the owner sweep below catches it in any case within a second. |
 | Your resource **reloads** | The host hands over a generation alongside your name on every export call. A generation that differs from the one last seen means the code that added those effects no longer exists, and they are dropped before the new call is served. The sweep checks the same thing independently. |
 | A deadline **elapses** | The sweep removes the effect and raises [`expired`](events.md#opx77-status). |
 
 The sweep runs every **250 ms**. It looks for effects whose `expiresAtMs` has
-passed, then walks every owner it has ever seen and drops the lot for any whose
-`GetResourceState` is no longer `running` or whose generation has moved.
+passed and, once a second, walks every owner it has ever seen and drops the lot
+for any whose `GetResourceState` is neither `running` nor `starting`, or whose
+generation has moved.
+
+- **`starting` counts as alive.** A resource that calls
+  [`addEffect`](#addeffect) from its own `onClientResourceStart` still reads
+  `starting` at that moment, and keeps its chips. A stopping, stopped or missing
+  owner loses them.
+- **Only a generation that was read and differs retires an owner.** The client's
+  `Open77.resource.generation` answers `nil` for a resource it cannot find (the
+  `0` for an unavailable generation is the server reader's answer), and the
+  sweep ignores both `nil` and `0` rather than treating either as a move. A
+  stopped owner is still caught through its resource state.
 
 !!! warning "A stopped or reloaded owner is removed in silence"
     Expiry raises [`expired`](events.md#opx77-status) and [`removeEffect`](#removeeffect)
@@ -473,3 +484,13 @@ the gauges it drew, rather than leaving them frozen at their last value.
 No owner event is raised for the effects that vanish with it either. An owner's
 handler is free to call straight back into an export, and this VM is halfway
 through stopping.
+
+### And when opx77_core stops {#core-stop}
+
+A restart of `opx77_core` raises no `opx77:client:onPlayerUnloaded`, so this
+resource treats the core's `onClientResourceStop` as the unload: a forced push,
+the character forgotten, and one [`opx77:status:needs`](events.md#status-needs)
+with `source = "unloaded"`. From then on [`getNeeds`](#getneeds) answers
+`no_character` and [`setNeeds`](#setneeds) and [`addNeeds`](#addneeds) answer
+`not_loaded`, until the core loads a character again. The core's own effects, if
+it added any, are dropped like any other stopped owner's.

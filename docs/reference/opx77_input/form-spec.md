@@ -92,8 +92,15 @@ A typed line. The answer is a string, `""` when left empty.
 - charset?: [`InputCharset`](types.md#inputcharset)
     - The characters the field accepts. See [Character sets](#charsets).
 - pattern?: `string`
-    - A Lua pattern the **whole** answer must match. At most 64 characters, and
-      compiled by trying it: a malformed one is refused at `open`.
+    - A Lua pattern the **whole** answer must match: it is anchored at both
+      ends for you, so `%d+` and `^%d+$` mean the same. At most 64 characters.
+    - A malformed pattern is refused at `open` with `invalid_pattern`, checked
+      by its structure rather than by trying it: a trailing lone `%` (`%d%`), a
+      `%b` without its two characters, a `%f` not followed by `[`, an unclosed
+      set, a `)` with no open capture, an unclosed capture, more than 32
+      captures, or a back reference to a capture not yet closed.
+    - A pattern that still raises while matching (too complex for Lua) refuses
+      the answer as a format error, and the first failure per field is logged.
 - required?: `boolean`
     - An empty answer is refused on `ENTER`. Default: `false`.
 

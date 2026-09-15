@@ -11,11 +11,19 @@ Everything lives in `config.lua`, in the global table `OPX_NOTIFY_CONFIG`. It is
 **Every value shown on this page is the shipped default.**
 
 ```lua
+--- @author DemiAutomatic
+--- @file config.lua
+--- @description Defaults for toasts whose definition leaves a field out.
+--- @field POSITION {string} One of the platform's seven positions.
+--- @field DURATION_MS {integer} Milliseconds; 0 is persistent, otherwise 750..120000.
+--- @field PROGRESS {boolean} Draw the lifetime bar on timed toasts.
+--- @field WIDTH {integer} Toast width in pixels on the 1920-wide surface.
+
 OPX_NOTIFY_CONFIG = {
-  POSITION = "top_right",
-  DURATION_MS = 5000,
-  PROGRESS = true,
-  WIDTH = 340,
+	POSITION = 'top_right',
+	DURATION_MS = 5000,
+	PROGRESS = true,
+	WIDTH = 340,
 }
 ```
 
@@ -28,7 +36,7 @@ here never overrides a caller.
 Where a toast goes when its definition does not say.
 
 ```lua
-POSITION = "top_right"
+POSITION = 'top_right'
 ```
 
 **Type** [`NotifyPosition`](types.md#notifyposition) — `"top_left"`,
@@ -85,8 +93,14 @@ PROGRESS = true
 **Type** `boolean`
 
 A persistent toast never draws one whatever this says: there is no lifetime to
-draw. The bar's width is the page's own arithmetic against one absolute deadline,
-so a frame the browser skips costs no accuracy.
+draw. Every timed row the page receives carries `remainingMs`, what is left
+before the Lua deadline when the row is sent, beside `durationMs`. The page
+draws the bar as `remainingMs` over `durationMs`, against a deadline of its own
+set from `remainingMs`, so a frame the browser skips costs no accuracy, and an
+[`update`](exports.md#update) that keeps the deadline, or a toast replayed after
+the page reports ready, continues the bar rather than restarting it. A missing,
+negative or oversized `remainingMs` draws a full bar. Only durations cross to
+the page, never a deadline, so the page and Lua clocks never have to agree.
 
 !!! info "`progress` is stricter here than in the official package"
     The official code computes `definition.progress ~= false`, which is a boolean
@@ -136,13 +150,17 @@ they are not keys.
 `LOCALE`, because this resource renders no words of its own: every title, body
 and icon it draws was handed to it by the caller, in whatever language that
 caller chose. Its error codes are a branching surface rather than text, and its
-`Open77.log` lines stay English. Five resources in this set do carry a
+`Open77.log` lines stay English. Other resources in this set do carry a
 catalogue — see
 [`opx77_core`'s configuration page](../opx77_core/config.md#satellite-locales).
 
 The four **kind accents** are not keys either. `info`, `success`, `warning` and
 `error` are `#22D8E2`, `#4FE3A9`, `#F5C95C` and `#FF5964` — the OPEN//77 signal
-tokens, written in two places that must stay in step: `client/state.lua`, which
-sends the literal down as `color`, and `web/notify.css`, which holds the same four
-as the fallback when a colour fails the page's own `#RRGGBB` check. A caller that
-wants a different accent passes `color` per toast.
+tokens, written in two places that must stay in step. `web/notify.css` holds them
+as the `--notify-kind-*` tokens, and its `.toast.<kind>` rules are what draws a
+toast's accent. `client/state.lua` holds the same four only so that
+[`list`](exports.md#list) can answer each toast's resolved `#RRGGBB`. Lua sends a
+colour to the page only when the caller pinned one with `color`; a row without
+one takes the kind's accent from the stylesheet, and a row that loses its pinned
+colour on an update goes back to it. A caller that wants a different accent
+passes `color` per toast.

@@ -7,7 +7,7 @@ description: The version each OPX//77 resource currently declares, what a versio
 
 Every resource carries its own version, declared on the second line of its
 `open77.lua` and reported by nothing else. There is no framework-wide release
-number: `opx77_core` at `0.3.0` and `opx77_appearance` at `0.6.0` are the
+number: `opx77_core` at `0.3.0` and `opx77_appearance` at `0.8.0` are the
 current state of two independently versioned resources that happen to ship
 together.
 
@@ -31,11 +31,12 @@ together.
 | [`opx77_notify`](reference/opx77_notify/index.md) | `0.2.0` | `reconnect` |
 | [`opx77_weather`](reference/opx77_weather/index.md) | `0.3.0` | `local` |
 | [`opx77_elevators`](reference/opx77_elevators/index.md) | `0.4.0` | `local` |
-| [`opx77_appearance`](reference/opx77_appearance/index.md) | `0.6.0` | `local` |
+| [`opx77_appearance`](reference/opx77_appearance/index.md) | `0.8.0` | `local` |
 | [`opx77_charselector`](reference/opx77_charselector/index.md) | `0.3.0` | `local` |
 | [`opx77_charcreator`](reference/opx77_charcreator/index.md) | `0.1.0` | not declared |
-| [`opx77_animations`](reference/opx77_animations/index.md) | `0.1.0` | `local` |
+| [`opx77_animations`](reference/opx77_animations/index.md) | `0.2.0` | `local` |
 | [`opx77_admin`](reference/opx77_admin/index.md) | `0.1.0` | `local` |
+| [`opx77_inventory`](reference/opx77_inventory/index.md) | `0.1.0` | `reconnect` |
 
 Each of those numbers is read from the resource's own manifest, and each is the
 value [`GetVersion`](reference/opx77_core/exports/client.md#getversion) answers
@@ -64,15 +65,57 @@ compatibility contract.
 
 ## What changed {#changes}
 
-There is no changelog file in any of the fourteen repositories. The commit
+There is no changelog file in any of the fifteen repositories. The commit
 history of each resource is the record, and this documentation is written
 against the code as it stands rather than against a release. If a page and the
 code you have disagree, the code is right and the page is a bug — see
 [Contributing](guides/contributing.md) for how to report or fix one.
 
+### The inventory, remote bodies and the picker {#inventory-round}
+
+The most recent round adds **an inventory**, and moves weapons into it.
+
+| Resource | What changed |
+|---|---|
+| [`opx77_inventory`](reference/opx77_inventory/index.md) `0.1.0` | New. A bag of slots and grams per character, stashes, vehicle storage and piles on the ground, weapons as items, five restricted staff commands, and server exports, stored by `opx77_core` 0.4.0 or later. Its open key is now `I`, and the page closes on that key's release; `I` is also the game's own backpack key — see [Keys](reference/opx77_inventory/index.md#keys). |
+| [`opx77_admin`](reference/opx77_admin/index.md) | Every weapon command but the holster goes through `opx77_inventory`'s server exports, with a `<holder>` that can be a citizen id: `weapon.give <holder> <weapon> [rounds]`, `weapon.ammo <holder> [weapon\|all] [rounds]`, `weapon.remove <holder> <weapon\|all>`, `weapon.read <holder>`. Four new commands, `inventory.view`, `.give`, `.remove` and `.clear`, and an INVENTORY section in the menu with item and bag pickers. `INVENTORY` replaces `WEAPONS` in `config.lua`, `LINKS` gains `INVENTORY_OPEN` and `INVENTORY_HOLDERS`, and `data/weapons.lua` keeps only the classes, with `ROUNDS`. New net events [`items`](reference/opx77_admin/events.md#items) and [`bag`](reference/opx77_admin/events.md#bag). See [Weapons and bags](reference/opx77_admin/index.md#weapons-and-bags). |
+| [`opx77_appearance`](reference/opx77_appearance/index.md) `0.8.0` | No longer client-only: `server/presence.lua` and `client/presence.lua` hand every player's look to the other players, so they are drawn, and again after every world entry and routing bucket change. New key [`PRESENT_BODIES`](reference/opx77_appearance/config.md#present-bodies), new permissions `player.equipment.read` and `puppets.present`. Both halves stand down while the platform's `open77_appearance` runs. |
+| [`opx77_animations`](reference/opx77_animations/index.md) `0.2.0` | The picker opens [one screen at a time](reference/opx77_animations/index.md#picker) — root, category, variants — with a Back row and Backspace; a picker that cannot open raises a toast. |
+
+- **What breaks.** A typed `weapon.give` with a slot or a reserve —
+  `weapon.give 7 ajax 1 600` — now reads `1` as the rounds and ignores the rest;
+  `bad_slot` is gone, and so are `WEAPONS.MAX_RESERVE`, `WEAPONS.FILL_MAGAZINE`
+  and the weapon records, `AMMO` and `RESERVE` of `data/weapons.lua`. A server
+  running `opx77_admin` without `opx77_inventory` has no working weapon command
+  but the holster, and no fallback. A server that ran the platform's
+  `open77_appearance` beside `opx77_appearance` must run one of them.
+- **`opx77_inventory` is documented for the first time**: its
+  [commands](reference/opx77_inventory/commands.md),
+  [configuration](reference/opx77_inventory/config.md) and
+  [exports](reference/opx77_inventory/exports.md).
+
+### The locked stage and the selection bucket {#selection-lock-and-bucket}
+
+The round before it closes two gaps found by playing the world-first entry. The
+mouse could still turn the stage camera under the roster and the creation form,
+and every player choosing a character stood in the shared world, in sight of
+everybody else.
+
+| Resource | Change |
+|---|---|
+| [`opx77_charselector`](reference/opx77_charselector/index.md) | Locks the camera with `Open77.players.freezeRotation` and holds the character with `freezePosition` and the `allow*` blocks, none of which takes `opx77_menu`'s keys — see [the lock and the hold](reference/opx77_charselector/stage.md#lock). New `STAGE.LOCK_CAMERA`, new permission `players.controls`, `cameraLocked` in `state`. The teleport pin is kept as the fallback. |
+| [`opx77_core`](reference/opx77_core/index.md) | Keeps a player with no character loaded in a routing bucket of their own, from connect until a character is placed, and again after an unload — [`ENTRY.BUCKET`](reference/opx77_core/config.md#server-entry-bucket). A stored position in the selection range is placed in the world bucket. |
+| [`opx77_charcreator`](reference/opx77_charcreator/index.md) | Documentation only: the form takes the keyboard, not the mouse. |
+
+**What changes for staff.** `opx77_admin`'s `goto` to a player back on the
+roster after an unload lands in that player's selection bucket; see
+[the note on `goto`](reference/opx77_admin/commands.md#player-goto).
+
+Written against `open77-server-2.31.13+op77.63`.
+
 ### The world-first entry {#world-first-entry}
 
-The most recent round changes **the order a player joins in**. Nothing a server
+The round before it changes **the order a player joins in**. Nothing a server
 resource draws is visible under the platform's loading cover, and the cover
 stays up until the one-shot character bootstrap is spent; the framework spent it
 on the chosen character's body, so the roster that had to choose one was open
@@ -112,6 +155,30 @@ Beside them:
   [Troubleshooting](guides/troubleshooting.md#body-family-cover).
 
 Written against `open77-server-2.31.13+op77.63`.
+
+### Platform changes {#platform}
+
+This site is written against a specific server binary —
+`open77-server-2.31.13+op77.62` and `+op77.63` at the time of writing, as
+[The Open77 platform](concepts/the-platform.md) records — and that page carries
+a list of corrections made by reading the shipped binary rather than the
+platform's website. Those corrections exist because somebody will eventually
+read the website and "fix" OPX//77 in the wrong direction. The same hazard runs
+the other way: when the platform gains something, a correction here can become
+the stale claim.
+
+The platform's **connection control** page did exactly that. What it added, and
+what it made obsolete on this site:
+
+| Added | Consequence here |
+|---|---|
+| `onPlayerConnecting` + `players.gate`, with deferrals | A gate is now a thing a resource can be. New page: [Connection control](concepts/connection-gate.md). |
+| `onPlayerRejected(userId, name, code, message)` | A refused connection is visible to every resource, with no permission. |
+| `reason` on `onPlayerDisconnected` | The event is no longer undocumented and no longer single-argument. Both claims appeared on this site and are corrected. |
+| `Open77.players.identity` | A durable `userId` is readable from any resource, with no permission. |
+| `Open77.players.disconnect` / `ban` | `opx77_core` disconnects a player with no verified identity instead of releasing the gate and stranding them. It is the only entry failure that disconnects. |
+| `Open77.time.unix` / `utc` | **There is a wall clock**, in server resources only. Three pages said there was none, and one taught a persisted cooldown stamped with `OPX.Now()` as good practice. Corrected. |
+| `simulation.connectGateTimeoutSeconds` | A new failure mode worth knowing: [No player can connect at all](guides/troubleshooting.md#nobody-connects). |
 
 ### The export audit {#export-audit}
 

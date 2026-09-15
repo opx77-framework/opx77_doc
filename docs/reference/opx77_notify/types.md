@@ -5,7 +5,7 @@ description: The shapes opx77_notify reads and answers with — the definition s
 
 # Types
 
-The annotations in `types.lua`, as the code actually uses them. Nothing there is
+The annotations in `std/types.lua`, as the code actually uses them. Nothing there is
 loaded at runtime: Lua tables carry no schema, and these are the shapes the
 resource reads and answers with.
 
@@ -127,8 +127,11 @@ the removal event.
 
 ## NotifyEntry {#notifyentry}
 
-One live toast, as [`list`](exports.md#list) answers it and as it reaches the
-page.
+One live toast, as [`list`](exports.md#list) answers it. The row the page
+receives is the same with two differences: `color` is present only when the
+caller pinned one, so the stylesheet draws the kind's accent otherwise, and a
+timed toast's row adds `remainingMs`, what is left of its lifetime when the row
+is sent, from which the page draws the bar.
 
 **Fields**
 
@@ -143,7 +146,7 @@ page.
 | `position` | `NotifyPosition` | |
 | `durationMs` | `integer` | |
 | `progress` | `boolean` | already reduced: `false` whenever `durationMs` is `0` |
-| `color` | `string` | the resolved `#RRGGBB`, never `nil` |
+| `color` | `string` | the resolved `#RRGGBB` — the pinned colour, or the kind's accent — never `nil` |
 
 `owner` and `data` are deliberately absent. You know the first, the page has no
 use for either, and the second is your own table — it comes back on removal

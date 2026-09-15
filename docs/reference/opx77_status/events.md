@@ -26,12 +26,16 @@ opx77:client:onPlayerLoaded              (or, on a start mid-session,
       ▼
 client takes citizenId, values sit at the config defaults, ready = false
       │
-      │──TriggerServerEvent("opx77_status:pull", citizenId)──►  server half
+      │──TriggerServerEvent('opx77_status:pull', citizenId)──►  server half
+      │                                                              │
+      │                                              opx77_core GetIdentity(player):
+      │                                               loaded, and the same citizenId?
       │                                                              │
       │                                                     SELECT needs FROM
       │                                                  opx77_character_status
-      │                                                    (or the defaults)
-      │  ◄──TriggerClientEvent("opx77_status:values", id, values)────┘
+      │                                          (or the defaults; or the push still
+      │                                           held for this same character)
+      │  ◄──TriggerClientEvent('opx77_status:values', id, values)────┘
       ▼
 ready = true, and opx77:status:needs fires with source = "loaded"
       │
@@ -39,27 +43,35 @@ ready = true, and opx77:status:needs fires with source = "loaded"
       │    · hunger and thirst decay every DECAY_MS          → source "decay"
       │    · setNeeds / addNeeds move them                   → source "set"/"add"
       ▼
-      │──TriggerServerEvent("opx77_status:push", id, values)──►  server half
+      │──TriggerServerEvent('opx77_status:push', id, values)──►  server half
       │    every PUSH_MS, or at once when a need moved                │
       │    PUSH_DELTA                                          held in memory,
       │                                                        marked dirty
-      │  ◄──TriggerClientEvent("opx77_status:pushed", id)────────────┘
+      │  ◄──TriggerClientEvent('opx77_status:pushed', id)────────────┘
       ▼
 the drift the push carried is settled; until this arrives it is still counted,
 so a push the server dropped is simply sent again
 
 server writes the held row on onPlayerDisconnected, every AUTOSAVE_MS, on its
-own onResourceStop, and when a second character takes the same player slot —
+own onResourceStop, and when the same player pulls another character —
 never on the push itself
 ```
 
-The last of those is there because **nothing announces a character being put
-down**: on a character swap the server writes the outgoing character's last push
-before the record holding it is replaced, or that push would be dropped with the
-record.
+The last of those is there because the server holds **one record per player**:
+when a pull names a different character, the server writes the outgoing
+character's last push before the record holding it is replaced, or that push
+would be dropped with the record. A pull for the **same** character — picked
+again at the selector, or this resource restarting on the client — is answered
+with the push the server still holds, not the older stored row, and the record
+stays dirty for the next save path.
 
-`opx77:client:onPlayerUnloaded` ends it: the client forgets everything and fires
-[`opx77:status:needs`](#status-needs) once with `source = "unloaded"`.
+`opx77:client:onPlayerUnloaded` ends it: the client sends one **forced** push —
+unloading, unlike disconnecting, is a moment it can still speak — then forgets
+the character and fires [`opx77:status:needs`](#status-needs) once with
+`source = "unloaded"`. The server holds that push like any other and writes it on
+the next save path. An `opx77_core` stop is treated as the same unload, because a
+restart of the core raises no `opx77:client:onPlayerUnloaded`: the same forced
+push, forget and `unloaded` event, and the next `onPlayerLoaded` pulls again.
 
 !!! warning "The disconnect is the one moment the client cannot speak"
     Nothing is sent from the client at disconnect, so what gets saved is the last
@@ -80,15 +92,16 @@ manifest declares `network.events`. Two travel client to server, two travel back
 | [`opx77_status:push`](#net-push) | client → server | `citizenId`, `values` |
 | [`opx77_status:pushed`](#net-pushed) | server → client | `citizenId` |
 
-!!! danger "The citizen id and the values are taken at face value"
+!!! danger "The id is checked; the values are taken at face value"
     The server half checks the *shape* of an id — one to sixteen characters of
-    upper-case letters, digits and `-` — and clamps every value into the bounds in
-    [`config.lua`](config.md#needs) before it reaches a column. It does **not**
-    check that the connection sending the id owns that character, and it does not
-    re-derive the values from anything. A client that lies is believed. This is
-    the project owner's ruling, stated in the resource's README in the same terms,
-    and not a gap to be worked around by a third-party resource raising these
-    names itself.
+    upper-case letters, digits and `-` — and admits a [pull](#net-pull) only for
+    the character `opx77_core` has **loaded** for that connection. A
+    [push](#net-push) only lands on the character that player pulled. It clamps
+    every value into the bounds in [`config.lua`](config.md#needs) before it
+    reaches a column, but it does not re-derive the values from anything: a
+    client that lies about its needs is believed. This is the project owner's
+    ruling, stated in the resource's README in the same terms, and not a gap to
+    be worked around by a third-party resource raising these names itself.
 
 ### opx77_status:pull {#net-pull}
 
@@ -96,23 +109,47 @@ The client naming the character it wants values for. Raised once when a characte
 loads, and again every 10 seconds for as long as the server has not answered.
 
 ```lua
-TriggerServerEvent("opx77_status:pull", citizenId)
+TriggerServerEvent('opx77_status:pull', citizenId)
 ```
 
-The server answers [`opx77_status:values`](#net-values), or **says nothing at
-all**. It stays silent when the id is not shaped like one, when the `CREATE TABLE`
-at boot did not succeed, when the read failed, or when this player has already
-sent four pulls in the last ten seconds. There is no refusal payload; the client's
-retry is what covers every one of those cases.
+**How it is admitted.** The server asks `opx77_core` which character it has in
+play for that player, through the core's server export
+[`GetIdentity`](../opx77_core/exports/server.md#getidentity), awaited on its own
+thread and checked at the three levels (not dispatched, call error, an answer
+without `ok = true`). The pull is admitted only when the answer carries
+`loaded = true` and the **same** `citizenId`. Ownership is the core's to prove:
+it compared the session's account with the character's owner before loading it,
+and it registers the player before raising `opx77:client:onPlayerLoaded`, so the
+pull that follows that event finds it. This resource does not read
+`opx77_characters`.
+
+So a pull for someone else's character, or for one of the player's own
+characters that is not the one in play, is refused and logged. A stopped or
+booting `opx77_core`, or a refusal such as `export.callerDenied`, leaves the pull
+unanswered with a warning. `GetIdentity` is a read export, which the core's
+`EXPORTS.READ` admits for every caller as shipped; an operator who narrows it must
+keep `opx77_status` in it.
+
+**What it answers.** [`opx77_status:values`](#net-values), or **nothing at all**.
+It stays silent when the id is not shaped like one, when the `CREATE TABLE` at
+boot did not succeed, when the core does not confirm the character, when the read
+failed, or when this player has already sent four pulls in the last ten seconds.
+There is no refusal payload; the client's retry is what covers every one of those
+cases.
+
+When the server still holds a push for the **same** character from this player,
+the pull answers that push rather than the stored row, which can be up to
+[`AUTOSAVE_MS`](config.md#autosave-ms) behind. A pull for another character first
+writes the previous character's held push, then answers the new one's row.
 
 ### opx77_status:values {#net-values}
 
-The stored row, or the [configured defaults](config.md#needs) when the character
-has none yet.
+The stored row, the [configured defaults](config.md#needs) when the character
+has none yet, or the push the server still holds for that same character.
 
 ```lua
 -- server → this resource's client half
-TriggerClientEvent("opx77_status:values", player, citizenId, values)
+TriggerClientEvent('opx77_status:values', player, id, values)
 ```
 
 An answer whose `citizenId` is not the one the client is currently waiting on is
@@ -124,10 +161,11 @@ to that need's `DEFAULT`.
 
 The client handing its values back. Sent every [`PUSH_MS`](config.md#push-ms), at
 once when any need has moved [`PUSH_DELTA`](config.md#push-delta) since the last
-acknowledged push, and forced when this resource stops.
+acknowledged push, and forced when this resource stops, when the character
+unloads, and when `opx77_core` stops.
 
 ```lua
-TriggerServerEvent("opx77_status:push", citizenId, values)
+TriggerServerEvent('opx77_status:push', citizenId, values)
 ```
 
 **Nothing is written to the database here.** The server bounds the values, holds
@@ -137,7 +175,9 @@ them in memory as this player's last push, marks them dirty, and answers
 
 A push is dropped in silence when the id is malformed, when the payload is not a
 table, when **not one** of the configured needs came through as a usable number,
-or when this player has already sent twelve pushes in the last ten seconds.
+when the id is not the character this player last pulled, or when this player
+has already sent twelve pushes in the last ten seconds. The bounds are the ones in
+`shared/bounds.lua`, which both halves load.
 
 ### opx77_status:pushed {#net-pushed}
 
@@ -145,7 +185,7 @@ The acknowledgement, and the only thing that settles a push.
 
 ```lua
 -- server → this resource's client half
-TriggerClientEvent("opx77_status:pushed", player, citizenId)
+TriggerClientEvent('opx77_status:pushed', player, id)
 ```
 
 Until it arrives the client still counts the drift that push carried, so a push
@@ -342,7 +382,7 @@ AddEventHandler("opx77:status:needs", function(payload) end)
 | `decay` | The decay pass moved at least one need. |
 | `set` | [`setNeeds`](exports.md#setneeds) moved at least one need. |
 | `add` | [`addNeeds`](exports.md#addneeds) moved at least one need. |
-| `unloaded` | `opx77:client:onPlayerUnloaded` fired. The last event of a character's life. |
+| `unloaded` | `opx77:client:onPlayerUnloaded` fired, or `opx77_core` stopped with a character bound. The last event of a character's life. |
 
 **Nothing else raises it.** A write that changes no value — setting a need to what
 it already was, or adding to one already at its ceiling — publishes nothing, which

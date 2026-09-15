@@ -1,6 +1,6 @@
 ---
 title: Frequently asked questions
-description: Short answers to the questions OPX//77 actually provokes — why a server resource cannot call the core, why every export is client-side and asynchronous, whether ox_lib works, and whether the elevator job check is secure.
+description: Short answers to the questions OPX//77 actually provokes — why a server resource cannot call OPX.GetPlayer but can call the core's server exports, why most exports are client-side and every one asynchronous, whether ox_lib works, and whether the elevator job check is secure.
 ---
 
 # FAQ
@@ -9,22 +9,29 @@ Short answers, each with a link to the page that explains it properly. If you
 are hunting a fault rather than a design decision,
 [Troubleshooting](troubleshooting.md) is organised by symptom.
 
-## Why can't my server resource call the core? {#why-no-server-calls}
+## Why can't my server resource call `OPX.GetPlayer`? {#why-no-server-calls}
 
-Because the OPEN//77 **server** runtime installs no `exports`, no
-`GetInvokingResource` and no cross-resource event bus, and `TriggerEvent` on the
-server walks only its own Lua state. There is no channel between two server
-resources at all — not a slow one, not a restricted one, none.
+Because `OPX` is a plain Lua global in `opx77_core`'s own server VM, and every
+resource runs in a VM of its own. The server API — `OPX.GetPlayer`,
+`OPX.AddMoney`, `OPX.Hooks.register` and the rest — hands out live tables and
+takes functions, and none of it is an export.
 
-This is a platform fact, not an OPX//77 decision. The platform documents it, its
-own gamemode kernel is built around it, and its flagship gamemode `pursuit`
-carries a byte-identical copy of another resource's data file because there is no
-way to share one.
+What a server resource *can* call is a server export. OPEN//77 server resources
+publish them with `exports` and call them with `Open77.exports.call`, the same
+asynchronous surface as on the client, and `opx77_core` publishes
+[eleven](../reference/opx77_core/exports/server.md): `GetIdentity`,
+`GetChanges`, `GetVehiclePlate` and `GetVersion` for any server resource its
+`EXPORTS.READ` admits, and seven inventory storage exports for a caller its
+`EXPORTS.CALLERS` grants a scope. `opx77_status` asks `GetIdentity` which
+character a player has loaded; `opx77_admin` calls
+[`opx77_inventory`'s server exports](../reference/opx77_inventory/exports.md#server).
+What no server export answers is a character's money, job or metadata, and no
+export can veto anything.
 
-What to do instead: put your code in `opx77_core/server/` as a file plus a
-manifest line — see [Writing a server plugin](writing-a-server-plugin.md) — or
-route through your own client half, or read the database. All three, ranked, are
-in [Integration channels](../concepts/integration-channels.md).
+For those: put your code in `opx77_core/server/` as a file plus a manifest line —
+see [Writing a server plugin](writing-a-server-plugin.md) — or route through your
+own client half, or read the database. The options, ranked, are in
+[Integration channels](../concepts/integration-channels.md).
 
 ## Where is `ESX.GetSharedObject`? {#where-is-getsharedobject}
 
@@ -40,9 +47,10 @@ all; you name the resource on every call:
 local promise = Open77.exports.call("opx77_core", "GetPlayerData")
 ```
 
-On the server there is no object to fetch because there is nothing to fetch it
-from. `OPX` is a plain global living in one Lua state, and code that needs it has
-to be compiled into that state. See
+On the server there is no object to fetch either. `OPX` is a plain global living
+in one Lua state, and code that needs it has to be compiled into that state; what
+the core offers other server resources is a handful of server exports, called by
+name the same way. See
 [Converting from ESX or Qbox](converting.md#getting-the-framework).
 
 ## Why is every export asynchronous? {#why-async}
@@ -52,23 +60,29 @@ inline. `Open77.exports.call` hands you a promise; `promise:await()` resolves it
 and `await` is coroutine-only, so every call site is inside a `CreateThread`.
 
 The cost is real and the benefit is that a resource cannot be blocked by another
-resource's handler. It also means an **export handler cannot itself await**,
-because a handler is not a coroutine — an export that needs to call out queues
-the work and answers "asked", which is why `opx77_elevators`' `openPanel` export
-returns `{ ok = true, queued = true }` rather than "the menu is on screen".
+resource's handler. On the client it also means an **export handler cannot
+itself await**, because a handler is not a coroutine — an export that needs to
+call out queues the work and answers "asked", which is why `opx77_elevators`'
+`openPanel` export returns `{ ok = true, queued = true }` rather than "the menu is
+on screen". A server export runs as a managed coroutine on the target's
+scheduler, and may await.
 
 See [The export contract](../concepts/export-contract.md).
 
-## Why is every OPX//77 export client-side? {#why-client-side}
+## Why are most OPX//77 exports client-side? {#why-client-side}
 
-Because the client is the only runtime that has `exports` and
-`GetInvokingResource` to publish them with. It is not that the server side was
-left for later — there is no `exports` function in the server VM to call.
+Because what a satellite asks about is mostly the local player: the loaded
+character, a menu, a toast, a prompt. `GetPlayerData`, `HasJob` and `HasGang`
+read the core's client mirror, and every drawing service lives with its WebUI
+surface on the client. Server exports exist too — `opx77_core` publishes identity,
+a change cursor, a vehicle's plate and the inventory storage, and
+`opx77_inventory` publishes its bag operations — but they answer only what they
+list.
 
 The consequence catches everyone arriving from FiveM: a **server** resource that
-needs core data cannot ask for it. It sends a net event to its own client half,
-which calls the export, and the client sends the answer back — and the answer
-therefore came from the player's machine and is a hint, not proof.
+needs a character's job cannot ask the core for it. It sends a net event to its
+own client half, which calls the export, and the client sends the answer back —
+and the answer therefore came from the player's machine and is a hint, not proof.
 
 ## Why does every export answer `{ ok = boolean, ... }`? {#why-ok-tables}
 
@@ -78,21 +92,23 @@ error class of yours. A plain table with a boolean and a short stable string cod
 is the only shape that survives the trip and can still be branched on.
 
 It also means an export never raises. A refusal is a value, so a caller that
-checks `result.ok` has handled every case the target can produce — and a caller
-that does *not* check it gets a table with `ok = false` rather than a nil that
-looks like an empty answer.
+treats anything but `ok == true` as a refusal — `if result.ok ~= true then` —
+has handled every case the target can produce, including an answer that carries
+no `ok` at all. A caller that does *not* check it gets a table with `ok = false`
+rather than a nil that looks like an empty answer.
 
 ## Is there a server callback, like `ESX.RegisterServerCallback` or `lib.callback`? {#no-callbacks}
 
-No, and there cannot be one across resources. Both of those libraries work by
-being loaded into your resource and reaching the core with a cross-resource call
-at the far end; neither half exists here.
+No, and there cannot be one across resources. Both of those libraries are loaded
+into your resource and hand the far end a closure to call back; there is no
+library to load into another resource's VM here, and a function cannot cross a
+resource boundary.
 
 Within one resource, a client asking its own server half a question is a pair of
 net events with a correlation id, and you write it yourself — it is about a dozen
-lines. Between two client resources, `Open77.exports.call` already returns a
-promise, so that case is solved. Between two server resources, there is no
-channel. See
+lines. Between two client resources, or two server resources,
+`Open77.exports.call` already returns a promise, so that case is solved for
+whatever the target exports. See
 [Converting from ESX or Qbox](converting.md#no-server-callbacks).
 
 ## Why are there two sets of event names for the same thing? {#two-event-vocabularies}
@@ -124,29 +140,33 @@ Port the *idea*, not the file. `opx77_menu` is the context-menu equivalent,
 [`opx77_notify`](../reference/opx77_notify/index.md) is the toast service, and
 [Converting from ESX or Qbox](converting.md) maps the rest.
 
-## Why is there no inventory? {#why-is-there-no-inventory}
+## Is there an inventory? {#why-is-there-no-inventory}
 
-Because an inventory is a large, opinionated system that every server wants
-differently, and shipping one badly is worse than not shipping one. ESX's costs a
-database row per item per player *including zero counts*; Qbox delegates to
-`ox_inventory` and inherits its shape.
+Yes: [`opx77_inventory`](../reference/opx77_inventory/index.md). A character
+carries a bag of slots and grams; stashes, vehicle trunks and gloveboxes, and
+piles on the ground sit beside it on one screen; weapons are items, drawn by
+using them. The server is the only authority on what a container holds, and the
+resource owns no table of its own: `opx77_core` stores every container and every
+stack, and needs to be 0.4.0 or later for it.
 
-OPX//77 ships characters, money, jobs, gangs, metadata and persistence, and
-nothing that pretends to be an item system. If you build one, its authoritative
-half belongs in `opx77_core/server/` alongside the money it will need — see
-[Writing a server plugin](writing-a-server-plugin.md) — and `metadata` is where
-per-character state already lives.
+Another server resource changes a bag through its
+[server exports](../reference/opx77_inventory/exports.md#server) — a shop charges
+through the core and calls `AddItem` — once it is listed in
+[`EXPORTS.WRITERS`](../reference/opx77_inventory/config.md#exports). Money stays
+in `opx77_core` and is not an item, and worn clothing is not an item either.
 
 ## Is the job check on the elevators secure? {#elevator-security}
 
-**No,** and the resource says so in four places: its README, its `config.lua`, its
-`types.lua` and its `client/main.lua`.
+**No,** and the resource says so: at the top of its README, and again in its
+`std/types.lua` and its `docs/ARCHITECTURE.md`.
 
 The job gate on `opx77_elevators` is decided on the **client**, from the client's
 own mirror of `PlayerData`. A modified client skips the whole of it. There is no
-setting that turns it into anything else, and there cannot be one, because the
-resource's server half cannot ask `opx77_core` who the player is — see
-[the first question on this page](#why-no-server-calls).
+setting that turns it into anything else, because the resource's server half
+cannot ask `opx77_core` which job a character holds: none of the core's server
+exports answers it — see [the first question on this page](#why-no-server-calls).
+The server half re-derives everything else: the elevator, the floor, the
+player's position and routing bucket, and the rate.
 
 That is the right trade for an elevator: the cost of a bypass is reaching a floor
 early. It is emphatically **not** the right trade for money, contraband, or
@@ -162,8 +182,11 @@ allowed to *do*.
 
 ## Do I really need an appearance resource? {#need-appearance}
 
-For OPX//77 itself, no: the core neither reads `Open77.ready.isReady` nor waits
-for `onPlayerReady`, so characters load and are placed without one.
+For OPX//77 itself, no: the core never waits on `Open77.ready.isReady` or
+`onPlayerReady`, so characters load and are placed without one. It only reads
+the gate at a client's `opx77:server:ready`, to put a player still behind it
+back in their own selection bucket, and logs `onPlayerReady` when a gate opened
+on lost liveness.
 
 For the platform's readiness gate, yes. Every joiner holds a `__platform` hold
 that no Lua can release and that has no deadline; it clears only when the client
@@ -172,8 +195,15 @@ sends `open77:session:gameplayReady`. In this resource set
 and it ships with the framework — so on a stock install this is already handled.
 Stop it, or run the set without it, and the gate never opens for anybody: any
 resource written to wait on it waits for ever. The official `open77_appearance`
-satisfies the same requirement, and the core's boot check accepts either name.
-See [Getting started](getting-started.md#the-appearance-requirement).
+sends the announcement too, and the core's boot check accepts either name, but it
+is not a replacement for this one: it follows the platform's own join model, and
+running both conflicts — they fight over the bootstrap and the face. Run one. See
+[Getting started](getting-started.md#the-appearance-requirement).
+
+And for seeing each other, yes. The engine does not replicate a player's look,
+and another client draws a player only from the body, equipment and outfit it is
+handed; `opx77_appearance` hands every player's look to the others. See
+[How other players see this one](../reference/opx77_appearance/index.md#presence).
 
 And for the join itself, yes again. The platform's loading cover stays up until
 something spends the one-shot character bootstrap, and nothing a server resource
@@ -203,15 +233,19 @@ and will not warn — it simply never runs, which is the worst kind of dead code
 
 ## Why is the server side one resource instead of a core plus plug-ins? {#one-server-resource}
 
-Because a plug-in resource on this platform could never be asked for anything and
-could never ask the core for anything. Splitting the server side into resources
-would produce several mutually unreachable Lua states, which is strictly worse
-than one reachable one.
+Because the server API is not data. A plug-in works on a `Player` with its
+`Functions`, vetoes a money movement with a hook function, and reads `OPX.Events`
+raised with `TriggerEvent` — and a function cannot cross an export, while
+`TriggerEvent` on the server walks only its own VM. Split into resources, those
+plug-ins would each be left with what the core chooses to export, which is plain
+data and nothing that can veto.
 
-The client side is the opposite and is split properly: client exports exist,
-`GetInvokingResource` exists, and the client's local event bus is host-wide. That
-asymmetry is the single most important thing to understand about this platform,
-and [Architecture](../concepts/architecture.md) is the long version.
+So the core stays one server resource with a file-based plug-in convention, and
+publishes server exports only for what a separate server resource needs:
+identity, a change cursor, a vehicle's plate and the inventory storage. The
+client side is split properly into satellites: client exports and
+`GetInvokingResource` exist there, and the client's local event bus is host-wide.
+[Architecture](../concepts/architecture.md) is the long version.
 
 ## Where do I find every export, event and config key? {#where-is-the-reference}
 

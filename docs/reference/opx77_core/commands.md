@@ -31,9 +31,29 @@ Commands are typed into the OPEN//77 developer terminal (`²`) in game, or sent
 as a slash command by a chat resource. Either way the client sends
 `open77:command:execute` to the host's authenticated dispatcher, which resolves
 the ACL **before any Lua runs**; `opx77_chat` is not in that path and stopping it
-changes nothing here. Answers come back on `open77:command:result`. The
-dedicated server console runs as `source = 0` and stays authorised for local
-administration.
+changes nothing here. The dedicated server console runs as `source = 0` and
+stays authorised for local administration.
+
+A command answers what it **did** as a toast and what it **reads** as a chat
+line, and neither on `open77:command:result`, whose accepted answers
+`opx77_chat` does not print:
+
+- **An outcome is a toast.** Selecting, creating or deleting a character,
+  clocking in, a money, job or gang edit and a save are answered through
+  [`OPX.CommandNotice`](server-api.md#commandnotice), raised by the core's client
+  half through `opx77_notify` at `NOTIFY_POSITION`: a success; a warning for a
+  usage line, a player with no session or a command run again too fast; an
+  error when it could not be done.
+- **A report is a chat line.** `opx77`, `opx77.where`, `opx77.whois`,
+  `opx77.here`, the `opx77.characters` list and the `opx77.group` list are
+  things someone asked to read — scrolled back, compared, pasted — so they are
+  sent with `chat:addMessage` through
+  [`OPX.CommandResult`](server-api.md#commandresult). Their bodies stay English
+  where this page says so.
+
+`opx77_notify` stays optional: while it is not running a toast is the chat line
+it replaced, and the client log says so once. The console reads every answer as
+a printed line.
 
 !!! warning "`command.opx77.*` does not grant `command.opx77`"
     A trailing wildcard matches the segment after the dot. `command.opx77.*`
@@ -76,9 +96,9 @@ report that nothing loads.
 ### Example {#opx77-example}
 
 ```text
-opx77_core 0.3.0 -- 2 character(s) in the world, 3 session(s) connected
-  1    NC-4B2K-7Q V Sinclair  Mercenary
-  4    NC-9T1M-2X Jack Welles  Fixer
+opx77_core 0.6.0 -- 2 character(s) in the world, 3 session(s) connected
+  1    H7K-M4X3   V Sinclair  Mercenary
+  4    C9T-MW4J   Jack Welles  Fixer
 ```
 
 ---
@@ -95,7 +115,8 @@ position, job, gang and every balance — all of it what the **server** believes
 ```
 
 - playerId?: `integer`
-    - Defaults to the caller. A player with no session is reported as such.
+    - Defaults to the caller. A player with no session is answered with
+      `command.noSession`, a warning toast, and no report.
 
 A report that agreed with the client would be useless for diagnosing a
 disagreement between the two, so every line here is read server-side:
@@ -120,7 +141,8 @@ wants for `DEFAULT_SPAWN`, ready to paste.
 ```
 
 Takes no arguments. Must be run in game: the console has no position, and
-answers `opx77.here must be run in game`.
+prints `opx77.here must be run in game`. A position the host will not read
+right now is answered with `command.positionUnreadable`, an error toast.
 
 The heading is the last one the client reported, which is a hint the server
 keeps precisely because its own position snapshot carries none. A transposed
@@ -152,7 +174,8 @@ Prints a player's temporary id, their durable `userId` and their display name.
 ```
 
 - playerId?: `integer`
-    - Defaults to the caller.
+    - Defaults to the caller. A player with no session is answered with
+      `command.noSession`, a warning toast.
 
 The `userId` is the account, not the character, and it is what
 `SLOTS_BY_USER` is keyed on and what an ACL principal is written against. The
@@ -163,7 +186,7 @@ player id is recycled; the `userId` is not. See [Identity](../../concepts/identi
 ## List your characters {#opx77-characters}
 
 Prints the caller's own characters, and re-sends the selection roster to their
-client as a side effect.
+client as a side effect while no character is loaded.
 
 **No permission required.** Any connected player may run this. It acts only on
 the caller's own account.
@@ -172,12 +195,26 @@ the caller's own account.
 /opx77.characters
 ```
 
-Takes no arguments. Must be run in game.
+Takes no arguments. Must be run in game; the console is answered
+`command.inGameOnly`.
 
 Cooled at one run per two seconds per player, sharing its window with the
 `opx77:server:ready` net event: a second run inside it answers `error.tooFast`
 and does nothing. The two entry points share one window deliberately, rather
-than each granting a fresh one.
+than each granting a fresh one. The roster send behind it is cooled again, at
+the same rate, under its own `roster` key.
+
+A player who has a character loaded still reads the list, but no roster goes to
+their client: a selection screen opened over a character already playing would
+be wrong.
+
+**Errors**
+
+| Code | Meaning |
+|---|---|
+| `error.tooFast` | Run again inside one of the two windows. |
+| `entry.noIdentity` | The connection has no verified session. |
+| `error.unavailable` | The core booted degraded, or the database would not answer. |
 
 ---
 
@@ -198,7 +235,8 @@ belonging to another account answers `character.notFound`.
 ```
 
 - citizenId: `string`
-    - As printed by [`/opx77.characters`](#opx77-characters).
+    - As printed by [`/opx77.characters`](#opx77-characters). A missing
+      argument, or a run from the console, answers the usage line.
 
 Two cooldowns stand in front of it. The command doorway is cooled at one run per
 second per player and shares that window with the
@@ -214,7 +252,7 @@ reachable from both.
 | `entry.noIdentity` | The connection has no verified session. |
 | `character.notFound` | No such character, or it belongs to another account — the same code either way, because "not yours" would be an existence oracle. |
 | `character.inUse` | That character is already loaded on another connection. |
-| `error.unavailable` | The database would not answer, or the outgoing character could not be saved. |
+| `error.unavailable` | The core booted degraded, the database would not answer, or the outgoing character could not be saved. |
 
 ---
 
@@ -240,10 +278,14 @@ given.
     - `female` or `male`.
     - Default: `female`
 - birthDate?: `string`
-    - Accepted as a fifth argument, though the usage line does not advertise it.
-      Shape-checked against `YYYY-MM-DD` and never parsed — the sandbox removes
-      `os`, so there is no clock to check it against — and anything else is
-      replaced with `2050-01-01` rather than refused.
+    - `YYYY-MM-DD`. The usage line does not advertise it; the chat
+      autocomplete does. A date of that shape must be a real day from 1900 on —
+      a month from 1 to 12, a day within the month, February up to 29 — or the
+      creation is refused with `character.badBirthdate`. A missing argument, or
+      one of another shape, becomes `2050-01-01`. Nothing checks that the date
+      is not in the future.
+
+A missing name, or a run from the console, answers the usage line.
 
 The command doorway is cooled at one run per second per player, sharing that
 window with the `opx77:server:createCharacter` net event. The write itself is
@@ -256,16 +298,18 @@ so a player fixing a mistyped name is never made to wait.
 |---|---|
 | `error.tooFast` | Run again inside one of the two windows. |
 | `entry.noIdentity` | The connection has no verified session. |
-| `error.badRequest` | The payload or the gender field was unusable. |
+| `error.badRequest` | The gender field was not `female` or `male`. |
 | `character.badName` | A name failed the length or alphabet check. |
 | `character.badOrigin` | Not one of the three shipped lifepaths. |
+| `character.badBirthdate` | A `YYYY-MM-DD` date that is not a real day from 1900 on. |
 | `character.rowLimit` | The account is at its ceiling of character **rows**, deleted ones included. |
-| `character.limit` | Every character slot on the account is taken. |
-| `error.unavailable` | The database would not answer, or no free citizen id came up in five draws. |
+| `character.limit` | Every character slot on the account is taken. The toast names the account's own slot count — `You already have 3 characters.` — from `CHARACTERS.DEFAULT_SLOTS`, or from the account's entry in `SLOTS_BY_USER`. |
+| `error.unavailable` | The core booted degraded, the database would not answer, or no free citizen id came up in five draws. |
 
-This command is unrestricted, so it prints the locale line for a refusal and
+This command is unrestricted, so a refusal shows the locale line and
 never the `detail` beside it — a detail can be a raw exception, and an
-unrestricted command is not the place to hand one to a player.
+unrestricted command is not the place to hand one to a player. The one value
+it fills in is the slot count of `character.limit`.
 
 ---
 
@@ -289,6 +333,7 @@ belonging to another account answers `character.notFound`.
 ```
 
 - citizenId: `string`
+    - A missing argument, or a run from the console, answers the usage line.
 
 The command doorway is cooled at one run per second per player, sharing that
 window with the `opx77:server:deleteCharacter` net event; the deletion itself is
@@ -320,10 +365,14 @@ Toggles the caller's duty state on their primary job.
 
 Takes no arguments.
 
-Cooled at one run per two seconds per player. The refusal for this one arrives
-as an on-screen notification rather than a command result, because each run
-costs two full-`PlayerData` outbound events and the player needs to see why the
-second one did nothing.
+Cooled at one run per two seconds per player, because each run costs two
+full-`PlayerData` outbound events; a second run inside the window answers
+`error.tooFast`, a warning toast, like every other command here.
+
+A success is toasted once, not twice: `OPX.SetJobDuty` already tells the player
+they are on or off duty, so the command's own answer is sent with `toasted` set
+and only becomes a chat line on a client without `opx77_notify`. See
+[`OPX.CommandNotice`](server-api.md#commandnotice).
 
 **Errors**
 
@@ -401,9 +450,14 @@ the previous job.
 
 | Code | Meaning |
 |---|---|
-| `job.notFound` | No job of that name in `data/jobs.lua`. |
-| `job.gradeNotFound` | The job exists; that grade does not. |
+| `job.notFound` | No job of that name in `data/jobs.lua`. The toast adds the name asked for: `No such job. (nope)`. |
+| `job.gradeNotFound` | The job exists; that grade does not. The toast adds `<job>:<grade>`. |
 | `error.unavailable` | The membership write failed. |
+
+A failure whose code is not a catalogue key — a storage failure, most often — is
+answered `error.unavailable`, *"That is unavailable right now."*, and its real
+code and detail go to the server log as a `[commands]` warning. A staff member
+never reads a raw storage code or a MySQL exception in a toast.
 
 ---
 
@@ -430,9 +484,9 @@ already a member.
 
 | Code | Meaning |
 |---|---|
-| `gang.notFound` | No gang of that name in `data/gangs.lua`. |
-| `gang.gradeNotFound` | The gang exists; that grade does not. |
-| `error.unavailable` | The membership write failed. |
+| `gang.notFound` | No gang of that name in `data/gangs.lua`. The toast adds the name asked for. |
+| `gang.gradeNotFound` | The gang exists; that grade does not. The toast adds `<gang>:<grade>`. |
+| `error.unavailable` | The membership write failed; the real code and detail are in the server log, as for [`opx77.job`](#opx77-job). |
 
 ---
 
@@ -447,20 +501,20 @@ Prints everyone who holds a job or gang, online or not, with their grade.
 ```
 
 - job|gang: `string`
-    - Literally `job` or `gang`. Anything else prints the usage line.
+    - Literally `job` or `gang`. Anything else answers the usage line, as a
+      warning toast.
 - name: `string`
-    - The group key.
+    - The group key. A missing name answers the usage line.
 
 This reads the membership table rather than the loaded roster, so it lists
 offline characters too — which is what makes it the right command for auditing
-who can open a boss menu.
+who can open a boss menu. The list is a chat line; a failure is a toast.
 
 **Errors**
 
 | Code | Meaning |
 |---|---|
-| `error.badRequest` | The first argument was neither `job` nor `gang`. |
-| `error.unavailable` | The database would not answer. |
+| `error.unavailable` | The database would not answer. The storage code and its detail go to the server log, not to the toast. |
 
 ---
 
@@ -485,14 +539,22 @@ rather than named — read the server log for which one.
 
 ## Chat autocomplete {#chat-suggestions}
 
-The core sends suggestions for the five unrestricted commands when a chat
-resource announces itself with `chat:ready`, rather than at boot: suggestions
-sent before that resource's surface exists land nowhere. The send is cooled at
-one per ten seconds per player, because `chat:ready` is a net event anybody can
-raise and the answer is several hundred bytes.
+The core sends its suggestions when a chat resource announces itself with
+`chat:ready`, rather than at boot: suggestions sent before that resource's
+surface exists land nowhere. The send is cooled at one per ten seconds per
+player, because `chat:ready` is a net event anybody can raise and the answer is
+several hundred bytes.
 
-No restricted command is suggested. A suggestion is a hint in a text box, not a
-grant.
+Every one of the five unrestricted commands is suggested. A restricted command
+is suggested only to a player the ACL grants it, asked with
+`Open77.acl.isAllowed(player, "command.<name>")` — the one reason the manifest
+requests [`acl.read`](permissions.md#acl-read). Each suggestion carries a line of
+help and a help line per argument, from the core's catalogue in the configured
+locale: the money types the server runs, the name bounds, and the defaults of
+`/opx77.create`'s optional arguments are filled in.
+
+A suggestion is a hint in a text box, not a grant: the host still resolves the
+ACL when the command runs.
 
 ## Where to go next {#next}
 

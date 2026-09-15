@@ -10,15 +10,27 @@ loaded first by the manifest. **Every value shown on this page is the shipped
 default.**
 
 ```lua
+--- @author DemiAutomatic
+--- @file config.lua
+--- @description Event names, handoffs to other resources, and the registration deadline.
+--- @field LOCALE {string} Catalogue for player-facing text: 'en' or 'fr'.
+--- @field EVENT {string} Client event this resource publishes its decisions on.
+--- @field SELECTOR_EVENT {string} Must match OPX_CHARSELECTOR_CONFIG.EVENT.
+--- @field APPEARANCE_EVENT {string} Must match OPX_APPEARANCE_CONFIG.EVENT.
+--- @field ANSWER_NEEDS_CREATION {boolean} Answer needsCreation by calling opx77_appearance's openCreator.
+--- @field RETURN_TO_SELECTOR {boolean} Put the selection screen back up when a creation ends.
+--- @field HOLD_STAGE {boolean} Hold opx77_charselector's stage while a character is built.
+--- @field REQUEST_TIMEOUT_MS {integer} Milliseconds before an unanswered registration reopens the form.
+
 OPX_CHARCREATOR_CONFIG = {
-  LOCALE = "en",
-  EVENT = "opx77:charcreator",
-  SELECTOR_EVENT = "opx77:charselector",
-  APPEARANCE_EVENT = "opx77:appearance",
-  ANSWER_NEEDS_CREATION = true,
-  RETURN_TO_SELECTOR = true,
-  HOLD_STAGE = true,
-  REQUEST_TIMEOUT_MS = 20000,
+	LOCALE = 'en',
+	EVENT = 'opx77:charcreator',
+	SELECTOR_EVENT = 'opx77:charselector',
+	APPEARANCE_EVENT = 'opx77:appearance',
+	ANSWER_NEEDS_CREATION = true,
+	RETURN_TO_SELECTOR = true,
+	HOLD_STAGE = true,
+	REQUEST_TIMEOUT_MS = 20000,
 }
 ```
 
@@ -34,7 +46,7 @@ OPX_CHARCREATOR_CONFIG = {
 Which `locales/<code>.lua` catalogue player-facing text is read from.
 
 ```lua
-LOCALE = "en"
+LOCALE = 'en'
 ```
 
 **Type** `string` — `"en"` or `"fr"` as shipped. See [Locales](#locales).
@@ -44,7 +56,7 @@ LOCALE = "en"
 The client event raised after every decision this resource reaches.
 
 ```lua
-EVENT = "opx77:charcreator"
+EVENT = 'opx77:charcreator'
 ```
 
 **Type** `string` — a name of its own.
@@ -60,7 +72,7 @@ channel — and the boot logs one error.
 The channel `opx77_charselector` raises `createRequested` on.
 
 ```lua
-SELECTOR_EVENT = "opx77:charselector"
+SELECTOR_EVENT = 'opx77:charselector'
 ```
 
 **Type** `string` — must match
@@ -74,7 +86,7 @@ A value that is not a string is read as the shipped name, because
 The channel `opx77_appearance` publishes its decisions on.
 
 ```lua
-APPEARANCE_EVENT = "opx77:appearance"
+APPEARANCE_EVENT = 'opx77:appearance'
 ```
 
 **Type** `string` — must match `OPX_APPEARANCE_CONFIG.EVENT` in that resource.
@@ -156,6 +168,15 @@ player looking at nothing. Past the deadline the form reopens on `firstName` wit
 *Nothing answered. Try again.* A value that is not a positive number turns the
 deadline off.
 
+The deadline is one `SetTimeout` armed when the registration is sent, for this
+many milliseconds rounded up; it reopens the form only while that same
+registration is still out. A duration the host refuses leaves that registration
+without a deadline, with one warning:
+
+```text
+the registration deadline could not be armed: <reason>
+```
+
 ## Locales {#locales}
 
 `locales/en.lua` and `locales/fr.lua`. The catalogue carries the form's title,
@@ -176,8 +197,7 @@ setting.
 
 | Constant | Value | What it is |
 |---|---|---|
-| `IDLE_MS` | `250` | How often the registration deadline is checked. |
 | `RETURN_GRACE_MS` | `1000` | How long a creation that made a character leaves the roster to come back on its own. |
 | Name bounds | `2`–`32` | Used until `opx77_core`'s `GetSharedConfig` answers with its own `nameBounds`. |
-| Birth date | `YYYY-MM-DD`, 8–10 characters | The core shape-checks it and never parses it: the sandbox removes `os`. |
+| Birth date | `YYYY-MM-DD`, 8–10 characters, a real day from 1900 | Checked here for the shape, then the calendar. `opx77_core` refuses a well-shaped date that is not a real day, or is before 1900, with `character.badBirthdate`. Nothing checks that it lies in the past. |
 | Answer event | `opx77:charcreator:answered` | The private name `opx77_input` answers this resource's form on. |

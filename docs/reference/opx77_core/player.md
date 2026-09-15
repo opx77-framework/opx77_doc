@@ -19,11 +19,12 @@ local ok, why = player.Functions.AddMoney("EDDIES", 500, "gig payout")
 
 !!! info "This surface is reachable from inside `opx77_core` only"
 
-    `OPX` is a global in the core's own Lua state. The OPEN//77 server runtime
-    installs no `exports`, no `GetInvokingResource` and no cross-resource event
-    bus, so a second server resource cannot reach a Player at all — it would
-    call a `nil` global and its own `pcall` would swallow the raise. A
-    server-side plug-in is a **file added to `opx77_core/server/`**. Read
+    `OPX` is a global in the core's own Lua state, so a second server resource
+    cannot reach a Player at all — it would call a `nil` global and its own
+    `pcall` would swallow the raise. The core's
+    [server exports](exports/server.md) answer who a player is, but hand out no
+    Player. A server-side plug-in is a **file added to
+    `opx77_core/server/`**. Read
     [Writing a server plugin](../../guides/writing-a-server-plugin.md) before
     anything on this page, and
     [Integration channels](../../concepts/integration-channels.md) for the
@@ -65,12 +66,10 @@ treats that as a failure refuses legitimate joins.
     - Whether the position sampler is allowed to overwrite
       `PlayerData.position`. False until a placement has succeeded.
 
-!!! warning "`Revision` and `MaySample` are real, and `types.lua` declares neither"
-
-    They live on the Player rather than on `PlayerData` deliberately: that keeps
-    them out of the client payload and out of every database column. The
-    annotation file has not caught up. See
-    [Types](types.md#player).
+`Revision` and `MaySample` live on the Player rather than on `PlayerData`
+deliberately: that keeps them out of the client payload and out of every
+database column. Both are declared on the `Player` class in `std/types.lua`;
+see [Types](types.md#player).
 
 ### Revision, and why a direct write is invisible {#revision}
 
@@ -165,6 +164,8 @@ The whole character, as one table. The type of every field is in
 | `gangs` | *(none)* | `AddPlayerToGang`, `RemovePlayerFromGang` | Same. |
 | `position` | `position` | the 1 Hz sampler | Only while [`MaySample`](#maysample) is true. `nil` means *never known*, not *at the origin*. |
 | `metadata` | `metadata` | [`SetMetaData`](#setmetadata) | JSON column, free-form, survives a core upgrade. |
+| `appearance` | `appearance` | [`OPX.SaveAppearance`](server-api.md#saveappearance) | The stored face, `nil` until one is captured. Written the moment it is saved, and again from memory by every save. |
+| `clothing` | `opx77_character_clothing.clothing` | [`OPX.SaveClothing`](server-api.md#saveclothing) | The record, `false` when none is stored, `nil` when it could not be read at login. Its own table: **not written by a save**, only when it changes. |
 | `lastLoggedOut` | `last_logged_out` | a save with `loggedOut` true | Read back from the row; the core never sets it in memory. |
 | `reportedHeading` | *(none)* | the client's position report | **Not persisted.** A hint the sampler folds into `position.heading`. |
 
@@ -188,10 +189,10 @@ already supplied — the same code, so a rule added to one is a rule both obey.
 Reach for `Functions` when you already hold a Player, and for the
 [module-level form](server-api.md) when you hold a source or a citizen id.
 
-**Two of the fourteen yield** — [`Save`](#save) and, indirectly,
-[`SetJob`](#setjob), [`SetGang`](#setgang) and [`SetJobDuty`](#setjobduty),
-which go through the database. Everything else is in-memory and callable from an
-event handler with no thread. Each entry says which.
+**Three of the fourteen yield** — [`Save`](#save), [`SetJob`](#setjob) and
+[`SetGang`](#setgang), which go through the database. Everything else is
+in-memory and callable from an event handler with no thread. Each entry says
+which.
 
 ### UpdatePlayerData {#updateplayerdata}
 
@@ -551,8 +552,10 @@ boolean.
 | `job.notFound` | Their primary job is no longer in `data/jobs.lua`. |
 | `job.noDuty` | The job's `defaultDuty` is true — it has no shift to clock into. |
 
-**Side** `server` — inside `opx77_core` only. **Yields** for an offline
-character; in-memory for one in the world. Treat it as yielding.
+**Side** `server` — inside `opx77_core` only. Does not yield: the change is
+made in memory and reaches the `job` column with the next save. The
+module-level [`OPX.SetJobDuty`](server-api.md#setjobduty) given a citizen id
+for a character who is not in the world is the form that yields.
 
 An online character is also sent a `job.onDuty` / `job.offDuty` notification,
 so a caller does not have to send one itself.
@@ -617,10 +620,11 @@ player.Functions.Logout()
 **Side** `server` — inside `opx77_core` only. Does not yield; the save it starts
 does.
 
-Idempotent: both platform disconnect events may fire for one departure, and the
-second call finds nothing in the roster and returns. The character leaves the
-roster **before** the save runs, so a lookup during the write correctly answers
-"not here" rather than handing out a Player nobody holds.
+Idempotent: a second call finds nothing in the roster and returns. The
+character leaves the roster **before** the save runs, so a lookup during the
+write correctly answers "not here" rather than handing out a Player nobody
+holds. A player still connected is moved back into their own selection bucket;
+see [`OPX.Logout`](server-api.md#logout).
 
 ## A worked example {#example}
 
@@ -643,8 +647,10 @@ RegisterCommand("bounty.claim", function(source)
     return OPX.Refuse(source, "error.noPermission")
   end
 
+  -- seconds since the epoch, NOT OPX.Now(): this value goes into the metadata
+  -- column, so it has to still mean something after a restart
   local claimed = player.Functions.GetMetaData("bountyClaimedAt")
-  if claimed and OPX.Now() - claimed < 600000 then
+  if claimed and Open77.time.unix() - claimed < 600 then
     return OPX.Refuse(source, "error.tooFast")
   end
 
@@ -656,7 +662,7 @@ RegisterCommand("bounty.claim", function(source)
   end
 
   -- through SetMetaData, so the autosave carries it
-  player.Functions.SetMetaData("bountyClaimedAt", OPX.Now())
+  player.Functions.SetMetaData("bountyClaimedAt", Open77.time.unix())
   OPX.NotifyLocale(source, "money.added",
     { amount = BOUNTY, type = "EDDIES" }, "success")
 end, false)
@@ -665,9 +671,17 @@ end, false)
 Five things that example is doing on purpose: it treats a missing Player as a
 normal condition, it checks the return of `AddMoney` and hands the refusal code
 straight to `OPX.Refuse`, it writes its own state through `SetMetaData` so the
-autosave can see it, it uses `OPX.Now()` rather than a wall clock — the server
-sandbox removes `os`, so there is no wall clock to use — and it logs through
-`Open77.log` with its own bracketed scope in the message. There is no `OPX.Log`
+autosave can see it, it stamps that state with `Open77.time.unix()` rather than
+`OPX.Now()`, and it logs through `Open77.log` with its own bracketed scope in
+the message.
+
+That fourth point is the one that bites. `OPX.Now()` counts from process start,
+so a cooldown written with it into a column that **survives a restart** is
+meaningless afterwards — every stored value is suddenly in the future, and the
+cooldown either never expires or expires instantly depending on the sign.
+`OPX.Now()` is for intervals inside one process; the wall clock is for anything
+persisted. Earlier revisions of this page used `OPX.Now()` here and called it
+good practice. There is no `OPX.Log`
 any more; see [Logging](server-api.md#logging).
 
 ## Where to go next {#next}

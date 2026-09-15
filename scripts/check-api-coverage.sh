@@ -20,9 +20,13 @@
 #
 # What counts as "published":
 #
-#   * every exports("name", …) in <resource>/client/exports.lua        — client exports
+#   * every exports('name', …) in <resource>/{client,server}/          — client and server
+#                                                                        exports
 #   * every ^function OPX.Name in opx77_core/{server,shared,client}/   — the in-core server API
-#   * every RegisterCommand("name", …) anywhere in a resource          — chat commands
+#   * every RegisterCommand('name', …) anywhere in a resource          — chat commands
+#
+# Names are read in either quote style: the resources are written with single
+# quotes, and older code used double quotes.
 #   * every event-name constant in opx77_core/shared/main.lua          — the four OPX.Events
 #                                                                        tables that OPX//77
 #                                                                        owns
@@ -106,20 +110,23 @@ for resource_dir in "$RESOURCES"/opx77_*; do
 
   published="$(mktemp)"
 
-  # Client exports.
-  if [ -f "$resource_dir/client/exports.lua" ]; then
-    grep -hoE 'exports\("[A-Za-z0-9_]+"' "$resource_dir/client/exports.lua" \
-      | sed 's/^exports("//; s/"$//' >> "$published" || true
-  fi
+  # Client and server exports. Most client exports sit in client/exports.lua,
+  # but server exports (opx77_core, opx77_inventory) and a few client ones live
+  # in other files, so every script of both sides is read.
+  for side in client server; do
+    [ -d "$resource_dir/$side" ] || continue
+    grep -rhoE "^[[:space:]]*exports\\([\"'][A-Za-z0-9_]+[\"']" "$resource_dir/$side" --include='*.lua' \
+      | sed -E "s/^[[:space:]]*exports\\([\"']//; s/[\"']\$//" >> "$published" || true
+  done
 
   # Chat commands. A resource that registers under a config value rather than a
   # literal contributes nothing here; that is a limit of the check, not a pass.
-  grep -rhoE 'RegisterCommand\("[A-Za-z0-9_.]+"' "$resource_dir" --include='*.lua' \
-    | sed 's/^RegisterCommand("//; s/"$//' >> "$published" || true
+  grep -rhoE "RegisterCommand\\([\"'][A-Za-z0-9_.]+[\"']" "$resource_dir" --include='*.lua' \
+    | sed -E "s/^RegisterCommand\\([\"']//; s/[\"']\$//" >> "$published" || true
 
   # The core alone publishes an in-VM server API and the event vocabulary.
   if [ "$resource" = "opx77_core" ]; then
-    grep -rhoE '^function OPX\.[A-Za-z0-9_]+' \
+    grep -rhoE '^function OPX\.[A-Za-z0-9_.:]+' \
       "$resource_dir/server" "$resource_dir/shared" "$resource_dir/client" \
       | sed 's/^function //' >> "$published" || true
 
@@ -127,8 +134,8 @@ for resource_dir in "$RESOURCES"/opx77_*; do
     # prefix picks up the Client, Server, Local and Internal tables and leaves
     # the Platform table (whose names are the host's) out by construction.
     if [ -f "$resource_dir/shared/main.lua" ]; then
-      grep -hoE '"opx77:[A-Za-z0-9_:]+"' "$resource_dir/shared/main.lua" \
-        | tr -d '"' >> "$published" || true
+      grep -hoE "[\"']opx77:[A-Za-z0-9_:]+[\"']" "$resource_dir/shared/main.lua" \
+        | tr -d "\"'" >> "$published" || true
     fi
   fi
 

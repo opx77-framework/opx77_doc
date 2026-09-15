@@ -98,6 +98,7 @@ nav:
       - The export contract: concepts/export-contract.md
       - Integration channels: concepts/integration-channels.md
       - Identity: concepts/identity.md
+      - Connection control: concepts/connection-gate.md
       - The entry gate: concepts/entry-gate.md
       - Persistence: concepts/persistence.md
 
@@ -201,5 +202,16 @@ nav:
           - Events: reference/opx77_admin/events.md
           - Configuration: reference/opx77_admin/config.md
           - Types: reference/opx77_admin/types.md
+      - opx77_inventory:
+          - Overview: reference/opx77_inventory/index.md
+          - Commands: reference/opx77_inventory/commands.md
+          - Exports: reference/opx77_inventory/exports.md
+          - Configuration: reference/opx77_inventory/config.md
+      - opx77_prompts:
+          - Overview: reference/opx77_prompts/index.md
+          - Exports: reference/opx77_prompts/exports.md
+          - Events: reference/opx77_prompts/events.md
+          - Configuration: reference/opx77_prompts/config.md
+          - Types: reference/opx77_prompts/types.md
 
   - Releases: releases.md

@@ -37,14 +37,17 @@ TriggerServerEvent("open77:command:execute", tokens...)    -- the HOST's dispatc
       ▼
 host: resolves command.<name> against the caller's ACL, before any resource Lua runs
       │
+      ├── unknown, or not granted ──► open77:command:result(raw, false, code)
+      │                                  └─► client/main.lua: a COMMAND toast
+      ▼
+host: open77:command:result(raw, true, "queued by <resource>")  ──► dropped
+      │
       ▼
 the target resource's RegisterCommand handler runs, with (source, args, raw)
       │
       ▼
-TriggerClientEvent("open77:command:result", player, raw, accepted, message)
-      │
-      ▼
-client/main.lua renders it as a COMMAND line in the box
+the resource answers on a channel of its own: a toast its client half raises
+through opx77_notify for what the command did, chat:addMessage for a report
 ```
 
 The box closes on submit either way — after the command is sent, and also when it is refused
@@ -61,7 +64,9 @@ before it is sent.
 
 Because the dispatcher is the host's, a command line is not subject to `RATE_MS`: that floor
 guards `chat:submit`, the message path. Four checks do apply on the way out, all of them in
-`commandTokens` before anything is sent, and each reported in the box as a red `COMMAND` line:
+`commandTokens` before anything is sent, and each answered with a warning toast titled
+`COMMAND` — a red `COMMAND` line while `opx77_notify` is not running or with
+[`NOTIFY`](config.md#notify) off:
 
 | Refusal | Message |
 |---|---|
@@ -70,8 +75,9 @@ guards `chat:submit`, the message path. Four checks do apply on the way out, all
 | An unclosed `"` or `'` | `The command contains an unterminated quote.` |
 | `/` with nothing after it | `Enter a command after '/'.` |
 
-Those four messages and the `COMMAND` tag above them are catalogue keys, shown here in the
-shipped `en` — see [Player-facing text](index.md#locales).
+Those four messages and the `COMMAND` title are catalogue keys, shown here in the shipped `en`
+— see [Player-facing text](index.md#locales). A command the transport refuses to send is the
+same toast, as an error: `The command could not be sent.`
 
 Quoting works the way a shell's does, so an argument may contain spaces:
 
@@ -103,16 +109,18 @@ RegisterNetEvent("chat:submit", function(text) end)
 `opx77_chat` replaces control characters with spaces, truncates the line to `MAX_LENGTH`
 **characters** with a trailing `...`, drops it if it is blank or inside the `RATE_MS` floor for
 that player, and rebroadcasts it as `chat:addMessage` to `-1` with `type = "chat"` and an
-`author` read server-side from `Open77.players.name` — or the catalogue's `player <id>` fallback
-when the host has no name for that connection. The truncation counts characters and not bytes, so it
-never cuts a multi-byte one in half; see [`MAX_LENGTH`](config.md#max-length).
+`author` read server-side from `Open77.players.identity(source)` — its `name`, or, when the host
+has no name for that connection, the catalogue's `player <id>` fallback with `<id>` the first
+eight characters of the identity's `userId` (the session id only when there is no identity).
+Reading the identity needs no permission. The truncation counts characters and not bytes, so
+it never cuts a multi-byte one in half; see [`MAX_LENGTH`](config.md#max-length).
 
 !!! warning "The author is a label, never an identity"
 
     The relay attributes every message to `source`, the authenticated connection inside the
     net event handler, and never to a name in the payload — a client cannot speak as somebody
     else. The display name in the box is player-changeable, so treat it as a label: if you are
-    logging or moderating, log the citizen id, not the tag on screen.
+    logging or moderating, log the account or citizen id, not the tag on screen.
 
 ### chat:ready {#chat-ready}
 
@@ -175,11 +183,20 @@ RegisterNetEvent("chat:addMessage", function(message) end)
 
 - message: `table | string`
     - A bare string is taken as `{ text = message }`.
-    - `type`: `string` — the line's CSS class. `chat`, `info` and `error` are what this
-      resource uses.
+    - `type`: `string` — the line's CSS class. The stylesheet styles `chat`, `info`, `error`
+      and `system`: `.line.info` and `.line.error` are how an information line and an error line
+      look, author included.
     - `author`: `string` — the tag before the text, rendered as text and never as markup.
     - `text`: `string`
-    - `color`: `{ r, g, b }` — tints the author tag only.
+    - `color`: `{ r, g, b }` — tints the author tag only, overriding the colour its `type`
+      gives it. Kept for third-party senders; no OPX//77 resource sends a `color`, and
+      `opx77_chat`'s own red lines are `type = "error"` alone. Leave it out to let the line
+      type style the line.
+
+This is also the channel a command's **report** takes — a player list, a dump, a status line
+someone asked to read — because the box keeps it to scroll back to. A command's outcome is a
+toast instead, and neither belongs on
+[`open77:command:result`](#open77-command-result), whose accepted answers are not printed.
 
 !!! warning "Never re-emit a wire name from inside its own handler"
 
@@ -198,7 +215,11 @@ RegisterNetEvent("chat:addSuggestion", function(command, help, parameters) end)
 
 - command: `string` — with or without the leading slash; the page adds one if you omit it.
 - help?: `string` — the one-line description drawn beside the name.
-- parameters?: `table` — a list of `{ name = string, help = string }`.
+- parameters?: `table` — a list of `{ name, help?, optional? }`, in the order the arguments are
+  typed; see [Publishing suggestions](#publishing-suggestions).
+
+The three may also arrive as one `ChatSuggestion` table in the first argument, as
+[`chat:addSuggestions`](#chat-addsuggestions) carries them.
 
 ### chat:addSuggestions {#chat-addsuggestions}
 
@@ -271,44 +292,66 @@ RegisterNetEvent("chat:setEnabled", function(enabled) end)
 
 ### open77:command:result {#open77-command-result}
 
-The dispatcher's answer to a command that player typed. `opx77_chat` renders it as a `COMMAND`
-line — cyan when accepted, red when refused.
+The dispatcher's answer to a command that player typed. Since `0.5.0` `opx77_chat` prints
+nothing for an accepted one, and shows a refused one as a toast — the box is for what players
+say and for reports someone asked to read, not for command feedback.
 
 ```lua
 RegisterNetEvent("open77:command:result", function(raw, accepted, message) end)
 ```
 
-- raw: `string` — the command name as typed.
+- raw: `string` — the command line as typed; its first word names the command in a refusal.
 - accepted: `boolean`
-- message: `string` — shown in place of `raw` when it is not empty.
+- message: `string`
 
-`opx77_core` wraps sending this as `OPX.CommandResult(source, raw, accepted, message)`, which
-prints to the server console instead when `source` is `0`. Other resources register the name
-as well — `opx77_weather`'s client half logs the ones whose `raw` names one of its own
-configured commands — so it is a shared channel, not a private one.
+**An accepted result prints nothing.** It is the dispatcher's queue acknowledgement or a bare
+"done". A command with something to say sends it itself: a toast for what it did, a
+[`chat:addMessage`](#chat-addmessage) line for a report. No OPX//77 resource answers on this
+event any more — `opx77_core`'s `OPX.CommandResult` sends `chat:addMessage` and
+`OPX.CommandNotice` a toast — and a resource outside OPX//77 that answers only through an
+accepted result is not shown, deliberately. Other resources still register the name —
+`opx77_admin` puts a refusal under its menu, `opx77_weather` mirrors the dispatcher's word on
+its own commands into the log — so it is a shared channel, not a private one.
 
-An accepted result whose `message` contains `' queued by resource ` is dropped by the client:
-the dispatcher acknowledges queueing immediately and then sends the useful result, and showing
-both puts a line of noise above every answer. Nothing on the payload marks one as the
-acknowledgement — no phase, no flag, and `accepted` is true for both — so the only thing left to
-match on is the platform's own wording, `command '<name>' queued by resource <resource>`. It is
-matched as a substring rather than as a prefix, because the line begins with `command '`.
+**A refused result is a toast** through `opx77_notify`'s `show`, titled `COMMAND`, in one slot
+each refusal replaces. The dispatcher's own codes are put in the player's words:
+
+| `message` | Shown as |
+|---|---|
+| `unknown_command`, or starting `unknown command '` | `chat.command.unknown`, a warning |
+| starting `permission_denied:`, or `permission denied for command '` | `chat.command.denied`, an error |
+| containing `rate_limit` or `rate limit`, any case | `chat.command.tooFast`, a warning |
+| empty | `chat.command.failed`, an error |
+| anything else | the message as sent, an error — a resource's own refusal, already worded |
+
+The second spelling in each of the first two rows is what older platform builds wrote. The
+rate-limit spelling is a guess: no dispatcher rate limit has been observed. While
+`opx77_notify` is not running, or when it refuses the toast, or with
+[`NOTIFY = false`](config.md#notify), the same text is a red `COMMAND` line in the box, and the
+client log says so once.
+
+Any result whose `message` contains `queued by ` is dropped before either rule, whatever
+`accepted` says. The dispatcher acknowledges queueing immediately and then runs the command, and
+nothing on the payload marks one as the acknowledgement — no phase, no flag, and `accepted` is
+true for both — so the only thing left to match on is the platform's own wording. Two have been
+seen, and `queued by ` is the fragment they share:
+
+```text
+queued by <resource>                               -- op77.63
+command '<name>' queued by resource <resource>     -- older builds
+```
+
+It is matched as a plain substring, not anchored, because the older line begins with
+`command '`.
 
 !!! warning "That filter is a match on somebody else's prose, not a contract"
 
     `opx77_chat/docs/unknowns.md` records it as such. If the platform rewords the
-    acknowledgement the filter stops matching and the queue line reappears above every answer —
-    cosmetic, and one constant to fix. Do not replace it by counting results or by timing them:
-    `open77:command:result` is not ordered against anything else, and a command that answers
-    nothing at all is normal.
-
-!!! warning "The dispatcher's refusal codes are shown verbatim"
-
-    `opx77_chat` renders `message` as it arrives. A player who types an unknown command sees
-    the literal `unknown_command`, and one without the grant sees
-    `permission_denied:command.<name>`. The platform's own package rewrites those two into
-    prose; this one does not. If you want friendlier text, send your own
-    [`chat:addMessage`](#chat-addmessage) from the command handler.
+    acknowledgement again, nothing reappears — an accepted result is not printed anyway — and
+    only a refused result carrying the new wording would be toasted. A resource's own refusal
+    that happens to contain `queued by ` is swallowed. Do not replace the filter by counting
+    results or by timing them: `open77:command:result` is not ordered against anything else,
+    and a command that answers nothing at all is normal.
 
 ## Non-networked {#non-networked}
 
@@ -350,6 +393,18 @@ TriggerEvent("chat:close")
 
 Carries no arguments. A no-op if the box is not open.
 
+### open77:pauseKey {#open77-pausekey}
+
+Raised by the platform when the player presses Escape: the plugin swallows the key in the
+window procedure, so the page never sees it. `opx77_chat` closes an open box on it, exactly as
+[`chat:close`](#chat-close) does.
+
+```lua
+AddEventHandler("open77:pauseKey", function() end)
+```
+
+Carries no arguments. Do not re-raise it.
+
 ### chat:commandSubmitted {#chat-commandsubmitted}
 
 Raised locally by `opx77_chat` the moment a slash command has been tokenised, immediately
@@ -380,33 +435,42 @@ contract is two events:
    [`chat:addSuggestion`](#chat-addsuggestion), from its **server** half.
 
 ```lua
---- server/main.lua of your own resource.
---- Suggestions for the chat autocomplete. Sent on the client's `chat:ready` rather than at
---- boot: suggestions sent before that surface is up land nowhere.
+-- server/main.lua of your own resource
+
 local lastSuggestedMs = {}
 
-RegisterNetEvent("chat:ready", function()
-  local player = tonumber(source) or 0
-  if player <= 0 then return end
+RegisterNetEvent('chat:ready', function()
+	local player = tonumber(source) or 0
+	if player <= 0 then return end
 
-  -- `chat:ready` is a net event any client is free to send, and it is answered
-  -- with several hundred bytes. Floor it.
-  local atMs = math.floor(Open77.time.monotonic() * 1000)
-  local previous = lastSuggestedMs[player]
-  if previous ~= nil and atMs - previous < 10000 then return end
-  lastSuggestedMs[player] = atMs
+	local atMs = GetGameTimer()
+	local previous = lastSuggestedMs[player]
+	if previous ~= nil and atMs - previous < 10000 then return end
+	lastSuggestedMs[player] = atMs
 
-  TriggerClientEvent("chat:addSuggestions", player, {
-    { command = "/ripperdoc.heal", help = "Patch yourself up at this clinic.",
-      parameters = { { name = "bodyPart", help = "arm, leg, torso; omit for all" } } },
-    { command = "/ripperdoc.prices", help = "List what this clinic charges." },
-  })
+	TriggerClientEvent('chat:addSuggestions', player, {
+		{ command = '/ripperdoc.heal', help = 'Patch yourself up at this clinic.',
+			parameters = { { name = 'bodyPart', help = 'arm, leg, torso; omit for all', optional = true } } },
+		{ command = '/ripperdoc.prices', help = 'List what this clinic charges.' },
+	})
 end)
 
-AddEventHandler("onPlayerDisconnected", function(playerId)
-  lastSuggestedMs[tonumber(playerId) or -1] = nil
+AddEventHandler('onPlayerDisconnected', function(playerId)
+	local player = tonumber(playerId)
+	if player == nil then
+		Open77.log.warn(('onPlayerDisconnected: unusable player id %q'):format(tostring(playerId)))
+		return
+	end
+	lastSuggestedMs[player] = nil
 end)
 ```
+
+`chat:ready` is a net event any client is free to send, and it is answered with several hundred
+bytes, so the answer is floored. `GetGameTimer` is the server scheduler's monotonic clock in
+milliseconds, which is all a floor needs. `playerId` arrives as a string, like every host event
+argument: `tonumber` absorbs that, and an id that will not convert is worth a log line rather
+than a key no player will ever hold. The `onPlayerDisconnected` handler is the one
+`opx77_chat`'s own server half uses for its message floor.
 
 !!! warning "Publish on `chat:ready`, never at boot"
 
@@ -415,15 +479,23 @@ end)
     there is somewhere to put them, and it arrives again after every reload of `opx77_chat`,
     which is what makes the list survive one.
 
-A suggestion is a table of `command`, `help` and `parameters`. A leading `/` is added if you
-omit it, and the page keys entries by name, so publishing the same name twice replaces rather
-than duplicates. Each parameter is a table with a `name`; the page appends every parameter
-name to the help text in square brackets and reads nothing else from it, so an `optional` or
-`help` key is documentation for whoever reads your code next.
+A suggestion is a table of `command`, `help` and `parameters`; `name` and `params` are read
+where `command` and `parameters` are absent, as lists written for other chat packages spell
+them. A leading `/` is added if you omit it, and the page keys entries by name, so publishing
+the same name twice replaces rather than duplicates.
+
+Each parameter names one argument, in the order it is typed:
+`{ name, help?, optional? }`, or a bare string taken as the name. The entry is drawn as the
+command, each parameter as `<name>` — or `[name]` with `optional = true` — and the help. Once
+the command name is typed, the list narrows to that entry, the argument being typed is lit, and
+its `help` is drawn on a line of its own under it. Write `help` in the player's language. The
+page keeps the first 16 parameters, cuts a name to 40 characters and a help to 240; an entry
+without parameters is its name and help alone.
 
 ## See also {#see-also}
 
 - [Exports](exports.md) — the client-local route to the same six behaviours.
-- [`opx77_core`](../opx77_core/index.md) — `OPX.CommandResult` and the character command set.
+- [`opx77_core`](../opx77_core/index.md) — `OPX.CommandNotice`, `OPX.CommandResult` and the
+  character command set.
 - [Integration channels](../../concepts/integration-channels.md) — why a server resource must
   use the wire rather than an export.

@@ -23,12 +23,14 @@ ACL entry, and the load-order rule that decides whether anything works at all.
   of the server still boots.
 - **A resource that emits `open77:session:gameplayReady`.** `opx77_appearance`
   ships with OPX//77 and is that resource, so a full install already satisfies
-  this. Nothing declares it as a dependency, and without it — or without the
-  platform's own `open77_appearance`, which the core's boot check also accepts —
-  the platform's readiness gate never opens for anybody. The same resource
-  spends the character bootstrap at join, which is what lifts the platform's
-  loading cover. [What that costs](#the-appearance-requirement) is below, and
-  the mechanism is set out in [The entry gate](../concepts/entry-gate.md).
+  this. Nothing declares it as a dependency, and without it the platform's
+  readiness gate never opens for anybody. The same resource spends the character
+  bootstrap at join, which is what lifts the platform's loading cover, and hands
+  every player's look to the others, which is what lets players see each other.
+  The platform's own `open77_appearance`, which the core's boot check also
+  accepts, is not a stand-in for it, and must not run beside it.
+  [What that costs](#the-appearance-requirement) is below, and the mechanism is
+  set out in [The entry gate](../concepts/entry-gate.md).
 
 Every OPX//77 resource declares `open77_version ">=0.0.1"` and `auto_start true`.
 
@@ -47,6 +49,7 @@ open77-server/
     ├── opx77_chat/
     ├── opx77_status/
     ├── opx77_notify/
+    ├── opx77_prompts/
     ├── opx77_weather/
     ├── opx77_elevators/
     ├── opx77_appearance/
@@ -54,7 +57,8 @@ open77-server/
     ├── opx77_charselector/
     ├── opx77_charcreator/
     ├── opx77_animations/
-    └── opx77_admin/
+    ├── opx77_admin/
+    └── opx77_inventory/
 ```
 
 Three of them are what a player needs to get into the world at all:
@@ -103,18 +107,23 @@ only OPX//77 and nothing else, name the resources explicitly:
 "load": ["opx77_*"]
 ```
 
-That picks up all fourteen. Naming them one by one does the same and makes the
+That picks up all sixteen. Naming them one by one does the same and makes the
 set explicit:
 
 ```jsonc
 "load": [
   "opx77_core",
-  "opx77_menu", "opx77_input", "opx77_notify",
+  "opx77_menu", "opx77_input", "opx77_notify", "opx77_prompts",
   "opx77_appearance", "opx77_charselector", "opx77_charcreator",
   "opx77_hud", "opx77_chat", "opx77_status",
-  "opx77_weather", "opx77_elevators", "opx77_animations", "opx77_admin"
+  "opx77_weather", "opx77_elevators", "opx77_animations", "opx77_admin",
+  "opx77_inventory"
 ]
 ```
+
+`opx77_inventory` stores every bag through `opx77_core`'s server exports and
+needs `opx77_core` 0.4.0 or later: keep it **after** `opx77_core` — see
+[`opx77_inventory`](../reference/opx77_inventory/index.md#requirements).
 
 The rules are **ordered**: normal entries add matches, an entry prefixed with `!`
 removes earlier matches. So to load everything except the elevators and the
@@ -159,16 +168,20 @@ to be enabled:
 Two resources hold `database.access`: `opx77_core`, for the character, and
 `opx77_status`, for the one table it owns. They talk to the same database with
 the same credential — there is no per-resource schema or table prefix — and
-every table either creates is prefixed `opx77_`. Each applies its own schema at
-boot; `opx77_core/sql/` and `opx77_status/sql/` hold the statements in a form an
-operator can read and run by hand.
+every table either creates is prefixed `opx77_`. Each creates its own tables at
+boot with `CREATE TABLE IF NOT EXISTS`, and there are no migrations:
+`opx77_core/sql/schema.sql` and `opx77_status/sql/status.sql` hold the same
+statements in a form an operator can read and run by hand on an empty database.
 
-!!! danger "There is no upgrade path from an older database"
-    The core's character tables were renamed inside their original migrations,
-    so a database created before this release keeps `opx77_accounts`,
+!!! danger "A missing table is created; an existing one is never altered"
+    A database created by `opx77_core` 0.5.0 already has every table the
+    single schema creates; the only thing left over is the `opx77_migrations`
+    table the old runner kept, which nothing reads and which can be dropped. A
+    database older than the table rename keeps `opx77_accounts`,
     `opx77_players` and `opx77_player_groups` while the code queries
-    `opx77_users`, `opx77_characters` and `opx77_character_groups`. Drop it and
-    let the runner recreate it. See
+    `opx77_users`, `opx77_characters` and `opx77_character_groups`, and a
+    table whose shape changed keeps its old shape. Drop the table, or the
+    database, and let the core create it again. See
     [Persistence](../concepts/persistence.md#schema).
 
 If the database is missing or unreachable, `opx77_core` logs
@@ -181,16 +194,44 @@ If the database is missing or unreachable, `opx77_core` logs
 and carries on with every login refused. See
 [Troubleshooting](troubleshooting.md#no-database).
 
+### The connection gate deadline {#connect-gate-timeout}
+
+One more key is worth knowing about even though no OPX//77 resource reads it:
+
+```jsonc
+"simulation": {
+  // how long a resource holding players.gate may hold a connecting player
+  "connectGateTimeoutSeconds": 8
+}
+```
+
+Default 8, allowed 0.5 to 9. The client abandons the handshake at 10 seconds
+either way, so a longer wait would only trade one error for another. At the
+deadline the player is refused with `connection_gate_timeout`.
+
+This matters the moment you add a whitelist or a ban list, because a gate that
+defers and never answers refuses **everybody**. See
+[Connection control](../concepts/connection-gate.md) for the gate itself and
+[Troubleshooting](troubleshooting.md#nobody-connects) for the symptom.
+
+!!! note "The ACL and the gate are different doors"
+
+    The ACL below governs *commands* — who may run `opx77.money`. The gate
+    governs *access* — who may connect at all. Neither one implies the other,
+    and an ACL entry does not let anybody past a whitelist.
+
 ## 3. Staff commands and the ACL {#acl}
 
-Sixty-seven commands are registered across the fourteen resources. Fifty-five of
+Seventy-seven commands are registered across the sixteen resources. Sixty-five of
 them pass `true` as the third argument to `RegisterCommand`, which makes them
 **restricted**: the host resolves `command.<name>` against the caller's ACL
 *before* the resource's handler runs, so there is no permission check inside any
 OPX//77 command and there must not be one. The dedicated console runs as
-`source = 0` and is always authorised. Thirty-nine of the fifty-five are
+`source = 0` and is always authorised. Forty-four of the sixty-five are
 [`opx77_admin`](../reference/opx77_admin/index.md)'s, and every one of those is
-restricted with no setting to open it.
+restricted with no setting to open it; five are
+[`opx77_inventory`](../reference/opx77_inventory/index.md)'s, likewise always
+restricted.
 
 ### Writing `acl.jsonc` {#acl-file}
 
@@ -264,16 +305,17 @@ console. `acl.list` reports the path actually loaded, and
     ]
     ```
 
-    `command.opx77.*` covers all thirty-nine, the menu included — and with them
-    every other OPX//77 staff command, the core's `opx77.money` among them.
+    `command.opx77.*` covers all forty-four, the menu included — and with them
+    every other OPX//77 staff command, the core's `opx77.money` and the
+    inventory's `opx77.inventory.give` among them.
     Grant a narrower prefix, such as `command.opx77.admin.read.*` or
     `command.opx77.admin.player.*`, to give a moderator one family of commands.
     The menu greys out whatever the ACL would refuse.
 
 ### Every restricted command {#restricted-commands}
 
-These sixteen resolve an ACL permission before they run, and so do the
-thirty-nine of `opx77_admin` [below](#admin-commands). The permission is always
+These twenty-one resolve an ACL permission before they run, and so do the
+forty-four of `opx77_admin` [below](#admin-commands). The permission is always
 `command.` plus the command name exactly as registered.
 
 | Permission | Resource | What the command does |
@@ -294,6 +336,11 @@ thirty-nine of `opx77_admin` [below](#admin-commands). The permission is always
 | `command.opx77.weather.time.freeze` | `opx77_weather` | `<on\|off>` — hold the clock. |
 | `command.opx77.weather.daylength` | `opx77_weather` | `<realMinutes>` — how long a day takes. |
 | `command.opx77.elevators.where` | `opx77_elevators` | Adoption state and world positions for every configured lift. |
+| `command.opx77.inventory.give` | `opx77_inventory` | `<playerId\|citizenId> <item> [count]` — adds items to a bag. Creates items: grant it like money. |
+| `command.opx77.inventory.remove` | `opx77_inventory` | `<playerId\|citizenId> <item> [count]` — takes items from a bag. |
+| `command.opx77.inventory.clear` | `opx77_inventory` | `<playerId\|citizenId>` — empties a bag. |
+| `command.opx77.inventory.open` | `opx77_inventory` | `<playerId\|citizenId>` — opens that bag beside your own; in game only. |
+| `command.opx77.inventory.holders` | `opx77_inventory` | `<item>` — the containers holding an item, largest stacks first. |
 
 The eight names in that table beginning `opx77.weather` are the *shipped
 defaults*. Every one of them is `COMMANDS.<KEY>.NAME` in
@@ -308,13 +355,19 @@ command <name> is OPEN to every player (COMMANDS.<KEY>.RESTRICTED = false)
 ```
 
 at boot, once, so the decision is on the record. `opx77.elevators.where` is
-likewise `COMMAND` in `opx77_elevators/config.lua`.
+likewise `COMMAND` in `opx77_elevators/config.lua`, and the five
+`opx77.inventory.*` names are
+[`COMMANDS`](../reference/opx77_inventory/config.md#commands) in
+`opx77_inventory/config.lua`, where `false` registers none — they are always
+restricted.
 
-### `opx77_admin`'s thirty-nine {#admin-commands}
+### `opx77_admin`'s forty-four {#admin-commands}
 
 Every one is registered restricted, and the names are fixed in the resource
 rather than read from its configuration. A `<player>` is a player id or `me`,
-never a citizen id. Each is documented in full, with its refusals, under
+never a citizen id. A `<holder>` — the weapon and inventory commands but the
+holster — is a player id, `me` or a citizen id, online or not. Each is documented
+in full, with its refusals, under
 [`opx77_admin`'s commands](../reference/opx77_admin/commands.md).
 
 | Permission | What the command does |
@@ -342,15 +395,20 @@ never a citizen id. Each is documented in full, with its refusals, under
 | `command.opx77.admin.moderate.ban` | `<player> [duration] [reason]` — an account ban on this server. |
 | `command.opx77.admin.vehicle.spawn` | `<vehicle>` — beside you. |
 | `command.opx77.admin.vehicle.give` | `<player> <vehicle>` — beside a player. |
-| `command.opx77.admin.vehicle.repair` | `<id\|near> [scope]`. |
+| `command.opx77.admin.vehicle.repair` | `[id\|near] [scope]`. |
 | `command.opx77.admin.vehicle.flag` | `<id\|near> <flag> [on\|off]`. |
 | `command.opx77.admin.vehicle.remove` | `[id\|near\|mine]`. |
 | `command.opx77.admin.vehicle.cleanup` | Removes every empty vehicle it spawned. |
-| `command.opx77.admin.weapon.give` | `<player> <weapon> [1\|2\|3\|auto] [reserve]` — equipped and loaded. |
-| `command.opx77.admin.weapon.ammo` | `<player> [slot\|all] [reserve]` — refill. |
-| `command.opx77.admin.weapon.remove` | `<player> <slot\|all>` — clear a slot. |
-| `command.opx77.admin.weapon.holster` | `<player>` — holster. |
-| `command.opx77.admin.weapon.read` | `<player>` — read the three slots. |
+| `command.opx77.admin.weapon.give` | `<holder> <weapon> [ammo]` — an empty weapon item in the bag, through `opx77_inventory`; with `ammo`, that many of its ammunition items beside it, both or neither. |
+| `command.opx77.admin.weapon.giveammo` | `<holder> <weapon\|ammo> [count]` — ammunition items; one full load when left out. Creates items: grant it like money. |
+| `command.opx77.admin.weapon.ammo` | `<holder> [weapon\|all] [count]` — ammunition items for the weapons in the bag, one stack per ammo type; one full load each when left out. |
+| `command.opx77.admin.weapon.remove` | `<holder> <weapon\|all>` — take weapon items out of the bag. |
+| `command.opx77.admin.weapon.holster` | `<player>` — holster, through the platform's weapon relay. |
+| `command.opx77.admin.weapon.read` | `<holder>` — the weapon items in the bag, and which one is drawn. |
+| `command.opx77.admin.inventory.view` | `<holder>` — every stack in the bag. |
+| `command.opx77.admin.inventory.give` | `<holder> <item> [count]` — add items. Creates items: grant it like money. |
+| `command.opx77.admin.inventory.remove` | `<holder> <item> [count]` — take items. |
+| `command.opx77.admin.inventory.clear` | `<holder>` — empty the bag. |
 | `command.opx77.admin.world.announce` | `<text>` — a toast and a chat line to everyone. |
 | `command.opx77.admin.world.loc.add` | `<name> [label]` — save a destination until restart. |
 | `command.opx77.admin.world.loc.remove` | `<name>` — forget one saved in game. |
@@ -361,8 +419,10 @@ never a citizen id. Each is documented in full, with its refusals, under
 
 Several of the menu's screens run another resource's command rather than one of
 these — `opx77.money`, `opx77.job`, `opx77.gang` and `opx77.where` for a
-character, `opx77_weather`'s for the sky — so a staff principal needs those
-permissions too for the menu to offer them.
+character, `opx77.inventory.open` and `opx77.inventory.holders` for a bag,
+`opx77_weather`'s for the sky — so a staff principal needs those permissions too
+for the menu to offer them. Every weapon command but the holster, and every
+inventory command, needs `opx77_inventory` running.
 
 ### The twelve commands that need no permission {#open-commands}
 
@@ -441,7 +501,7 @@ If nothing on your server emits it, the readiness gate never opens for anybody:
 fires, and the host logs one WRN naming `__platform` per connected player every
 60 seconds.
 
-`opx77_core` is unaffected — it neither reads `isReady` nor waits on
+`opx77_core` is unaffected — it never waits on `isReady` or on
 `onPlayerReady`, so characters still load and are still placed — but it checks
 for the resource at boot and says so:
 
@@ -451,9 +511,24 @@ for the resource at boot and says so:
 ```
 
 The check accepts either `opx77_appearance` or the official
-`open77_appearance`, so running one of them is enough. If you run neither, do
-not write any resource that waits on `Open77.ready.isReady` or on
-`onPlayerReady`, because on your server they will wait for ever.
+`open77_appearance`, because both send the announcement. That does not make them
+interchangeable: the official package follows
+[the platform's own model](../concepts/entry-gate.md#platform-model), not this
+framework's, and **running both conflicts** — they fight over the character
+bootstrap and the face. Run `opx77_appearance`, and not the official package
+beside it. If you run neither, do not write any resource that waits on
+`Open77.ready.isReady` or on `onPlayerReady`, because on your server they will
+wait for ever.
+
+The same resource is also what lets players **see each other**. The engine
+replicates a player's position, vehicle and actions, not their look, and another
+client draws a player only from the body, equipment and outfit it is handed.
+`opx77_appearance` hands every player's look to the others — what the official
+package does with its `open77_equipment` and `open77_wardrobe` relays — so
+without it, or with
+[`PRESENT_BODIES = false`](../reference/opx77_appearance/config.md#present-bodies)
+and nothing else handing looks out, nobody sees anybody else's body. See
+[How other players see this one](../reference/opx77_appearance/index.md#presence).
 [The entry gate](../concepts/entry-gate.md) explains the whole mechanism,
 including the hold `opx77_core` takes on top of it.
 
@@ -464,7 +539,7 @@ Each resource declares how a reload should be handled:
 | Policy | Resources | Why |
 |---|---|---|
 | `local` | `opx77_core`, `opx77_weather`, `opx77_elevators`, `opx77_appearance`, `opx77_charselector`, `opx77_animations`, `opx77_admin` | A reload is a script reload, not a reconnect. `opx77_weather` hands its live state to the host and keeps the sky; `opx77_elevators` re-adopts lifts from the next client sighting; `opx77_appearance` re-reads the face from `PlayerData` and keeps nothing across one. `opx77_charselector` and `opx77_admin` own no CEF surface: `opx77_menu` draws for them. |
-| `reconnect` | `opx77_menu`, `opx77_input`, `opx77_hud`, `opx77_status`, `opx77_chat`, `opx77_notify` | A generation change or a CEF surface that is never replaced in place needs a clean reconnect. |
+| `reconnect` | `opx77_menu`, `opx77_input`, `opx77_hud`, `opx77_status`, `opx77_chat`, `opx77_notify`, `opx77_inventory` | A generation change or a CEF surface that is never replaced in place needs a clean reconnect. |
 | none declared | `opx77_charcreator` | Its manifest names no policy. It owns no surface either: `opx77_input` draws its form. |
 
 ## 6. Configuration {#configuration}
@@ -482,9 +557,9 @@ Anything an operator may want to change mid-session is a **tunable** instead and
 lives in `server/tunables.lua`, editable from the Warden operator panel without a
 restart.
 
-The satellites each have a single `config.lua`. Ten of the thirteen — every one
-but `opx77_menu`, `opx77_status` and `opx77_notify` — carry their own locale
-catalogue in `locales/` and their own `LOCALE` key, because a satellite cannot
+The satellites each have a single `config.lua`. Thirteen of the fifteen — every
+one but `opx77_status` and `opx77_notify` — carry their own English and French
+catalogues in `locales/` and their own `LOCALE` key, because a satellite cannot
 read the core's: that export is client-only and asynchronous, and a satellite's
 server half can never call it.
 `LOCALE` ships `"en"` everywhere, `opx77_core` included. Every key of every file

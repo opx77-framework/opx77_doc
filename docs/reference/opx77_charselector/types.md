@@ -5,7 +5,7 @@ description: Every shape opx77_charselector names — the phase, the roster and 
 
 # Types
 
-`opx77_charselector` ships its annotations in `types.lua`, a `---@meta` file that
+`opx77_charselector` ships its annotations in `std/types.lua`, a `---@meta` file that
 is never loaded at runtime. The types below are what those annotations describe.
 
 ## SelectorPhase {#selectorphase}
@@ -133,6 +133,7 @@ Extends [`SelectorResponse`](#selectorresponse)
   the cursor is on one.
 - staged: `boolean` — whether the stage camera is on the player's character.
 - frozen: `boolean` — whether the character is being held in place.
+- cameraLocked: `boolean` — whether the mouse is kept off the stage camera.
 - stageHolder?: `string` — the resource holding the stage through `holdStage`.
 
 ## SelectorStaged {#selectorstaged}

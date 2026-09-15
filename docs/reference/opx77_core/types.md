@@ -6,18 +6,17 @@ description: Every class and alias declared by opx77_core — PlayerData, Player
 # Types
 
 These are the shapes the OPX//77 core passes around. They are declared in
-`opx77_core/types.lua`, a file that opens with `---@meta` and is **never loaded
-at runtime**: it exists so that the Lua language server can complete and
-type-check a plug-in written against the core. Nothing in it is enforced. A
-table that is missing a field will not be rejected; it will simply be wrong
-later, somewhere else.
+`opx77_core/std/types.lua`, a file that opens with `---@meta` and is **never
+loaded at runtime**: it exists so that the Lua language server can complete and
+type-check a plug-in written against the core. The functions themselves are
+stubbed beside it, one file per module under `std/server/`, `std/shared/` and
+`std/client/`. Nothing in any of them is enforced. A table that is missing a
+field will not be rejected; it will simply be wrong later, somewhere else.
 
-!!! warning "`types.lua` can drift from the code"
+!!! warning "`std/types.lua` can drift from the code"
 
-    One field the core sets is still not declared at all. It is called out on
-    the type it belongs to, and **this page documents the code, not the
-    annotation**. If the two disagree, the code wins — and the annotation is a
-    bug worth fixing.
+    **This page documents the code, not the annotation.** If the two disagree,
+    the code wins — and the annotation is a bug worth fixing.
 
 Types are grouped below the way the core groups them: the aliases first, then
 results, then a character, then jobs and gangs, then the entry machinery, then
@@ -260,6 +259,13 @@ Everything the core knows about one character.
       therefore only by the net event
       [`opx77:server:saveAppearance`](events.md#saveappearance) that
       `opx77_appearance` sends.
+- clothing: [`ClothingRecord`](#clothingrecord)`|false|nil`
+    - What the character wears, read at login from
+      `opx77_character_clothing`: the record, `false` when none is stored, or
+      `nil` when the stored row could not be read. A client neither dresses nor
+      saves a `nil`, and [`OPX.SaveClothing`](server-api.md#saveclothing)
+      refuses to overwrite one. Written only by `OPX.SaveClothing`, and so only
+      by [`opx77:server:saveClothing`](events.md#saveclothing).
 - lastLoggedOut: `string|nil`
     - A database timestamp, stamped by the save that ran with `loggedOut` true.
       Shown on the character-selection screen.
@@ -281,10 +287,11 @@ Who the character is, as opposed to what they have.
       accented Latin, Greek, Cyrillic and CJK; it refuses emoji.
 - lastName: `string`
 - birthDate: `string`
-    - `"YYYY-MM-DD"`. Shape-checked and never parsed — the server sandbox
-      removes `os`, so there is no clock to check it against. It is flavour,
-      not a fact, and a character claiming to be four hundred years old will be
-      accepted.
+    - `"YYYY-MM-DD"`. Checked at creation against the calendar — a real day,
+      from year 1900 — and refused with `character.badBirthdate` otherwise. It
+      is not checked against today, so a date in the future is accepted, and a
+      registration with no date, or one not in that shape, is stored as
+      `2050-01-01`. It is flavour, not a fact.
 - origin: [`Origin`](#origin)
 - gender: [`Gender`](#gender)
 - phone: `string`
@@ -380,6 +387,51 @@ One logical customization option: a position in the catalogue, not a mesh.
 `part` and `name` together are unique within one snapshot; a repeat is refused
 with `duplicate_option`.
 
+### ClothingRecord {#clothingrecord}
+
+What one character wears, as stored in the `clothing` column of
+`opx77_character_clothing` and carried on
+[`PlayerData.clothing`](#playerdata). It is the platform's own record shape, the
+one its presentation service stores.
+
+**Fields**
+
+- schemaVersion: `integer`
+    - Always `1`. `server/clothing.lua` refuses any other value with
+      `unsupported_schema`.
+- equipment: `table<`[`ClothingSlot`](#clothingslot)`, string|false>`
+    - All nine slots, each a record name or `false` for nothing worn. A record
+      name is 1 to 160 characters of letters, digits, `_`, `.` and `-`.
+- wardrobe: [`ClothingWardrobe`](#clothingwardrobe)
+
+The core stores the canonical form only: no field beyond these three, all nine
+slots stated, and empty outfits dropped. See
+[`OPX.Clothing.canonical`](server-api.md#clothingcanonical) for every check.
+
+### ClothingWardrobe {#clothingwardrobe}
+
+The seven wardrobe outfits of one character, and the one shown.
+
+**Fields**
+
+- active: `integer|nil`
+    - The outfit shown, `0` to `6`; `nil` for the worn set.
+- outfits: `table<string, table<`[`ClothingSlot`](#clothingslot)`, string|false>>`
+    - Keyed `"0"` to `"6"`, never empty. In an outfit a record overrides the
+      slot, `false` hides it, and an absent slot shows what is worn. An outfit
+      overrides only the seven visible slots: underwear is never overridden.
+
+### ClothingSlot {#clothingslot}
+
+The nine equipment slots, as the platform names them.
+
+```lua
+---@alias ClothingSlot "Head"|"Face"|"InnerChest"|"OuterChest"|"Legs"|"Feet"|"Outfit"
+---| "UnderwearTop"|"UnderwearBottom"
+```
+
+The first seven are the visible slots an outfit may override.
+
 ### Position {#position}
 
 Where a character is, and in which routing bucket.
@@ -394,7 +446,10 @@ Where a character is, and in which routing bucket.
       [`PlayerData.reportedHeading`](#playerdata) and falling back to the
       previously stored heading, then to `0.0`.
 - bucket: `integer`
-    - The routing bucket, from the platform's own position snapshot.
+    - The routing bucket, from the platform's own position snapshot. A bucket in
+      the selection range is never placed into:
+      [`OPX.Buckets.placementOf`](server-api.md#bucketsplacementof) reads it as
+      `ENTRY.BUCKET.WORLD`.
 
 `x`, `y` and `z` always come from `Open77.players.position` — the server's view,
 never the client's claim.
@@ -536,11 +591,14 @@ selection screen has one of these and no [`Player`](#player).
 - source: [`Source`](#source)
 - userId: [`UserId`](#userid)
 - displayName: `string`
-    - From `GetPlayerName` at the moment the session was created. `""` when the
-      host would not answer.
+    - From `GetPlayerName` at the moment the session was created. `""` when
+      the host would not answer. Authenticated, but the player chooses it: a
+      label, never a key.
 - connectedAt: `integer`
     - `OPX.Now()` at creation — process-monotonic milliseconds, not a wall
-      clock. The sandbox removes `os`, so there is no wall clock to use.
+      clock, and therefore only ever useful as the start of an interval inside
+      this process. For an instant, use the server's
+      [`Open77.time.unix()`](server-api.md#now).
 - gateSession: `any|nil`
     - The opaque handle `Open77.ready.hold` returned, held for as long as the
       readiness gate is held for this player. Compared rather than
@@ -556,6 +614,10 @@ selection screen has one of these and no [`Player`](#player).
 - released: `boolean|nil`
     - Set true once the gate has been released for this player, so the watchdog
       exits instead of releasing a second time.
+- departing: `boolean|nil`
+    - Set on disconnect or eviction. A departing slot is moved no more — its id
+      may already be somebody else's — and a login whose reads finish after it
+      is set is refused.
 
 Sessions live in `OPX.Sessions`, and every read of one goes through
 [`OPX.EnsureSession`](server-api.md#ensuresession), which is what makes the
@@ -611,33 +673,77 @@ point.
 
 See [Hooks](hooks.md) for the points, the ordering and the veto.
 
-### Migration {#migration}
+### InventoryStack {#inventorystack}
 
-One entry of `OPX.Schema`.
+One stored stack, as the inventory storage exports hand it over and take it
+back.
 
 **Fields**
 
+- slot: `integer`
+    - 1-based.
 - name: `string`
-    - The key the runner records in `opx77_migrations`. **Append-only.** Never
-      rename or edit one that has shipped: the runner keys on this name and it
-      has already run on live databases.
-- file: `string`
-    - The `sql/` file carrying the same statements, for an operator reading the
-      schema. The runner never opens it — the server runtime has no file-reading
-      API — so the two copies are edited together and
-      `python3 tools/check_sql_parity.py` is what proves they still agree.
-- statements: `string[]`
-    - Run in order. The runner stops at the first failure, because a
-      half-applied schema is the one state neither rolling forward nor back is
-      safe from.
+    - An item name of `opx77_inventory`'s catalogue.
+- count: `integer`
+    - At least `1`. Stored in the `quantity` column.
+- metadata: `table|nil`
+    - What makes this copy unlike another; `nil` for an ordinary one.
 
-See [Persistence](../../concepts/persistence.md#migrations).
+### InventoryEntity {#inventoryentity}
+
+A container as [`OPX.Storage.Inventories.ensure`](server-api.md#storageinventoriesensure)
+creates it.
+
+**Fields**
+
+- kind: `string`
+- owner: `string`
+- citizenId: `string|nil`
+    - Set for a character's bag, under a cascading foreign key.
+- plate: `string|nil`
+    - Set for a vehicle's trunk or glovebox, under a cascading foreign key.
+- slots: `integer`
+- maxWeight: `integer`
+    - Grams.
+
+### InventoryHeader {#inventoryheader}
+
+A container row, as `InventoryEnsure` and the first page of `InventoryRead`
+answer it.
+
+**Fields**
+
+- id: `integer`
+- kind: `string`
+    - `"character"`, `"stash"`, `"trunk"`, `"glovebox"`, or another.
+- owner: `string`
+    - The citizen id, the stash name, or the plate.
+- slots: `integer`
+    - The size it was created with.
+- maxWeight: `integer`
+    - Grams.
+
+`kind` and `owner` together are unique. See
+[Server exports](exports/server.md#inventoryensure).
+
+### CoreChange {#corechange}
+
+One entry of the change cursor the [`GetChanges`](exports/server.md#getchanges)
+server export reads.
+
+**Fields**
+
+- cursor: `integer`
+- kind: `"loaded"|"unloaded"|"deleted"`
+- source: [`Source`](#source)`|nil`
+- citizenId: [`CitizenId`](#citizenid)`|nil`
+- at: `integer`
+    - The core's clock, [`OPX.Now()`](server-api.md#now) milliseconds.
 
 ### LogEntry {#logentry}
 
 One structured audit line, as taken by
-[`OPX.Logger.log`](server-api.md#loggerlog). Declared in `server/logger.lua`
-rather than in `types.lua`.
+[`OPX.Logger.log`](server-api.md#loggerlog).
 
 **Fields**
 
@@ -650,7 +756,8 @@ rather than in `types.lua`.
     - `"debug"`, `"info"`, `"warn"` or `"error"`. Anything else becomes
       `"info"`.
 - message: `string|nil`
-    - Truncated to 200 characters and stripped of control characters.
+    - Truncated to 200 characters, cut between characters, and stripped of
+      control characters.
 - source: [`Source`](#source)`|nil`
 - citizenId: [`CitizenId`](#citizenid)`|nil`
 - userId: [`UserId`](#userid)`|nil`

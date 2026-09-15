@@ -1,11 +1,11 @@
 ---
 title: opx77_core client exports
-description: The sixteen client exports opx77_core publishes — twelve reads over the mirrored character state and the static definitions, four character-screen requests that answer by event — each with its parameters, answer shape and error codes, plus the in-core OPX client API those exports wrap.
+description: The seventeen client exports opx77_core publishes — thirteen reads over the mirrored character state and the static definitions, four character-screen requests that answer by event — each with its parameters, answer shape and error codes, plus the in-core OPX client API those exports wrap.
 ---
 
 # Client exports
 
-`opx77_core`'s client half publishes sixteen exports. Twelve are **reads**: they
+`opx77_core`'s client half publishes seventeen exports. Thirteen are **reads**: they
 answer from the mirror of the character the server last sent, or from the static
 definitions shipped into the client VM. Four are **requests**: they fire an
 `opx77:server:*` net event, the server validates it, and the return value only
@@ -18,6 +18,7 @@ says the request was sent — the answer arrives as an event.
 | [`HasJob`](#hasjob) | read | a boolean |
 | [`HasGang`](#hasgang) | read | a boolean |
 | [`GetAppearance`](#getappearance) | read | the stored face, or `nil` |
+| [`GetClothing`](#getclothing) | read | the stored clothing, `false`, or `nil` |
 | [`GetCharacters`](#getcharacters) | read | the selection roster |
 | [`RequestCharacters`](#requestcharacters) | request | `opx77:client:charactersReady` |
 | [`SelectCharacter`](#selectcharacter) | request | `opx77:client:onPlayerLoaded` or `opx77:client:refused` |
@@ -48,7 +49,7 @@ CreateThread(function()
   if not promise then return print(reason) end   -- level 1: never dispatched
   local result, callError = promise:await()
   if callError then return print(callError) end  -- level 2: resolution failed
-  if not result.ok then return end               -- level 3: the core refused
+  if result.ok ~= true then return end           -- level 3: the core refused
   print(result.data.citizenId)
 end)
 ```
@@ -56,7 +57,12 @@ end)
 Every export answers a plain `{ ok = boolean, … }` table rather than an
 `OPX.Result`, because the value crosses a codec and lands in code that does not
 have `OPX.Result` loaded. `ok = false` is used rather than an empty answer so a
-caller cannot mistake "not logged in yet" for "logged in with nothing".
+caller cannot mistake "not logged in yet" for "logged in with nothing". Read any
+answer without `ok = true` as a refusal. Every `error` code is a key of the
+core's catalogue, so [`Locale`](#locale) renders it.
+
+These are **client** exports. A server resource calls the core's
+[server exports](server.md) instead, which are a different, smaller surface.
 
 ---
 
@@ -94,7 +100,7 @@ CreateThread(function()
   local promise = Open77.exports.call("opx77_core", "GetPlayerData")
   if not promise then return end
   local result, callError = promise:await()
-  if callError or not result.ok then return end
+  if callError or result.ok ~= true then return end
   local data = result.data
   print(("%s %s — %s"):format(data.charInfo.firstName, data.charInfo.lastName, data.job.label))
 end)
@@ -169,7 +175,7 @@ CreateThread(function()
   local promise = Open77.exports.call("opx77_core", "HasJob", "ncpd", true, 2)
   if not promise then return end
   local result, callError = promise:await()
-  if callError or not result.ok then return end
+  if callError or result.ok ~= true then return end
   if result.result then
     -- on duty as NCPD, grade 2 or above
   end
@@ -246,6 +252,42 @@ reachable from a server resource.
 
 ---
 
+## GetClothing {#getclothing}
+
+Returns what the live character wears, as the mirror carries it: the nine
+equipment slots, the wardrobe's outfits and the active one.
+
+```lua
+Open77.exports.call("opx77_core", "GetClothing")
+```
+
+Takes no parameters.
+
+**Returns** `{ ok: true, clothing: `[`ClothingRecord`](../types.md#clothingrecord)`|false|nil }`
+
+- `clothing` — the stored record; `false` when the character has no clothing
+  stored, which is not an error; absent when the stored record could not be read
+  at login. Nothing should dress the character from an absent record, and the
+  core refuses to overwrite it for the rest of the session.
+
+**Errors** `error.notLoggedIn` when no character is loaded, as
+`{ ok = false, error = "error.notLoggedIn" }`.
+
+The record is read from `PlayerData.clothing`, which arrives with
+`opx77:client:playerLoaded` and is replaced by
+[`opx77:client:onClothingUpdate`](../events.md#onclothingupdate) whenever the
+core stores a new one. No export writes clothing: the one write path is the net
+event [`opx77:server:saveClothing`](../events.md#saveclothing), which
+[`opx77_appearance`](../../opx77_appearance/index.md) sends.
+
+!!! warning
+    Read from the client's mirror. It is a hint, not proof.
+
+**Side** `client` export — callable from any client resource. Asynchronous. Not
+reachable from a server resource.
+
+---
+
 ## GetCharacters {#getcharacters}
 
 Returns the selection roster the server last sent — the character list, the slot
@@ -265,7 +307,8 @@ Takes no parameters.
 - `origins` — the same table [`GetOrigins`](#getorigins) answers with.
 
 **Errors** none. A client that has not been sent a roster yet gets
-`characters = {}` and `slots = 0`.
+`characters = {}` and `slots = 0`. The core sends no roster while a character
+is loaded, so during play this answers the last roster received before it.
 
 To be told when a fresh roster lands rather than polling this, listen for
 `opx77:client:charactersReady` — see [Events](../events.md#charactersready).
@@ -288,11 +331,10 @@ Takes no parameters.
 
 **Returns** `{ ok: true }` — the request was sent, nothing more.
 
-**Errors** none from this call. The server may still refuse it: it cools
+**Errors** none from this call. The server may still decline it: it cools
 `opx77:server:ready` at one per two seconds per player and answers nothing when
-it does, and the roster send behind it is cooled at the same rate under the key
-`roster`. The core's own push of the roster on connect starts neither, so the
-first request a client makes is answered.
+it does. The core's own push of the roster on connect does not start that
+window, so the first request a client makes is answered.
 
 The answer arrives as `opx77:client:charactersReady` on the core's local
 channel, or as `opx77:client:characters` on the wire. A client that already has
@@ -327,13 +369,14 @@ Open77.exports.call("opx77_core", "SelectCharacter", citizenId)
 
 | Code | Meaning |
 |---|---|
-| `bad-citizen-id` | The argument was not a string. Nothing was sent. |
+| `error.badRequest` | The argument was not a string. Nothing was sent. |
 
 The server's own refusals do not come back through this call. They arrive as
 [`opx77:client:refused`](../events.md#refused) (local) or
 [`opx77:client:notify`](../events.md#notify) (wire), carrying a locale key such
-as `character.notFound`, `error.tooFast` or `entry.failed` **and the operation
-they answer** — `selectCharacter` here. Branch on the operation: a caller with
+as `character.notFound`, `character.inUse` or `error.tooFast` **and the
+operation they answer** — `selectCharacter` here. A refused selection raises no
+toast: render the code yourself. An identical refusal is sent every time. Branch on the operation: a caller with
 more than one request in flight cannot otherwise tell whose `error.tooFast` it
 is holding. Success arrives as `opx77:client:onPlayerLoaded` (local) or
 `opx77:client:playerLoaded` (wire).
@@ -354,10 +397,10 @@ AddEventHandler("opx77:client:refused", function(code, kind, operation)
 end)
 
 CreateThread(function()
-  local promise = Open77.exports.call("opx77_core", "SelectCharacter", "NC-4B2K-7Q")
+  local promise = Open77.exports.call("opx77_core", "SelectCharacter", "H7K-M4X3")
   if not promise then return end
   local result, callError = promise:await()
-  if callError or not result.ok then return end
+  if callError or result.ok ~= true then return end
   -- sent; now wait for one of the two handlers above
 end)
 ```
@@ -381,8 +424,10 @@ Open77.exports.call("opx77_core", "CreateCharacter", registration)
       `open77_appearance` understands, and its column constraint accepts those
       two. The client-side pre-check does not look at it, so a wrong value is
       refused by the server with `error.badRequest`.
-    - birthDate?: `string` — shape-checked against `YYYY-MM-DD` and never
-      parsed; anything else is replaced with `2050-01-01` rather than refused.
+    - birthDate?: `string` — `YYYY-MM-DD`. Not checked here. The server refuses
+      a date of that shape that is not a real day from 1900 on with
+      `character.badBirthdate`, and replaces a missing or otherwise shaped one
+      with `2050-01-01`. No future-date check is made.
 
 **Returns** `{ ok: boolean, error?: string }`
 
@@ -390,15 +435,16 @@ Open77.exports.call("opx77_core", "CreateCharacter", registration)
 
 | Code | Meaning |
 |---|---|
-| `bad-request` | `registration` was not a table. Nothing was sent. |
-| `character.badName` | A name failed the local length check. Nothing was sent. |
+| `error.badRequest` | `registration` was not a table. Nothing was sent. |
+| `character.badName` | A name failed the local check. Nothing was sent. |
 | `character.badOrigin` | The origin is not one of the shipped lifepaths. Nothing was sent. |
 
-Every field is checked again server-side against the same rules. Checking here
-only spares a round trip and gives the UI something to mark. A server-side
-refusal arrives as `opx77:client:refused` with a code such as
-`character.slotsFull`; success is followed by a fresh roster on
-`opx77:client:charactersReady`.
+Every field is checked again server-side. Checking here only spares a round trip
+and gives the UI something to mark. A server-side refusal arrives as
+`opx77:client:refused` with a code such as `character.limit` — which renders
+with the account's own slot count as `max` — `character.rowLimit` or
+`character.badBirthdate`, and also as an error toast. Success is a toast and a
+fresh roster on `opx77:client:charactersReady`.
 
 **Side** `client` export — callable from any client resource. Asynchronous, and
 the value it returns is not the answer. Not reachable from a server resource.
@@ -429,9 +475,9 @@ Open77.exports.call("opx77_core", "DeleteCharacter", citizenId)
 
 | Code | Meaning |
 |---|---|
-| `bad-citizen-id` | The argument was not a string. Nothing was sent. |
+| `error.badRequest` | The argument was not a string. Nothing was sent. |
 
-A server-side refusal arrives as `opx77:client:refused`; success is followed by
+A server-side refusal arrives as `opx77:client:refused`; success is a toast and
 a fresh roster on `opx77:client:charactersReady`.
 
 **Side** `client` export — callable from any client resource. Asynchronous, and
@@ -454,7 +500,8 @@ Takes no parameters.
 
 - serverName: `string` — `SHARED.SERVER_NAME`.
 - locale: `string` — the locale **in force**, not the one configured: the two differ after a `Locale.set`.
-- moneyTypes: `string[]` — the money types this server runs.
+- moneyTypes: `table<string, integer>` — `SHARED.MONEY.TYPES`: every money type
+  this server runs, with its starting amount.
 - defaultMoneyType: `string`
 - nameBounds: `{ MIN: integer, MAX: integer }` — character-name length, counted in characters.
 - notifyPosition: `string` — the notification position the core sends with, in the platform's underscored vocabulary.
@@ -539,7 +586,7 @@ CreateThread(function()
   local promise = Open77.exports.call("opx77_core", "GetJobs")
   if not promise then return end
   local result, callError = promise:await()
-  if callError or not result.ok then return end
+  if callError or result.ok ~= true then return end
   for name, job in pairs(result.jobs) do
     for i = 1, #job.grades do
       local grade = job.grades[i]
@@ -615,7 +662,9 @@ Open77.exports.call("opx77_core", "GetVersion")
 
 Takes no parameters.
 
-**Returns** `{ ok: true, version: string }` — `"0.3.0"` on this release.
+**Returns** `{ ok: true, version: string }` — `"0.6.0"` on this release. The
+server export of the same name also answers the contract number and the caller's
+scopes — see [server exports](server.md#getversion).
 
 **Errors** none.
 
@@ -632,9 +681,9 @@ Lua file added to `opx77_core/client/` and listed as a `client_script` in
 individually: a script glob is fatal on this platform, and
 [Architecture](../../../concepts/architecture.md#load-order) explains why.
 
-!!! info "A fourth answer to \"can I call this from here\""
-    The three sides the rest of this reference uses — *client export*, *in-core
-    server*, *net event* — do not cover this one. These functions are **in-core
+!!! info "Another answer to \"can I call this from here\""
+    The sides the rest of this reference uses — *client export*, *server
+    export*, *in-core server*, *net event* — do not cover this one. These functions are **in-core
     client**: same machine, same Lua state as `client/exports.lua`, synchronous,
     no codec, and invisible to every other resource. A satellite that calls
     `OPX.HasJob` calls a `nil` global.
@@ -836,6 +885,22 @@ local snapshot = OPX.GetAppearance()
 yield. It is a mirror: the writer is
 [`OPX.SaveAppearance`](../server-api.md#saveappearance), on the server.
 
+### OPX.GetClothing {#client-getclothing}
+
+Returns the stored clothing for the live character: the record, `false` when
+none is stored, or `nil` when no character is loaded or the stored record could
+not be read at login.
+
+```lua
+local record = OPX.GetClothing()
+```
+
+**Returns** [`ClothingRecord`](../types.md#clothingrecord)` | false | nil`
+
+**Side** `in-core client` — a file inside `opx77_core/client/` only. Does not
+yield. It is a mirror: the writer is
+[`OPX.SaveClothing`](../server-api.md#saveclothing), on the server.
+
 ### OPX.GetPosition {#getposition}
 
 Returns the local player's position as a flat `{ x, y, z }` table, or `nil` when
@@ -912,7 +977,7 @@ local sent, reason = OPX.SelectCharacter(citizenId)
 
 | Code | Meaning |
 |---|---|
-| `bad-citizen-id` | The argument was not a string. Nothing was sent. |
+| `error.badRequest` | The argument was not a string. Nothing was sent. |
 
 The server's own refusal never comes back here. It arrives on the wire as
 `opx77:client:notify` and is re-emitted locally as
@@ -939,7 +1004,7 @@ local sent, reason = OPX.CreateCharacter(registration)
 
 | Code | Meaning |
 |---|---|
-| `bad-request` | The argument was not a table. |
+| `error.badRequest` | The argument was not a table. Nothing was sent. |
 | `character.badName` | `firstName` or `lastName` failed [`OPX.ValidateName`](../server-api.md#validatename). |
 | `character.badOrigin` | `origin` is not a key of `data/origins.lua`. |
 
@@ -966,11 +1031,11 @@ local sent, reason = OPX.DeleteCharacter(citizenId)
 
 | Code | Meaning |
 |---|---|
-| `bad-citizen-id` | The argument was not a string. Nothing was sent. |
+| `error.badRequest` | The argument was not a string. Nothing was sent. |
 
 !!! danger "Deletion is permanent and the client cannot confirm it"
-    The row, the character's money, its job history and its vehicles go with it.
-    This call answers before the server has decided anything; the outcome arrives
+    The character leaves the account for good as far as any player can tell,
+    and every row in `CASCADE_TABLES` is deleted for real. This call answers before the server has decided anything; the outcome arrives
     as [`opx77:client:charactersReady`](../events.md#charactersready) with one
     fewer entry, or as a refusal.
 
@@ -981,7 +1046,7 @@ yield.
 
 - [The in-core client API](#in-core-client) — the same reads, synchronously, for
   a file added to `opx77_core/client/`.
-- [Server exports](server.md) — why there are none.
+- [Server exports](server.md) — the eleven a server resource calls.
 - [Events](../events.md) — how to be told about a change instead of asking.
 - [Types](../types.md) — `PlayerData`, `CharacterSummary` and the rest.
 - [The export contract](../../../concepts/export-contract.md) — the three levels of failure, in full.

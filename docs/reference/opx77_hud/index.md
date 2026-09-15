@@ -7,15 +7,16 @@ description: opx77_hud is the player HUD for OPX//77 — segmented gauges, a mon
 
 | At a glance | |
 |---|---|
-| **Version** | `0.3.0` |
+| **Version** | `0.6.0` |
 | **Requires** | `open77_version ">=0.0.1"`. No `dependency` is declared; it reads [`opx77_core`](../opx77_core/index.md) and [`opx77_status`](../opx77_status/index.md) at runtime when they are running |
 | **Auto start** | yes |
 | **Reload policy** | `reconnect` — a CEF surface is never replaced in place |
-| **Permissions** | `network.events`, `ui.vanilla.hud` |
+| **Permissions** | `network.events`, `ui.vanilla.hud`, `input.actions` |
 | **Sides** | client, plus a server half that registers one command |
 | **Exports** | three, all client: [`setVisible`](exports.md#setvisible), [`isVisible`](exports.md#isvisible), [`vanilla`](exports.md#vanilla) |
 | **Commands** | one: [`/hud`](commands.md#hud) |
-| **Events** | it raises no Lua event at all. Its only outbound messages are to its own page — see [Events](events.md) |
+| **Keys** | one: `opx77_hud.toggle`, `F8` by default, rebindable — see [Commands](commands.md#key) |
+| **Events** | it raises no event of its own. Beyond its page, its only outbound message is a local `chat:addMessage` when a toast cannot be raised — see [Events](events.md) |
 | **Reads** | `opx77_core` (client export and local events), `opx77_status` (client export and local events) |
 
 ## What it is {#what-it-is}
@@ -32,8 +33,9 @@ original leaves the player reading their health off two bars that disagree.
 
 **It decides nothing and writes nothing.** There is no state in this resource
 another resource would want. It never calls a mutator on the core, never writes
-to the database, and never sends anything to the server except the `/hud`
-command's answer travelling back to the player who typed it. Everything on
+to the database, and never sends anything to the server. The only traffic between
+its halves is the `/hud` command's answer travelling back to the player who typed
+it. Everything on
 screen is a rendering of somebody else's state, and the only thing this resource
 owns is the surface it is rendered on — a WebUI page on the `hud` layer,
 1920 × 1080 at 30 fps, `zIndex` 705, transparent.
@@ -49,7 +51,7 @@ Player-facing text comes from this resource's own catalogue: `shared/locale.lua`
 publishes the global `locale(key, params)`, `locales/en.lua` and `locales/fr.lua`
 register the strings, and [`LOCALE`](config.md#locale) chooses between them. All
 three are `shared_script`s, because the `/hud` command is registered on the
-server half. `types.lua` holds the annotations for the shapes this resource
+server half. `std/types.lua` holds the annotations for the shapes this resource
 builds and is never loaded at runtime.
 
 !!! info "The reload policy is `reconnect`"
@@ -119,13 +121,16 @@ they are not status effects, and `opx77_core` never sees them.
 
 The snapshot is read **once** at start, through `opx77_core`'s `GetPlayerData`
 client export, and after that only from the core's own local events — there is no
-poll behind them. The needs are read the same way, once at start through
+poll behind them. A stop or restart of `opx77_core` raises no unload event, so
+`opx77_hud` treats that stop as an unload: the character and its needs leave the
+frame until the core loads a character again. The needs are read the same way, once at start through
 `opx77_status`'s [`getNeeds`](../opx77_status/exports.md#getneeds) export and
 after that only from [`opx77:status:needs`](events.md#status-needs), which is
 pushed on every change; see [Events](events.md#non-networked). A source that is
 not running is not a broken screen — the gauges it owns leave the frame rather
 than reading zero, the rest keep drawing, and only an authoritative refusal
-clears anything.
+clears anything. An export answer that does not carry `ok = true` is a refusal,
+whatever else it holds.
 
 ## Where to go next {#next}
 
@@ -133,8 +138,8 @@ clears anything.
   that reports what became of the game's own HUD.
 - [Events](events.md) — what it listens to, and the whole message protocol
   between Lua and `web/hud.js`.
-- [Commands](commands.md) — `/hud`.
-- [Configuration](config.md) — the eight keys, including
+- [Commands](commands.md) — `/hud`, and the show/hide key.
+- [Configuration](config.md) — the ten keys, including
   [`LOCALE`](config.md#locale) and [`VANILLA`](config.md#vanilla), and what is
   deliberately not a key.
 - [`opx77_status`](../opx77_status/index.md) — the registry behind the strip.

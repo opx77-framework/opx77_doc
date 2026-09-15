@@ -30,7 +30,11 @@ AddEventHandler("opx77:charcreator", function(payload) end)
 | `handedOver` | `opx77_appearance` was asked to open the in-world face editor | `ok`, `citizenId`, and `error` when `openCreator` refused |
 
 A refused `created` is not the end of the flow: the form reopens with the reason
-under it, and the player may try again. `citizenId` on a successful `created` is
+under it, and the player may try again. It is published for a refusal the core's
+server sends on `opx77:client:refused` and for one its `CreateCharacter` export
+answers before sending anything (`error.badRequest`, `character.badName`,
+`character.badOrigin`). A call that never reached the core — not running, not
+dispatched — reopens the form without publishing. `citizenId` on a successful `created` is
 the character the new roster gained; it is absent where the roster made that
 impossible to tell.
 
@@ -42,10 +46,11 @@ impossible to tell.
 | `input_stopped` | `opx77_input` stopped with the form up |
 | `closed by <resource>` | a resource called [`close`](exports.md#close) |
 | `no_origins` | the lifepaths could not be read from `opx77_core` |
-| `form_unavailable` | `opx77_input` would not put the form up |
-| `failed` | the flow raised while starting |
+| `form_unavailable` | `opx77_input` would not put the form up, or the form could not be built |
+| `player_loaded` | a character loaded while the form was up, or being put up; the form is closed |
 
-A flow that ends because a character loaded publishes nothing further.
+A character that loads while a registration is with the core ends the flow and
+publishes nothing: the registration may have gone through.
 
 !!! warning "`EVENT` must be a name of its own"
 
@@ -70,17 +75,21 @@ is already running.
 
 ### The form's answer {#answer}
 
-`opx77_input` raises the answer on `opx77:charcreator:answered`, a private name
-nothing else uses, so an answer arriving there is always this form's. A `submit`
-is validated and sent; a `cancel` ends the flow, except `reopened`, which is this
-resource replacing its own form.
+`opx77_input` raises the answer on `opx77:charcreator:answered`, a private name,
+and it is read only while the form is up. A local event can be raised by any
+resource in the client, so an answer is taken only when its `owner` is this
+resource and, once `opx77_input` has answered the form's handle, when its
+`handle` is that one: a late answer from a form already replaced is ignored.
+While the open call is still awaited the handle is not known yet, and the owner
+alone is checked. A `submit` is validated and sent; a `cancel` ends the flow,
+except `reopened`, which is this resource replacing its own form.
 
 ### From opx77_core {#from-core}
 
 | Event | Does |
 |---|---|
 | `opx77:client:charactersReady` | Remembers the account's citizen ids. While a registration is in flight, the roster **is** the answer: the flow ends, and `created` is published with the id the roster gained. |
-| `opx77:client:onPlayerLoaded` | A character is in the world: any flow ends, and the roster is not asked for. |
+| `opx77:client:onPlayerLoaded` | A character is in the world: any flow ends, and the roster is not asked for. With the form up, `cancelled` is published with `reason = "player_loaded"` and the form is closed through `opx77_input`; with a registration in flight, nothing is published. |
 | `opx77:client:onPlayerUnloaded` | There is something to create into again. |
 | `opx77:client:refused` | Only one naming the `createCharacter` operation, and only while a registration is in flight: `created` is published with `ok = false` and the form reopens with the reason. |
 
@@ -88,8 +97,8 @@ A refusal is branched on its **operation**, never on the code: an
 `error.tooFast` raised by a character selection is left alone rather than taken
 for the answer to a registration still in flight. The catalogue renders
 `character.limit`, `character.rowLimit`, `character.badName`,
-`character.badOrigin`, `entry.noIdentity`, `error.unavailable`,
-`error.badRequest`, `error.tooFast` and `error.notLoggedIn` in the player's
+`character.badOrigin`, `character.badBirthdate`, `entry.noIdentity`,
+`error.unavailable`, `error.badRequest` and `error.tooFast` in the player's
 language; any other code is shown as *That was refused (\<code\>).*
 
 !!! info "`error.unavailable` on every attempt was a core bug"

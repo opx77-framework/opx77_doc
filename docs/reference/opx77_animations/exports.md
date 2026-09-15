@@ -5,10 +5,10 @@ description: The eight client exports of opx77_animations — play, stop, state,
 
 # Exports
 
-Eight exports, all **client-side**, because that is the only side exports exist
-on: the OPEN//77 server runtime installs none. A server resource that wants a
-player to play an animation sends a net event to its own client half, and that
-half calls these. [The client export contract](../../concepts/export-contract.md)
+Eight exports, all **client-side**: the requests, the mirror and the picker live
+on the player's machine, and this resource's server half publishes no export. A
+server resource that wants a player to play an animation sends a net event to
+its own client half, and that half calls these. [The client export contract](../../concepts/export-contract.md)
 covers the call shape and its three levels of failure.
 
 Every call answers a table carrying `ok` and never raises. `error` is a stable
@@ -253,28 +253,33 @@ Open77.exports.call("opx77_animations", "get", name)
 
 ## openPicker {#openpicker}
 
-Asks [`opx77_menu`](../opx77_menu/index.md) to put the picker up, standing on one
-category's row when one is named.
+Asks [`opx77_menu`](../opx77_menu/index.md) to put the picker up — its root
+screen, or one category's screen when a category is named.
 
 ```lua
 Open77.exports.call("opx77_animations", "openPicker", category)
 ```
 
 - category?: `string`
-    - Where the cursor starts. Advisory: a category with nothing offered is not
-      drawn, and the menu falls back to the first selectable row.
+    - One of the six categories, without case. That category's screen opens
+      directly, with the root stacked under it and its cursor on that category,
+      so **Back** and Backspace return there. A category with nothing offered
+      has no row on the root, and naming it opens the root.
+    - Default: the root screen
 
 **Returns** an [`AnimationRequest`](types.md#animationrequest) — `ok = true,
 queued = true`. The menu is called on a thread, so the picker appears a moment
 later. A refusal from the menu after that is logged as
-`picker did not open: <reason>`, and `menu_busy` additionally shows the player
-*Another menu is open. Close it first.*
+`picker <screen> did not open: <reason>` and shown to the player as a toast —
+see [The picker](index.md#picker). A picker of this resource's already up is
+replaced.
 
-The picker is the whole tree, built from what is offered at the moment of the
-call: a **Stop** row, then one submenu per non-empty category, then one row per
-animation. An animation with one variant is a row that plays it; one with more is
-a submenu of **Variant n** rows. It is well under `opx77_menu`'s 400-node
-ceiling.
+The picker opens **one screen at a time**, each its own `opx77_menu` `open`,
+built from what is offered at the moment that screen is drawn: the root holds a
+**Stop** row and the non-empty categories, a category its animations, and an
+animation with more than one variant a screen of **Variant n** rows. An animation
+with one variant is a row that plays it. Every screen below the root ends in a
+**Back** row. See [The picker](index.md#picker).
 
 **Errors**
 | Code | Meaning |

@@ -23,11 +23,11 @@ where it stands — [the stage](stage.md).
 
 | At a glance | |
 |---|---|
-| **Version** | `0.3.0` |
+| **Version** | `0.4.0` |
 | **Requires** | `open77_version ">=0.0.1"`. No `dependency` is declared; `opx77_menu` must be running for anything to be drawn |
 | **Auto start** | yes |
 | **Reload policy** | `local` — it has no CEF surface of its own. `opx77_menu` owns the only one, and drops this resource's roster when the generation changes |
-| **Permissions** | `camera.preview` — `Open77.camera.orbit` and `clearOrbit` for the stage camera; `player.travel` — `Open77.travel.teleport` for the stage's hold, and nothing else |
+| **Permissions** | `camera.preview` — `Open77.camera.orbit` and `clearOrbit` for the stage camera; `players.controls` — `freezeRotation`, `freezePosition`, the `allow*` blocks and `resetControls` for the stage's camera lock and hold; `player.travel` — `Open77.travel.teleport` for the fallback hold, and nothing else |
 | **Sides** | client only. No `server/`, no `sql/`, no table, no `database.access`, no `web/` |
 | **Exports** | six, all client: [`open`](exports.md#open), [`close`](exports.md#close), [`isOpen`](exports.md#isopen), [`state`](exports.md#state), [`holdStage`](exports.md#holdstage), [`releaseStage`](exports.md#releasestage) |
 | **Commands** | none |
@@ -85,6 +85,10 @@ selection, and the [`open`](exports.md#open) export, which answers
 `world_not_ready` before it. A roster that arrives earlier is kept, not drawn,
 and goes up when the world does.
 
+A world entry back in the pre-game menu world takes the world down again: a
+list that is up, or still being opened, is closed, and goes back up at the next
+gameplay world entry.
+
 ## The flow {#flow}
 
 1. The player joins. `opx77_core` holds its own entry gate and sends the roster
@@ -130,7 +134,15 @@ the roster was read back from opx77_core
 On a resource reload mid-session the core has already sent the roster to a
 client that no longer had this screen, so the boot reads it back through
 `GetCharacters` and, failing that, asks through `RequestCharacters` with
-*Waiting for your characters...* queued under the list.
+*Waiting for your characters...* queued under the list. A roster that reached
+the client while the boot was reading skips both.
+
+**An `opx77_core` stop counts as a character unload.** A restarted core raises no
+`onPlayerUnloaded`, so without a selection under way the list closes, the roster
+is forgotten and asked for again. While the core is down that request fails, with
+`the roster could not be asked for: not_running`, and the retry keeps asking;
+once the core is back, a retry reads the roster, or asks for it, and the list
+goes up.
 
 !!! info "The core no longer cools its own push"
 
@@ -177,12 +189,20 @@ row.
   under the list.
 - **The list is dismissible, and comes back.** Escape, the pause menu,
   `BACKSPACE` at the root and a `close` row all close an `opx77_menu`. A close
-  this resource did not ask for puts the roster back up 250 ms later, because a
-  player with no character and no list has no way to choose one.
+  for one of those — reason `pause`, `back` or `item` — puts the roster back up
+  250 ms later, because a player with no character and no list has no way to
+  choose one. No other close reason reopens it.
+- **Only the latest open counts.** `opx77_menu` answers an open after a wait,
+  and every open and every close moves a generation token. An open that a newer
+  open or a close overtook during that wait keeps no handle and closes the list
+  it was given, so two opens at join leave one list, and a close during the wait
+  — a character loading, the [`close`](exports.md#close) export — leaves none
+  drawn.
 - **A selection never answered unlocks the list** after
   [`REQUEST_TIMEOUT_MS`](config.md#request-timeout-ms), with *Nothing answered.
   Try again.* Without it a lost reply leaves a player looking at a dimmed list
-  with no way forward.
+  with no way forward. A late refusal of that first selection, answered by
+  `SelectCharacter`, does not unlock a second one.
 
 ## What it does not do {#does-not}
 
