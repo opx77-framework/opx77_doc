@@ -28,10 +28,11 @@ and their payloads are free to change.
 The menu sends each row as the tokens of a command line:
 
 ```lua
-TriggerServerEvent("open77:command:execute", "opx77.admin.player.heal", "7")
+TriggerServerEvent('open77:command:execute', 'opx77.admin.player.heal', '7')
 ```
 
-That is the path the chat box uses, and the host resolves `command.<first
+That is the path the chat box uses — the [menu key](config.md#keys) and the
+noclip speed keys send the same lines — and the host resolves `command.<first
 token>` against the player's ACL before any handler runs. Tokens are cleaned of
 control characters and cut to 256 bytes each, and a line of more than 32 tokens
 is not sent: the transport refuses both outright.
@@ -54,8 +55,8 @@ goes under the menu only when it answers a command the menu sent in the last
 fifteen seconds; `opx77_chat` toasts a refusal as well. An **accepted** answer of
 more than one line to such a command — the holders of an item, from
 [`opx77_inventory`](../opx77_inventory/commands.md#holders) — is also written to
-the chat box, authored *STAFF*, because `opx77_chat` prints none: the line under
-the list holds only its first line.
+the chat box, authored *STAFF*, as an `info` line, because `opx77_chat` prints
+none: the line under the list holds only its first line.
 
 ## Server to client {#server-to-client}
 
@@ -65,7 +66,7 @@ The opener command's answer: the operator's session. The client puts the root
 screen up, or closes the menu when it is already up — the command toggles.
 
 ```lua
-RegisterNetEvent("opx77_admin:open", function(session) end)
+RegisterNetEvent('opx77_admin:open', function(session) end)
 ```
 
 - session: [`AdminSession`](types.md#adminsession)
@@ -79,8 +80,9 @@ RegisterNetEvent("opx77_admin:open", function(session) end)
     - `inventory` says whether `opx77_inventory` is running: its rows are drawn
       only then.
 
-Followed at once by [`roster`](#roster) and [`locations`](#locations), and,
-while the inventory runs, by [`items`](#items) once its catalogue has been read.
+The payload carries no operator id. Followed at once by [`roster`](#roster) and
+[`locations`](#locations), and, while the inventory runs, by [`items`](#items)
+once its catalogue has been read.
 
 ### opx77_admin:roster {#roster}
 
@@ -88,38 +90,50 @@ The roster, in chunks of twenty rows, because the host drops an event past 1024
 value nodes without a word and a row is about a dozen.
 
 ```lua
-RegisterNetEvent("opx77_admin:roster", function(chunk) end)
+RegisterNetEvent('opx77_admin:roster', function(chunk) end)
 ```
 
 - chunk: `{ rows, offset, total, done }`
     - rows: [`AdminRosterRow`](types.md#adminrosterrow)`[]`
     - offset: rows sent before this chunk; `0` starts a new roster
+    - total: rows in the whole list
     - done: `true` on the last chunk, which is when the client swaps it in
+
+An empty list is still one chunk, `{ rows = {}, offset = 0, total = 0, done =
+true }`.
 
 ### opx77_admin:locations {#locations}
 
-The destination list, sorted by name.
+The destination list, sorted by name, in chunks of twenty rows like the roster:
+destinations saved in game have no cap, and one event holding them all could run
+past the host's limit.
 
 ```lua
-RegisterNetEvent("opx77_admin:locations", function(list) end)
+RegisterNetEvent('opx77_admin:locations', function(chunk) end)
 ```
 
-- list: `{ rows = { name, label, runtime }[] }` — `runtime` marks a destination
-  saved in game.
+- chunk: `{ rows, offset, total, done }`
+    - rows: `{ name, label, runtime }[]` — `runtime` marks a destination saved
+      in game.
+    - offset, total, done: as in [`roster`](#roster). The client gathers the
+      chunks in a buffer of their own and adopts the list on the last one.
 
 ### opx77_admin:items {#items}
 
-`opx77_inventory`'s catalogue, for the item and weapon pickers, in chunks of
-twenty rows. Sent after the opener while the inventory runs, and in answer to a
-[`refresh`](#refresh) for `items`.
+`opx77_inventory`'s catalogue, for the item, weapon and ammunition pickers, in
+chunks of twenty rows. Sent after the opener while the inventory runs, and in
+answer to a [`refresh`](#refresh) for `items`.
 
 ```lua
-RegisterNetEvent("opx77_admin:items", function(chunk) end)
+RegisterNetEvent('opx77_admin:items', function(chunk) end)
 ```
 
 - chunk: `{ rows, offset, total, done, error }`
-    - rows: `{ name, label, category, class }[]` — `class` only on a weapon
-      item, which is how the weapon picker tells them apart. Sorted by label.
+    - rows: `{ name, label, category, class, max }[]`, sorted by label.
+        - `class` only on a weapon item, which is how the weapon picker tells
+          them apart.
+        - `max` only on an ammunition item: one full load, the inventory's
+          `AMMO.MAX` for it. The *Give ammunition* count form starts there.
     - offset, total, done: as in [`roster`](#roster).
     - error: this resource's refusal code when the catalogue could not be read,
       such as `inventory_unavailable`; the picker then shows
@@ -134,7 +148,7 @@ One bag's stacks, for the *Take an item* picker, in chunks of twenty rows. Sent
 only in answer to a [`refresh`](#refresh) for `bag`.
 
 ```lua
-RegisterNetEvent("opx77_admin:bag", function(chunk) end)
+RegisterNetEvent('opx77_admin:bag', function(chunk) end)
 ```
 
 - chunk: `{ rows, offset, total, done, target, error }`
@@ -149,7 +163,7 @@ RegisterNetEvent("opx77_admin:bag", function(chunk) end)
 A fresh access map, in answer to a [`refresh`](#refresh) for `access`.
 
 ```lua
-RegisterNetEvent("opx77_admin:access", function(payload) end)
+RegisterNetEvent('opx77_admin:access', function(payload) end)
 ```
 
 - payload: `{ access, aclKnown, inventory }`, as in [`open`](#open). The screen
@@ -161,15 +175,19 @@ RegisterNetEvent("opx77_admin:access", function(payload) end)
 A travel switch, sent only by an ACL-gated server command.
 
 ```lua
-RegisterNetEvent("opx77_admin:travel", function(action, value) end)
+RegisterNetEvent('opx77_admin:travel', function(action, value) end)
 ```
 
 | `action` | `value` | The client |
 |---|---|---|
-| `noclip` | `boolean` | `Open77.travel.setNoclip` |
-| `speed` | `number` | `Open77.travel.setNoclipSpeed`, only for `0.1`–`500` |
+| `noclip` | `boolean` | `Open77.travel.setNoclip`, then puts the noclip controls up or down |
+| `speed` | `number` | `Open77.travel.setNoclipSpeed`, only for `0.1`–`500`; the controls strip shows the applied speed |
 | `mapPick` | `boolean` | `Open77.travel.setMapPick`; a picked point is sent back only while armed |
 | `copy` | `string` | `Open77.clipboard.setText`, only for a line of at most 160 bytes starting `{ NAME = ` |
+
+The first time noclip goes on for a player, the server follows `noclip` with a
+`speed` of [`NOCLIP.SPEED`](config.md#noclip), or 40 when that is outside
+`0.1`–`500`, unless the player already chose one.
 
 A travel native missing from the client build is one log line and a toast:
 
@@ -183,7 +201,7 @@ A command's answer to the staff member who ran it, already in the configured
 locale.
 
 ```lua
-RegisterNetEvent("opx77_admin:answer", function(raw, accepted, message, kind) end)
+RegisterNetEvent('opx77_admin:answer', function(raw, accepted, message, kind) end)
 ```
 
 - raw: `string` — the command line as typed.
@@ -198,12 +216,19 @@ The client first puts the message under the list when the menu sent that
 command in the last fifteen seconds. Then a `report` is a `chat:addMessage`
 line authored *STAFF*, and anything else a toast through `opx77_notify`'s
 `show`, titled *STAFF*, in the one slot `opx77_admin` that each answer — and
-every other toast of this resource's — replaces. A toast that cannot be raised
-is the same chat line, logged once:
+every other toast of this resource's — replaces. An accepted answer to a
+[`self.speed`](commands.md#self-speed) the noclip speed keys sent in the last
+five seconds raises no toast: the controls strip already shows the number. A
+toast that cannot be raised — `opx77_notify` stopped, or any answer without
+`ok = true` — is the same chat line, logged once:
 
 ```text
 no toast (not_running): staff answers go to the chat box instead
 ```
+
+A chat line carries a `type` and no `color`: `info` for a report and for an
+`info` or `success` answer, `error` for a warning or an error. `opx77_chat`
+draws it with its `.line.info` and `.line.error` styles.
 
 A forged one draws a line or a toast on the forger's own screen, and nothing
 else.
@@ -213,14 +238,15 @@ else.
 ### opx77_admin:refresh {#refresh}
 
 The menu asks for a list again: the roster when it opens the players or a player
-screen, the destinations when it opens a destination screen, the access map
-when it leaves the root screen, the inventory's catalogue when an item or weapon
-picker opens without one, and a bag every time the *Take an item* picker opens
-or a removal from it was sent — a bag changes under a staff member between two
-visits.
+screen, the destinations when it opens a destination screen or the spots saved
+in game, the access map when it leaves the root screen, the inventory's
+catalogue when an item, weapon or ammunition picker opens without one, and a bag
+every time the *Take an item* picker opens or a removal from it was sent — a bag
+changes under a staff member between two visits. A row whose command changes a
+list asks for it again 1.2 seconds after it was sent.
 
 ```lua
-TriggerServerEvent("opx77_admin:refresh", topic, holder)
+TriggerServerEvent('opx77_admin:refresh', topic, holder)
 ```
 
 - topic: `"roster" | "locations" | "access" | "items" | "bag"` — anything else
@@ -244,10 +270,13 @@ everything but a bag.
 | `open77:map:picked` | client, local | a point double-clicked on the world map while map travel is armed, sent back as `opx77.admin.self.maptravel <x> <y> <z>` |
 | `opx77_admin:row` | client, local | a menu row used, raised by `opx77_menu`; only a payload whose `owner` is this resource is read |
 | `opx77_admin:form` | client, local | a form answered, raised by `opx77_input` |
-| `onClientResourceStop` | client | this resource stopping: the menu and form are closed, and noclip and map travel turned off |
+| `open77:keybinds:changed` | client, local | a player rebound or reset a key: the root screen's **Close** row and the noclip controls name the new key |
+| `onClientResourceStart` | client | this resource starting: the [key mappings](config.md#keys) are registered. `opx77_prompts` starting: the controls it lost are put back |
+| `onClientResourceStop` | client | this resource stopping: the menu and form are closed, and noclip and map travel turned off. `opx77_prompts` stopping: what it showed is forgotten |
 | `chat:ready` | server, net | the chat box asks for suggestions; only commands the ACL grants that player are sent, on `chat:addSuggestions`, cooled at 2000 ms |
-| `open77:weapons:completed` | server, local | a weapon relay answered, `(playerId, requestId, operation, accepted, reason, result)` |
-| `onPlayerDisconnected` | server | a departed player's rate history, travel switches and refresh floors are forgotten, so a recycled id inherits none |
+| `open77:weapons:completed` | server, local | a holster relay answered, `(playerId, requestId, operation, accepted, reason, result)` |
+| `open77:resource:started`, `open77:resource:stopped` | server, local | the inventory named by [`INVENTORY.RESOURCE`](config.md#inventory) starting or stopping: its cached catalogue is forgotten |
+| `onPlayerDisconnected` | server | a departed player's command and refresh floors, travel switches and chosen noclip speed are forgotten, so a recycled id inherits none |
 | `onResourceStop` | server | this resource stopping: every travel switch it turned on is sent off |
 
 ## What it sends that is not its own {#sends}
@@ -256,12 +285,14 @@ everything but a bag.
 |---|---|---|
 | `open77:command:execute` | server | every staff action, as a command line — see [the command channel](#command-channel) |
 | `chat:addSuggestions` | one player | the staff commands that player may run |
-| `chat:addMessage` | every player | an announcement, when [`ANNOUNCE.CHAT`](config.md#announce) is on |
+| `chat:addMessage` | every player | an announcement, when [`ANNOUNCE.CHAT`](config.md#announce) is on: `{ type, author, text }` with `type = 'system'`, the *ANNOUNCEMENT* title as author, and no `color` |
 | `chat:addMessage` | the operator, locally | a report, and any answer a toast could not carry — see [`answer`](#answer) |
 
-A target's toast and an announcement go through `Open77.notifications.send` on the server, which
-[`opx77_notify`](../opx77_notify/index.md) draws. The operator's own answer is
-raised on the client instead, through `opx77_notify`'s `show` export.
+A target's toast and an announcement go through `Open77.notifications.send` on
+the server, which [`opx77_notify`](../opx77_notify/index.md) draws. The
+operator's own answer is raised on the client instead, through `opx77_notify`'s
+`show` export, and the noclip and map travel controls through `opx77_prompts`'
+`show` and `hide` exports.
 
 ## See also {#see-also}
 
