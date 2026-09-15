@@ -1,14 +1,16 @@
 ---
 title: opx77_inventory exports
-description: The seventeen server exports another server resource changes and reads a bag through, gated by EXPORTS.READ and EXPORTS.WRITERS, the nine client exports that answer from the bag the server last pushed, and every error code they carry.
+description: The seventeen server exports another server resource changes and reads a bag through, gated by EXPORTS.READ and EXPORTS.WRITERS, the nine client exports that answer from the bag the server last pushed, the four context menu callbacks, and every error code they carry.
 ---
 
 # Exports
 
 Every export answers `{ ok = true, ... }` or `{ ok = false, error = code }` and
 never answers anything else; `error` is a stable code from
-[the list below](#errors), meant for branching. The caller is read from the host
-with `GetInvokingResource()`, never from an argument.
+[the list below](#errors), meant for branching. Treat any answer without
+`ok = true` as a refusal. The caller is read from the host with
+`GetInvokingResource()`, never from an argument. The
+[context menu callbacks](#context-menu) are the one exception to this shape.
 
 ## Server exports {#server}
 
@@ -18,11 +20,13 @@ or a command handler — never at file scope, where the host answers
 
 ```lua
 CreateThread(function()
-  local promise, reason = Open77.exports.call("opx77_inventory", "AddItem", playerId, "water", 2)
-  if not promise then return print("not dispatched: " .. tostring(reason)) end
-  local answer, callError = promise:await()
-  if callError then return print("call failed: " .. tostring(callError)) end
-  if not answer.ok then return print("refused: " .. tostring(answer.error)) end
+	local promise, reason = Open77.exports.call('opx77_inventory', 'AddItem', playerId, 'water', 2)
+	if not promise then return print('not dispatched: ' .. tostring(reason)) end
+	local answer, callError = promise:await()
+	if callError then return print('call failed: ' .. tostring(callError)) end
+	if type(answer) ~= 'table' or answer.ok ~= true then
+		return print('refused: ' .. tostring(type(answer) == 'table' and answer.error))
+	end
 end)
 ```
 
@@ -34,7 +38,11 @@ Anybody else is answered `caller_denied`.
 
 **A target** is a player id, whose loaded character's bag is meant, or a citizen
 id, which also reaches an offline character's bag: loaded for the call, written,
-and forgotten. A write lands in memory at once and in the database within
+and forgotten. A player id this resource does not hold yet, and every citizen
+id, is asked of `opx77_core`'s
+[`GetIdentity`](../opx77_core/exports/server.md#getidentity): when the core
+does not answer, the export answers `core_unavailable`, never the platform's or
+the core's own code. A write lands in memory at once and in the database within
 [`SAVE.DELAY_MS`](config.md#save). Every write is audited:
 
 ```text
@@ -65,15 +73,16 @@ An answer that would weigh more than 32 KiB encoded is refused `too_large`, so
 ### AddItem {#additem}
 
 ```lua
-Open77.exports.call("opx77_inventory", "AddItem", target, name, count, metadata)
+Open77.exports.call('opx77_inventory', 'AddItem', target, name, count, metadata)
 ```
 
 - name: `string` — an item of the catalogue, otherwise `unknown_item`.
 - count?: `integer` — `1` to [`MAX_STACK`](config.md#items), default `1`.
 - metadata?: `table` — copied onto every unit added, at most
   [`MAX_METADATA_BYTES`](config.md#items) encoded. A weapon is added one unit
-  per slot, each with a serial of its own and its `ammo` from the metadata, `0`
-  when absent.
+  per slot, each with its `ammo` from the metadata, `0` when absent, and a
+  serial of its own; a `serial` in the metadata is kept only when one weapon is
+  added.
 
 **Returns** `{ ok = true, added = count }`. Refused `no_room` or `too_heavy`
 without adding anything.
@@ -81,7 +90,7 @@ without adding anything.
 ### RemoveItem {#removeitem}
 
 ```lua
-Open77.exports.call("opx77_inventory", "RemoveItem", target, name, count, metadata)
+Open77.exports.call('opx77_inventory', 'RemoveItem', target, name, count, metadata)
 ```
 
 Removes units from the last slot backwards. `nil` metadata matches any stack.
@@ -91,25 +100,28 @@ The name need not be in the catalogue any more. **Returns**
 ### RemoveFromSlot {#removefromslot}
 
 ```lua
-Open77.exports.call("opx77_inventory", "RemoveFromSlot", target, slot, count)
+Open77.exports.call('opx77_inventory', 'RemoveFromSlot', target, slot, count)
 ```
 
-Removes units from one precise slot. **Returns** `{ ok = true, removed = count }`.
+Removes units from one precise slot, never from a look-alike stack. **Returns**
+`{ ok = true, removed = count }`; `empty_slot`, or `bad_count` past what the
+slot holds.
 
 ### SetMetadata {#setmetadata}
 
 ```lua
-Open77.exports.call("opx77_inventory", "SetMetadata", target, slot, metadata)
+Open77.exports.call('opx77_inventory', 'SetMetadata', target, slot, metadata)
 ```
 
-Replaces the metadata of one stack. `opx77_admin`'s
-[`weapon.ammo`](../opx77_admin/commands.md#weapon-ammo) writes a weapon's rounds
-with it.
+Replaces the metadata of one stack; `empty_slot` when there is none. No resource
+in the set calls it: `opx77_admin`'s
+[`weapon.ammo`](../opx77_admin/commands.md#weapon-ammo) adds ammunition items
+with `CanCarry` and `AddItem` instead of writing a weapon's rounds.
 
 ### ClearInventory {#clearinventory}
 
 ```lua
-Open77.exports.call("opx77_inventory", "ClearInventory", target)
+Open77.exports.call('opx77_inventory', 'ClearInventory', target)
 ```
 
 Empties a bag.
@@ -117,7 +129,7 @@ Empties a bag.
 ### GetItemCount {#server-getitemcount}
 
 ```lua
-Open77.exports.call("opx77_inventory", "GetItemCount", target, name, metadata)
+Open77.exports.call('opx77_inventory', 'GetItemCount', target, name, metadata)
 ```
 
 **Returns** `{ ok = true, count }`; `nil` metadata counts every stack of the name.
@@ -125,7 +137,7 @@ Open77.exports.call("opx77_inventory", "GetItemCount", target, name, metadata)
 ### HasItem {#server-hasitem}
 
 ```lua
-Open77.exports.call("opx77_inventory", "HasItem", target, name, count)
+Open77.exports.call('opx77_inventory', 'HasItem', target, name, count)
 ```
 
 **Returns** `{ ok = true, result = held >= count, count = held }`; `count`
@@ -134,7 +146,7 @@ defaults to `1`.
 ### CanCarry {#cancarry}
 
 ```lua
-Open77.exports.call("opx77_inventory", "CanCarry", target, name, count, metadata)
+Open77.exports.call('opx77_inventory', 'CanCarry', target, name, count, metadata)
 ```
 
 **Returns** `{ ok = true, result }`, and `reason` — `too_heavy` or `no_room` —
@@ -143,21 +155,22 @@ when `result` is false. A name outside the catalogue is `unknown_item`.
 ### GetInventory {#server-getinventory}
 
 ```lua
-Open77.exports.call("opx77_inventory", "GetInventory", target, { offset = 0, limit = 64 })
+Open77.exports.call('opx77_inventory', 'GetInventory', target, { offset = 0, limit = 64 })
 ```
 
 - options?: `{ offset?, limit? }` — `offset` stacks in, `0` by default; `limit`
   `1` to `64`, `64` by default.
 
-**Returns** `{ ok = true, citizenId, slots, maxWeight, weight, items, total,
-nextOffset }`. `items` is one page of `{ slot, name, count, metadata }` in slot
-order, cut short when it grows too heavy; `nextOffset` is present while there are
-more.
+An `offset` or a `limit` that is not a whole number in range is **not refused**:
+it reads as `0` or `64`, silently. **Returns** `{ ok = true, citizenId, slots,
+maxWeight, weight, items, total, nextOffset }`. `items` is one page of
+`{ slot, name, count, metadata }` in slot order, cut short when it grows too
+heavy; `nextOffset` is present while there are more.
 
 ### GetSlot {#getslot}
 
 ```lua
-Open77.exports.call("opx77_inventory", "GetSlot", target, slot)
+Open77.exports.call('opx77_inventory', 'GetSlot', target, slot)
 ```
 
 **Returns** `{ ok = true, item = { slot, name, count, metadata } }`, or
@@ -166,7 +179,7 @@ Open77.exports.call("opx77_inventory", "GetSlot", target, slot)
 ### GetItem {#server-getitem}
 
 ```lua
-Open77.exports.call("opx77_inventory", "GetItem", name)
+Open77.exports.call('opx77_inventory', 'GetItem', name)
 ```
 
 **Returns** `{ ok = true, item }` — `name`, `label` in the configured locale,
@@ -176,17 +189,18 @@ for a weapon, and `ammo = { max }` for an ammunition item.
 ### GetItems {#getitems}
 
 ```lua
-Open77.exports.call("opx77_inventory", "GetItems", { offset = 0 })
+Open77.exports.call('opx77_inventory', 'GetItems', { offset = 0 })
 ```
 
 **Returns** `{ ok = true, items, total, nextOffset }`, up to 64 items a page in
-the same shape as `GetItem`'s. `opx77_admin` reads the whole catalogue this way
-for its pickers and its weapon names.
+name order, in the same shape as `GetItem`'s. An `offset` that is not a whole
+number from `0` to `100000` reads as `0`, silently. `opx77_admin` reads the whole
+catalogue this way for its pickers and its weapon names.
 
 ### GetHeldWeapon {#server-getheldweapon}
 
 ```lua
-Open77.exports.call("opx77_inventory", "GetHeldWeapon", playerId)
+Open77.exports.call('opx77_inventory', 'GetHeldWeapon', playerId)
 ```
 
 **Returns** `{ ok = true, weapon = { name, serial, record, drawn } }` for the
@@ -195,42 +209,52 @@ weapon the bag put in that player's hands, or `{ ok = true }`.
 ### OpenStash {#server-openstash}
 
 ```lua
-Open77.exports.call("opx77_inventory", "OpenStash", playerId, name, {
-  slots = 50, maxWeight = 100000, label = "Locker", position = { x = 0, y = 0, z = 0 }, bucket = 0,
+Open77.exports.call('opx77_inventory', 'OpenStash', playerId, name, {
+	slots = 50, maxWeight = 100000, label = 'Locker', position = { x = 0, y = 0, z = 0 }, bucket = 0,
 })
 ```
 
-Opens a stash beside the player's bag, and their screen with it. The calling
-resource makes its own checks — a job, a key, a code. With a `position`, reach
-is checked too: another bucket or past [`REACH.DISTANCE`](config.md#reach) is
-`too_far`. A player whose readiness gate is closed is `not_ready`. **Returns**
+- name: `string` — the stored identity: letters, digits, `_`, `-` and `.`, up
+  to 48.
+- options?: `slots` `1`..`200` (default `50`), `maxWeight` grams (default
+  `100000`), `label` plain text cut to 64 characters, `position` and `bucket`.
+
+Opens a stash beside the player's bag, and their screen with it; an open the
+player's own client already has in flight is followed by this one once it
+settles. The calling resource makes its own checks — a job, a key, a code. With
+a `position`, reach is checked too: another bucket or past
+[`REACH.DISTANCE`](config.md#reach) is `too_far`. A player whose readiness gate
+is closed is `not_ready`, one without a loaded bag `not_loaded`. **Returns**
 `{ ok = true, id }`.
 
 ### CloseInventory {#closeinventory}
 
 ```lua
-Open77.exports.call("opx77_inventory", "CloseInventory", playerId)
+Open77.exports.call('opx77_inventory', 'CloseInventory', playerId)
 ```
 
-Closes that player's screen.
+Closes that player's screen and whatever it had open beside the bag.
 
 ### RegisterUsable {#registerusable}
 
 ```lua
-Open77.exports.call("opx77_inventory", "RegisterUsable", name, exportName)
+Open77.exports.call('opx77_inventory', 'RegisterUsable', name, exportName)
 ```
 
 Registers the calling resource's server export `exportName` — `OnInventoryUse`
-by default — as the handler of an item's use. The handler has
+by default — as the handler of an item's use. The handler receives the player
+id and `{ name, slot, count, metadata, label, citizenId }`, and has
 [`USE_HANDLER_MS`](config.md#use) to answer `{ ok = true, consume? }` or
-`{ ok = false, error? }`; a raise, a timeout or a missing export refuses the use.
-A handler belongs to the resource that registered it and ends with that
-resource's generation; the latest registration of an item wins.
+`{ ok = false, error? }`; `consume` overrides the item's `USE.CONSUME`. A raise,
+a timeout or a missing export refuses the use. A handler belongs to the
+resource that registered it and ends with that resource's generation; the
+latest registration of an item wins. Register once your resource starts, and
+again on `open77:resource:started` for `opx77_inventory`.
 
 ### UnregisterUsable {#unregisterusable}
 
 ```lua
-Open77.exports.call("opx77_inventory", "UnregisterUsable", name)
+Open77.exports.call('opx77_inventory', 'UnregisterUsable', name)
 ```
 
 **Returns** `{ ok = true, removed }` — whether the caller's handler was there.
@@ -252,16 +276,17 @@ last pushed to this client, which is the server's copy, not a prediction.
 ### Open {#open}
 
 ```lua
-Open77.exports.call("opx77_inventory", "Open")
+Open77.exports.call('opx77_inventory', 'Open')
 ```
 
-Opens the screen, or does nothing when it is already open. **Returns**
+Opens the screen, or does nothing when it is already open, an open is in
+flight, the page is not ready or the character is dead. **Returns**
 `{ ok = true }`.
 
 ### Close {#close}
 
 ```lua
-Open77.exports.call("opx77_inventory", "Close")
+Open77.exports.call('opx77_inventory', 'Close')
 ```
 
 **Returns** `{ ok = true }`.
@@ -269,7 +294,7 @@ Open77.exports.call("opx77_inventory", "Close")
 ### IsOpen {#isopen}
 
 ```lua
-Open77.exports.call("opx77_inventory", "IsOpen")
+Open77.exports.call('opx77_inventory', 'IsOpen')
 ```
 
 **Returns** `{ ok = true, open }`.
@@ -277,40 +302,43 @@ Open77.exports.call("opx77_inventory", "IsOpen")
 ### GetInventory {#client-getinventory}
 
 ```lua
-Open77.exports.call("opx77_inventory", "GetInventory")
+Open77.exports.call('opx77_inventory', 'GetInventory')
 ```
 
-**Returns** `{ ok = true, inventory }` — `id`, `slots`, `maxWeight`, `weight`,
-`items` — or `not_loaded` before the server has pushed a bag.
+**Returns** `{ ok = true, inventory }` — `id`, `kind`, `title`, `slots`,
+`maxWeight`, `weight`, `items` — or `not_loaded` before the server has pushed a
+bag.
 
 ### GetItemCount {#client-getitemcount}
 
 ```lua
-Open77.exports.call("opx77_inventory", "GetItemCount", name)
+Open77.exports.call('opx77_inventory', 'GetItemCount', name)
 ```
 
-**Returns** `{ ok = true, count }`.
+**Returns** `{ ok = true, count }`, or `not_loaded`.
 
 ### HasItem {#client-hasitem}
 
 ```lua
-Open77.exports.call("opx77_inventory", "HasItem", name, count)
+Open77.exports.call('opx77_inventory', 'HasItem', name, count)
 ```
 
-**Returns** `{ ok = true, result, count }`.
+**Returns** `{ ok = true, result, count }`, or `not_loaded`.
 
 ### GetItem {#client-getitem}
 
 ```lua
-Open77.exports.call("opx77_inventory", "GetItem", name)
+Open77.exports.call('opx77_inventory', 'GetItem', name)
 ```
 
-**Returns** `{ ok = true, item }`, or `unknown_item`.
+**Returns** `{ ok = true, item }` — `name`, `label` and `description` in the
+configured locale, `weight`, `image`, `usable`, `stackable`, `category`, and
+`weapon` and `ammo` as booleans — or `unknown_item`.
 
 ### GetHeldWeapon {#client-getheldweapon}
 
 ```lua
-Open77.exports.call("opx77_inventory", "GetHeldWeapon")
+Open77.exports.call('opx77_inventory', 'GetHeldWeapon')
 ```
 
 **Returns** `{ ok = true, weapon = { name, serial, slot } }`, or `{ ok = true }`.
@@ -318,15 +346,58 @@ Open77.exports.call("opx77_inventory", "GetHeldWeapon")
 ### OpenStash {#client-openstash}
 
 ```lua
-Open77.exports.call("opx77_inventory", "OpenStash", name)
+Open77.exports.call('opx77_inventory', 'OpenStash', name)
 ```
 
 Asks the server to open a stash from [`STASHES`](config.md#stashes); the server
 checks the player stands at it. **Returns** `{ ok = true, queued = true }`.
 
+## Context menu callbacks {#context-menu}
+
+The client half registers two vehicle rows with the platform's
+`open77_contextmenu` — *Open the trunk* and *Open the glovebox*, within
+[`REACH.VEHICLE`](config.md#reach) — and publishes the four exports those rows
+name. They exist for the context menu: they answer a bare boolean, not the
+`{ ok }` shape, and do not check the caller. The server checks every open again.
+
+### contextCanOpenTrunk {#contextcanopentrunk}
+
+```lua
+Open77.exports.call('opx77_inventory', 'contextCanOpenTrunk')
+```
+
+**Returns** `true` while the character is not seated in a vehicle.
+
+### contextOpenTrunk {#contextopentrunk}
+
+```lua
+Open77.exports.call('opx77_inventory', 'contextOpenTrunk', { target = { vehicleId = 42 } })
+```
+
+Opens the screen with the targeted vehicle's trunk, staying closed when the
+server refuses it. **Returns** `true`, or `false` without a positive
+`target.vehicleId`.
+
+### contextCanOpenGlovebox {#contextcanopenglovebox}
+
+```lua
+Open77.exports.call('opx77_inventory', 'contextCanOpenGlovebox')
+```
+
+**Returns** `true` while the character is seated in a vehicle.
+
+### contextOpenGlovebox {#contextopenglovebox}
+
+```lua
+Open77.exports.call('opx77_inventory', 'contextOpenGlovebox')
+```
+
+Opens the screen with the glovebox of the vehicle the character sits in.
+**Returns** `true`.
+
 ## Error codes {#errors}
 
-The annotations in `types.lua`. Where the catalogue has
+The annotations in `std/types.lua` (`InventoryError`). Where the catalogue has
 `inventory.error.<code>`, that line is what a player is shown.
 
 | Code | Means |
@@ -371,6 +442,10 @@ The annotations in `types.lua`. Where the catalogue has
 | `weapon_refused` | the relay refused or the engine did not draw it |
 | `no_weapon_for_ammo` | no drawn weapon takes that ammunition |
 | `weapon_full` | the drawn weapon already holds its `AMMO.MAX` |
+
+A bag the core fails to read, once the target is known, answers the failure of
+that read instead: `load_timeout` when another call's load of the same bag did
+not finish within 35 seconds, or the code the call to `opx77_core` failed with.
 
 ## See also {#see-also}
 

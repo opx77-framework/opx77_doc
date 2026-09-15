@@ -49,16 +49,39 @@ commands call this resource's [exports](exports.md) instead.
 
 ## How a command answers {#answers}
 
-A command answers the player who ran it on `open77:command:result`, in the
-catalogue [`LOCALE`](config.md#locale) names. The same command at the **server
-console** answers into the platform log in English — `info` when it succeeded,
-`warn` when it was refused. **The sample lines on this page are the English
-ones.**
+A command answers the player who ran it through this resource's client half,
+on `opx77_inventory:commandAnswer`, in the catalogue
+[`LOCALE`](config.md#locale) names. The same command at the **server console**
+answers into the platform log in English — `info` when it succeeded, `warn` when
+it was refused. **The sample lines on this page are the English ones.**
 
-`opx77_chat` prints no accepted answer of that event, so a success typed in the
-chat box shows nothing there; a refusal it does show. `opx77_admin`'s menu
-writes the answer to a command it sent under its list, and a
-[`holders`](#holders) list to the chat box.
+| Answer | Kind | Shown as |
+|---|---|---|
+| given, taken, emptied, searched | success | an [`opx77_notify`](../opx77_notify/index.md) toast titled *Inventory* |
+| an unknown item, a bad count or target, a player with no character, fewer units than asked for, your own id, a command run again too fast | warning | a toast of that kind |
+| a full or overweight bag, `opx77_core` not answering, anything else refused | error | a toast of that kind |
+| the [`holders`](#holders) list | report | a chat line, sent with `chat:addMessage` |
+
+Every toast goes in one slot, `opx77_inventory.command`, that the next answer
+replaces, and stays up for [`TOAST_MS`](config.md#toast-ms). No chat line
+carries a colour of its own: `opx77_chat` styles it as an info or an error
+line.
+
+- **While `opx77_notify` is not running**, or when it refuses the toast, the
+  answer is a chat line instead, and the client log says so once:
+
+    ```text
+    no toast (not_running): command answers go to the chat box instead
+    ```
+
+- **Every answer also goes on the platform's `open77:command:result`.**
+  `opx77_admin`'s menu writes the answer to a command it sent under its list; an
+  accepted answer carries its first line only there — the outcome, or the
+  heading of the holders list — so the list is in the chat box once.
+- **A refusal is one toast, not two.** `opx77_chat` prints no accepted result of
+  that event and toasts a refused one itself, so while `opx77_chat` is running
+  the client half leaves a warning or an error to it. That toast is
+  `opx77_chat`'s, an error whatever the kind above.
 
 The same operator running the same command inside 400 ms is answered *Slow down
 a little.* The console is never cooled.
@@ -75,14 +98,20 @@ meanwhile.
 | `bad_target` | Give a player id or a citizen id. | not a positive player id, and not a word of at most 32 characters the core knows |
 | `not_loaded` | That player has no character in the world. | a player id with no character loaded |
 | `no_character` | No living character carries that citizen id. | the core answered `character.notFound` |
-| `core_unavailable` | opx77_core is not answering. | the core did not answer |
+| `core_unavailable` | opx77_core is not answering. | the core did not answer who the target is; for a player id, also while the core is still booting |
+
+A player id is asked of the core's
+[`GetIdentity`](../opx77_core/exports/server.md#getidentity) when this
+resource does not already hold that player's character, so a core that is down
+reads as `core_unavailable`, never as a player without a character.
 
 `count` is a whole number from `1` to
 [`MAX_COMMAND_COUNT`](config.md#commands), `1` when left out; anything else
 answers *The count must be a whole number from 1 to 10000.*
 
 A connected target other than the operator is told by toast what was done to
-their bag.
+their bag. A command acts on an online target whatever that player's readiness
+gate says: it is a staff tool.
 
 ## opx77.inventory.give {#give}
 
@@ -150,6 +179,10 @@ opx77.inventory.open <playerId|citizenId>
 game.* Aimed at yourself it answers *Open your own bag with the inventory key.*,
 and without a character of your own loaded, `not_loaded`. Audited as
 `inventory.search`.
+
+Distance never closes a search: the bag stays beside yours until you close the
+screen or open another container, and a searched bag is not forgotten while it is open. An offline
+character's bag is written and forgotten once you close it.
 
 ```text
 Searching the bag of H7K-M4X3.
