@@ -60,10 +60,12 @@ calls.
 
 The roster, `{ list, slots, origins }` — see
 [`charactersReady`](../opx77_core/events.md#charactersready). It is adopted
-whenever it arrives. Before the gameplay world it is only kept; in it the list is
-opened again, on a new character's row when the roster has gained one. It clears
-a pending selection and a creation handed over, since a fresh roster is the
-answer to either.
+whenever it arrives. **While a character is loaded it is only adopted**: the list
+stays down, and nothing else is touched — a roster answering the unload of an
+in-world switch can land after the next character has loaded. Otherwise, before
+the gameplay world it is only kept; in it the list is opened again, on a new
+character's row when the roster has gained one. It clears a pending selection
+and a creation handed over, since a fresh roster is the answer to either.
 
 #### opx77:client:onPlayerLoaded {#on-player-loaded}
 
@@ -73,7 +75,9 @@ and all.
 #### opx77:client:onPlayerUnloaded {#on-player-unloaded}
 
 Without a selection under way, the list closes, the roster is forgotten, and
-`RequestCharacters` is called, so the fresh roster puts the list back up.
+`RequestCharacters` is called, so the fresh roster puts the list back up. An
+`opx77_core` stop is handled the same way — see
+[the resource lifecycle](#resource-lifecycle).
 
 #### opx77:client:refused {#refused}
 
@@ -90,8 +94,12 @@ vehicle spawn's refusal for its own. It answers three:
 The code is a locale key, and this resource's catalogue carries every one the
 three can produce — `character.notFound`, `character.inUse`, `entry.failed`,
 `entry.noIdentity`, `entry.timedOut`, `error.unavailable`, `error.badRequest`,
-`error.tooFast`, `error.notLoggedIn` — so it is rendered in the player's
-language. An unknown code is shown as *That was refused (\<code\>).*
+`error.tooFast` — so it is rendered in the player's language. An unknown code is
+shown as *That was refused (\<code\>).*
+
+The answer `SelectCharacter` gives as an export is read too, and **counts only
+for the selection that asked**: after a selection timed out and the player chose
+again, a late refusal of the first leaves the second in flight.
 
 ### From opx77_menu {#from-menu}
 
@@ -104,12 +112,12 @@ The name the roster's rows are raised on. Anything can raise it, so the payload'
 |---|---|
 | `focus` | Follows the cursor, from the spec's [`reportFocus`](../opx77_menu/events.md#focus). |
 | `select` | Acts on the row named by its own `data`: `SelectCharacter`, or the hand-over. |
-| `close` | The list is gone. For `pause`, `back`, `item` or `closed` — a dismissal — it goes back up 250 ms later while the player still has nothing to choose with. |
+| `close` | The list is gone, if the payload's `handle` is the list this resource holds. For `pause`, `back` or `item` — a dismissal — it goes back up 250 ms later while the player still has nothing to choose with. |
 
-A close is not always something this resource asked for — `opx77_menu` lists
-eleven reasons, seven of which nobody asked for — so the stage is judged again
+A close is not always something this resource asked for — `opx77_menu` sends
+ten reasons, seven of which nobody asked for — so the stage is judged again
 from the `close` branch rather than after the export call, and lingers there for
-the list that goes back up.
+the list that goes back up. Only the three dismissals reopen the list.
 
 ### From opx77_appearance {#from-appearance}
 
@@ -128,7 +136,9 @@ arrives. See
 Counted only when `Open77.session.characterBootstrap().phase` is `"ready"`: the
 pre-game menu world raises it too, while the bootstrap is still `waiting`. The
 tick then waits for an attached, alive puppet before the list goes up. A world
-entry in any other phase takes the world down, and the stage with it.
+entry in any other phase — the player back in the pre-game world — takes the
+world down, and the stage with it, and closes a list that is up or still being
+opened. It goes back up at the next gameplay world entry.
 
 #### open77:playerReset:complete {#player-reset}
 
@@ -141,7 +151,8 @@ the list goes up if nothing stands in its way.
 |---|---|
 | `onClientResourceStart`, this resource | The boot: the configuration warnings, then `IsLoggedIn`, `GetCharacters` and `RequestCharacters`. |
 | `onClientResourceStart`, `opx77_menu` | `opx77_menu` started late: the roster that could not be drawn goes up now. |
-| `onClientResourceStop`, this resource | The stage drops — the orbit cleared, the perspective handed back — because nothing else would take it down. |
+| `onClientResourceStop`, `opx77_core` | A character unload: a restarted core raises no `onPlayerUnloaded`. Without a selection under way the list closes, the roster is forgotten and asked for again; while the core is down that request fails and [the retry](index.md#roster-retry) keeps asking until it is back. |
+| `onClientResourceStop`, this resource | The stage drops — the controls released, the orbit cleared, the perspective handed back — because nothing else would take it down. |
 
 A world entry that finds a character loaded, a selection pending or a creation
 handed over leaves the list down. That is what keeps the body reload after a
@@ -160,9 +171,12 @@ opx77_menu is not running: the roster goes up when it starts
 <operation> was refused: <code>
 ROSTER_RETRY_MS is not a positive number: 3000 ms is used
 ROSTER_RETRY_MS is inside opx77_core's cooldown: raised to 2500 ms
+the held roster adoption failed: <reason>
 ```
 
-The first carries the configured interval. The stage's own lines are on
+The first carries the configured interval. The last is one line per run of
+failures while adopting a roster read back from `opx77_core`; it counts as no
+roster held, so the boot or the retry goes on to ask for a fresh one. The stage's own lines are on
 [The stage](stage.md), and the `STAGE` configuration warnings on
 [Configuration](config.md#stage).
 

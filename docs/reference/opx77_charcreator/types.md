@@ -5,7 +5,7 @@ description: Every shape opx77_charcreator names — the phase, the field ids an
 
 # Types
 
-`opx77_charcreator` ships its annotations in `types.lua`, a `---@meta` file that
+`opx77_charcreator` ships its annotations in `std/types.lua`, a `---@meta` file that
 is never loaded at runtime. The types below are what those annotations describe.
 
 ## CreatorPhase {#creatorphase}
@@ -171,6 +171,6 @@ Every code an export answers with.
 | `busy` | A flow is already running, or a registration is in flight. |
 | `not_open` | `close` with no form up. |
 
-`no_origins` is declared in `types.lua` but no export answers it: a flow that
+`no_origins` is declared in `std/types.lua` but no export answers it: a flow that
 cannot read the lifepaths has already been accepted, and ends as
 [`cancelled`](events.md#opx77-charcreator) with `reason = "no_origins"` instead.

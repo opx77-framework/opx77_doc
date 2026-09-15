@@ -22,7 +22,7 @@ and the flow is the whole of it.
 
 | At a glance | |
 |---|---|
-| **Version** | `0.1.0` |
+| **Version** | `0.2.0` |
 | **Requires** | `open77_version ">=0.0.1"`. No `dependency` is declared; a missing `opx77_input` is one logged line |
 | **Auto start** | yes |
 | **Reload policy** | none declared, so the host's default applies. It holds no surface and no state a reload could strand |
@@ -79,7 +79,7 @@ choose from and no way forward.
 |---|---|
 | the player backs out, or the form could not be drawn | asked for at once through `opx77_charselector`'s `open` |
 | a character was created | left to the roster `opx77_core` sends; if the screen has not come back **1 second** later, asked for through `open` |
-| a character loaded meanwhile | not asked for: there is no roster to go back to |
+| a character loaded meanwhile | not asked for: there is no roster to go back to. A form still up is closed |
 | a newer flow has started | not asked for: its form is up |
 
 `open` refusing with `no_roster` or `world_not_ready` is **not a failure**: that
@@ -117,8 +117,16 @@ language. Minimum length is the one rule the form cannot express, so it is alway
 this resource that says *"At least 2 characters."*
 
 **One rule here is stricter than the core's**, deliberately: the core
-shape-checks the birth date and quietly substitutes `2050-01-01` for one it
-cannot read, and a date the player never typed is worse than being asked again.
+quietly substitutes `2050-01-01` for a birth date that is not shaped
+`YYYY-MM-DD`, and a date the player never typed is worse than being asked again.
+Here a badly shaped date is refused with *"Write it as YYYY-MM-DD."*
+
+**The date must also be a real day, from 1900 on.** A well-shaped date that is
+not — `2001-04-31`, `1899-12-31`, `2077-13-01` — reopens the form on
+`birthDate` with `charcreator.refusal.noSuchDate`. The check is the calendar
+alone: no client clock is read, and nothing refuses a date in the future.
+`opx77_core` applies the same calendar check to what it receives and refuses
+with `character.badBirthdate`, which reopens the form like any other refusal.
 
 **One thing is lost to the form**: `opx77_input` has no per-option description,
 so the lifepath flavour text in `opx77_core/data/origins.lua` is not shown.

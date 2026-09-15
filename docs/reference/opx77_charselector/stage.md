@@ -173,8 +173,10 @@ and needs no grant for it.
 | a character is loaded | down at once, the controls released, and the holder forgotten |
 | `opx77_appearance` publishes `needsCreation` | down at once: its face editor has a camera of its own. Stays down until the character is unloaded or a roster arrives |
 | another resource calls `close` | down at once: the player has been taken elsewhere |
-| the holder stops or reloads without releasing | the hold is forgotten on the next tick, and the stage lingers out |
+| the holder stops or reloads without releasing | the hold is forgotten on the next tick, and the stage lingers out. A holder still `starting` — one that holds from its own start handler — keeps its hold |
+| `opx77_core` stops | as a character unload: the list closes and the roster is asked for again; a hold stands |
 | the gameplay world is not up | down |
+| the player is back in the pre-game world | down, and a list up or still being opened is closed |
 | this resource stops | down: the controls released, the orbit cleared and the perspective handed back |
 | the player disconnects | nothing to do: the host releases the controls at session teardown |
 
@@ -200,6 +202,8 @@ camera must not snap back to the player for them. That is why a holder calls
 - Hand back by calling `open` before `releaseStage`.
 - A character loading ends every hold. `releaseStage` answers `not_holder` after
   that, which is not an error.
+- A holder in the `starting` state counts as alive, so a hold taken from the
+  holder's own start handler stands.
 - A holder that stops or reloads without releasing is noticed on the tick:
 
 ```text

@@ -5,7 +5,7 @@ description: Every shape opx77_charselector names — the phase, the roster and 
 
 # Types
 
-`opx77_charselector` ships its annotations in `types.lua`, a `---@meta` file that
+`opx77_charselector` ships its annotations in `std/types.lua`, a `---@meta` file that
 is never loaded at runtime. The types below are what those annotations describe.
 
 ## SelectorPhase {#selectorphase}

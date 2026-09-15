@@ -10,18 +10,32 @@ loaded first by the manifest. **Every value shown on this page is the shipped
 default.**
 
 ```lua
+--- @author DemiAutomatic
+--- @file config.lua
+--- @description The hand-overs, the roster retry, the stage and the deadline.
+--- @field LOCALE {string} Catalogue for player-facing text: en or fr.
+--- @field EVENT {string} Client event raised when the player asks to create.
+--- @field APPEARANCE_EVENT {string} Must match OPX_APPEARANCE_CONFIG.EVENT in opx77_appearance.
+--- @field ROSTER_RETRY_MS {integer} Milliseconds between roster requests; at least 2500, 3000 if invalid.
+--- @field STAGE {table} The camera, lock and hold while a character is chosen.
+--- @field STAGE.ENABLED {boolean} false leaves the camera alone and the character free.
+--- @field STAGE.ORBIT_DEGREES {number} -180..180: 180 in front, 0 behind; clamped.
+--- @field STAGE.LOCK_CAMERA {boolean} Keep the mouse off the camera (players.controls).
+--- @field STAGE.FREEZE {boolean} Hold the character in place; false lets it walk.
+--- @field REQUEST_TIMEOUT_MS {integer} How long a selection may stay unanswered, in ms.
+
 OPX_CHARSELECTOR_CONFIG = {
-  LOCALE = "en",
-  EVENT = "opx77:charselector",
-  APPEARANCE_EVENT = "opx77:appearance",
-  ROSTER_RETRY_MS = 3000,
-  STAGE = {
-    ENABLED = true,
-    ORBIT_DEGREES = 180,
-    LOCK_CAMERA = true,
-    FREEZE = true,
-  },
-  REQUEST_TIMEOUT_MS = 20000,
+	LOCALE = 'en',
+	EVENT = 'opx77:charselector',
+	APPEARANCE_EVENT = 'opx77:appearance',
+	ROSTER_RETRY_MS = 3000,
+	STAGE = {
+		ENABLED = true,
+		ORBIT_DEGREES = 180,
+		LOCK_CAMERA = true,
+		FREEZE = true,
+	},
+	REQUEST_TIMEOUT_MS = 20000,
 }
 ```
 
@@ -39,7 +53,7 @@ one is used. Nothing here is re-read while the resource runs.
 Which `locales/<code>.lua` catalogue player-facing text is read from.
 
 ```lua
-LOCALE = "en"
+LOCALE = 'en'
 ```
 
 **Type** `string` — `"en"` or `"fr"` as shipped.
@@ -54,7 +68,7 @@ The client event raised when the player asks for a character this account does
 not have.
 
 ```lua
-EVENT = "opx77:charselector"
+EVENT = 'opx77:charselector'
 ```
 
 **Type** `string`
@@ -70,7 +84,7 @@ The channel [`opx77_appearance`](../opx77_appearance/index.md) publishes its
 decisions on.
 
 ```lua
-APPEARANCE_EVENT = "opx77:appearance"
+APPEARANCE_EVENT = 'opx77:appearance'
 ```
 
 **Type** `string` — must match `OPX_APPEARANCE_CONFIG.EVENT` in that resource.
@@ -118,10 +132,10 @@ it stands. It goes when a character is loaded.
 
 ```lua
 STAGE = {
-  ENABLED = true,
-  ORBIT_DEGREES = 180,
-  LOCK_CAMERA = true,
-  FREEZE = true,
+	ENABLED = true,
+	ORBIT_DEGREES = 180,
+	LOCK_CAMERA = true,
+	FREEZE = true,
 }
 ```
 
