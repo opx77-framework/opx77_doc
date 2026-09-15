@@ -207,5 +207,11 @@ nav:
           - Commands: reference/opx77_inventory/commands.md
           - Exports: reference/opx77_inventory/exports.md
           - Configuration: reference/opx77_inventory/config.md
+      - opx77_prompts:
+          - Overview: reference/opx77_prompts/index.md
+          - Exports: reference/opx77_prompts/exports.md
+          - Events: reference/opx77_prompts/events.md
+          - Configuration: reference/opx77_prompts/config.md
+          - Types: reference/opx77_prompts/types.md
 
   - Releases: releases.md
