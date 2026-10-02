@@ -41,10 +41,11 @@ There is no client contract. Commands: none.
 | <a id="opx-net-calls-invite"></a>`opx:net:calls:invite` | client → server | `targetId, kind?` | Call (or add to the current call) a player; `kind = 'contact'` offers a contact swap instead. |
 | <a id="opx-net-calls-accept"></a>`opx:net:calls:accept` | client → server | `inviteId` | Answer the waiting invite. |
 | <a id="opx-net-calls-decline"></a>`opx:net:calls:decline` | client → server | `inviteId` | Refuse the waiting invite. |
-| <a id="opx-net-calls-hangup"></a>`opx:net:calls:hangup` | client → server | — | Leave the current call, or withdraw an outgoing invite when not on a call. |
+| <a id="opx-net-calls-hangup"></a>`opx:net:calls:hangup` | client → server | — | Leave the current call. When not on a call, it withdraws the outgoing invite instead. On a call it never touches an invite you sent. Leaving a call also withdraws a pending invite you sent to join that call. |
+| <a id="opx-net-calls-withdraw"></a>`opx:net:calls:withdraw` | client → server | — | Withdraw the invite you sent that nobody answered yet, and nothing else; a live call is left alone. The callee gets a `missed` entry (not for a contact swap). Audit `calls.cancel`. One per `REQUEST_MS`. |
 | <a id="opx-net-calls-roster"></a>`opx:net:calls:roster` | client → server | — | Ask for the hologram list. 1 per second. |
 | <a id="opx-net-calls-contacts"></a>`opx:net:calls:contacts` | server → client | `{ rows, recent, onCall }` | `rows` = online contacts `{ id, name, kind, refusal }` (callable ones first; `refusal` is why one cannot be called now); `recent` = newest first `{ outcome, name, citizenId, atMs }`, `outcome` being `declined`, `refused`, `missed` or `unanswered`. |
-| <a id="opx-on-calls-view"></a>`opx:on:calls:view` | client local | `{ kind, ... }` | The state half talking to the view. `kind = 'state'` or `'holo'` (see page channels). |
+| <a id="opx-on-calls-view"></a>`opx:on:calls:view` | client local | `{ kind = 'holo', ... }` | The state half talking to the view; the view sends it to the page as `calls:holo`. |
 
 `invite`, `accept`, `decline` and `hangup` are each limited to one per `REQUEST_MS` per player; a refusal is shown to the player as a toast. Audit entries: `calls.invite`, `calls.accept`, `calls.decline`, `calls.cancel`, `calls.hangUp`, `calls.contact`, `calls.unanswered`, `calls.eyes`, `calls.voice`.
 
@@ -63,12 +64,12 @@ The hologram is on the `interactive` surface and takes keyboard and cursor while
 | <a id="page-calls-share"></a>`calls:share` | page → Lua | `{ id }` | Offer a contact swap. Not sent by the shipped page (the eye row does it). |
 | <a id="page-calls-accept"></a>`calls:accept` | page → Lua | `{}` | Answer the waiting invite. |
 | <a id="page-calls-decline"></a>`calls:decline` | page → Lua | `{}` | Refuse the waiting invite. |
-| <a id="page-calls-hangup"></a>`calls:hangUp` | page → Lua | `{}` | Hang up or withdraw. |
-| <a id="page-calls-dismiss"></a>`calls:dismiss` | page → Lua | `{}` | Hide the incoming card locally (the call keeps ringing). Not sent by the shipped page. |
-| <a id="page-calls-repop"></a>`calls:repop` | page → Lua | `{}` | Bring the incoming card back. Not sent by the shipped page. |
+| <a id="page-calls-hangup"></a>`calls:hangUp` | page → Lua | `{}` | Hang up the live call; with no call, withdraw what you are ringing. |
+| <a id="page-calls-withdraw"></a>`calls:withdraw` | page → Lua | `{}` | The hologram's *Cancel* button: withdraw the invite you sent, leaving any live call alone. Calls `M.Withdraw()`. |
 | <a id="page-calls-diag"></a>`calls:diag` | page → Lua | `{ detail }` | A view-side message, relayed with `OPX.Note`. Not sent by the shipped page. |
 | `calls:holo` | Lua → page | `{ open, rows, recent, call, invite, outgoing, anchor, answerKey, declineKey }` | The hologram. Sent on open/close and on every state change, also while closed (`open = false`), so the page can show a ringing call without taking focus. |
-| `calls:view` | Lua → page | `{ kind = 'state', call, invite, invitePending, outgoing, dismissed }` | Card state on the `overlay` surface. The shipped page has no listener for it. |
+
+The hologram shows `calls.holo.dialing` (*Calling...*) under the name you are ringing, and a `calls.holo.withdraw` button (*CANCEL*) that sends `calls:withdraw`. The client's internal `M.State()` answers `{ call, invite, outgoing }`.
 
 ## Key bindings {#keys}
 
@@ -76,7 +77,7 @@ The hologram is on the `interactive` surface and takes keyboard and cursor while
 |---|---|---|---|
 | `opx.calls.holo` | `H` | `calls.key.holo` | Open or close the hologram. |
 | `opx.calls.answer` | `Y` | `calls.key.answer` | Answer the waiting invite. Does nothing when nothing rings. |
-| `opx.calls.decline` | `X` | `calls.key.decline` | Refuse the waiting invite; otherwise hang up or withdraw. |
+| `opx.calls.decline` | `X` | `calls.key.decline` | In this order: refuse the invite ringing at you; else withdraw the invite you sent; else hang up the live call (`M.DeclineOrHangUp`). |
 
 `Y` is also the inventory hotbar peek and `X` stops an emote. Both actions fire; outside a call the calls handlers do nothing.
 
@@ -98,7 +99,6 @@ The hologram is on the `interactive` surface and takes keyboard and cursor while
 | <a id="config-calls-eyes"></a>`EYES` | `{ LEASE_MS = 30000, RENEW_MS = 10000 }` | Eye-glow lease in ms (1000–600000), renewed every `SCAN_MS`. `RENEW_MS` is not read by the code. |
 | <a id="config-calls-scan-ms"></a>`SCAN_MS` | `2000` | Milliseconds between sweeps: expire invites, drop unreachable participants, renew leases (250–30000). |
 | <a id="config-calls-sound"></a>`SOUND` | game `ui_phone_*` events | `INCOMING`, `INCOMING_STOP`, `ACCEPTED`, `DECLINED`, `OUTGOING`, `OUTGOING_STOP`, `HANG_UP`: Wwise event names played with `Open77.sfx.play2d`. `''` switches one off. |
-| <a id="config-calls-card-dwell-s"></a>`CARD_DWELL_S` | `8` | Seconds before the incoming card marks itself `dismissed` in `calls:view` (2–60). The call keeps ringing. |
 | <a id="config-calls-ring-every-ms"></a>`RING_EVERY_MS` | `3500` | Milliseconds between two plays of the ring (1000–60000). |
 | <a id="config-calls-key"></a>`KEY` | `{ ID = 'opx.calls.holo', NAME = 'calls.key.holo', DEFAULT = 'H' }` | The hologram key. `false` (or no `DEFAULT`) binds no key. |
 | <a id="config-calls-anchor"></a>`ANCHOR` | `'bottom-center'` | Where the hologram sits: one of `top-left`, `top-center`, `top-right`, `left`, `center`, `right`, `bottom-left`, `bottom-center`, `bottom-right`. An unknown name is logged and falls back to `bottom-center`. |
