@@ -39,19 +39,125 @@ theme:
 
 plugins:
   - search
-  # URLs shared in support channels outlive page paths. Every path the site
-  # published before the guides/concepts/reference split still resolves.
+  # URLs shared in support channels outlive page paths. Every page the site
+  # published before opx_infinity (the sixteen opx77_* resources, the old
+  # concepts and guides) redirects to the page that now answers its question.
   - redirects:
       redirect_maps:
-        getting-started.md: guides/getting-started.md
-        resources/index.md: reference/index.md
-        resources/opx77_core.md: reference/opx77_core/index.md
-        resources/opx77_menu.md: reference/opx77_menu/index.md
-        resources/opx77_hud.md: reference/opx77_hud/index.md
-        resources/opx77_chat.md: reference/opx77_chat/index.md
-        resources/opx77_status.md: reference/opx77_status/index.md
-        resources/opx77_weather.md: reference/opx77_weather/index.md
-        resources/opx77_elevators.md: reference/opx77_elevators/index.md
+        getting-started.md: getting-started/install.md
+        guides/getting-started.md: getting-started/install.md
+        guides/troubleshooting.md: getting-started/troubleshooting.md
+        guides/faq.md: getting-started/troubleshooting.md
+        guides/writing-a-server-plugin.md: guides/writing-a-module.md
+        releases.md: migration/releases.md
+        concepts/architecture.md: how-it-works/overview.md
+        concepts/the-platform.md: how-it-works/two-runtimes.md
+        concepts/export-contract.md: guides/writing-a-resource.md
+        concepts/integration-channels.md: guides/writing-a-resource.md
+        concepts/identity.md: modules/character.md
+        concepts/connection-gate.md: modules/character.md
+        concepts/entry-gate.md: modules/character.md
+        concepts/persistence.md: how-it-works/storage.md
+        resources/index.md: modules/index.md
+        resources/opx77_core.md: modules/character.md
+        resources/opx77_menu.md: modules/menu.md
+        resources/opx77_hud.md: modules/hud.md
+        resources/opx77_chat.md: modules/chat.md
+        resources/opx77_status.md: modules/needs.md
+        resources/opx77_weather.md: modules/weather.md
+        resources/opx77_elevators.md: modules/elevators.md
+        reference/opx77_admin/commands.md: modules/admin.md
+        reference/opx77_admin/config.md: modules/admin.md
+        reference/opx77_admin/events.md: modules/admin.md
+        reference/opx77_admin/exports.md: modules/admin.md
+        reference/opx77_admin/index.md: modules/admin.md
+        reference/opx77_admin/types.md: modules/admin.md
+        reference/opx77_animations/commands.md: modules/animations.md
+        reference/opx77_animations/config.md: modules/animations.md
+        reference/opx77_animations/events.md: modules/animations.md
+        reference/opx77_animations/exports.md: modules/animations.md
+        reference/opx77_animations/index.md: modules/animations.md
+        reference/opx77_animations/types.md: modules/animations.md
+        reference/opx77_appearance/config.md: modules/appearance.md
+        reference/opx77_appearance/events.md: modules/appearance.md
+        reference/opx77_appearance/exports.md: modules/appearance.md
+        reference/opx77_appearance/index.md: modules/appearance.md
+        reference/opx77_appearance/types.md: modules/appearance.md
+        reference/opx77_charcreator/config.md: modules/character.md
+        reference/opx77_charcreator/events.md: modules/character.md
+        reference/opx77_charcreator/exports.md: modules/character.md
+        reference/opx77_charcreator/index.md: modules/character.md
+        reference/opx77_charcreator/types.md: modules/character.md
+        reference/opx77_charselector/config.md: modules/character.md
+        reference/opx77_charselector/events.md: modules/character.md
+        reference/opx77_charselector/exports.md: modules/character.md
+        reference/opx77_charselector/index.md: modules/character.md
+        reference/opx77_charselector/stage.md: modules/character.md
+        reference/opx77_charselector/types.md: modules/character.md
+        reference/opx77_chat/config.md: modules/chat.md
+        reference/opx77_chat/events.md: modules/chat.md
+        reference/opx77_chat/exports.md: modules/chat.md
+        reference/opx77_chat/index.md: modules/chat.md
+        reference/opx77_core/commands.md: modules/character.md
+        reference/opx77_core/config.md: reference/core-config.md
+        reference/opx77_core/data.md: modules/character.md
+        reference/opx77_core/events.md: modules/character.md
+        reference/opx77_core/exports/client.md: modules/character.md
+        reference/opx77_core/exports/server.md: modules/character.md
+        reference/opx77_core/hooks.md: reference/lib.md
+        reference/opx77_core/index.md: modules/character.md
+        reference/opx77_core/permissions.md: how-it-works/permissions.md
+        reference/opx77_core/player.md: modules/character.md
+        reference/opx77_core/server-api.md: modules/character.md
+        reference/opx77_core/types.md: modules/character.md
+        reference/opx77_elevators/commands.md: modules/elevators.md
+        reference/opx77_elevators/config.md: modules/elevators.md
+        reference/opx77_elevators/errors.md: modules/elevators.md
+        reference/opx77_elevators/events.md: modules/elevators.md
+        reference/opx77_elevators/exports.md: modules/elevators.md
+        reference/opx77_elevators/index.md: modules/elevators.md
+        reference/opx77_elevators/types.md: modules/elevators.md
+        reference/opx77_hud/commands.md: modules/hud.md
+        reference/opx77_hud/config.md: modules/hud.md
+        reference/opx77_hud/events.md: modules/hud.md
+        reference/opx77_hud/exports.md: modules/hud.md
+        reference/opx77_hud/index.md: modules/hud.md
+        reference/opx77_input/config.md: modules/form.md
+        reference/opx77_input/events.md: modules/form.md
+        reference/opx77_input/exports.md: modules/form.md
+        reference/opx77_input/form-spec.md: modules/form.md
+        reference/opx77_input/index.md: modules/form.md
+        reference/opx77_input/types.md: modules/form.md
+        reference/opx77_inventory/commands.md: modules/inventory.md
+        reference/opx77_inventory/config.md: modules/inventory.md
+        reference/opx77_inventory/exports.md: modules/inventory.md
+        reference/opx77_inventory/index.md: modules/inventory.md
+        reference/opx77_menu/config.md: modules/menu.md
+        reference/opx77_menu/events.md: modules/menu.md
+        reference/opx77_menu/exports.md: modules/menu.md
+        reference/opx77_menu/index.md: modules/menu.md
+        reference/opx77_menu/menu-spec.md: modules/menu.md
+        reference/opx77_menu/types.md: modules/menu.md
+        reference/opx77_notify/config.md: reference/core.md
+        reference/opx77_notify/events.md: reference/core.md
+        reference/opx77_notify/exports.md: reference/core.md
+        reference/opx77_notify/index.md: reference/core.md
+        reference/opx77_notify/types.md: reference/core.md
+        reference/opx77_prompts/config.md: modules/prompts.md
+        reference/opx77_prompts/events.md: modules/prompts.md
+        reference/opx77_prompts/exports.md: modules/prompts.md
+        reference/opx77_prompts/index.md: modules/prompts.md
+        reference/opx77_prompts/types.md: modules/prompts.md
+        reference/opx77_status/config.md: modules/needs.md
+        reference/opx77_status/effect-spec.md: modules/needs.md
+        reference/opx77_status/events.md: modules/needs.md
+        reference/opx77_status/exports.md: modules/needs.md
+        reference/opx77_status/index.md: modules/needs.md
+        reference/opx77_weather/commands.md: modules/weather.md
+        reference/opx77_weather/config.md: modules/weather.md
+        reference/opx77_weather/events.md: modules/weather.md
+        reference/opx77_weather/exports.md: modules/weather.md
+        reference/opx77_weather/index.md: modules/weather.md
 
 markdown_extensions:
   - abbr
@@ -77,141 +183,85 @@ markdown_extensions:
   - pymdownx.tasklist:
       custom_checkbox: true
 
+validation:
+  links:
+    anchors: warn
+
 extra_css:
   - stylesheets/extra.css
+
 
 nav:
   - Home: index.md
 
+  - Getting started:
+      - Install a server: getting-started/install.md
+      - Configure it: getting-started/configure.md
+      - Troubleshooting: getting-started/troubleshooting.md
+
   - Guides:
-      - Getting started: guides/getting-started.md
-      - Converting from ESX or Qbox: guides/converting.md
-      - Writing a resource: guides/writing-a-resource.md
-      - Writing a server plugin: guides/writing-a-server-plugin.md
-      - Troubleshooting: guides/troubleshooting.md
-      - FAQ: guides/faq.md
-      - Contributing: guides/contributing.md
+      - Write a module: guides/writing-a-module.md
+      - Write a separate resource: guides/writing-a-resource.md
+      - Convert from FiveM: guides/converting.md
+      - Contributing and house style: guides/contributing.md
 
-  - Concepts:
-      - Architecture: concepts/architecture.md
-      - The Open77 platform: concepts/the-platform.md
-      - The export contract: concepts/export-contract.md
-      - Integration channels: concepts/integration-channels.md
-      - Identity: concepts/identity.md
-      - Connection control: concepts/connection-gate.md
-      - The entry gate: concepts/entry-gate.md
-      - Persistence: concepts/persistence.md
+  - How it works:
+      - Overview: how-it-works/overview.md
+      - Modules and contracts: how-it-works/modules-and-contracts.md
+      - Events and channels: how-it-works/events.md
+      - The scheduler: how-it-works/scheduler.md
+      - Server authority: how-it-works/server-authority.md
+      - Two runtimes: how-it-works/two-runtimes.md
+      - The WebUI page: how-it-works/webui.md
+      - Storage: how-it-works/storage.md
+      - Text and locales: how-it-works/locales.md
+      - Permissions: how-it-works/permissions.md
 
-  - Reference:
+  - Modules:
+      - All modules: modules/index.md
+      - admin: modules/admin.md
+      - animations: modules/animations.md
+      - appearance: modules/appearance.md
+      - blips: modules/blips.md
+      - calls: modules/calls.md
+      - character: modules/character.md
+      - chat: modules/chat.md
+      - clothing: modules/clothing.md
+      - crafting: modules/crafting.md
+      - dealership: modules/dealership.md
+      - diagnostics: modules/diagnostics.md
+      - downed: modules/downed.md
+      - elevators: modules/elevators.md
+      - entry: modules/entry.md
+      - form: modules/form.md
+      - garages: modules/garages.md
+      - gunsmith: modules/gunsmith.md
+      - hauling: modules/hauling.md
+      - hud: modules/hud.md
+      - inventory: modules/inventory.md
+      - menu: modules/menu.md
+      - needs: modules/needs.md
+      - panel: modules/panel.md
+      - progress: modules/progress.md
+      - prompts: modules/prompts.md
+      - shops: modules/shops.md
+      - spawn: modules/spawn.md
+      - target: modules/target.md
+      - teleports: modules/teleports.md
+      - theme: modules/theme.md
+      - vehiclekeys: modules/vehiclekeys.md
+      - vehicles: modules/vehicles.md
+      - weather: modules/weather.md
+
+  - API reference:
       - Overview: reference/index.md
-      - opx77_core:
-          - Overview: reference/opx77_core/index.md
-          - Exports:
-              - client: reference/opx77_core/exports/client.md
-              - server: reference/opx77_core/exports/server.md
-          - Server API: reference/opx77_core/server-api.md
-          - Player: reference/opx77_core/player.md
-          - Hooks: reference/opx77_core/hooks.md
-          - Events: reference/opx77_core/events.md
-          - Commands: reference/opx77_core/commands.md
-          - Configuration: reference/opx77_core/config.md
-          - Jobs, gangs and origins: reference/opx77_core/data.md
-          - Permissions: reference/opx77_core/permissions.md
-          - Types: reference/opx77_core/types.md
-      - opx77_menu:
-          - Overview: reference/opx77_menu/index.md
-          - Exports: reference/opx77_menu/exports.md
-          - The menu spec: reference/opx77_menu/menu-spec.md
-          - Events: reference/opx77_menu/events.md
-          - Configuration: reference/opx77_menu/config.md
-          - Types: reference/opx77_menu/types.md
-      - opx77_hud:
-          - Overview: reference/opx77_hud/index.md
-          - Exports: reference/opx77_hud/exports.md
-          - Events: reference/opx77_hud/events.md
-          - Commands: reference/opx77_hud/commands.md
-          - Configuration: reference/opx77_hud/config.md
-      - opx77_chat:
-          - Overview: reference/opx77_chat/index.md
-          - Exports: reference/opx77_chat/exports.md
-          - Events: reference/opx77_chat/events.md
-          - Configuration: reference/opx77_chat/config.md
-      - opx77_notify:
-          - Overview: reference/opx77_notify/index.md
-          - Exports: reference/opx77_notify/exports.md
-          - Events: reference/opx77_notify/events.md
-          - Configuration: reference/opx77_notify/config.md
-          - Types: reference/opx77_notify/types.md
-      - opx77_status:
-          - Overview: reference/opx77_status/index.md
-          - Exports: reference/opx77_status/exports.md
-          - The effect spec: reference/opx77_status/effect-spec.md
-          - Events: reference/opx77_status/events.md
-          - Configuration: reference/opx77_status/config.md
-      - opx77_weather:
-          - Overview: reference/opx77_weather/index.md
-          - Exports: reference/opx77_weather/exports.md
-          - Commands: reference/opx77_weather/commands.md
-          - Events: reference/opx77_weather/events.md
-          - Configuration: reference/opx77_weather/config.md
-      - opx77_elevators:
-          - Overview: reference/opx77_elevators/index.md
-          - Exports: reference/opx77_elevators/exports.md
-          - Error codes: reference/opx77_elevators/errors.md
-          - Events: reference/opx77_elevators/events.md
-          - Commands: reference/opx77_elevators/commands.md
-          - Configuration: reference/opx77_elevators/config.md
-          - Types: reference/opx77_elevators/types.md
-      - opx77_appearance:
-          - Overview: reference/opx77_appearance/index.md
-          - Exports: reference/opx77_appearance/exports.md
-          - Events: reference/opx77_appearance/events.md
-          - Configuration: reference/opx77_appearance/config.md
-          - Types: reference/opx77_appearance/types.md
-      - opx77_input:
-          - Overview: reference/opx77_input/index.md
-          - Exports: reference/opx77_input/exports.md
-          - The form spec: reference/opx77_input/form-spec.md
-          - Events: reference/opx77_input/events.md
-          - Configuration: reference/opx77_input/config.md
-          - Types: reference/opx77_input/types.md
-      - opx77_charselector:
-          - Overview: reference/opx77_charselector/index.md
-          - Exports: reference/opx77_charselector/exports.md
-          - The stage: reference/opx77_charselector/stage.md
-          - Events: reference/opx77_charselector/events.md
-          - Configuration: reference/opx77_charselector/config.md
-          - Types: reference/opx77_charselector/types.md
-      - opx77_charcreator:
-          - Overview: reference/opx77_charcreator/index.md
-          - Exports: reference/opx77_charcreator/exports.md
-          - Events: reference/opx77_charcreator/events.md
-          - Configuration: reference/opx77_charcreator/config.md
-          - Types: reference/opx77_charcreator/types.md
-      - opx77_animations:
-          - Overview: reference/opx77_animations/index.md
-          - Exports: reference/opx77_animations/exports.md
-          - Commands: reference/opx77_animations/commands.md
-          - Events: reference/opx77_animations/events.md
-          - Configuration: reference/opx77_animations/config.md
-          - Types: reference/opx77_animations/types.md
-      - opx77_admin:
-          - Overview: reference/opx77_admin/index.md
-          - Commands: reference/opx77_admin/commands.md
-          - Exports: reference/opx77_admin/exports.md
-          - Events: reference/opx77_admin/events.md
-          - Configuration: reference/opx77_admin/config.md
-          - Types: reference/opx77_admin/types.md
-      - opx77_inventory:
-          - Overview: reference/opx77_inventory/index.md
-          - Commands: reference/opx77_inventory/commands.md
-          - Exports: reference/opx77_inventory/exports.md
-          - Configuration: reference/opx77_inventory/config.md
-      - opx77_prompts:
-          - Overview: reference/opx77_prompts/index.md
-          - Exports: reference/opx77_prompts/exports.md
-          - Events: reference/opx77_prompts/events.md
-          - Configuration: reference/opx77_prompts/config.md
-          - Types: reference/opx77_prompts/types.md
+      - Core runtime (OPX.*): reference/core.md
+      - Core configuration: reference/core-config.md
+      - Runtime events and channels: reference/runtime-events.md
+      - Shared library (lib/): reference/lib.md
+      - opx_lib: reference/opx-lib.md
+      - Error codes: reference/error-codes.md
 
-  - Releases: releases.md
+  - Migration:
+      - From opx77_* to opx_infinity: migration/from-opx77.md
+      - Release notes: migration/releases.md
