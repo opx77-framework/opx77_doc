@@ -1,0 +1,142 @@
+---
+title: hauling module
+description: A job with no start command — pick up a server-owned crate, load it into a vehicle trunk and sell it to the NPC at a drop-off.
+---
+
+# hauling
+
+`hauling` is a delivery job. Crates stand at surveyed points; every player in the site's routing bucket sees the same crates. A player picks one up with the target eye (ALT), carries it, loads it into a vehicle (it becomes a trunk item), drives to one of the site's drop-offs and sells it to the NPC standing there. There is no command and no start point: the eye is the whole entry. Sites are written in `config/hauling.lua`.
+
+| | |
+|---|---|
+| Side | both |
+| Requires | `character` (hard) |
+| Optional | `target`, `progress`, `inventory`, `animations` |
+| Configuration | `config/hauling.lua` (shared script) |
+| Contract | `hauling` v1 — server |
+| Data | none of its own; loaded crates are `hauling_crate` items in vehicle trunks (`inventory`) |
+
+Without `target` there is no way into the job (the client says so once). Without `progress` no bar is drawn, but the server still enforces the timing. Without `inventory` nothing can be loaded or sold. The manifest needs `world.props` (crates) and `world.npcs` (sellers).
+
+## How the job runs
+
+1. **Pick up.** ALT on a crate → *Pick up the crate*. The server checks distance (`REACH`), bucket and the site's job gate, claims the crate and runs a `PICKUP_MS` bar while the player plays the site's `PICKUP_POSE`. The crate is then attached to the player (`CARRY`), plays the `carry` animation, and weapons are holstered and blocked.
+2. **Put down (optional).** Press `DROP_KEY` (**X** by default, rebindable as *Hauling: put the crate down*). The crate lands `DROP_DISTANCE` m in front; anyone may pick it up. Left untouched for `DROP_RETURN_MS`, it goes back to its point on the next refill pass.
+3. **Load.** ALT on a vehicle within `VEHICLE_REACH` → *Load the crate*, `LOAD_MS` bar. The crate prop is removed and one `ITEM` (`hauling_crate`, 10 kg) with metadata `{ site = <site key> }` is added to that vehicle's trunk. A full, locked or foreign trunk refuses.
+4. **Sell.** ALT on the seller NPC at a drop-off → *Sell the crates*, `DELIVER_MS` bar. Every crate of that site in the player's bag **and** in the trunk of any vehicle parked within the drop-off's `RADIUS` is sold at once. Pay per crate is the site's `PAY`, else the `HAUL_PAY_PER_CRATE` tunable (starts at `PAY_PER_CRATE`), paid in `CURRENCY`. If the payment fails the crates are put back: first where each came from, then into the bag or another trunk of the sale. Crates that fit nowhere are lost and recorded for a refund (`not_paid_lost`, audit event `hauling.crateLost`).
+
+The server owns every clock: a completion that arrives sooner than the bar minus `CLOCK_TOLERANCE_MS` is refused. A claim not finished within its bar plus `CLAIM_GRACE_MS` is released by the refill pass. Getting into a vehicle while carrying puts the crate back on its point. Disconnecting, dying or changing bucket ends the carry the same way.
+
+**Refill.** Every `REFILL_MS` (tunable `HAUL_REFILL_MS`, live), each usable site gets up to `SPAWN_PER_PASS` new crates on free points. A point stays empty `RESPAWN_MS` after its crate leaves. `MAX_CRATES` caps the total across all sites.
+
+**Disabled sites.** At boot a site is disabled (with a log line) if any point or drop-off is the placeholder `0, 0, 0`, two points are closer than `MIN_POINT_GAP`, a drop-off has no valid `NPC`, or the engine does not know its `MODEL` (tested by creating one crate).
+
+## Server contract {#server-contract}
+
+`local hauling = OPX.Api.Get('hauling')` on the server, from code inside opx_infinity.
+
+| Function | Parameters | Returns | Notes |
+|---|---|---|---|
+| <a id="server-hauling-state"></a>`State` | — | Result `{ok, value = {sites, total}}` | `sites[key] = {standing, claimed, carried}` for every usable site; `total` crates in the world. |
+| <a id="server-hauling-iscarrying"></a>`IsCarrying` | `player` | boolean | Whether that player has a crate attached right now. |
+
+## Events {#events}
+
+| Event | Direction | Arguments | Meaning |
+|---|---|---|---|
+| <a id="opx-net-hauling-hello"></a>`opx:net:hauling:hello` | client → server | — | Subscribe. Sent at start and on character load. Answered with a snapshot, the seller list and an `answer`. |
+| <a id="opx-net-hauling-begin"></a>`opx:net:hauling:begin` | client → server | `step, subject` | Start a bar. `step` is `pickup` (subject = crate prop id), `load` (vehicle id) or `deliver` (seller NPC id). |
+| <a id="opx-net-hauling-finish"></a>`opx:net:hauling:finish` | client → server | — | The bar finished; the server checks its own clock and completes the step. |
+| <a id="opx-net-hauling-abort"></a>`opx:net:hauling:abort` | client → server | `reason` | The bar was cancelled. A pickup claim is released; a carry continues. |
+| <a id="opx-net-hauling-drop"></a>`opx:net:hauling:drop` | client → server | `{ yaw, z }` or `yaw` | Put the carried crate down. `z` is the client's ground height, used only within 1.5 m of the player's own Z. |
+| <a id="opx-net-hauling-snapshot"></a>`opx:net:hauling:snapshot` | server → client | `{ first, done, crates }` | Every crate, in parts of 24. Each crate: `id, site, x, y, z, bucket, where` (`ground`, `claimed`, `carried`). |
+| <a id="opx-net-hauling-crate"></a>`opx:net:hauling:crate` | server → client | crate | One crate changed. |
+| <a id="opx-net-hauling-gone"></a>`opx:net:hauling:gone` | server → client | `propId` | One crate left the world. |
+| <a id="opx-net-hauling-sellers"></a>`opx:net:hauling:sellers` | server → client | `{ npc, site, dropoff }[]` | The seller NPCs (`npc` is a decimal string). |
+| <a id="opx-net-hauling-run"></a>`opx:net:hauling:run` | server → client | `{ id, step, durationMs, site }` | Draw a bar for this step. |
+| <a id="opx-net-hauling-answer"></a>`opx:net:hauling:answer` | server → client | `ok, reason?, heldId` | Verdict for the last request. `heldId` is the carried crate id or `false`. |
+| <a id="opx-on-hauling-decision"></a>`opx:on:hauling:decision` | client local | `{ ok, reason?, carrying }` | Every verdict. Only handlers inside opx_infinity's client hear it. |
+
+The target rows are `hauling.pickup` (crates), `hauling.load` (vehicles) and `hauling.sell` (NPCs).
+
+## Configuration {#configuration}
+
+`config/hauling.lua` sets `OPX.Config.MODULES.hauling`. Shared script.
+
+| Key | Default | What it does |
+|---|---|---|
+| <a id="config-hauling-enabled"></a>`enabled` | `true` | `false` switches the module off. |
+| <a id="config-hauling-model"></a>`MODEL` | `'crate.small'` | Prop alias a site uses unless it names its own. Must be a curated alias, never a `.mesh` path. |
+| <a id="config-hauling-max-crates"></a>`MAX_CRATES` | `64` | Most crates standing in the world across all sites. |
+| <a id="config-hauling-pickup-ms"></a>`PICKUP_MS` | `4000` | Pickup bar length. |
+| <a id="config-hauling-load-ms"></a>`LOAD_MS` | `3000` | Load bar length. |
+| <a id="config-hauling-deliver-ms"></a>`DELIVER_MS` | `5000` | Sell bar length. |
+| <a id="config-hauling-clock-tolerance-ms"></a>`CLOCK_TOLERANCE_MS` | `500` | How early a completion may arrive and still count. |
+| <a id="config-hauling-claim-grace-ms"></a>`CLAIM_GRACE_MS` | `20000` | Extra time past a bar before an unfinished claim is released. |
+| <a id="config-hauling-reach"></a>`REACH` | `3.0` | Metres from a crate to act on it (3D, server-measured, no line of sight). |
+| <a id="config-hauling-vehicle-reach"></a>`VEHICLE_REACH` | `4.5` | Metres from a vehicle to load it, and from a drop-off to sell. |
+| <a id="config-hauling-min-point-gap"></a>`MIN_POINT_GAP` | `2.0` | Minimum distance between two points of one site. |
+| <a id="config-hauling-refill-ms"></a>`REFILL_MS` | `60000` | Refill-and-reap interval. Seeds the `HAUL_REFILL_MS` tunable. |
+| <a id="config-hauling-pay-per-crate"></a>`PAY_PER_CRATE` | `150` | Pay per crate for a site without `PAY`. Seeds the `HAUL_PAY_PER_CRATE` tunable, which is what is paid. |
+| <a id="config-hauling-currency"></a>`CURRENCY` | `'EDDIES'` | Money type paid. |
+| <a id="config-hauling-target-kind"></a>`TARGET_KIND` | `'prop'` | `prop`: the eye lands on the crate. `world`: fallback that matches a ground hit within `REACH` of a crate. |
+| <a id="config-hauling-carry"></a>`CARRY` | `{ BONE = 'Chest', OFFSET = { x = -0.135, y = -0.60, z = 0.008 }, ROTATION = { x = 0.0, y = 90.0, z = 0.0 } }` | How a carried crate sits on the body. `BONE` is a rig slot (`RightHand`, `LeftHand`, `Chest`, `Head`) or `''`. A site may override. |
+| <a id="config-hauling-pickup-pose"></a>`PICKUP_POSE` | `'scavenge'` | Animation during the pickup bar: `scavenge`, `examine`, `repair`, `mechanic` or `''` for none. A site may override. |
+| <a id="config-hauling-drop-key"></a>`DROP_KEY` | `'X'` | Default key to put a carried crate down. |
+| <a id="config-hauling-drop-distance"></a>`DROP_DISTANCE` | `0.7` | Metres in front of the player a dropped crate lands (0–2). |
+| <a id="config-hauling-drop-return-ms"></a>`DROP_RETURN_MS` | `300000` | How long a dropped crate may lie before it returns to its point. |
+| <a id="config-hauling-item"></a>`ITEM` | `'hauling_crate'` | Inventory item a loaded crate becomes. Declared in the inventory catalogue; its weight caps a trunk. |
+| <a id="config-hauling-membership"></a>`MEMBERSHIP` | `'primary'` | How a site's `JOBS` gate reads jobs: `primary` (worked job) or `any` (every membership, grade only). |
+| <a id="config-hauling-sites"></a>`SITES` | 12 sites (10 surveyed, `docks` and `badlands` placeholders) | Every site. See below. |
+
+### A site
+
+```lua
+SITES = {
+    pacifica_butcher = {                 -- the key: durable, used in logs and item metadata
+        LABEL = 'Butcher shop and market',
+        BUCKET = 0,
+        MODEL = 'crate.delivery',        -- optional, else MODEL
+        PICKUP_POSE = 'scavenge',        -- optional, else PICKUP_POSE
+        -- CARRY = { ... },              -- optional, else CARRY
+        BLIP = { X = -1819.71, Y = -1970.77, Z = 52.50 },  -- optional map pin (blips module)
+        POINTS = {                       -- one crate per point
+            { X = -1816.63, Y = -1977.91, Z = 52.50, YAW = 248.1 },
+            { X = -1815.79, Y = -1975.94, Z = 52.50, YAW = 246.9 },
+        },
+        SPAWN_PER_PASS = 1,              -- required, whole number above 0
+        RESPAWN_MS = 120000,             -- optional, default 0
+        -- PAY = 220,                    -- optional, whole number >= 0
+        -- JOBS = { nomad = 0 }, ON_DUTY = true,   -- optional job gate
+        DROPOFFS = {
+            sale = { LABEL = 'Sale', X = -1819.13, Y = -1964.37, Z = 51.50, RADIUS = 6.0,
+                NPC = { RECORD = 'Character.VendorMale', YAW = 254.0 } },
+        },
+    },
+}
+```
+
+`X`, `Y`, `Z` must be finite and within ±1,000,000 (the shared spot bound, see [the spot helpers](../reference/lib.md)). Every drop-off needs an `NPC` with a `RECORD` of the form `Character.*`. No `JOBS` means anyone may haul. The shipped sites also carry a `TARGET` block (label, description, icon); the code does not read it — the row texts come from the locale keys `hauling.row.*`.
+
+## Refusal codes {#codes}
+
+Sent as `reason` on `opx:net:hauling:answer` and shown as the toast `hauling.refused.<reason>` (fallback `hauling.refused.generic`).
+
+| Code | Meaning |
+|---|---|
+| `no_such_crate`, `already_claimed`, `stale_revision` | The crate is gone or someone else got it. |
+| `already_carrying` | You already hold a crate. |
+| `too_far`, `wrong_bucket`, `no_position` | Distance, routing bucket or position read failed. `wrong_bucket` is checked on pick-up, load and sell: the player must be in the same routing bucket as the crate, the vehicle or the seller. |
+| `job_required`, `grade_too_low`, `off_duty`, `job_stale`, `no_such_site` | The site's job gate refused. |
+| `claim_expired` | You took too long; the crate went back. |
+| `carry_dropped` | You got into a vehicle while carrying. |
+| `too_soon` | Completion arrived before the server's clock allowed. |
+| `not_carrying`, `busy`, `nothing_running` | Nothing to load or drop, or a bar is running. |
+| `no_such_vehicle`, `trunk_full`, `not_your_trunk`, `trunk_locked`, `no_trunk`, `trunk_refused` | The load into the trunk failed. |
+| `no_such_seller`, `no_crates` | No such seller, or no crates of this site in your bag or a parked vehicle. |
+| `not_paid` | The payment failed; the crates were put back. |
+| `not_paid_lost` | The payment failed and some crates could not be put back anywhere (bag or any trunk involved). The server logs `[hauling] CRATES LOST: ...` with the refund owed and writes the audit event `hauling.crateLost`. Toast `hauling.refused.not_paid_lost`. |
+| `attach_refused`, `no_carry_config` | The crate could not be attached. |
+| `no_inventory`, `no_character` | A needed module is missing. |
+| `rate_limited`, `invalid_subject`, `unknown_step` | Request limit (10 per 5 s) or a malformed request. |
+| `dropped`, `aborted` | Success answers for a drop and an abort. |
