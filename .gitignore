@@ -1,13 +1,13 @@
-# MkDocs build output
-site/
+# Next.js / Fumadocs
+.next/
+out/
+.source/
+node_modules/
+next-env.d.ts
+*.tsbuildinfo
 
-# Python
-__pycache__/
-*.py[cod]
-.venv/
-venv/
-env/
-*.egg-info/
+# Environment
+.env*
 
 # Editors and OS
 .DS_Store
