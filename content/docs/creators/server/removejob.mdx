@@ -1,0 +1,36 @@
+---
+title: RemoveJob
+description: Removes a job membership from a character.
+---
+
+<a id="export-server-removejob" />
+
+```lua
+local res = exports.opx_infinity:RemoveJob(target, name)
+```
+
+Scope `write` · must be awaited — a synchronous call answers `export.mustAwait` before touching anything.
+
+**Parameters**
+- target: `number | string` — player id or citizen id
+- name: `string`
+
+- `target` is a connected player id or a citizen id.
+- Goes through the same function as the staff commands; a change raises [`opx:on:character:job`](/docs/creators/events#opx-on-character-job) with `removed` naming it.
+- Removing the primary job falls back to the server's default job.
+
+**Returns**
+- `true`
+
+**Errors**
+- `job.notMember`, `character.notFound`, `export.badArgument`, `error.unavailable`
+
+```lua title="Example"
+CreateThread(function()
+  local pending, why = Open77.exports.call('opx_infinity', 'RemoveJob', citizenId, 'police')
+  if not pending then return print('not sent: ' .. tostring(why)) end
+  local res = pending:await()
+  if not (res and res.ok) then return print('refused: ' .. tostring(res and res.error)) end
+  print('removed')
+end)
+```

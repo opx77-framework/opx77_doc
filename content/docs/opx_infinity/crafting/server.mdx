@@ -1,0 +1,107 @@
+---
+title: Server
+description: The crafting contract on the server — register benches, read a bench's view, order and collect.
+---
+
+```lua
+local crafting = OPX.Api.Get('crafting')
+```
+
+From server code inside opx_infinity. A Result is `{ ok = true, value }` or `{ ok = false, error, detail }`.
+
+## RegisterBench [#server-crafting-registerbench]
+
+Registers a bench and its recipes. Does not yield. Call it from your module's `Start`, after `crafting` has published.
+
+```lua
+crafting.RegisterBench(benchKey, definition)
+```
+
+**Parameters**
+- benchKey: `string` — letters, digits, `_ - . :`, up to 64.
+- definition: `table` — see [Bench definition](/docs/opx_infinity/crafting#bench-definition).
+
+**Returns**
+- `Result` `integer` (recipe count) — errors `invalid_bench` (detail: first problem), `bench_taken`
+
+## UnregisterBenches [#server-crafting-unregisterbenches]
+
+Removes every bench with that `owner`. Orders already filed stay in the database.
+
+```lua
+crafting.UnregisterBenches(owner)
+```
+
+**Parameters**
+- owner: `string`
+
+**Returns**
+- `Result` `integer` (benches removed)
+
+```lua title="Example"
+function M.Stop() crafting.UnregisterBenches('mymodule') end
+```
+
+## Benches [#server-crafting-benches]
+
+Every bench, sorted by key.
+
+```lua
+crafting.Benches()
+```
+
+**Returns**
+- `Result` `table[]` — `{ key, owner, label, recipes, queue, anchored }`
+
+## View [#server-crafting-view]
+
+What the menu draws for one player at one bench. Yields.
+
+```lua
+crafting.View(player, benchKey)
+```
+
+**Parameters**
+- player: `integer`
+- benchKey: `string`
+
+**Returns**
+- `Result` `{ bench, label, queue, cooking, free, recipes, orders }`
+  - `recipes[i]`: `{ key, label, icon, output, outputLabel, count, seconds, price, money, inputs = { { item, label, need, held } }, ok, error, short }` — `ok`: can be ordered now; `error`: the refusal code.
+  - `orders[i]`: `{ id, recipe, label, output, count, remaining, ready }`, soonest first.
+
+## Order [#server-crafting-order]
+
+Places an order. Yields.
+
+```lua
+crafting.Order(player, benchKey, recipeKey)
+```
+
+**Parameters**
+- player: `integer`
+- benchKey: `string`
+- recipeKey: `string`
+
+**Returns**
+- `Result` `{ id, seconds }` — `seconds`: time until this order is ready, queue included. Errors: the [refusal codes](/docs/opx_infinity/crafting#codes).
+
+```lua title="Example"
+local placed = crafting.Order(source, 'mymodule:bench', 'handgun_rounds')
+if placed.ok then print(('ready in %d s'):format(placed.value.seconds)) end
+```
+
+## Collect [#server-crafting-collect]
+
+Collects a ready order. Yields.
+
+```lua
+crafting.Collect(player, orderId)
+```
+
+**Parameters**
+- player: `integer`
+- orderId: `integer`
+
+**Returns**
+- `Result` `{ bench, item, count }`

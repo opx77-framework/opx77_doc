@@ -1,0 +1,131 @@
+---
+title: Server
+description: The dealership contract on the server — sell, offer, accept, and read stock, dealers and company balances.
+---
+
+```lua
+local dealership = OPX.Api.Get('dealership')
+```
+
+From server code inside opx_infinity.
+
+## Buy [#server-dealership-buy]
+
+A counter sale. Takes the money. Yields.
+
+```lua
+dealership.Buy(source, dealerKey, entryKey, garageKey)
+```
+
+**Parameters**
+- source: `integer`
+- dealerKey?: `string` — nil: the dealer underfoot.
+- entryKey: `string` — a `STOCK` key.
+- garageKey?: `string` — the garage to file it under; nil: the vehicles default. Unknown: `dealership.noSuchGarage`.
+
+**Returns**
+- `Result` `{ plate, entry, model, dealer, label, garage?, price, currency, spawned, keyed }`
+  - `spawned`: handed over. `keyed`: a key was cut or already held.
+- Errors: the [refusal codes](/docs/opx_infinity/dealership#codes).
+
+```lua title="Example"
+local sold = dealership.Buy(source, nil, 'hella')
+if sold.ok then print(sold.value.plate) end
+```
+
+## Offer [#server-dealership-offer]
+
+Records an offer and sends it to the buyer. Charges nothing. One pending offer per buyer; a new one replaces it.
+
+```lua
+dealership.Offer(seller, buyer, entryKey)
+```
+
+**Parameters**
+- seller: `integer`
+- buyer: `integer`
+- entryKey: `string`
+
+**Returns**
+- `Result` `{ buyer, token, entry, price, cut, company, dealer }`
+
+## Accept [#server-dealership-accept]
+
+The buyer's answer to an offer; where the money moves. Re-checks everything. Charges the buyer, banks the company share, pays the seller. Yields.
+
+```lua
+dealership.Accept(buyer, token, yes, destKey)
+```
+
+**Parameters**
+- buyer: `integer`
+- token: `number` — the offer's own token; a stale one answers `dealership.noOffer`.
+- yes: `boolean` — anything but `true` declines.
+- destKey?: `string` — the buyer's garage, resolved in the buyer's bucket; nil: the vehicles default. Unknown: `dealership.noSuchGarage`.
+
+**Returns**
+- `Result` — the `Buy` value plus `commission`, `banked`, `paid`
+
+```lua title="Example"
+local done = dealership.Accept(buyer, token, true, 'watson_garage')
+if not done.ok then print(done.error) end
+```
+
+## Balance [#server-dealership-balance]
+
+A company's balance. Yields.
+
+```lua
+dealership.Balance(kind, group)
+```
+
+**Parameters**
+- kind: `'job' | 'gang'`
+- group: `string`
+
+**Returns**
+- `Result` `{ kind, group, balance }` — `0` when no row.
+
+```lua title="Example"
+local account = dealership.Balance('job', 'ncpd')
+if account.ok then print(account.value.balance) end
+```
+
+## Stock [#server-dealership-stock]
+
+```lua
+dealership.Stock()
+```
+
+**Returns**
+- `Result` `{ currency, stock }` — `stock[key] = { label, class, price, av }`
+
+## Previews [#server-dealership-previews]
+
+```lua
+dealership.Previews()
+```
+
+**Returns**
+- `Result` `{ previews }` — `{ key, dealer, entry, model, standing }[]`
+
+## Spots [#server-dealership-spots]
+
+Every dealer by key. Not a Result.
+
+```lua
+dealership.Spots()
+```
+
+**Returns**
+- `table`
+
+## State [#server-dealership-state]
+
+```lua
+dealership.State()
+```
+
+**Returns**
+- `Result` `{ dealers, stock, currency, previews, standing }`
+  - `dealers[key] = { kind, label, adopted }`; `stock`, `previews`, `standing` are counts.

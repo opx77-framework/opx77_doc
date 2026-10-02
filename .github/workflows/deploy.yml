@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -13,7 +14,7 @@ permissions:
 
 # One deployment at a time. Queued runs are not cancelled: the last push wins.
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -22,19 +23,22 @@ jobs:
     steps:
       - name: Check out
         uses: actions/checkout@v7.0.1
-
-      - name: Set up Python
-        uses: actions/setup-python@v7.0.0
         with:
-          python-version: '3.12'
-          cache: pip
-          cache-dependency-path: requirements.txt
+          # lastModified on each page is read from git history.
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: npm ci
 
-      - name: Configure Pages
-        uses: actions/configure-pages@v6.0.0
+      # MDX compiles, front matter, internal links and their anchors.
+      - name: Check content
+        run: node scripts/check-content.mjs
 
       # The framework (opx_infinity, opx_lib) lives in other repositories, so
       # there is no checkout here and this step reports a skip. Run the same
@@ -44,15 +48,20 @@ jobs:
       - name: Check API coverage
         run: ./scripts/check-api-coverage.sh
 
+      - name: Type check
+        run: npm run types:check
+
       - name: Build site
-        run: mkdocs build --strict
+        run: npm run build
 
       - name: Upload artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v5.0.0
         with:
-          path: site
+          path: out
 
   deploy:
+    if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-24.04
     environment:

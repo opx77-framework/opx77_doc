@@ -1,0 +1,124 @@
+---
+title: Server exports
+description: What a server script of another resource can call on opx_infinity — players, money, jobs, metadata, items, stashes, chat and vehicles.
+---
+
+Defined in `core/server/exports.lua`. Read [For creators](/docs/creators) first: every export answers `{ ok, value | error }`, the operator decides who may call it, and writes must be **awaited**.
+
+## Scope and await
+
+| Label | Meaning |
+|---|---|
+| Scope `read` | Allowed by [`SERVER.EXPORTS.READ`](/docs/opx_infinity/core/config#config-server-exports) (`'*'` by default). |
+| Scope `write` | Allowed by [`SERVER.EXPORTS.WRITERS`](/docs/opx_infinity/core/config#config-server-exports) (nobody by default). Audited with your resource name. |
+| sync | Answers at once; `exports.opx_infinity:Name(...)` is fine. |
+| must be awaited | Can wait on the database. Call it with `Open77.exports.call(...)` and `:await()`; a synchronous call answers `export.mustAwait`. |
+| await it | A write that answers from memory today. Use the promise form anyway. |
+
+## Common arguments
+
+| Name | Accepts |
+|---|---|
+| `source` | a connected player id (number) |
+| `citizenId` | a citizen id string |
+| `target` | a connected player id **or** a citizen id (a citizen id reaches an offline bag and must be awaited) |
+| `metadata` | `nil` or a plain table |
+
+## Players [#players]
+
+- [`GetVersion`](/docs/creators/server/getversion) — resource and export surface version
+- [`GetPlayerData`](/docs/creators/server/getplayerdata) — public view of a connected player
+- [`GetPlayerByCitizenId`](/docs/creators/server/getplayerbycitizenid) — public view of an online character
+- [`IsStaff`](/docs/creators/server/isstaff) — holds the staff right
+
+## Money [#money]
+
+Types from [`MONEY.TYPES`](/docs/opx_infinity/core/config#config-shared-money); amounts 1 to 9 999 999 999; reasons stored as `ext:<your resource>:<reason>`.
+
+- [`GetMoney`](/docs/creators/server/getmoney) — read · sync
+- [`AddMoney`](/docs/creators/server/addmoney) — write · await it
+- [`RemoveMoney`](/docs/creators/server/removemoney) — write · await it
+- [`AddMoneyOffline`](/docs/creators/server/addmoneyoffline) — write · must be awaited
+
+## Jobs and gangs [#jobs]
+
+- [`HasJob`](/docs/creators/server/hasjob), [`HasGang`](/docs/creators/server/hasgang), [`GetJob`](/docs/creators/server/getjob), [`GetGang`](/docs/creators/server/getgang) — read · sync
+- [`SetJob`](/docs/creators/server/setjob), [`SetGang`](/docs/creators/server/setgang), [`RemoveJob`](/docs/creators/server/removejob), [`RemoveGang`](/docs/creators/server/removegang) — write · must be awaited
+- [`SetDuty`](/docs/creators/server/setduty) — write · sync
+
+## Metadata [#metadata]
+
+Your resource's own space on a character (`ext.<your resource>.<key>`), online characters only. The player can read it.
+
+- [`GetMetadata`](/docs/creators/server/getmetadata) — read · sync
+- [`SetMetadata`](/docs/creators/server/setmetadata) — write · sync
+
+## Down and revive [#downed]
+
+- [`IsDown`](/docs/creators/server/isdown) — read · sync
+- [`Revive`](/docs/creators/server/revive) — write · sync
+
+## Items [#items]
+
+- [`HasItem`](/docs/creators/server/hasitem), [`CountItem`](/docs/creators/server/countitem) — read · await when `target` is a citizen id
+- [`AddItem`](/docs/creators/server/additem), [`RemoveItem`](/docs/creators/server/removeitem) — write · await it (must when `target` is a citizen id)
+
+## Stashes [#stashes]
+
+Loaded, never opened in front of a player. A new stash must be configured or named `<your resource>.<name>`.
+
+- [`CountInStash`](/docs/creators/server/countinstash) — read · must be awaited
+- [`AddToStash`](/docs/creators/server/addtostash), [`RemoveFromStash`](/docs/creators/server/removefromstash) — write · must be awaited
+
+## Chat [#chat]
+
+- [`SendChat`](/docs/creators/server/sendchat), [`BroadcastChat`](/docs/creators/server/broadcastchat) — write · await it
+
+## Vehicles and keys [#vehicles]
+
+- [`RevokeKeys`](/docs/creators/server/revokekeys), [`RevokeAllKeys`](/docs/creators/server/revokeallkeys), [`SetVehicleState`](/docs/creators/server/setvehiclestate) — write · must be awaited
+
+## Examples [#examples]
+
+### Pay a player for a job step [#example-pay]
+
+```lua title="my_jobs/server/main.lua"
+-- needs `my_jobs = true` in SERVER.EXPORTS.WRITERS
+RegisterNetEvent('my_jobs:delivered', function()
+	local playerId = source
+	CreateThread(function()
+		-- re-check on the server that the delivery really happened, then:
+		local pending, why = Open77.exports.call('opx_infinity', 'AddMoney',
+			playerId, 'EDDIES', 350, 'delivery')
+		if not pending then return print('not sent: ' .. tostring(why)) end
+		local answer, failure = pending:await()
+		if answer == nil then return print('call failed: ' .. tostring(failure)) end
+		if answer.ok ~= true then return print('refused: ' .. tostring(answer.error)) end
+		print(('paid, balance is now %d'):format(answer.value))
+	end)
+end)
+```
+
+### Check a job before letting someone in [#example-job]
+
+```lua
+-- a read: the synchronous form is fine
+local answer = exports.opx_infinity:HasJob(playerId, 'police', true, 2)
+if answer.ok and answer.value then
+	-- on-duty police, grade 2 or more
+end
+```
+
+### Restock a shop's back room [#example-stash]
+
+```lua
+-- creates `my_shop.backroom` on first use (needs my_shop in WRITERS)
+CreateThread(function()
+	local pending = Open77.exports.call('opx_infinity', 'AddToStash',
+		'my_shop.backroom', 'water', 24)
+	local answer = pending and pending:await()
+	if not (answer and answer.ok) then
+		print('restock refused: ' .. tostring(answer and answer.error))
+	end
+end)
+```

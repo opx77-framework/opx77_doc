@@ -1,0 +1,55 @@
+---
+title: Events
+description: Local events and page channels of the target module.
+---
+
+The module listens to `opx:on:downed:changed`: the eye closes and will not open while the player is down.
+
+## opx:on:target:opened [#opx-on-target-opened]
+
+Client, local. The eye opened.
+
+```lua
+AddEventHandler('opx:on:target:opened', function(info) end)
+```
+
+- info: `table` — `{ handle }`
+
+## opx:on:target:closed [#opx-on-target-closed]
+
+Client, local. The eye closed.
+
+```lua
+AddEventHandler('opx:on:target:closed', function(reason) end)
+```
+
+- reason: `string` — e.g. `selected`, `cancelled`, `input_released`, `target_changed`, `player_down`, `provider_disabled`, `provider_closed`, `no_surface`, `payload_refused`, `controls_unavailable`, `option_unavailable`, `module_stopped`
+
+## opx:on:target:selected [#opx-on-target-selected]
+
+Client, local. A row was chosen, just before its `onSelect` runs.
+
+```lua
+AddEventHandler('opx:on:target:selected', function(context) end)
+```
+
+- context: `table` — the [context](/docs/opx_infinity/target/client#the-context)
+
+## Page channels
+
+On the `interactive` surface. Every message carries the `handle` of the current open; others are ignored.
+
+| Channel | Direction | Payload | Meaning |
+|---|---|---|---|
+| <a id="page-target-hover" />`target:hover` | page → Lua | `{ handle, x, y }` | Cursor moved (0–1 coordinates). Lua answers whether anything there has rows. |
+| <a id="page-target-pick" />`target:pick` | page → Lua | `{ handle, x, y }` | Right-click at that point. |
+| <a id="page-target-select" />`target:select` | page → Lua | `{ handle, token }` | A listed row was clicked. |
+| <a id="page-target-cancel" />`target:cancel` | page → Lua | `{ handle }` | Close the eye. |
+| `target:open` | Lua → page | `{ handle, hoverMs, labels = { hint, looking, unavailable, back } }` | Eye opened. |
+| `target:hover` | Lua → page | `{ handle, available }` | Something under the cursor has rows. |
+| `target:loading` | Lua → page | `{ handle, x, y }` | A pick is being resolved. |
+| `target:menu` | Lua → page | `{ handle, x, y, options = { { token, label, description, group, icon, danger, checked } } }` | The rows to list. |
+| `target:empty` | Lua → page | `{ handle }` | Nothing to offer. |
+| `target:busy` | Lua → page | `{ handle, token }` | A choice is being checked. |
+| `target:error` | Lua → page | `{ handle }` | The choice no longer applies. |
+| `target:close` | Lua → page | `{ handle }` | Eye closed. |

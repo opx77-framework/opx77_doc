@@ -1,0 +1,30 @@
+---
+title: HasJob
+description: Whether a player has a job, optionally on duty and from a grade.
+---
+
+<a id="export-server-hasjob" />
+
+```lua
+local res = exports.opx_infinity:HasJob(source, name, onDuty, minGrade)
+```
+
+Scope `read` · sync.
+
+**Parameters**
+- source: `number`
+- name: `string`
+- onDuty?: `boolean` — `true` requires being on duty
+- minGrade?: `integer` — 0–255
+
+**Returns**
+- `boolean`
+
+**Errors**
+- `export.badArgument`, `error.notLoggedIn`
+
+```lua title="Example"
+-- on-duty police, grade 2 or more
+local res = exports.opx_infinity:HasJob(playerId, 'police', true, 2)
+if res.ok and res.value then openArmoury(playerId) end
+```

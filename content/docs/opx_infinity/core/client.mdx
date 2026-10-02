@@ -1,0 +1,315 @@
+---
+title: Client
+description: The client-only OPX.* runtime — the WebUI bridge and focus stack, the runtime's own toasts, notes to the server journal, OPX.Lib and the client scheduler loop.
+---
+
+Everything on this page is `nil` in the server VM.
+
+# Client values [#client-values]
+
+| Name | Type | Notes |
+|---|---|---|
+| <a id="opx-lib" />`OPX.Lib` | `table` | The [`opx_lib`](/docs/opx_lib) library, loaded once with `require('@opx_lib')` by `lib/client/lib.lua`. Loading raises if `opx_lib` is not running. See [OPX.Lib](/docs/opx_infinity/core/lib#opx-lib). |
+
+`OPX.Toast.ICONS` is the same table as [`OPX.Glyphs`](/docs/opx_infinity/core/shared#opx-glyphs).
+
+# Scheduler loop [#scheduler-loop]
+
+## OPX.Scheduler.Start [#opx-scheduler-start]
+
+Starts the client loop. Called once by client boot; further calls are ignored. The rest of `OPX.Scheduler` is on [Shared](/docs/opx_infinity/core/shared#scheduler).
+
+```lua
+OPX.Scheduler.Start()
+```
+
+# Notes to the server journal [#note]
+
+## OPX.Note [#opx-note]
+
+Writes one line to the **server** journal as `[note] <module> from player <id>: <text>`, and to the client log. For failures and decisions, not ticks. Never raises.
+
+```lua
+OPX.Note(module, text)
+```
+
+**Parameters**
+- module: `string`
+- text: `string` — cut to 400 characters
+
+**Returns**
+- `boolean` — sent
+
+- One net event ([`opx:net:runtime:note`](/docs/opx_infinity/core/events#opx-net-runtime-note)) per call, 60 per session (the last one says the budget is spent).
+- The server also limits each player to 12 notes per 10 s and 60 per session.
+
+```lua title="Example"
+OPX.Note('thing', 'could not open the panel: ' .. tostring(why))
+```
+
+# WebUI bridge [#ui]
+
+One WebUI page (`web/index.html`, id `opx`) serves the whole client. `target` is `'overlay'` or `'interactive'`; both name the same page. Channel names are `<module>:<verb>`; the page sees them as `opx:<module>:<verb>` ([The WebUI page](/docs/opx_infinity/concepts/webui)). The page itself can clear the focus stack: see [`focus:set`](/docs/opx_infinity/core/events#page-focus-set).
+
+## OPX.UI.Surface [#opx-ui-surface]
+
+The page, created on first call from [`SURFACE`](/docs/opx_infinity/core/config#config-client-surface).
+
+```lua
+OPX.UI.Surface()
+```
+
+**Returns**
+- `table?` — `nil` if it could not be built
+
+## OPX.UI.Overlay [#opx-ui-overlay]
+
+Same function as `Surface`.
+
+```lua
+OPX.UI.Overlay()
+```
+
+**Returns**
+- `table?`
+
+## OPX.UI.Interactive [#opx-ui-interactive]
+
+Same function as `Surface`.
+
+```lua
+OPX.UI.Interactive()
+```
+
+**Returns**
+- `table?`
+
+## OPX.UI.Send [#opx-ui-send]
+
+Sends a payload to the page.
+
+```lua
+OPX.UI.Send(target, channel, payload)
+```
+
+**Parameters**
+- target: `'overlay' | 'interactive'`
+- channel: `string`
+- payload?: `table`
+
+**Returns**
+- sent: `boolean` — `false` until the page has said `ready`
+- refused: `boolean` — `true` when the host rejected the payload (too large or not serialisable)
+
+```lua title="Example"
+OPX.UI.Send('interactive', 'thing:open', { rows = rows })
+```
+
+## OPX.UI.On [#opx-ui-on]
+
+Adds a handler for a channel the page emits. Non-table payloads are dropped. Treat a payload as a request, never as a fact.
+
+```lua
+OPX.UI.On(target, channel, handler)
+```
+
+**Parameters**
+- target: `'overlay' | 'interactive'`
+- channel: `string`
+- handler: `function(payload)`
+
+**Returns**
+- `function | boolean`
+
+```lua title="Example"
+OPX.UI.On('interactive', 'thing:close', function(payload) M.Close() end)
+```
+
+## OPX.UI.Answer [#opx-ui-answer]
+
+Sends `payload` with `ref` on the `reply` channel. If the host refuses it, sends `{ ref, ok = false, error = 'error.payloadRefused' }` instead.
+
+```lua
+OPX.UI.Answer(target, ref, payload)
+```
+
+**Parameters**
+- target: `'overlay' | 'interactive'`
+- ref: `any` — the page's request ref; nothing is sent when `nil`
+- payload?: `table`
+
+**Returns**
+- sent: `boolean`
+- refused: `boolean`
+
+## OPX.UI.Serve [#opx-ui-serve]
+
+A request handler: the return value is sent back with `Answer` under `payload.ref`. A handler that raises answers `{ ok = false, error = 'error.unavailable' }`.
+
+```lua
+OPX.UI.Serve(target, channel, handler)
+```
+
+**Parameters**
+- target: `'overlay' | 'interactive'`
+- channel: `string`
+- handler: `function(payload): table`
+
+```lua title="Example"
+OPX.UI.Serve('interactive', 'thing:list', function(payload)
+	return { ok = true, rows = M.Rows() }
+end)
+```
+
+## OPX.UI.AcquireFocus [#opx-ui-acquirefocus]
+
+Pushes `owner` on the focus stack.
+
+```lua
+OPX.UI.AcquireFocus(owner, wants)
+```
+
+**Parameters**
+- owner: `string`
+- wants?: `table`
+  - keyboard?: `boolean` — default `true`
+  - cursor?: `boolean` — default `false`
+
+**Returns**
+- `boolean`
+
+```lua title="Example"
+OPX.UI.AcquireFocus('thing', { cursor = true })
+```
+
+## OPX.UI.ReleaseFocus [#opx-ui-releasefocus]
+
+Removes `owner`; focus goes to the next owner down, or is dropped. Safe for an owner that never held it.
+
+```lua
+OPX.UI.ReleaseFocus(owner)
+```
+
+**Parameters**
+- owner: `string`
+
+## OPX.UI.FocusOwner [#opx-ui-focusowner]
+
+The owner on top of the stack.
+
+```lua
+OPX.UI.FocusOwner()
+```
+
+**Returns**
+- `string?`
+
+## OPX.UI.Teardown [#opx-ui-teardown]
+
+Drops focus and destroys the page. Called on resource stop.
+
+```lua
+OPX.UI.Teardown()
+```
+
+# Toasts [#toasts]
+
+Client-side toasts drawn on the runtime's own page. To toast a player from the server, use [`OPX.Refuse`](/docs/opx_infinity/core/server#opx-refuse), [`OPX.CommandNotice`](/docs/opx_infinity/core/server#opx-commandnotice) or [`OPX.Notify`](/docs/opx_infinity/core/server#opx-notify). Placement: [`TOASTS`](/docs/opx_infinity/core/config#config-client-toasts).
+
+## OPX.Toast.Show [#opx-toast-show]
+
+Shows a toast, or replaces one already up.
+
+```lua
+OPX.Toast.Show(definition)
+```
+
+**Parameters**
+- definition: `table`
+  - message: `string`
+  - kind?: `'info' | 'success' | 'warning' | 'error'` — default `info`
+  - title?: `string`
+  - icon?: `string` — must be in `OPX.Glyphs`
+  - durationMs?: `number` — default 5000
+  - id?: `string` — replaces the toast with this id
+  - stinger?: `{ open?, close?, volume? }` — bare audio file names; a bad name is dropped
+
+**Returns**
+- id: `string?`
+- reason?: `string` — `toast_must_be_a_table`, `invalid_toast_message`, `invalid_toast_icon`, `payload_refused`, `surface_unavailable`
+
+```lua title="Example"
+local id = OPX.Toast.Show({ message = 'Saved', kind = 'success', icon = 'folder' })
+```
+
+## OPX.Toast.Locale [#opx-toast-locale]
+
+`Show` with the text of a locale key.
+
+```lua
+OPX.Toast.Locale(key, params, kind, icon)
+```
+
+**Parameters**
+- key: `string`
+- params?: `table`
+- kind?: `string`
+- icon?: `string`
+
+**Returns**
+- id: `string?`
+- reason?: `string`
+
+## OPX.Toast.Update [#opx-toast-update]
+
+Changes fields of a toast still up. `icon = ''` removes the icon. A refused patch is rolled back.
+
+```lua
+OPX.Toast.Update(id, patch)
+```
+
+**Parameters**
+- id: `string`
+- patch: `table` — any `Show` fields
+
+**Returns**
+- ok: `boolean`
+- reason?: `string` — `no_such_toast`, `patch_must_be_a_table`, `invalid_toast_icon`, `payload_refused`, `surface_unavailable`
+
+## OPX.Toast.Dismiss [#opx-toast-dismiss]
+
+Takes one toast down early.
+
+```lua
+OPX.Toast.Dismiss(id)
+```
+
+**Parameters**
+- id: `string`
+
+## OPX.Toast.Clear [#opx-toast-clear]
+
+Takes every toast down.
+
+```lua
+OPX.Toast.Clear()
+```
+
+## OPX.Toast.SetDown [#opx-toast-setdown]
+
+Hides (`true`) or shows the toast stacks without losing them. The `downed` module calls it.
+
+```lua
+OPX.Toast.SetDown(down)
+```
+
+**Parameters**
+- down: `boolean`
+
+## OPX.Toast.Attach [#opx-toast-attach]
+
+Wires [`notify:gone`](/docs/opx_infinity/core/events#page-notify-gone), [`notify:ready`](/docs/opx_infinity/core/events#page-notify-ready) and the two server answer events (`opx:net:runtime:notify`, `opx:net:runtime:commandAnswer`). Called once by client boot.
+
+```lua
+OPX.Toast.Attach()
+```

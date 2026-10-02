@@ -1,0 +1,35 @@
+---
+title: Introduction
+description: OPX//77 is a roleplay framework for Open77, the multiplayer platform for Cyberpunk 2077 — one resource, opx_infinity, plus the opx_lib client library.
+---
+
+OPX//77 gives an [Open77](https://open2077.net) server characters, money, jobs and gangs, appearance, an inventory, vehicles and garages, a HUD, chat, staff tools and more. It ships as **one resource, `opx_infinity`**, plus a small client library, `opx_lib`.
+
+<Callout type="warn" title="Early development">
+
+OPX//77 is not production-ready. The API and features change without notice.
+
+</Callout>
+
+## Where to start [#start-here]
+
+| You want to… | Read |
+|---|---|
+| Install it on a server | [Install](/docs/getting-started/install), then [Configure](/docs/getting-started/configure) |
+| Fix a problem on a running server | [Troubleshooting](/docs/getting-started/troubleshooting) |
+| Look up a module: its commands, events, settings | [opx_infinity](/docs/opx_infinity) |
+| Add a feature to the framework | [Write a module](/docs/guides/writing-a-module) |
+| Build your own resource next to it | [For creators](/docs/creators), then [Write a separate resource](/docs/guides/writing-a-resource) |
+| Port code from the old `opx77_*` resources or from FiveM | [From opx77_* to opx_infinity](/docs/migration/from-opx77), [Convert from FiveM](/docs/guides/converting) |
+| Understand how it works inside | [How it works](/docs/opx_infinity), then the [concepts](/docs/opx_infinity/concepts/modules-and-contracts) |
+| Look up a core or library function | [Core](/docs/opx_infinity/core), [opx_lib](/docs/opx_lib) |
+
+## What changed in September 2026 [#infinity]
+
+- The sixteen documented `opx77_*` resources (and five more) were replaced by one resource, `opx_infinity`.
+- Each old resource is now a **module** inside it; modules talk to each other through in-process **contracts** instead of exports.
+- Other resources use a smaller, curated set of exports and public server events: see [For creators](/docs/creators) and [From opx77_* to opx_infinity](/docs/migration/from-opx77).
+
+## Licence [#license]
+
+`opx_infinity` and `opx_lib` are MIT licensed. Copyright © 2026 Luís MOUTA. OPX//77 is an independent community project, not affiliated with or endorsed by CD PROJEKT RED.

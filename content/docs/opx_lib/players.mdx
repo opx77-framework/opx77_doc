@@ -1,0 +1,95 @@
+---
+title: Lib.Players
+description: The players this client knows, who is near, and their bodies.
+---
+
+No permission declared by the module.
+
+## Lib.Players.All [#lib-players-all]
+
+Every player this client knows, by player id ascending.
+
+```lua
+Lib.Players.All(options)
+```
+
+**Parameters**
+- options?: `table`
+
+**Returns**
+- `Result` — array
+
+## Lib.Players.LocalId [#lib-players-localid]
+
+The local player's id.
+
+```lua
+Lib.Players.LocalId()
+```
+
+**Returns**
+- `Result` — id
+
+## Lib.Players.Nearby [#lib-players-nearby]
+
+Players with a body within `radius`, nearest first.
+
+```lua
+Lib.Players.Nearby(radius, options)
+```
+
+**Parameters**
+- radius: `number` — metres
+- options?: `table`
+  - origin?: `{ x, y, z }`
+  - includeSelf?: `boolean`
+  - limit?: `integer`
+
+**Returns**
+- `Result` — array; errors `invalid_radius`, `invalid_options`
+
+```lua title="Example"
+local near = Lib.Players.Nearby(5.0, { limit = 3 })
+```
+
+## Lib.Players.Closest [#lib-players-closest]
+
+The nearest player with a body.
+
+```lua
+Lib.Players.Closest(options)
+```
+
+**Parameters**
+- options?: `table`
+
+**Returns**
+- `Result` — one row; error `not_found`
+
+## Lib.Players.Entity [#lib-players-entity]
+
+The entity handle of one player's body on this client.
+
+```lua
+Lib.Players.Entity(playerId)
+```
+
+**Parameters**
+- playerId: `number`
+
+**Returns**
+- `Result` — entity handle; errors `invalid_player`, `no_body`
+
+## Lib.Players.FromEntity [#lib-players-fromentity]
+
+The player an entity belongs to.
+
+```lua
+Lib.Players.FromEntity(entity)
+```
+
+**Parameters**
+- entity: `number`
+
+**Returns**
+- `Result` — player id; errors `invalid_entity`, `not_a_player`

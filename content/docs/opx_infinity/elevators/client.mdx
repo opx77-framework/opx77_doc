@@ -1,0 +1,95 @@
+---
+title: Client
+description: The elevators contract on the client — the nearest lift, local floor hints, ride requests and the floor list.
+---
+
+```lua
+local elevators = OPX.Api.Get('elevators')
+```
+
+From client code inside opx_infinity. Results are `{ ok, value }` / `{ ok = false, error }`; a refusal also carries `elevator`, `floor` and `reason` (the floor's `REASON`) when known. `elevatorKey` may be nil to mean the nearest elevator.
+
+## NearestElevator [#client-elevators-nearestelevator]
+
+The nearest configured lift within `USE_RADIUS` across the ground, from a recent scan.
+
+```lua
+elevators.NearestElevator()
+```
+
+**Returns**
+- `Result` `{ elevator, id }` — error `no_elevator_nearby`
+
+## Floors [#client-elevators-floors]
+
+Same rows as the server's [`Floors`](/docs/opx_infinity/elevators/server#server-elevators-floors), from the client's own job snapshot.
+
+```lua
+elevators.Floors(elevatorKey)
+```
+
+**Parameters**
+- elevatorKey?: `string`
+
+**Returns**
+- `Result` `{ elevator, floors }`
+
+## IsFloorAllowed [#client-elevators-isfloorallowed]
+
+A local hint. The server decides.
+
+```lua
+elevators.IsFloorAllowed(elevatorKey, floorIndex)
+```
+
+**Parameters**
+- elevatorKey?: `string`
+- floorIndex: `integer`
+
+**Returns**
+- `Result` `{ elevator, floor, label }`
+
+## RequestFloor [#client-elevators-requestfloor]
+
+Sends a ride request. "Ok" means sent; the server's verdict arrives on [`opx:on:elevators:decision`](/docs/opx_infinity/elevators/events#opx-on-elevators-decision).
+
+```lua
+elevators.RequestFloor(elevatorKey, floorIndex, origin)
+```
+
+**Parameters**
+- elevatorKey?: `string`
+- floorIndex: `integer`
+- origin?: `string` — echoed as `source`.
+
+**Returns**
+- `Result` `{ elevator, floor, label, queued = true, source }`
+
+```lua title="Example"
+elevators.RequestFloor(nil, 2, 'mymodule')
+```
+
+## OpenPanel [#client-elevators-openpanel]
+
+Opens the floor list in a menu (owner `elevators`); what the [`KEY`](/docs/opx_infinity/elevators#config-elevators-key) calls. A refused floor from the list shows a toast.
+
+```lua
+elevators.OpenPanel(elevatorKey)
+```
+
+**Parameters**
+- elevatorKey?: `string`
+
+**Returns**
+- `Result` `{ elevator, floors, queued = true }` — errors include `player_down`, `menu_not_running`, `no_floors_available`, and any [menu code](/docs/opx_infinity/menu#codes)
+
+## State [#client-elevators-state]
+
+This client's view: job snapshot, lifts in range, lifts bound by the server.
+
+```lua
+elevators.State()
+```
+
+**Returns**
+- `Result` `{ job, grade, onDuty, fresh, ageMs, seen, bound, nearest }`

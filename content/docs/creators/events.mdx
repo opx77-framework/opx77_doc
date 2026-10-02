@@ -1,0 +1,186 @@
+---
+title: Events
+description: The public opx:on:* server events any resource can listen to, the private opx:in:* events, and the client side.
+---
+
+On the server, `TriggerEvent` reaches **every** running resource. `opx_infinity` announces what happens on `opx:on:<module>:<verb>` names raised through [`OPX.Publish`](/docs/opx_infinity/core/server#opx-publish). Any server resource can listen; no allowlist applies.
+
+```lua title="my_logs/server/main.lua"
+AddEventHandler('opx:on:character:money', function(playerId, payload)
+	print(('%s %s %d %s (now %s)'):format(payload.citizenId, payload.action,
+		payload.amount, payload.moneyType, tostring(payload.balance)))
+end)
+```
+
+Every event has two arguments:
+- playerId: `number?` — the player the event is about; `nil` when that character is not online
+- payload: `table` — built for the event; never a live record, never the free-form `metadata`
+
+The events are announcements: they fire after the change, and nothing a listener does can undo or veto it.
+
+<a id="character" />
+
+## opx:on:character:loaded [#opx-on-character-loaded]
+
+Server, host-wide. A character was loaded for a player.
+
+```lua
+AddEventHandler('opx:on:character:loaded', function(playerId, payload) end)
+```
+
+- payload: `table` — the public view
+  - `source`, `citizenId`, `userId`, `firstName`, `lastName`, `money`, `job`, `gang`, `jobs`, `gangs`
+
+## opx:on:character:unloaded [#opx-on-character-unloaded]
+
+Server, host-wide. A character left the world (logout, switch, disconnect).
+
+```lua
+AddEventHandler('opx:on:character:unloaded', function(playerId, payload) end)
+```
+
+- payload: `{ citizenId, userId }`
+
+## opx:on:character:money [#opx-on-character-money]
+
+Server, host-wide. Any balance change.
+
+```lua
+AddEventHandler('opx:on:character:money', function(playerId, payload) end)
+```
+
+- payload: `table`
+  - citizenId: `string`
+  - moneyType: `string`
+  - amount: `integer`
+  - action: `'add' | 'remove' | 'set'`
+  - reason?: `string`
+  - balance: `integer?`
+  - offline: `boolean` — `true` (and `playerId` nil) for [`AddMoneyOffline`](/docs/creators/server/addmoneyoffline#export-server-addmoneyoffline)
+
+## opx:on:character:job [#opx-on-character-job]
+
+Server, host-wide. The primary job was set, its duty changed, or a job membership was removed.
+
+```lua
+AddEventHandler('opx:on:character:job', function(playerId, payload) end)
+```
+
+- payload: `table`
+  - citizenId: `string`
+  - job: `table` — the primary job after the change
+  - removed?: `string` — the job removed
+  - offline: `boolean` — the change was made to a character nobody is playing
+
+## opx:on:character:gang [#opx-on-character-gang]
+
+Server, host-wide. The same for gangs.
+
+```lua
+AddEventHandler('opx:on:character:gang', function(playerId, payload) end)
+```
+
+- payload: `{ citizenId, gang, removed?, offline }`
+
+<a id="inventory" />
+
+## opx:on:inventory:changed [#opx-on-inventory-changed]
+
+Server, host-wide. A container's contents were written.
+
+```lua
+AddEventHandler('opx:on:inventory:changed', function(playerId, payload) end)
+```
+
+- payload: `table`
+  - `kind`, `owner`, `container`
+  - citizenId?: `string` — only for a player's bag (and then `playerId` is set)
+
+## opx:on:inventory:used [#opx-on-inventory-used]
+
+Server, host-wide. A player used an item (already consumed; nothing can decide the use from here).
+
+```lua
+AddEventHandler('opx:on:inventory:used', function(playerId, payload) end)
+```
+
+- payload: `{ citizenId, name, slot, consumed, metadata }`
+
+<a id="downed" />
+
+## opx:on:downed:changed [#opx-on-downed-changed]
+
+Server, host-wide. A player went down or got up.
+
+```lua
+AddEventHandler('opx:on:downed:changed', function(playerId, payload) end)
+```
+
+- payload when down: `{ citizenId, down = true, waiting, restored }`
+  - restored: `boolean` — the down state came back after a reconnect
+- payload when up: `{ citizenId, down = false, reason, kept }`
+  - kept: `boolean` — the character left the world still down; the state returns with them
+
+<a id="vehicles" />
+
+## opx:on:vehicles:spawned [#opx-on-vehicles-spawned]
+
+Server, host-wide. An owned vehicle was brought out.
+
+```lua
+AddEventHandler('opx:on:vehicles:spawned', function(playerId, payload) end)
+```
+
+- payload: `table`
+  - `citizenId`, `plate`, `record`, `vehicleId`
+  - vehicleKey: `string` — the engine id as text (safe in JSON)
+  - recalled?: `true` — it was already out and was moved
+
+## opx:on:vehicles:stored [#opx-on-vehicles-stored]
+
+Server, host-wide. It was put away, or the host removed it from the world.
+
+```lua
+AddEventHandler('opx:on:vehicles:stored', function(playerId, payload) end)
+```
+
+- payload: `{ citizenId, plate, garage }`, or `{ citizenId, plate, removed }` — `removed` says why the host took it away
+
+## opx:on:dealership:sold [#opx-on-dealership-sold]
+
+Server, host-wide. A vehicle was bought at a dealer (`counter`) or sold player-to-player (`offer`).
+
+```lua
+AddEventHandler('opx:on:dealership:sold', function(playerId, payload) end)
+```
+
+- payload (counter): `{ kind = 'counter', citizenId, plate, entry, record, dealer, garage, price, currency }`
+- payload (offer): `{ kind = 'offer', citizenId, plate, entry, record, dealer, garage, price, currency, seller, sellerCitizenId, company, commission, banked, pending }`
+  - `citizenId` is the buyer; `seller` / `sellerCitizenId` the salesperson.
+  - garage?: `string` — the buyer's chosen garage; `nil` = the vehicles module default
+  - company: `string` — `<kind>:<group>`
+  - commission: `integer` — paid to the seller (`0` if it could not be paid; it then went to the company)
+  - banked: `integer` — the company's share
+  - pending: `boolean` — `true` when the company share went to the pending ledger to be paid in later; the sale is done either way
+
+## opx:on:hauling:sold [#opx-on-hauling-sold]
+
+Server, host-wide. Crates were sold to a drop-off NPC.
+
+```lua
+AddEventHandler('opx:on:hauling:sold', function(playerId, payload) end)
+```
+
+- payload: `{ citizenId, site, dropoff, count, pay, each, currency }`
+
+## The private opx:in:* events [#private]
+
+<Callout type="warn" title="Server opx:in:* events are visible to every server resource">
+
+Because server `TriggerEvent` is host-wide, the internal `opx:in:*` events (for example `opx:in:character:loaded`) also reach your resource, and your resource could raise them. They are **not** part of the public surface: their names and arguments change without notice. Listen to the `opx:on:*` events above instead, and never raise an `opx:` event yourself.
+
+</Callout>
+
+## On the client [#client]
+
+The client-side `opx:on:*` events (menu actions, inventory opened…) stay inside `opx_infinity`: a client `TriggerEvent` does not leave its resource. Answers to your own client calls reach you through the [reply export](/docs/creators/client#replies), and some client events can be forwarded with [`Subscribe`](/docs/creators/client#subscribe).

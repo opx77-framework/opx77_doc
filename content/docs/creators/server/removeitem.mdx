@@ -1,0 +1,39 @@
+---
+title: RemoveItem
+description: Takes items out of a bag.
+---
+
+<a id="export-server-removeitem" />
+
+```lua
+local res = exports.opx_infinity:RemoveItem(target, item, count, metadata)
+```
+
+Scope `write` · await it — required when `target` is a citizen id (a synchronous call then answers `export.mustAwait`).
+
+**Parameters**
+- target: `number | string`
+- item: `string`
+- count?: `integer` — 1–1 000 000, default 1
+- metadata?: `table`
+
+- `target`: a connected player id, or a citizen id (reaches an offline bag; then the call must be awaited).
+- `item`: a catalogue item name, 1–64 characters.
+- With a `metadata` table, only stacks with exactly that metadata match.
+- Errors other than those listed come from the [inventory](/docs/opx_infinity/inventory#codes) (for example `no_room`, `too_heavy`, `not_enough`).
+
+**Returns**
+- `true`
+
+**Errors**
+- `export.badArgument`, inventory codes
+
+```lua title="Example"
+CreateThread(function()
+  local pending, why = Open77.exports.call('opx_infinity', 'RemoveItem', playerId, 'lockpick', 1)
+  if not pending then return print('not sent: ' .. tostring(why)) end
+  local res = pending:await()
+  if not (res and res.ok) then return print('refused: ' .. tostring(res and res.error)) end
+  print('used')
+end)
+```

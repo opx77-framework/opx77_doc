@@ -1,0 +1,26 @@
+---
+title: SetDuty
+description: Puts a connected player on or off duty.
+---
+
+<a id="export-server-setduty" />
+
+```lua
+local res = exports.opx_infinity:SetDuty(source, onDuty)
+```
+
+Scope `write` · sync — memory only, it answers at once.
+
+**Parameters**
+- source: `number`
+- onDuty: `boolean`
+
+**Returns**
+- `boolean` — the new duty
+
+**Errors**
+- `job.noDuty` (a job that is always on duty), `error.notLoggedIn`, `export.badArgument`
+
+```lua title="Example"
+local res = exports.opx_infinity:SetDuty(source, true)
+```

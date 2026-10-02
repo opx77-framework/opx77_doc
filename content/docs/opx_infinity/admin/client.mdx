@@ -1,0 +1,64 @@
+---
+title: Client
+description: The admin contract on the client — open, steer and close the staff menu.
+---
+
+```lua
+local admin = OPX.Api.Get('admin')
+```
+
+Inside opx_infinity. Opening is only a request: the client sends `/opx.admin` and the ACL decides.
+
+## Open [#client-admin-open]
+
+Asks the server to open the menu.
+
+```lua
+admin.Open()
+```
+
+**Returns**
+- `Result` — `{ open = true }` if already open, `{ queued = true }` if sent; error `not_sent`. `queued` does not mean allowed.
+
+## OpenAt [#client-admin-openat]
+
+Opens the menu on one screen, over the root.
+
+```lua
+admin.OpenAt(screen, arg, form)
+```
+
+**Parameters**
+- screen: `string`
+  - `root`, `players`, `player`, `playerMove`, `playerHealth`, `playerCharacter`, `playerCharacters`, `character`, `offlineChars`, `playerItems`, `playerInventory`, `self`, `vehicles`, `vehicleClasses`, `vehicleList`, `pedFamilies`, `pedList`, `weaponList`, `ammoList`, `itemCategories`, `itemList`, `bag`, `locations`, `saved`, `world`, `dev`, `weather`, `time`, `server`, `confirm`.
+- arg?: `any`
+  - The screen's argument (e.g. a player id).
+- form?: `string`
+  - A form kind to open over the screen.
+
+**Returns**
+- `Result` — `true`; error `not_sent` (also for an unknown screen).
+
+```lua title="Example"
+admin.OpenAt('player', 3)
+```
+
+## Close [#client-admin-close]
+
+Closes the menu and any form it opened.
+
+```lua
+admin.Close()
+```
+
+**Returns**
+- `Result` — `true`
+
+## State [#client-admin-state]
+
+```lua
+admin.State()
+```
+
+**Returns**
+- `Result` — `{ open: boolean, screen: string? }`; `screen` is the screen on top, or nil.

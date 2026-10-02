@@ -1,0 +1,27 @@
+---
+title: GetMoney
+description: A player's balance of one money type, or every balance.
+---
+
+<a id="export-server-getmoney" />
+
+```lua
+local res = exports.opx_infinity:GetMoney(source, moneyType)
+```
+
+Scope `read` · sync.
+
+**Parameters**
+- source: `number`
+- moneyType?: `string` — e.g. `'EDDIES'`, `'BANK'`
+
+**Returns**
+- `integer` — the balance, or `{ [type] = amount }` when `moneyType` is nil
+
+**Errors**
+- `export.badArgument`, `error.notLoggedIn`, `money.badType`
+
+```lua title="Example"
+local res = exports.opx_infinity:GetMoney(source, 'BANK')
+if res.ok and res.value >= 500 then print('can afford') end
+```

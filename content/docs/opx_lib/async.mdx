@@ -1,0 +1,44 @@
+---
+title: Lib.Async
+description: Wait on several promises at once.
+---
+
+No permission. Create every promise first, then pass them in. **Yields.**
+
+## Lib.Async.All [#lib-async-all]
+
+Waits for every promise; fails at the first rejection.
+
+```lua
+Lib.Async.All(promises)
+```
+
+**Parameters**
+- promises: `table` — a list of promises
+
+**Returns**
+- `Result` — the list of first values; on failure `at` is the failing index
+  - errors `invalid_promises`, `not_a_promise`, or the rejection
+
+```lua title="Example"
+CreateThread(function()
+  local a = Lib.Callback.Ask('my_shop:stock', 'water')
+  local b = Lib.Callback.Ask('my_shop:stock', 'burrito')
+  local both = Lib.Async.All({ a.value, b.value })
+  if both.ok then print(both.value[1], both.value[2]) end
+end)
+```
+
+## Lib.Async.Settled [#lib-async-settled]
+
+Waits for every promise and reports each.
+
+```lua
+Lib.Async.Settled(promises)
+```
+
+**Parameters**
+- promises: `table`
+
+**Returns**
+- `Result` — a list of Results (a non-promise entry is `not_a_promise`); error `invalid_promises`

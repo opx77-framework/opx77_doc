@@ -1,0 +1,76 @@
+---
+title: hud
+description: The player HUD — health and needs gauges, money and job read-out, status chips, microphone block and speed dial — and the hiding of the game's own HUD.
+---
+
+Draws the player's HUD on the overlay page: a column of gauges (health, armour, stamina, hunger, thirst), a read-out of money, job and street cred, the status chips published by [`needs`](/docs/opx_infinity/needs), a microphone block and a vehicle speed dial. It owns no game state: it samples other modules and the engine, picks each gauge's tone, formats each number and pushes the result to the page. It also hides the game HUD components it replaces.
+
+| | |
+|---|---|
+| Side | client |
+| Requires | `character` (hard) |
+| Optional | `needs`, `downed` |
+| Contract | `hud` v1 — [client](/docs/opx_infinity/hud/client) |
+| Config | `config/hud.lua` (shared) |
+| Data | none |
+
+- Steps aside while the player is down, and while the join screen, the spawn menu, a menu or the fitting room is open.
+- No player command to toggle it; other modules hide it through [`SetVisible`](/docs/opx_infinity/hud/client#client-hud-setvisible).
+
+## Configuration
+
+`config/hud.lua` sets `OPX.Config.MODULES.hud`. Shared script.
+
+Anchors: `bottom-left`, `bottom-right`, `top-left`, `top-right`, `top-center`, `bottom-center`. The page falls back to its own default for an unknown name.
+
+| Key | Default | Effect |
+|---|---|---|
+| <a id="config-hud-enabled" />`enabled` | `true` | `false` switches the module off. |
+| <a id="config-hud-anchor" />`ANCHOR` | `'bottom-left'` | Corner of the gauge column. |
+| <a id="config-hud-info-anchor" />`INFO_ANCHOR` | `'top-left'` | Corner of the money/job read-out. |
+| <a id="config-hud-status-anchor" />`STATUS_ANCHOR` | `'bottom-left'` | Corner of the chip strip. Absent: the `needs` module's `ANCHOR`. |
+| <a id="config-hud-status-offset" />`STATUS_OFFSET` | `120` | Pixels between the chip strip and the gauges. Absent: the `needs` `OFFSET`. |
+| <a id="config-hud-vehicle-anchor" />`VEHICLE_ANCHOR` | `'bottom-center'` | Corner of the speed dial. |
+| <a id="config-hud-width" />`WIDTH` | `210` | Gauge column width in pixels (1920-wide surface). |
+| <a id="config-hud-segments" />`SEGMENTS` | `10` | Segments per gauge. |
+| <a id="config-hud-voice-segments" />`VOICE_SEGMENTS` | `8` | Segments of the voice meter. |
+| <a id="config-hud-vitals-ms" />`VITALS_MS` | `33` | Milliseconds between two samples of the gauges. |
+| <a id="config-hud-widget-ms" />`WIDGET_MS` | `100` | Milliseconds between two samples of the voice and vehicle blocks. |
+| <a id="config-hud-tone-warn" />`TONE_WARN` | `33` | Percent at or under which a gauge takes the `warn` tone. |
+| <a id="config-hud-tone-bad" />`TONE_BAD` | `15` | Percent at or under which a gauge takes the `bad` tone. |
+| <a id="config-hud-gauges" />`GAUGES` | health, armor, stamina, hunger, thirst | The gauges in drawing order. See [GAUGES](#gauges). |
+| <a id="config-hud-money" />`MONEY` | `{ 'EDDIES', 'BANK' }` | Money lines in order. A held money type not listed is added after them, sorted. Zero amounts are not drawn. |
+| <a id="config-hud-money-separator" />`MONEY_SEPARATOR` | `' '` | Thousands separator. |
+| <a id="config-hud-info-eyebrow" />`INFO_EYEBROW` | `'hud.info.eyebrow'` | Locale key of the read-out title. |
+| <a id="config-hud-show-job" />`SHOW_JOB` | `true` | Draw the job line. |
+| <a id="config-hud-show-cred" />`SHOW_CRED` | `true` | Draw the street cred line (when cred is above 0). |
+| <a id="config-hud-voice" />`VOICE` | `{ OPEN_VOICE = 'open-voice', DRIVER = 'open77_voice', HIDE_OPEN_VOICE = true }` | Microphone block. The two names are platform voice resources read through their exports (not dependencies). `HIDE_OPEN_VOICE` hides open-voice's own HUD line. A non-table `VOICE` drops the block. |
+| <a id="config-hud-vehicle" />`VEHICLE` | `{ PASSENGER = true }` | Speed dial. `PASSENGER = false` draws it for the driver only. |
+| <a id="config-hud-vanilla" />`VANILLA` | see [VANILLA](#vanilla) | Components of the game's own HUD: `true` leaves one to the game, `false` hides it. |
+
+### GAUGES
+
+```lua title="config/hud.lua — one GAUGES row"
+{ ID = 'armor', SOURCE = 'armor', ICON = 'armor',
+  LABEL = 'hud.gauge.armor', ALERT = false, HIDE_AT_ZERO = true },
+```
+
+- `ID`
+- `SOURCE`: `health`, `armor`, `stamina` or any need name.
+- `LABEL`: locale key.
+- `ICON`: `health`, `armor`, `stamina`, `hunger`, `thirst`; anything else draws no glyph.
+- Optional: `TONE` (tone above `TONE_WARN`), `ALERT = false` (never toned), `HIDE_AT_ZERO`, `HIDE_ABOVE`.
+- Shipped: `armor` has `ALERT = false, HIDE_AT_ZERO = true`; `stamina` has `HIDE_ABOVE = 99`.
+- A gauge whose source is not readable is not drawn, so without `needs` there are no hunger and thirst gauges.
+
+### VANILLA
+
+- Shipped: `minimap = true`; `compass`, `clock`, `health`, `stamina`, `weapon`, `speedometer`, `questTracker`, `vanillaNotifications`, `hubMenu`, `crosshair`, `scanner`, `phone` all `false`.
+- When the client reports its component list (`Open77.hud.components()`), every component **not named** in `VANILLA` is hidden too. Name a component `true` to leave it to the game.
+- Hides are released by the platform when the resource stops.
+
+<Callout type="warn" title="Crosshair and scanner are hidden">
+
+The shipped config hides `crosshair` (weapons fire without a reticle) and `scanner` (the platform also refuses scanner activation). Set them to `true` to give them back.
+
+</Callout>

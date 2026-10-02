@@ -1,0 +1,25 @@
+---
+title: DismissToast
+description: Removes a toast your resource showed.
+---
+
+<a id="export-client-dismisstoast" />
+
+```lua
+local res = exports.opx_infinity:DismissToast(id)
+```
+
+Sync.
+
+**Parameters**
+- id: `string` — the `id` you gave [`ShowToast`](/docs/creators/client/showtoast)
+
+**Returns**
+- `true`
+
+**Errors**
+- `export.badArgument`, `export.callerDenied`
+
+```lua title="Example"
+exports.opx_infinity:DismissToast('order')
+```

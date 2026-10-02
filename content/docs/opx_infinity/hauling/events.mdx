@@ -1,0 +1,136 @@
+---
+title: Events
+description: Network, host-wide and local events of the hauling module.
+---
+
+## opx:net:hauling:hello [#opx-net-hauling-hello]
+
+Client → server. Subscribe. Sent at start and on character load. Answered with a snapshot, the seller list and an `answer`.
+
+```lua
+TriggerServerEvent('opx:net:hauling:hello')
+```
+
+## opx:net:hauling:begin [#opx-net-hauling-begin]
+
+Client → server. Starts a bar.
+
+```lua
+TriggerServerEvent('opx:net:hauling:begin', step, subject)
+```
+
+- step: `string` — `pickup`, `load` or `deliver`
+- subject: `string` — crate prop id (`pickup`), vehicle id (`load`) or seller NPC id (`deliver`)
+
+## opx:net:hauling:finish [#opx-net-hauling-finish]
+
+Client → server. The bar finished; the server checks its own clock and completes the step.
+
+```lua
+TriggerServerEvent('opx:net:hauling:finish')
+```
+
+## opx:net:hauling:abort [#opx-net-hauling-abort]
+
+Client → server. The bar was cancelled. A pickup claim is released; a carry continues.
+
+```lua
+TriggerServerEvent('opx:net:hauling:abort', reason)
+```
+
+- reason: `string`
+
+## opx:net:hauling:drop [#opx-net-hauling-drop]
+
+Client → server. Puts the carried crate down.
+
+```lua
+TriggerServerEvent('opx:net:hauling:drop', { yaw = yaw, z = groundZ })
+```
+
+- drop: `table|number` — `{ yaw, z }` or `yaw`
+  - `z`: the client's ground height, used only within 1.5 m of the player's own Z
+
+## opx:net:hauling:snapshot [#opx-net-hauling-snapshot]
+
+Server → client. Every crate, in parts of 24.
+
+```lua
+RegisterNetEvent('opx:net:hauling:snapshot', function(part) end)
+```
+
+- part: `table` — `{ first, done, crates }`
+  - each crate: `id, site, x, y, z, bucket, where` (`ground`, `claimed`, `carried`)
+
+## opx:net:hauling:crate [#opx-net-hauling-crate]
+
+Server → client. One crate changed.
+
+```lua
+RegisterNetEvent('opx:net:hauling:crate', function(crate) end)
+```
+
+- crate: `table` — same shape as a snapshot crate
+
+## opx:net:hauling:gone [#opx-net-hauling-gone]
+
+Server → client. One crate left the world.
+
+```lua
+RegisterNetEvent('opx:net:hauling:gone', function(propId) end)
+```
+
+- propId: `string`
+
+## opx:net:hauling:sellers [#opx-net-hauling-sellers]
+
+Server → client. The seller NPCs.
+
+```lua
+RegisterNetEvent('opx:net:hauling:sellers', function(sellers) end)
+```
+
+- sellers: `{ npc, site, dropoff }[]` — `npc` is a decimal string
+
+## opx:net:hauling:run [#opx-net-hauling-run]
+
+Server → client. Draw a bar for this step.
+
+```lua
+RegisterNetEvent('opx:net:hauling:run', function(run) end)
+```
+
+- run: `table` — `{ id, step, durationMs, site }`
+
+## opx:net:hauling:answer [#opx-net-hauling-answer]
+
+Server → client. Verdict for the last request.
+
+```lua
+RegisterNetEvent('opx:net:hauling:answer', function(ok, reason, heldId) end)
+```
+
+- ok: `boolean`
+- reason?: `string` — see [Refusal codes](/docs/opx_infinity/hauling#codes)
+- heldId: `string|false` — the carried crate id, or `false`
+
+## opx:on:hauling:sold [#opx-on-hauling-sold]
+
+Server, host-wide. Crates were sold and paid. Every server resource hears it; see [public server events](/docs/creators/events#vehicles).
+
+```lua
+AddEventHandler('opx:on:hauling:sold', function(playerId, sale) end)
+```
+
+- playerId: `number`
+- sale: `table` — `{ citizenId, site, dropoff, count, pay, each, currency }`
+
+## opx:on:hauling:decision [#opx-on-hauling-decision]
+
+Client, local. Every verdict. Only handlers inside opx_infinity's client hear it.
+
+```lua
+AddEventHandler('opx:on:hauling:decision', function(verdict) end)
+```
+
+- verdict: `table` — `{ ok, reason?, carrying }`

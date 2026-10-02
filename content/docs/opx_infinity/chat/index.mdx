@@ -1,0 +1,46 @@
+---
+title: chat
+description: The in-game chat box, which carries player messages and is the only way a typed slash command reaches the host's command dispatcher.
+---
+
+The chat box: a log of recent lines at the top of the screen and an input line that opens on a key (`T` by default). A line without `/` goes to every player under the speaker's character name. A line starting with `/` is split into arguments and sent to the host's command dispatcher, which checks the ACL and runs it; refusals come back as toasts. Without this module, commands can only be run from the server console. Checks no permission, saves nothing.
+
+| | |
+|---|---|
+| Side | both |
+| Requires | none |
+| Optional | `character` (author names), `downed` (box hides and refuses to open while down) |
+| Contract | `chat` v1 — [server](/docs/opx_infinity/chat/server), [client](/docs/opx_infinity/chat/client) |
+| Config | `config/chat.lua` (shared) |
+| Data | none |
+
+## Configuration
+
+`config/chat.lua` sets `OPX.Config.MODULES.chat`. Shared: both halves read the length and rate limits.
+
+| Key | Default | Effect |
+|---|---|---|
+| <a id="config-chat-enabled" />`enabled` | `true` | `false` switches the module off. Typed commands then have no way in. |
+| <a id="config-chat-anchor" />`ANCHOR` | `'top-center'` | `bottom-left`, `bottom-center`, `top-left` or `top-center`; anything else reads as `bottom-left`. |
+| <a id="config-chat-offset" />`OFFSET` | `48` | Pixels from the anchored edge on a 1080-high surface. |
+| <a id="config-chat-width" />`WIDTH` | `620` | Box width on a 1920-wide surface. |
+| <a id="config-chat-history" />`HISTORY` | `60` | Lines kept; older ones drop off. |
+| <a id="config-chat-fade-ms" />`FADE_MS` | `12000` | How long a line stays visible while the box is closed. `0` never fades. |
+| <a id="config-chat-max-length" />`MAX_LENGTH` | `240` | Longest message, in characters. |
+| <a id="config-chat-rate-ms" />`RATE_MS` | `800` | Minimum ms between two messages from one player. Faster ones are dropped silently. |
+| <a id="config-chat-ready-ms" />`READY_MS` | `5000` | Minimum ms between two completion lists for one player. |
+| <a id="config-chat-notify" />`NOTIFY` | `true` | Refused commands as toasts; `false` writes a red line in the box instead. |
+| <a id="config-chat-keys" />`KEYS` | `{ OPEN = 'T' }` | Default key to open the box; players rebind it in the pause menu. `false` registers none. |
+
+## Refusal codes [#codes]
+
+| Code | Meaning |
+|---|---|
+| `chat.invalidMessage` | `AddMessage` (or the server `Send`/`Broadcast`) got no usable text. |
+| `chat.invalidKind` | Server `Send`/`Broadcast`: `kind` is not a line kind. |
+| `chat.noPlayer` | Server `Send`: nobody is connected under that id. |
+| `chat.invalidScope` | Server `Broadcast`: a bad `bucket`, `radius` or `origin`. |
+| `chat.noView` | That half of the page has not reported ready yet. |
+| `chat.invalidCommand` | A suggestion with no command name. |
+
+Player-facing refusals for typed commands: `chat.tooManyArgs` (more than 32 arguments), `chat.escapeAtEnd`, `chat.unterminatedQuote`, `chat.commandExpected`, `chat.commandNotSent`, `chat.messageNotSent`; from the dispatcher: `chat.command.unknown`, `chat.command.denied`, `chat.command.tooFast`, `chat.command.failed`.

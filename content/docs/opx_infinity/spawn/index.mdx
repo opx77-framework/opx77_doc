@@ -1,0 +1,55 @@
+---
+title: spawn
+description: The spawn menu — where a character starts when it enters the world, chosen from a fixed list of places.
+---
+
+Shows a menu of places when a character enters the world and puts the character where the player clicks. Which joins get the menu is set by `OFFER_POLICY`: the shipped `'first'` asks only a character that has never been placed, so a returning player resumes where they left. A player who picks nothing before the deadline is placed by [`character`](/docs/opx_infinity/character) from their stored position, or at `DEFAULT_SPAWN`. The coordinates live in the config and never cross the wire: the client sends only the id of a place. Turn it off and every character is placed by `character` alone.
+
+| | |
+|---|---|
+| Side | both |
+| Requires | `character` (read with `OPX.Api.Require` at start) |
+| Optional | `entry` (client: the menu waits for it) |
+| Contract | `spawn` v1 — [server](/docs/opx_infinity/spawn/server) |
+| Config | `config/spawn.lua` (shared) |
+| Data | none |
+
+## How a choice runs [#flow]
+
+1. When a joining character gets a living body, `character` calls [`spawn.Offer(source, citizenId)`](/docs/opx_infinity/spawn/server#server-spawn-offer). A `/opx.select` switch inside the world is placed directly and never offered the menu.
+2. `Offer` answers `false` (character places the body itself, at once) when the module is off, the policy is `'never'`, no location is usable, a choice is already open, or the policy is `'first'` and the character already has a stored position.
+3. Otherwise it sends `opx:net:spawn:offer`. The client opens the menu as soon as `entry` reports itself idle (name form and fitting room done) and reports `opx:net:spawn:opened`.
+4. The player's window (`TIMEOUT_SECONDS`) starts at that report. Before it, only `HOLD_MAX_SECONDS` can end the offer.
+5. A click sends the place id. The server looks it up in its own list and calls `character.PlaceCharacter`. A timeout places the character with no target (stored position, then `DEFAULT_SPAWN`). Either way the server sends `opx:net:spawn:close`.
+
+## Configuration
+
+`config/spawn.lua` sets `OPX.Config.MODULES.spawn`.
+
+| Key | Default | Effect |
+|---|---|---|
+| <a id="config-spawn-enabled" />`enabled` | `true` | `false` does not load the module; every character is placed by `character`. |
+| <a id="config-spawn-offer-policy" />`OFFER_POLICY` | `'first'` | `'first'`: only a character with no stored position. `'always'`: every join (picking nothing resumes). `'never'`: nobody; no hold, no clock. Unknown values fall back to `'always'` with a warning. |
+| <a id="config-spawn-timeout-seconds" />`TIMEOUT_SECONDS` | `45` | Time to choose once the menu is on screen (floor 5). |
+| <a id="config-spawn-hold-max-seconds" />`HOLD_MAX_SECONDS` | `300` | Longest a character waits unplaced for a menu that never opens (floor 60). Covers the name form and fitting room too: do not set it below the time a new player needs for those. |
+| <a id="config-spawn-choose-cooldown-ms" />`CHOOSE_COOLDOWN_MS` | `1000` | Rate limit on `opx:net:spawn:choose`. |
+| <a id="config-spawn-wait-for-entry" />`WAIT_FOR_ENTRY` | `true` | The menu waits until `entry` reports idle (name and clothes done). |
+| <a id="config-spawn-locations" />`LOCATIONS` | 11 places | List of `{ id, label, district, x, y, z, heading }`. See below. |
+
+```lua title="config/spawn.lua — one LOCATIONS entry"
+{ id = 'stoop', label = 'King Stoop forecourt', district = 'Watson', x = -410.22, y = 722.73, z = 115.0, heading = 147.0 },
+```
+
+- `id`: 1–32 characters of letters, digits, `_ : - .`; unique. Sent on the wire, so **do not rename** one.
+- `label`: 1–48 characters, shown on the card.
+- `district`: up to 32 characters, the hint line. Optional.
+- `x`, `y`, `z`: finite numbers. Copy them from the game; a guessed coordinate can drop the player through the world.
+- `heading`: degrees; missing means `0.0` (north).
+- A bad entry is dropped with a warning at start. At most 64 entries are used.
+
+## Refusal codes [#codes]
+
+| Code | Meaning |
+|---|---|
+| `spawn.noChoice` | No choice is open for you, or the id is not in the list. |
+| `error.tooFast` | Clicked again inside `CHOOSE_COOLDOWN_MS`. |

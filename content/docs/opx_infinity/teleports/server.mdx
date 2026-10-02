@@ -1,0 +1,58 @@
+---
+title: Server
+description: The teleports contract on the server — entrances, the job gate and trip counters.
+---
+
+```lua
+local teleports = OPX.Api.Get('teleports')
+```
+
+From server code inside opx_infinity. Every function answers a Result and does not yield.
+
+## Entrances [#server-teleports-entrances]
+
+The entrances in the player's current bucket, each marked allowed or refused for them. Refused ones are left out when `DENIED = 'hidden'`.
+
+```lua
+teleports.Entrances(source)
+```
+
+**Parameters**
+- source: `number`
+
+**Returns**
+- `Result` — `{ bucket, entrances }`
+  - entrances: `{ key, leg, label, x, y, z, allowed, error?, reason? }[]`
+
+## IsAllowed [#server-teleports-isallowed]
+
+Job gate only (no position check).
+
+```lua
+teleports.IsAllowed(source, key, leg)
+```
+
+**Parameters**
+- source: `number`
+- key: `string` — the pad key
+- leg: `string` — `'out'` or `'back'`
+
+**Returns**
+- `Result` — `{ key, leg, label }`; errors as the [job gate](/docs/opx_infinity/teleports#codes)
+
+```lua title="Example"
+local gate = teleports.IsAllowed(source, 'roof', 'out')
+if not gate.ok then print(gate.error) end
+```
+
+## State [#server-teleports-state]
+
+Configured pads and trip counters since start.
+
+```lua
+teleports.State()
+```
+
+**Returns**
+- `Result` — `{ count, points }`
+  - points: `{ [key] = { label, bucket, twoWay, gated, taken, refused, lost } }`

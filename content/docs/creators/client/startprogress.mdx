@@ -1,0 +1,34 @@
+---
+title: StartProgress
+description: Runs an OPX progress bar for your resource on the local player.
+---
+
+<a id="export-client-startprogress" />
+
+```lua
+local res = exports.opx_infinity:StartProgress(spec)
+```
+
+Sync. The end reaches your [reply export](/docs/creators/client#replies) as `opx:on:progress:done` with `{ owner, label, ending, finished }`; only `finished = true` means the action completed. See the [progress module](/docs/opx_infinity/progress).
+
+**Parameters**
+- spec: `table`
+  - label: `string`
+  - durationMs: `integer`
+  - cancelable?: `boolean` — the player may cancel with the progress [`CANCEL_KEY`](/docs/opx_infinity/progress#config-progress-cancel-key)
+  - animation?: `{ name, variant? }`
+  - reply?: `string`
+
+**Returns**
+- `{ owner, durationMs }`
+
+**Errors**
+- `progress_busy` (one bar at a time for the whole player), `export.callerDenied`, `export.badArgument`, `error.unavailable` (module not running), and the module's codes
+
+```lua title="Example"
+exports.opx_infinity:StartProgress({ label = 'Packing', durationMs = 4000, cancelable = true })
+
+AddEventHandler('opx:on:progress:done', function(p)
+	if p.finished then TriggerServerEvent('my_shop:packed') end
+end)
+```

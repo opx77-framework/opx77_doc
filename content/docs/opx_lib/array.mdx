@@ -1,0 +1,228 @@
+---
+title: Lib.Array
+description: List helpers — filter, map, find, fold, sort, group and edit in place.
+---
+
+Pure. No permission. Every function answers a new table unless it says **in place**.
+
+## Lib.Array.Filter [#lib-array-filter]
+
+The entries a test keeps, in order.
+
+```lua
+Lib.Array.Filter(list, test)
+```
+
+**Parameters**
+- list: `table`
+- test: `function(value, index): boolean`
+
+**Returns**
+- `table`
+
+```lua title="Example"
+local armed = Lib.Array.Filter(rows, function(row) return row.armed end)
+```
+
+## Lib.Array.Map [#lib-array-map]
+
+Each entry through a function, in order.
+
+```lua
+Lib.Array.Map(list, change)
+```
+
+**Parameters**
+- list: `table`
+- change: `function(value, index): any`
+
+**Returns**
+- `table`
+
+## Lib.Array.Find [#lib-array-find]
+
+The first entry a test accepts, and its index.
+
+```lua
+Lib.Array.Find(list, test)
+```
+
+**Parameters**
+- list: `table`
+- test: `function(value, index): boolean`
+
+**Returns**
+- `any?`, `integer?`
+
+## Lib.Array.Any [#lib-array-any]
+
+Whether any entry passes.
+
+```lua
+Lib.Array.Any(list, test)
+```
+
+**Parameters**
+- list: `table`
+- test: `function`
+
+**Returns**
+- `boolean`
+
+## Lib.Array.All [#lib-array-all]
+
+Whether every entry passes. `true` for an empty list.
+
+```lua
+Lib.Array.All(list, test)
+```
+
+**Parameters**
+- list: `table`
+- test: `function`
+
+**Returns**
+- `boolean`
+
+## Lib.Array.Fold [#lib-array-fold]
+
+Folds the list into one value.
+
+```lua
+Lib.Array.Fold(list, step, initial)
+```
+
+**Parameters**
+- list: `table`
+- step: `function(carried, value, index): any`
+- initial: `any`
+
+**Returns**
+- `any`
+
+```lua title="Example"
+local total = Lib.Array.Fold(items, function(sum, item) return sum + item.price end, 0)
+```
+
+## Lib.Array.Reverse [#lib-array-reverse]
+
+A reversed copy.
+
+```lua
+Lib.Array.Reverse(list)
+```
+
+**Parameters**
+- list: `table`
+
+**Returns**
+- `table`
+
+## Lib.Array.Sorted [#lib-array-sorted]
+
+A sorted copy; the caller's order survives.
+
+```lua
+Lib.Array.Sorted(list, before)
+```
+
+**Parameters**
+- list: `table`
+- before?: `function(a, b): boolean`
+
+**Returns**
+- `table`
+
+## Lib.Array.Unique [#lib-array-unique]
+
+A copy with duplicates dropped; first occurrence wins.
+
+```lua
+Lib.Array.Unique(list, by)
+```
+
+**Parameters**
+- list: `table`
+- by?: `function(value): any` — the key to compare on
+
+**Returns**
+- `table`
+
+## Lib.Array.GroupBy [#lib-array-groupby]
+
+Entries grouped into lists under a derived key.
+
+```lua
+Lib.Array.GroupBy(list, by)
+```
+
+**Parameters**
+- list: `table`
+- by: `function(value): any`
+
+**Returns**
+- `table<key, list>`
+
+```lua title="Example"
+local byJob = Lib.Array.GroupBy(players, function(p) return p.job end)
+```
+
+## Lib.Array.Take [#lib-array-take]
+
+Up to `count` entries from the front.
+
+```lua
+Lib.Array.Take(list, count)
+```
+
+**Parameters**
+- list: `table`
+- count: `integer`
+
+**Returns**
+- `table`
+
+## Lib.Array.Push [#lib-array-push]
+
+Appends **in place**.
+
+```lua
+Lib.Array.Push(list, value)
+```
+
+**Parameters**
+- list: `table`
+- value: `any`
+
+**Returns**
+- `integer` — the new length
+
+## Lib.Array.Remove [#lib-array-remove]
+
+Removes the first equal entry, **in place**.
+
+```lua
+Lib.Array.Remove(list, value)
+```
+
+**Parameters**
+- list: `table`
+- value: `any`
+
+**Returns**
+- `boolean` — whether anything was removed
+
+## Lib.Array.Holds [#lib-array-holds]
+
+Whether the list holds a value.
+
+```lua
+Lib.Array.Holds(list, value)
+```
+
+**Parameters**
+- list: `table`
+- value: `any`
+
+**Returns**
+- `boolean`

@@ -1,0 +1,31 @@
+---
+title: GetMetadata
+description: Reads your resource's own metadata on a character.
+---
+
+<a id="export-server-getmetadata" />
+
+```lua
+local res = exports.opx_infinity:GetMetadata(source, key)
+```
+
+Scope `read` · sync.
+
+**Parameters**
+- source: `number`
+- key?: `string`
+
+- Each resource has its **own** space: your `key` is stored as `ext.<your resource>.<key>`, so you cannot reach OPX's keys or another resource's.
+- **Online characters only.** Saved with the character.
+- `key`: one segment, 1–48 characters, letters, digits, `_` and `-` (no dot).
+
+**Returns**
+- `any` — the value of your key, or with no `key` every key you stored as `{ [key] = value }`
+
+**Errors**
+- `export.badArgument`, `error.notLoggedIn`
+
+```lua title="Example"
+local res = exports.opx_infinity:GetMetadata(source, 'deliveries')
+local done = res.ok and res.value or 0
+```

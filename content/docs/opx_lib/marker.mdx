@@ -1,0 +1,181 @@
+---
+title: Lib.Marker
+description: Place world markers and find out whether they actually drew.
+---
+
+Permission `world.markers` (`Shapes` needs none). Up to 64 markers per resource (`Marker.LIMIT`); 256 material slots are shared by the whole client (`Marker.SLOTS`).
+
+- A handle does not mean the marker drew: loading is asynchronous and a failure shows up later in the snapshot. Use [`Await`](#lib-marker-await).
+- A handle is a decimal **string**; never convert it to a number.
+- `rendered` means the mesh is attached and enabled, not that it is on screen.
+
+## Lib.Marker.Shapes [#lib-marker-shapes]
+
+The shapes this build supports, from the platform. `Marker.SHAPES` holds the shipped list: `ring`, `cylinder`, `checkpoint`, `arrow`, `chevron`, `cone`, `diamond`, `sphere`.
+
+```lua
+Lib.Marker.Shapes()
+```
+
+**Returns**
+- `Result` — shape names
+
+## Lib.Marker.Place [#lib-marker-place]
+
+Creates a marker. `position` is the bottom of the mesh with no terrain snap: lift it slightly off the floor.
+
+```lua
+Lib.Marker.Place(position, options)
+```
+
+**Parameters**
+- position: `{ x, y, z }`
+- options?: `table` — only these fields; an unknown one is refused
+  - shape?: `string` — one of `Marker.SHAPES`
+  - style?: `'interaction' | 'objective' | 'spawn' | 'danger'` — cyan, gold, green, red
+  - radius?: `number` — 0.1..50 m, default 1.5
+  - height?: `number` — 0.01..100, default 1.5
+  - scale?: `{ x, y, z }` — each 0.01..100, default 1; a missing axis is filled with 1
+  - rotation?: `{ x, y, z }`
+  - color?: `{ r, g, b, a? }` or `'#RRGGBB'` — channels 0..255; the platform's alpha is 180 when omitted
+  - visible?: `boolean`
+  - minDistance?: `number` — ≥ 0, default 0
+  - maxDistance?: `number` — 1..500 m, default 100; must exceed `minDistance`
+  - Effective size is capped at 200 m (`Marker.MAX_EXTENT`).
+
+**Returns**
+- `Result` — the handle; errors `invalid_options`, `position_required`, `unknown_field`, `invalid_position`, `unsupported_shape`, `unknown_marker_style`, `invalid_radius`, `invalid_height`, `invalid_scale`, `invalid_rotation`, `invalid_color`, `invalid_distance`, `invalid_argument`, `quota_exceeded`
+
+```lua title="Example"
+local made = Lib.Marker.Place({ x = -1442.2, y = 127.4, z = 18.0 },
+  { shape = 'cylinder', style = 'objective', radius = 1.5, maxDistance = 80 })
+```
+
+## Lib.Marker.Move [#lib-marker-move]
+
+Patches any field `Place` takes. A rejected patch changes nothing. `color = false` restores the style colour; leaving `color` out keeps the custom one.
+
+```lua
+Lib.Marker.Move(handle, patch)
+```
+
+**Parameters**
+- handle: `string`
+- patch: `table`
+
+**Returns**
+- `Result` — errors `invalid_marker_id`, `invalid_argument` (empty patch), and the `Place` field codes
+
+```lua title="Example"
+Lib.Marker.Move(handle, { style = 'danger', color = false })
+```
+
+## Lib.Marker.State [#lib-marker-state]
+
+What a snapshot says about a marker, as one word. `failed` is tested first. On a build whose snapshot has no `failed` field, a failed marker reads `pending` forever.
+
+```lua
+Lib.Marker.State(snap)
+```
+
+**Parameters**
+- snap: `table` — from `Get` or `List`
+
+**Returns**
+- `'failed' | 'hidden' | 'rendered' | 'pending' | 'unknown'`
+  - `pending`: still streaming, or outside its distance range.
+
+## Lib.Marker.Get [#lib-marker-get]
+
+Reads one of your markers, with `state` added. The snapshot carries `color`, `customColor`, `rendered`, `failed` and `error?`.
+
+```lua
+Lib.Marker.Get(handle)
+```
+
+**Parameters**
+- handle: `string`
+
+**Returns**
+- `Result` — the snapshot; error `invalid_marker_id`
+
+## Lib.Marker.List [#lib-marker-list]
+
+Your markers, each with `state`.
+
+```lua
+Lib.Marker.List()
+```
+
+**Returns**
+- `Result` — snapshots; error `invalid_answer`
+
+## Lib.Marker.Count [#lib-marker-count]
+
+Every marker your resource owns, made through this module or not.
+
+```lua
+Lib.Marker.Count()
+```
+
+**Returns**
+- `Result` — `integer`
+
+## Lib.Marker.Failures [#lib-marker-failures]
+
+Your markers that failed to load. An empty list is the good answer.
+
+```lua
+Lib.Marker.Failures()
+```
+
+**Returns**
+- `Result` — snapshots
+
+## Lib.Marker.Await [#lib-marker-await]
+
+Waits until a marker has drawn, or says why it never will. **Yields.** Polls every 100 ms. A hidden marker resolves `ok`.
+
+```lua
+Lib.Marker.Await(handle, timeout)
+```
+
+**Parameters**
+- handle: `string`
+- timeout?: `integer`
+  - Milliseconds. Default: `5000`.
+
+**Returns**
+- `Result` — the snapshot; errors `invalid_marker_id`, `marker_streaming_timeout`, the snapshot's `error` (or `marker_load_failed`)
+
+```lua title="Example"
+CreateThread(function()
+  local drew = Lib.Marker.Await(made.value)
+  if not drew.ok then print('no marker: ' .. drew.error) end
+end)
+```
+
+## Lib.Marker.Remove [#lib-marker-remove]
+
+Removes one marker.
+
+```lua
+Lib.Marker.Remove(handle)
+```
+
+**Parameters**
+- handle: `string`
+
+**Returns**
+- `Result` — error `invalid_marker_id`
+
+## Lib.Marker.Clear [#lib-marker-clear]
+
+Removes **every** marker your resource owns, including ones made without this module.
+
+```lua
+Lib.Marker.Clear()
+```
+
+**Returns**
+- `Result`

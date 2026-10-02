@@ -1,0 +1,82 @@
+---
+title: Error codes
+description: The shared refusal vocabulary of opx_infinity — how a refusal reaches a player, the core error.* locale keys, and the Result convention with the codes the shared library answers.
+---
+
+When `opx_infinity` says no, it answers with a short code. A code shown to a player is always a locale key (e.g. `error.tooFast`), so it is translated and never leaks internals. A code that stays in Lua (e.g. `query-failed`) is for the caller and the log. This page lists the codes shared by the whole runtime; each module's index page has a **Refusal codes** table for its own (`money.insufficient`, `character.notFound`…) — start from the [module list](/docs/opx_infinity#modules).
+
+## How a refusal reaches a player [#refusal-path]
+
+1. Server code calls [`OPX.Refuse(source, code, operation, icon?)`](/docs/opx_infinity/core/server#opx-refuse).
+2. [`OPX.RefusalKey(code)`](/docs/opx_infinity/core/server#opx-refusalkey) checks the code is a locale key that exists. If not, the player gets `error.unavailable` and the real code goes to the server log.
+3. The client receives [`opx:net:runtime:notify`](/docs/opx_infinity/core/events#opx-net-runtime-notify) and shows `locale(code)` as an error toast.
+
+`operation` only tells the client which request was refused; the toast does not show it. The same rule applies to [`OPX.NotifyLocale`](/docs/opx_infinity/core/server#opx-notifylocale).
+
+## Core locale keys [#core-keys]
+
+Registered in `locales/en.lua` and `locales/fr.lua`.
+
+| Code | English | French | When |
+|---|---|---|---|
+| <a id="error-unavailable" />`error.unavailable` | That is not available right now. | Ce n'est pas disponible pour le moment. | The fallback for any code with no locale entry, and the answer of a page request whose Lua handler raised. |
+| <a id="error-badrequest" />`error.badRequest` | That request could not be read. | Cette requete n'a pas pu etre lue. | The arguments of a request were malformed. |
+| <a id="error-payloadrefused" />`error.payloadRefused` | That answer was too large to display. | Cette reponse etait trop volumineuse pour etre affichee. | The host refused a reply to the page as too large ([`OPX.UI.Answer`](/docs/opx_infinity/core/client#opx-ui-answer)). |
+| <a id="error-rpc-timeout" />`error.rpc_timeout` | That took too long. Try again. | Cela a pris trop de temps. Réessayez. | Set by the page when Lua never answered a request. |
+| <a id="error-rpc-failed" />`error.rpc_failed` | That did not go through. | Cela n'a pas abouti. | Set by the page when Lua answered a failure with no code. |
+| <a id="error-toofast" />`error.tooFast` | Slow down. | Doucement. | A command's `cooldownMs` window, or an `OPX.Cooling` check, was still open. |
+| <a id="error-nopermission" />`error.noPermission` | You may not do that. | Vous ne pouvez pas faire cela. | An access check failed, e.g. a command alias whose full command the player may not run. |
+
+- The `character` module adds `error.notLoggedIn` ("You are not in the world yet."): the action needs a loaded character.
+- The `weather.*` keys in the same core files belong to the [weather](/docs/opx_infinity/weather#codes) module.
+
+### Export codes [#export-codes]
+
+Answered by the [creator exports](/docs/creators#answer) as `{ ok = false, error = <code> }`.
+
+| Code | English | French | When |
+|---|---|---|---|
+| <a id="export-callerdenied" />`export.callerDenied` | That resource may not make this call. | Cette ressource n'est pas autorisée à faire cet appel. | The calling resource is not in the allowlist (`SERVER.EXPORTS.READ`/`WRITERS`, `CLIENT.EXPORTS.CALLERS`), or the host named no caller. |
+| <a id="export-badargument" />`export.badArgument` | An argument of that call could not be read. | Un argument de cet appel n'a pas pu être lu. | Wrong type, unknown player id, bad citizen id, name or count out of bounds. |
+| <a id="export-booting" />`export.booting` | The server is still starting. Try again in a moment. | Le serveur démarre encore. Réessayez dans un instant. | The server boot has not finished. |
+| <a id="export-badvalue" />`export.badValue` | That value is not plain data: booleans, numbers, text and tables of them. | Cette valeur n'est pas une donnée simple : booléens, nombres, texte et tables de ceux-ci. | `SetMetadata` got a function, a metatable, a cycle, NaN or too deep a table. |
+| <a id="export-toolarge" />`export.tooLarge` | That value is over the size this server allows a resource to store. | Cette valeur dépasse la taille que ce serveur accorde à une ressource. | `SetMetadata` over `SERVER.EXPORTS.METADATA`. |
+| <a id="export-notsubscribable" />`export.notSubscribable` | That event is not one another resource may subscribe to. | Cet événement n'est pas de ceux auxquels une autre ressource peut s'abonner. | `Subscribe` named an event that is not on the list. |
+| <a id="export-mustawait" />`export.mustAwait` | That call reaches the database: make it with Open77.exports.call and await it. | Cet appel atteint la base de données : faites-le avec Open77.exports.call et attendez-le. | A call that may wait was made synchronously. Nothing was done. |
+
+The inventory adds `stash_namespace` and `stash_cap` (text `inventory.error.stash_namespace` / `inventory.error.stash_cap`) for stashes created through `AddToStash` — see [inventory](/docs/opx_infinity/inventory#codes).
+
+## The Result convention [#result]
+
+Lua functions that can fail answer a Result instead of raising:
+
+```lua
+{ ok = true,  value = v }                     -- success; v may be nil
+{ ok = false, error = 'code', detail = '…' }  -- failure
+```
+
+- Branch on `ok` and `error`. `detail` is free text for the log; never show it to a player.
+- Build them with [`OPX.Result.Ok` / `OPX.Result.Err`](/docs/opx_infinity/core/lib#result) (or `Lib.Result` in [`opx_lib`](/docs/opx_lib#results), same shape).
+- Some functions answer a plain pair `ok, reason` instead; each function says which.
+
+### Codes from the shared library [#lib-codes]
+
+Lua-side codes. Turn them into a locale key before you refuse a player.
+
+| Code | From | Meaning |
+|---|---|---|
+| `no-database` | `OPX.Storage.*` | The MySQL bridge is not installed. |
+| `query-failed` | `OPX.Storage.*` | The statement raised. `detail` holds the raw database error. |
+| `transaction-raised` | `OPX.Storage.Transaction` | The bridge raised. |
+| `transaction-failed` | `OPX.Storage.Transaction` | The bridge rolled back. |
+| `schema-failed` | `OPX.Storage.ApplySchema` | A `CREATE TABLE` failed; `detail` is the table. |
+| `bad-index` | `OPX.Storage.EnsureIndex` | A table, index or column name is not a bare identifier, or no columns; `detail` is the index name. |
+| `type`, `too-short`, `too-long`, `not-utf8`, `format` | `OPX.Validate.Text` | See [Validate](/docs/opx_infinity/core/lib#validate). |
+| `type`, `not-finite`, `not-integer`, `too-small`, `too-large` | `OPX.Validate.Number` | |
+| `type`, `length`, `alphabet`, `checksum` | `OPX.CitizenId.Parse` | |
+| `no_character`, `job_stale`, `job_required`, `grade_too_low`, `off_duty` | `OPX.JobGate.Evaluate` (second return) | See [JobGate](/docs/opx_infinity/core/lib#jobgate). |
+| `bad-namespace`, `no-state-api` | `OPX.Carry.Save` (second return) | |
+| `invalid_source`, `duplicate`, `notification_refused`, or the host's reason | `OPX.Notify` (second return) | |
+| `toast_must_be_a_table`, `invalid_toast_message`, `invalid_toast_icon`, `no_such_toast`, `patch_must_be_a_table`, `payload_refused`, `surface_unavailable` | `OPX.Toast.*` (second return) | |
+
+`opx_lib` has its own codes, listed per function on [its pages](/docs/opx_lib).

@@ -1,0 +1,184 @@
+---
+title: character
+description: Accounts, characters, money, jobs, gangs, metadata and placement — the module every other module reads a player through.
+---
+
+Owns everything that outlives a session: the account row, its characters, their money, jobs, gangs, metadata and position. There is no selection screen: each account is **locked** on one character and a connection enters on it; an account locked on nothing gets a new, empty character, which the player builds in the game's creator and names in the world (see [`entry`](/docs/opx_infinity/entry)). Players move the lock with `/opx.select`, `/opx.create` and `/opx.delete`. Every gameplay module reads a player through this one, so it is fatal: if it fails, the runtime does not start.
+
+| | |
+|---|---|
+| Side | both |
+| Requires | none |
+| Optional | `spawn` (read with `OPX.Api.Get` when a join is placed) |
+| Contract | `character` v1 — [server](/docs/opx_infinity/character/server), [client](/docs/opx_infinity/character/client); [Player object](/docs/opx_infinity/character/player#player) |
+| Config | `config/character.lua` (shared) |
+| Data | `opx77_users`, `opx77_characters`, `opx77_character_groups`, `opx77_active_characters` |
+
+## How a player enters [#entry-flow]
+
+1. The platform reports a connection. The server holds the readiness gate, moves the player into a private bucket and reads the account's lock.
+2. **Locked on a character:** it is loaded. **Locked on nothing** (or on a character that cannot be entered): a new row is created with no name and no body, the lock is set to it, and it is loaded.
+3. The client receives `opx:net:character:loaded`. The gate is released and the player leaves the private bucket.
+4. When the platform says the body is alive (`onPlayerReady`), the character is **placed**. The server first asks [`spawn`](/docs/opx_infinity/spawn); if spawn takes over, the player picks a place and spawn calls [`PlaceCharacter`](/docs/opx_infinity/character/server#server-character-placecharacter). Otherwise: the stored position, or `DEFAULT_SPAWN` when there is none.
+5. A new character is then sent to the game's creator (`appearance`) and asked for a name (`entry`). The name is accepted once.
+
+Placement is always a kill + respawn (fade, preload, 5 s grace), never a teleport. Health is restored from `metadata.health` as a fraction of `HEALTH.MAX` in `config/shared.lua` (at least 15 %), then armour from `metadata.armor`.
+
+### Changing character [#switching]
+
+| Command | What happens |
+|---|---|
+| `/opx.select <citizenId>` | Under `CHARACTERS.SWITCH = 'relog'` (shipped): the current character is saved (and waited on), the other is loaded and placed, no disconnect. If that fails, or under `'reconnect'`: the lock moves and the player is disconnected; the next connection enters on the new character. |
+| `/opx.create` | Clears the lock and **always disconnects**; the next connection builds a new character. A new body needs the game's main-menu creator, which cannot be reopened mid-session. |
+| `/opx.delete <citizenId>` | Soft-deletes the character. Whoever is playing it is disconnected. |
+
+## Commands
+
+| Command | Access | Arguments | Effect |
+|---|---|---|---|
+| <a id="opx-characters" />`/opx.characters` | everyone (alias `chars`) | — | Your characters, slot count, and the one you enter on (`>`). In game only. 2 s cooldown. |
+| <a id="opx-select" />`/opx.select` | everyone | `<citizenId>` | Switches to another of your characters (see [Changing character](#switching)). 3 s cooldown. |
+| <a id="opx-create" />`/opx.create` | everyone | — | Clears your lock and disconnects you; next connection builds a new character. Refused at the slot limit or `ROW_CEILING`. |
+| <a id="opx-delete" />`/opx.delete` | everyone | `<citizenId>` | Soft-deletes one of your own characters. Refused when `CHARACTERS.SELF_DELETE` is false. |
+| <a id="opx-duty" />`/opx.duty` | everyone (alias `duty`) | — | Toggles duty for your primary job. `job.noDuty` for a `defaultDuty = true` job. 2 s cooldown. |
+| <a id="opx-players" />`/opx.players` | ACL `command.opx.players` | — | Loaded characters: player id, citizen id, name, job. |
+| <a id="opx-where" />`/opx.where` | ACL `command.opx.where` | `[playerId]` | What the server holds on a player: account, character, gate, life phase, position and bucket, job, gang, balances. |
+| <a id="opx-here" />`/opx.here` | ACL `command.opx.here` | — | Your position as a ready-to-paste `DEFAULT_SPAWN` block. In game only. |
+| <a id="opx-money" />`/opx.money` | ACL `command.opx.money` | `<playerId\|citizenId> <TYPE> <amount>` | Adds money; negative removes. |
+| <a id="opx-job" />`/opx.job` | ACL `command.opx.job` | `<playerId\|citizenId> <job> [grade]` | Sets the primary job (grade default 0). |
+| <a id="opx-gang" />`/opx.gang` | ACL `command.opx.gang` | `<playerId\|citizenId> <gang> [grade]` | Sets the primary gang (grade default 0). |
+| <a id="opx-group" />`/opx.group` | ACL `command.opx.group` | `<job\|gang> <name>` | Up to 200 members, online or not, highest grade first. |
+| <a id="opx-save" />`/opx.save` | ACL `command.opx.save` | — | Saves every loaded character now. Use before a planned restart. |
+
+`/opx.money`, `/opx.job` and `/opx.gang` act on **loaded** characters only: an id that is not in the world answers the usage line.
+
+## Configuration
+
+`config/character.lua` sets `OPX.Config.MODULES.character`. Shared script — every client receives it, put nothing secret in it.
+
+| Key | Default | Effect |
+|---|---|---|
+| <a id="config-character-enabled" />`enabled` | `true` | Switches the module off. The runtime needs it; leave it on. |
+| <a id="config-character-autosave-seconds" />`AUTOSAVE_SECONDS` | `300` | How often changed characters are written (floor 30). Changed = any mutation or a move of 1 m or more. |
+| <a id="config-character-heading-report-ms" />`HEADING_REPORT_MS` | `5000` | How often the client may report its heading (floor 1000). |
+| <a id="config-character-money" />`MONEY` | see [below](#money) | Starting money and paychecks. |
+| <a id="config-character-characters" />`CHARACTERS` | see [below](#characters) | Slots, switching, deletion, names. |
+| <a id="config-character-player" />`PLAYER` | see [below](#player-keys) | New-character defaults. |
+| <a id="config-character-default-spawn" />`DEFAULT_SPAWN` | `{ SET = true, X = -1600.137451, Y = -2340.758057, Z = 43.250328, HEADING = 139.650009 }` | Where a character with no stored position is placed. `SET = false` leaves it where the game put it. `/opx.here` prints this block. |
+| <a id="config-character-jobs" />`JOBS` | 12 jobs | Job definitions; see [Job and gang format](#group-format). |
+| <a id="config-character-gangs" />`GANGS` | 12 gangs (incl. `none`) | Gang definitions. |
+| <a id="config-character-origins" />`ORIGINS` | `nomad`, `streetkid`, `corpo` | Lifepaths `{ label, description }`. **Not read by anything yet.** |
+
+### MONEY
+
+| Key | Default | Effect |
+|---|---|---|
+| `STARTING` | `{ EDDIES = 500, BANK = 5000 }` | What a **new** character gets. A type missing on an existing character loads as 0. |
+| `PAYCHECK_MINUTES` | `10` | Minutes between paychecks; `0` turns them off. |
+| `PAYCHECK_REQUIRES_DUTY` | `true` | Pay only characters on duty, unless their job has `offDutyPay = true`. |
+| `PAYCHECK_TYPE` | `'BANK'` | Money type paid into. Unknown: falls back to `MONEY.DEFAULT` in `config/shared.lua`, with a warning at start. |
+
+### CHARACTERS
+
+| Key | Default | Effect |
+|---|---|---|
+| `SWITCH` | `'relog'` | How `/opx.select` switches: `'relog'` in the world, `'reconnect'` by disconnecting. Unknown values fall back to `'reconnect'`. |
+| `DEFAULT_SLOTS` | `3` | Characters per account. |
+| `SLOTS_BY_USER` | `{}` | Per-account overrides, `{ [userId] = slots }`. |
+| `ROW_CEILING` | `60` | Character rows ever created per account, deleted ones included (floor 5). Keep it well above `DEFAULT_SLOTS`. |
+| `CASCADE_TABLES` | `{}` | Extra `{ TABLE, COLUMN }` pairs whose rows are **hard-deleted** with a character. Only for tables the runtime does not own. |
+| `SELF_DELETE` | `true` | Whether players may use `/opx.delete`. Staff deletes are not affected. |
+| `NAME` | `{ MIN = 2, MAX = 32 }` | Length of each half of a name, in characters. Letters, spaces, `'` and `-`; must start with a letter. Keep `config/entry.lua` `NAME` the same. |
+
+### PLAYER [#player-keys]
+
+| Key | Default | Effect |
+|---|---|---|
+| `STARTING_METADATA` | `{ health = HEALTH.MAX or 100, armor = 0, isDead = false, inLastStand = false }` | Metadata a new character starts with; also filled into existing characters that lack a key. |
+| `DEFAULT_JOB` | `'unemployed'` | Job of a new character, and the fallback when a job is removed or no longer defined. |
+| `DEFAULT_GANG` | `'none'` | The same for gangs. |
+
+### Job and gang format [#group-format]
+
+The table key (`ncpd`, `maelstrom`) is stored on character rows: add entries freely, **never rename one**. Grades start at `0` and must be contiguous.
+
+```lua title="config/character.lua"
+JOBS = {
+  ncpd = {
+    label = 'NCPD',
+    type = 'leo',          -- free-form category
+    defaultDuty = false,   -- true: always on duty, /opx.duty refused
+    offDutyPay = true,     -- paid even when off duty
+    grades = {
+      [0] = { name = 'Cadet', payment = 150 },
+      [3] = ...,           -- every level from 0 up must exist
+      -- { name, payment, isBoss = true, bankAuth = true }
+    },
+  },
+},
+GANGS = {
+  maelstrom = {
+    label = 'Maelstrom',
+    grades = { [0] = { name = 'Chromehead' }, [3] = { name = 'Warlord', isBoss = true, bankAuth = true } },
+  },
+},
+```
+
+| Field | Jobs | Gangs | Meaning |
+|---|---|---|---|
+| `label` | yes | yes | Display name. |
+| `type` | yes | — | Category, copied to `PlayerData.job.type`. |
+| `defaultDuty` | yes | — | On duty from the start; no shift to clock into. |
+| `offDutyPay` | yes | — | Paid while off duty even when `PAYCHECK_REQUIRES_DUTY` is true. |
+| `grades[n].name` | yes | yes | Grade name. |
+| `grades[n].payment` | yes | — | Paycheck amount. |
+| `grades[n].isBoss` | yes | yes | Copied to `PlayerData.job/gang.isBoss`. |
+| `grades[n].bankAuth` | yes | yes | Copied to `bankAuth`. Not on the state bag. |
+
+`unemployed` (`defaultDuty = true`, 25 per paycheck) and the gang `none` must stay: they are the defaults.
+
+## Data [#data]
+
+Tables are created with `CREATE TABLE IF NOT EXISTS`; there are no migrations. Indexes added after a table was created are ensured on every boot through `OPX.Storage.EnsureIndex` (`M.Storage.INDEXES`, applied by `OPX.Schema.AddIndexes`): `idx_opx77_characters_seen` (`deleted_at, last_logged_out, citizen_id`, used by the staff "recent characters" view) is added to an existing `opx77_characters` automatically. A failure there is a logged warning, not a boot failure.
+
+| Table | Holds |
+|---|---|
+| `opx77_users` | One row per account: `user_id`, `display_name`, `created_at`, `last_seen_at`. |
+| `opx77_characters` | One row per character: `citizen_id`, `user_id`, `cid`, `name`, JSON `char_info`, `money`, `job`, `gang`, `position`, `metadata`, `appearance`, `last_logged_out`, `created_at`, `updated_at`, `deleted_at` (soft delete). |
+| `opx77_character_groups` | Job and gang memberships: `citizen_id`, `group_type`, `group_name`, `grade`, `joined_at`. |
+| `opx77_active_characters` | The lock: which character each account enters on. |
+
+## Refusal codes [#codes]
+
+The code is also the locale key shown to the player.
+
+| Code | Meaning |
+|---|---|
+| `entry.noIdentity` | The connection has no verified session. |
+| `entry.failed` | The player could not be brought into the world. |
+| `error.notLoggedIn` | No character is loaded for that identifier. |
+| `error.tooFast` | Cooldown. |
+| `error.unavailable` | Database failure or the runtime booted degraded. Detail in the server log. |
+| `error.badRequest` | Malformed argument. |
+| `character.notFound` | No such character — or it belongs to another account. |
+| `character.inUse` | Loaded on another connection. |
+| `character.alreadyPlaying` | `/opx.select` on the character you are playing. |
+| `character.limit` | Every slot is used. |
+| `character.rowLimit` | The account reached `ROW_CEILING`. |
+| `character.deleteNotAllowed` | `SELF_DELETE` is false. |
+| `character.badName` | A name half fails length or alphabet. |
+| `character.nameSet` | The character is already named. |
+| `character.badBody` / `character.bodySet` | Not `female`/`male`; body already set. |
+| `character.searchShort` | Search term under 3 bytes. |
+| `money.badType` / `money.badAmount` | Unknown type; zero, negative, NaN or infinite amount. |
+| `money.insufficient` | Removal would go below zero. |
+| `money.negative` | `SetMoney` below zero on a type that does not allow it. |
+| `money.vetoed` | A hook refused it. |
+| `money.offline` | The character is not loaded. Use `AddMoneyOffline` to credit an offline character. |
+| `job.vetoed` / `gang.vetoed` | A `job:beforeSet` / `gang:beforeSet` hook refused the change. |
+| `job.notFound` / `job.gradeNotFound` | Unknown job or grade. |
+| `job.noDuty` | The job has `defaultDuty = true`. |
+| `job.notMember` | Not a member of that job. |
+| `gang.notFound` / `gang.gradeNotFound` / `gang.notMember` | Same for gangs. |
+
+Other resources reach `SetJob`, `SetGang`, `RemovePlayerFromJob`, `RemovePlayerFromGang` and `SetJobDuty` through the `SetJob`, `SetGang`, `RemoveJob`, `RemoveGang` and `SetDuty` [server exports](/docs/creators/server/setjob#export-server-setjob), and their own metadata keys (`ext.<resource>.<key>`) through [`GetMetadata`](/docs/creators/server/getmetadata#export-server-getmetadata)/`SetMetadata`.

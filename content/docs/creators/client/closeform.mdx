@@ -1,0 +1,21 @@
+---
+title: CloseForm
+description: Cancels a form your resource opened.
+---
+
+<a id="export-client-closeform" />
+
+```lua
+local res = exports.opx_infinity:CloseForm(handle)
+```
+
+Sync.
+
+**Parameters**
+- handle: `string`
+
+**Returns**
+- `true`
+
+**Errors**
+- `stale_handle` (not one of yours), `export.callerDenied`, `export.badArgument`, `error.unavailable` (module not running)

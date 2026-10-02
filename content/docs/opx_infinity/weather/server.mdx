@@ -1,0 +1,154 @@
+---
+title: Server
+description: The weather contract on the server — read and change the clock and the sky.
+---
+
+```lua
+local weather = OPX.Api.Get('weather')
+```
+
+From server code inside opx_infinity. Nothing yields. Every change is published to all clients at once. `reason` is free text carried in the snapshot for diagnostics.
+
+## Ready [#server-weather-ready]
+
+Whether the weather table has a usable row.
+
+```lua
+weather.Ready()
+```
+
+**Returns**
+- `boolean`
+
+## Status [#server-weather-status]
+
+The current clock and sky, as a plain table (not a Result).
+
+```lua
+weather.Status()
+```
+
+**Returns**
+- `table`
+  - `hour`, `minute`, `second`: `number`
+  - `dayLengthMinutes`: `number`
+  - `timeFrozen`, `weatherFrozen`: `boolean`
+  - `weather`: `string`
+  - `nextRollInSeconds`: `number?` — nil while frozen
+  - `revision`: `number`
+
+## StatusText [#server-weather-statustext]
+
+One-line summary, as the console sees it.
+
+```lua
+weather.StatusText()
+```
+
+**Returns**
+- `string`
+
+## Presets [#server-weather-presets]
+
+The live weather table. Do not modify it.
+
+```lua
+weather.Presets()
+```
+
+**Returns**
+- `table[]` — `{ NAME, PRESET, WEIGHT, MIN_SECONDS, MAX_SECONDS, TRANSITION_SECONDS }`
+
+## SetTime [#server-weather-settime]
+
+Sets the clock.
+
+```lua
+weather.SetTime(seconds, reason)
+```
+
+**Parameters**
+- seconds: `number`
+  - Seconds since midnight. Not validated: pass 0..86399.
+- reason?: `string`
+
+```lua title="Example"
+weather.SetTime(22 * 3600, 'night event') -- 22:00
+```
+
+## SetTimeFrozen [#server-weather-settimefrozen]
+
+Holds or releases the clock.
+
+```lua
+weather.SetTimeFrozen(frozen, reason)
+```
+
+**Parameters**
+- frozen: `boolean`
+- reason?: `string`
+
+## SetDayLength [#server-weather-setdaylength]
+
+Changes how many real minutes a game day lasts.
+
+```lua
+weather.SetDayLength(minutes, reason)
+```
+
+**Parameters**
+- minutes: `number`
+  - 1..10080; under 12 is refused.
+- reason?: `string`
+
+**Returns**
+- `Result` — errors `invalid_day_length`, `day_too_short`
+
+## SetWeather [#server-weather-setweather]
+
+Crosses to a weather and reschedules the next roll.
+
+```lua
+weather.SetWeather(name, transitionSeconds, reason)
+```
+
+**Parameters**
+- name: `string`
+  - A row's `NAME` or `PRESET`.
+- transitionSeconds?: `number`
+  - 0..300. Default: the row's `TRANSITION_SECONDS`.
+- reason?: `string`
+
+**Returns**
+- `Result` — errors `no_presets`, `unknown_preset`, `invalid_transition`
+
+```lua title="Example"
+local set = weather.SetWeather('rain', 30, 'storm event')
+if not set.ok then print(set.error) end
+```
+
+## SetWeatherFrozen [#server-weather-setweatherfrozen]
+
+Holds or releases the roll schedule. Unfreezing schedules a new roll.
+
+```lua
+weather.SetWeatherFrozen(frozen, reason)
+```
+
+**Parameters**
+- frozen: `boolean`
+- reason?: `string`
+
+## Roll [#server-weather-roll]
+
+Picks a different row by weight and applies it.
+
+```lua
+weather.Roll(reason)
+```
+
+**Parameters**
+- reason?: `string`
+
+**Returns**
+- `Result`

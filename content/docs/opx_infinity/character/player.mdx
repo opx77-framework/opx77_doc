@@ -1,0 +1,31 @@
+---
+title: Player object
+description: The Player table the server contract answers — PlayerData fields and player.Functions.
+---
+
+## The Player object [#player]
+
+[`GetPlayer`](/docs/opx_infinity/character/server#server-character-getplayer) and friends answer a `Player`. Read `player.PlayerData`; change it through the contract or `player.Functions`, which bump `player.Revision` (what the autosave looks at) and send the update. A direct write to `PlayerData` is never sent and only saved by chance.
+
+```lua
+local player = character.GetPlayer(source)
+local job = player.PlayerData.job.name
+player.Functions.AddMoney('BANK', 100, 'bonus')
+```
+
+| `PlayerData` field | Shape |
+|---|---|
+| `source` | player id |
+| `citizenId`, `userId`, `cid` | identity (cannot be set) and slot number |
+| `charInfo` | `{ firstName?, lastName?, gender?, phone }` — names and gender are nil until set |
+| `money` | `{ [MoneyType] = integer }` |
+| `job` | `{ name, label, type, payment, onDuty, isBoss, bankAuth, grade = { name, level } }` |
+| `gang` | `{ name, label, isBoss, bankAuth, grade = { name, level } }` |
+| `jobs`, `gangs` | every membership, `{ [name] = grade }` |
+| `metadata` | free-form; `health`, `armor`, `isDead`, `inLastStand` are read by the runtime |
+| `position` | `{ x, y, z, heading, bucket }`, or nil for a character never placed |
+| `appearance` | owned by the appearance module |
+
+## player.Functions
+
+`UpdatePlayerData`, `SetPlayerData(key, value)`, `SetMetaData`, `GetMetaData`, `SetCharInfo`, `AddMoney`, `RemoveMoney`, `SetMoney`, `GetMoney`, `SetJob`, `SetGang`, `SetJobDuty`, `Save` and `Logout`. Each calls the [contract function](/docs/opx_infinity/character/server) of the same name on this player.

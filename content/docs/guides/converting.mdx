@@ -1,0 +1,71 @@
+---
+title: Convert from FiveM
+description: How FiveM, ESX and QBCore habits map onto Open77 and opx_infinity — what stays, what changes, and where each familiar framework call now lives.
+---
+
+The runtime shape of Open77 is close to FiveM: `CreateThread`, `Wait`, `RegisterNetEvent`, `TriggerServerEvent`, `RegisterCommand` and `exports` all exist. The natives do not: Open77 has its own `Open77.*` API. And OPX//77 is not ESX or QBCore, even where the names look familiar.
+
+For the old `opx77_*` resources, read [From opx77_* to opx_infinity](/docs/migration/from-opx77) instead.
+
+## Decide where your code goes [#where]
+
+| Your code | Put it in |
+|---|---|
+| Gameplay that needs money, jobs, items, vehicles | a [module](/docs/guides/writing-a-module) inside `opx_infinity` — the only place the contracts are reachable |
+| Something independent: a job, a shop, a log tool | a [separate resource](/docs/guides/writing-a-resource) using the [creator exports](/docs/creators) |
+
+## Runtime habits [#runtime]
+
+| FiveM habit | Open77 / OPX//77 |
+|---|---|
+| Natives such as `GetPlayerPed`, `SetEntityCoords` | Different API. Look up each one with the Open77 devkit (`open77_fivem_equivalent`); never guess a name. |
+| `while true do ... Wait(0) end` on the client | [`OPX.Scheduler.Every`](/docs/opx_infinity/concepts/scheduler). The client has a per-resume instruction budget; an overrun stops the loop silently. |
+| `require` / shared Lua modules on the server | Not available on the server. Shared helpers are in [`lib/`](/docs/opx_infinity/core/lib). |
+| Metatables / classes in shared code | Not available on the client. Use plain tables. |
+| CfxLua syntax (vectors, backtick hashes, `?.`, `+=`) | Plain Lua 5.4 only. |
+| `TriggerEvent` to talk to another resource on the client | Does not leave the resource on Open77. |
+| `ExecuteCommand` with console authority | Needs `runtime.commands`, and restricted commands are refused. |
+| NUI page per resource, `SendNUIMessage` | One shared WebUI page; [`OPX.UI.Send`](/docs/opx_infinity/core/client#opx-ui-send) on a named channel. See [The WebUI page](/docs/opx_infinity/concepts/webui). |
+| `fxmanifest.lua` | `open77.lua`, a manifest DSL with a `permissions { }` block. List every script on its own line. |
+| Server ACE permissions | ACL rights in `acl.jsonc`; a restricted command checks `command.<name>`. See [Permissions](/docs/opx_infinity/concepts/permissions). |
+| `oxmysql` | The platform's MySQL bridge (`MySQL`), wrapped by [`OPX.Storage`](/docs/opx_infinity/concepts/storage). |
+
+## ESX / QBCore calls [#framework]
+
+The character API is QBCore-shaped (`PlayerData`, `citizenId`, `Functions`), but reached through the `character` contract, server side, inside `opx_infinity`.
+
+```lua
+local character = OPX.Api.Get('character')
+local player = character.GetPlayer(source)
+```
+
+| ESX / QBCore | OPX//77 (server, inside a module) |
+|---|---|
+| `QBCore.Functions.GetPlayer(src)` / `ESX.GetPlayerFromId(src)` | [`character.GetPlayer(source)`](/docs/opx_infinity/character/server#server-character-getplayer) |
+| `Player.PlayerData` | `player.PlayerData` — see [the Player object](/docs/opx_infinity/character/player#player) |
+| `Player.Functions.AddMoney('bank', n, reason)` / `xPlayer.addAccountMoney` | [`character.AddMoney(source, 'BANK', n, reason)`](/docs/opx_infinity/character/server#server-character-addmoney) — answers `ok, code` |
+| `Player.Functions.RemoveMoney` | [`character.RemoveMoney`](/docs/opx_infinity/character/server#server-character-removemoney) |
+| `Player.Functions.SetJob(job, grade)` | [`character.SetJob`](/docs/opx_infinity/character/server#server-character-setjob) (yields) |
+| `Player.Functions.SetMetaData` | [`character.SetMetadata`](/docs/opx_infinity/character/server#server-character-setmetadata) |
+| `QBCore.Functions.GetPlayers()` | [`character.GetPlayers()`](/docs/opx_infinity/character/server#server-character-getplayers) |
+| `exports['qb-inventory']:AddItem` / `xPlayer.addInventoryItem` | the [inventory contract](/docs/opx_infinity/inventory/server) |
+| `QBCore.Functions.Notify` / `ESX.ShowNotification` | [`OPX.Notify`](/docs/opx_infinity/core/server#opx-notify) (server) or [`OPX.Toast.Show`](/docs/opx_infinity/core/client#opx-toast-show) (client) |
+| `QBCore.Functions.CreateCallback` | a network event pair, or [`OPX.UI.Serve`](/docs/opx_infinity/core/client#opx-ui-serve) for the page; on the client, [`Lib.Callback`](/docs/opx_lib/callback) in opx_lib |
+| `qb-menu` / `esx_menu_default` | the [menu module](/docs/opx_infinity/menu) |
+| `qb-input` / `esx_dialog` | the [form module](/docs/opx_infinity/form) |
+| `qb-target` / `ox_target` | the [target module](/docs/opx_infinity/target) |
+| `qb-garages` | the [garages module](/docs/opx_infinity/garages) |
+| money hooks / `onMoneyChange` | [`OPX.Hooks`](/docs/opx_infinity/character/events#hooks) `money:beforeAdd` and friends |
+
+Money types are upper case (`EDDIES`, `BANK`), from [`MONEY.TYPES`](/docs/opx_infinity/core/config#config-shared-money).
+
+## A short checklist [#checklist]
+
+1. Move the code into a module folder, or decide it stays a separate resource.
+2. Replace every native using the devkit.
+3. Replace client loops with scheduler jobs.
+4. Replace framework calls with contract calls (table above).
+5. Re-check every network payload on the server.
+6. Move text into `locales.lua` (English and French).
+7. List every file in `open77.lua`; add the permissions your natives need.
+8. Run `lua tests/run.lua`.

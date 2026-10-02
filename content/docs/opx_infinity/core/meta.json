@@ -1,0 +1,4 @@
+{
+  "title": "Core",
+  "pages": ["index", "shared", "server", "client", "config", "events", "lib", "error-codes"]
+}

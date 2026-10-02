@@ -1,0 +1,76 @@
+---
+title: Release notes
+description: What changed in opx_infinity and opx_lib, newest first, starting with the replacement of the opx77_* resources in September 2026.
+---
+
+Newest first. The version is the one in each resource's `open77.lua`.
+
+## opx_infinity — documentation audit fixes (PR #57, 2026-10-02) [#infinity-57]
+
+Merged into `main`; the manifest version is still `0.1.2`.
+
+| Change | Pages |
+|---|---|
+| Elevators are ridden with the key `opx.elevators.use` (E by default, [`KEY`](/docs/opx_infinity/elevators#config-elevators-key); `DEFAULT = false` declares none, leaving `OpenPanel` the only way in). A prompts row names the key within `USE_RADIUS` of a lift; `prompts` is now optional. | [elevators](/docs/opx_infinity/elevators) |
+| Progress bars marked `cancelable` can be cancelled with [`CANCEL_KEY`](/docs/opx_infinity/progress#config-progress-cancel-key) (`opx.progress.cancel`, X by default; `DEFAULT = false` = no player cancel). The page channel `progress:cancel` is gone; `progress:show` carries `{ label, durationMs, cancelable, cancelKey }`. | [progress](/docs/opx_infinity/progress) |
+| Weather commands go through `OPX.Command.Register` (suggested, aliasable); answers are toasts (`OPX.CommandNotice`) or read-backs (`OPX.CommandResult`). `opx:net:weather:notice` and the legacy `chat:ready` / `chat:addSuggestions` handling are gone. | [weather](/docs/opx_infinity/weather#commands) |
+| Command read-backs (`opx:net:runtime:commandResult`, [`OPX.CommandResult`](/docs/opx_infinity/core/server#opx-commandresult)) carry `kind` (`'info'\|'error'`) instead of `type`, so a refused read-back draws in the error colour. | [Runtime events](/docs/opx_infinity/core/events#opx-net-runtime-commandresult) |
+| Blips: one pin per garage location, at its menu point (the entry door is not pinned). Garage and dealer pins come from config (`GARAGES`, `SPOTS`) plus legacy rows adopted at boot, own bucket only. | [blips](/docs/opx_infinity/blips) |
+| An ammo slot holds at most the ammo item's `AMMO.MAX` (rounds per box), never above `MAX_STACK`. | [inventory](/docs/opx_infinity/inventory) |
+| Dealership: server `Accept(buyer, token, yes, destKey?)` and client `Decide(yes, garage?)` take the buyer's garage (nil = vehicles default; unknown = `dealership.noSuchGarage`). A failed company deposit goes to the new table `opx77_company_pending` and is paid in by a sweep (boot, then every 60 s), never twice. `opx:on:dealership:sold` carries `garage` and `pending`. | [dealership](/docs/opx_infinity/dealership) |
+| Inventory contract: new server [`HolsterWeapon(playerId)`](/docs/opx_infinity/inventory/server#server-inventory-holsterweapon) (errors `bad_argument`, `not_armed`). `/opx.admin.weapon.holster` works through it and no longer always refuses. | [inventory](/docs/opx_infinity/inventory/server), [admin](/docs/opx_infinity/admin) |
+| [`OPX.Storage.EnsureIndex`](/docs/opx_infinity/core/lib#opx-storage-ensureindex) and [`OPX.Schema.AddIndexes`](/docs/opx_infinity/core/server#opx-schema-addindexes) add an index to a table that predates it. `idx_opx77_characters_seen` is now added automatically: no manual `ALTER` any more. | [Storage](/docs/opx_infinity/concepts/storage) |
+| Config removed: `SERVER.AUTOSAVE_MS`, `SERVER.SAMPLE_MS`, the `provider` key of the `MODULES` comment in `config/shared.lua` (only `enabled` is read), the menu's `STATUS_MS`. | [Core configuration](/docs/opx_infinity/core/config) |
+| Downed `SUSPENDERS` default is `{ admin = true }` (`opx77_admin` removed). | [downed](/docs/opx_infinity/downed) |
+
+## opx_infinity — creator API round 2, keybinds, short paths (PRs #53–#56) [#infinity-53-56]
+
+| Change | Pages |
+|---|---|
+| New server exports `SetJob`, `SetGang`, `RemoveJob`, `RemoveGang`, `SetDuty`, `GetMetadata`, `SetMetadata` (per-resource `ext.<resource>.<key>`, limits in `SERVER.EXPORTS.METADATA`), `IsDown`, `Revive`. New client exports `Subscribe`/`Unsubscribe` for a fixed list of client events. New codes `export.badValue`, `export.tooLarge`, `export.notSubscribable`. | [Server exports](/docs/creators/server), [Client exports](/docs/creators/client#subscribe) |
+| One host constant `OPX.Host.KEYBINDS_CHANGED = 'open77:keybinds:changed'` for every module. Four modules used to listen on `onKeybindsChanged`, which nothing raises, so they never redrew a key after a rebind. | [Runtime events](/docs/opx_infinity/core/events#host) |
+| Clothing pictures are named by a 10-digit hash of their slug; every shipped path stays at 47 characters or less (a test enforces it), because one over-long path fails the whole resource on a client. The calls view registers its state handler before wiring the page. | [appearance](/docs/opx_infinity/appearance#garments) |
+| Notes on `open77_validate` false positives; the admin model commands answer `models_unavailable` because `players.setModel` is in no published build. | [Troubleshooting](/docs/getting-started/troubleshooting#validate) |
+
+## opx_infinity — creator API, wardrobe pictures, calls (PRs #50–#52) [#infinity-creator-api]
+
+Merged into `main` after the 2026-10-02 changes below; the manifest version is still `0.1.2`.
+
+| Change | Pages |
+|---|---|
+| **Creator API.** Other resources can call curated [server exports](/docs/creators/server) and [client exports](/docs/creators/client) and listen to [public server events](/docs/creators/events). Who may call is `SERVER.EXPORTS.READ`/`WRITERS` (writers empty by default) and `CLIENT.EXPORTS.CALLERS`. New codes `export.callerDenied`, `export.badArgument`, `export.booting`, `export.mustAwait`. New core function `OPX.Publish`. | [For creators](/docs/creators), [core config](/docs/opx_infinity/core/config#config-server-exports) |
+| New contract functions: `character.AddMoneyOffline`, `character.PublicView`; inventory `AddToStash`, `RemoveFromStash`, `CountInStash`, `RemoveWhere` (codes `stash_namespace`, `stash_cap`); chat server contract `Send`, `Broadcast`; `vehiclekeys.Revoke`, `RevokeAll`; `vehicles.SetState` (codes `vehicle.impounded`, `vehicle.busy`, `vehicle.badState`). | [character](/docs/opx_infinity/character), [inventory](/docs/opx_infinity/inventory), [chat](/docs/opx_infinity/chat), [vehiclekeys](/docs/opx_infinity/vehiclekeys), [vehicles](/docs/opx_infinity/vehicles) |
+| New hooks `job:beforeSet`, `gang:beforeSet` (codes `job.vetoed`, `gang.vetoed`) and `money:beforeAddOffline`. The internal job and gang events are now also raised when a membership is removed. | [character](/docs/opx_infinity/character/events#hooks) |
+| Calls: a *Cancel* button and the `opx:net:calls:withdraw` event take back an outgoing call without touching a live one; leaving a call withdraws a pending join invite. The unused dismiss/repop card and `CARD_DWELL_S` are gone. | [calls](/docs/opx_infinity/calls) |
+| Fitting room: garment names and pictures (`garments-*.lua`, `web/images/clothing/`, `tools/generate-garments.mjs`); the panel `tiles` spec gains optional `labels` and `images`; categories read *Top*, *Jacket*, *Pants*, *Shoes*. | [appearance](/docs/opx_infinity/appearance#garments), [panel](/docs/opx_infinity/panel) |
+
+## opx_infinity — main after 0.1.2 (2026-10-02) [#infinity-main-2026-10-02]
+
+Merged into `main`; the manifest version is still `0.1.2`.
+
+| Change | Pages |
+|---|---|
+| New module **vehiclekeys**: keys are inventory items (`vehicle_key`, metadata `plate`, `label`) that lock and unlock a vehicle from the target eye. Garages' bring-out and dealership purchases hand out a key; staff get `/opx.admin.vehicle.key`. | [vehiclekeys](/docs/opx_infinity/vehiclekeys), [garages](/docs/opx_infinity/garages), [dealership](/docs/opx_infinity/dealership), [admin](/docs/opx_infinity/admin) |
+| Inventory contract: `CountWhere`, `TrunkLocked`, `AddToTrunk`, `RemoveFromTrunk`, `CountInTrunk`; new refusal codes `locked` and `hands_full`. | [inventory](/docs/opx_infinity/inventory) |
+| Hauling reworked into a crate job sold to drop-off NPCs (new `IsCarrying`, `DROP` and `SELLERS` events, `hauling_crate` item, per-site models and NPCs). The `HAUL_PAY_PER_CRATE` tunable is now applied. New manifest permission `world.npcs`. | [hauling](/docs/opx_infinity/hauling) |
+| Hauling: an unpaid sale puts crates back anywhere they fit, and records the rest for a refund (`not_paid_lost`, audit event `hauling.crateLost`); load and sell also check the routing bucket (`wrong_bucket`). Vehicle keys accept any printable ASCII plate of 1–16 characters, matched exactly, and a raising lock native answers `lockRefused`. | [hauling](/docs/opx_infinity/hauling#codes), [vehiclekeys](/docs/opx_infinity/vehiclekeys#codes) |
+| HUD: contract `ApplyVanilla`; the shipped config hides every vanilla HUD component except the minimap. | [hud](/docs/opx_infinity/hud) |
+| Calls: one call screen (the holo); hanging up also withdraws an outgoing call that was not answered yet. | [calls](/docs/opx_infinity/calls) |
+
+## opx_infinity 0.1.2 (September 2026) [#infinity-0-1-2]
+
+The first release of the single resource. It replaces twenty-one `opx77_*` resources (sixteen of them were documented on this site).
+
+| Change | Read |
+|---|---|
+| One resource, `opx_infinity`, with a core runtime and modules under `modules/<id>/`. | [Overview](/docs/opx_infinity) |
+| Modules talk through in-process contracts (`OPX.Api`); **no Open77 exports** are published. | [Modules and contracts](/docs/opx_infinity/concepts/modules-and-contracts) |
+| Event names moved to `opx:net:`, `opx:on:`, `opx:in:`. | [Events and channels](/docs/opx_infinity/concepts/events) |
+| Commands moved from `opx77.*` to `opx.*`, with optional short aliases. | [Core configuration](/docs/opx_infinity/core/config#config-server-command-aliases) |
+| One WebUI page for every screen. | [The WebUI page](/docs/opx_infinity/concepts/webui) |
+| Garages, dealers and showroom cars are written in config; legacy tables are adopted at boot. | [garages](/docs/opx_infinity/garages), [dealership](/docs/opx_infinity/dealership) |
+| Modules that had no page on the old site: spawn, entry, theme, diagnostics, downed, target, progress, panel, calls, blips, shops, crafting, gunsmith, hauling, teleports, garages, dealership, clothing, vehicles. | [Modules](/docs/opx_infinity) |
+
+## opx_lib 0.4.0 (September 2026) [#lib-0-4-0]
+
+The client library `opx_infinity` depends on. Delivered as `files`, loaded with `require('@opx_lib')`, client only. See [opx_lib](/docs/opx_lib).

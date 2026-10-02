@@ -1,0 +1,35 @@
+---
+title: Server
+description: The theme contract on the server — read the resolved theme.
+---
+
+```lua
+local theme = OPX.Api.Get('theme')
+```
+
+From server code inside opx_infinity. Read only; there is no setter.
+
+## Current [#server-theme-current]
+
+A copy of the resolved payload. Empty when nothing is configured.
+
+```lua
+theme.Current()
+```
+
+**Returns**
+- `table` — the [payload](#payload)
+
+## Payload
+
+Colours are `{ r, g, b }` integers 0–255. Keys appear only when the matching config key is set.
+
+| Key | From | Range |
+|---|---|---|
+| `accent`, `idle`, `deep`, `hi`, `text`, `alarm`, `plate`, `plateLit` | `ACCENT` (`alarm` from `ALARM` when set) | 0–255 per channel |
+| `plateAlpha` | `PLATE_OPACITY` | 0.20–0.98 |
+| `plateQuietAlpha` | `PLATE_OPACITY − 0.20` | 0.00–0.98 |
+| `plateLitAlpha` | `PLATE_OPACITY + 0.12` | 0.20–1.00 |
+| `interlaceAlpha` | `0.05 × INTERLACE` | 0.00–0.15 |
+| `tiltDeg` | `TILT` | 0–15 |
+| `cutSm`, `cutMd`, `cutLg` | `6`, `12`, `20` × `CUT` (rounded) | 1–24, 1–48, 1–80 |

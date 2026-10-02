@@ -1,0 +1,66 @@
+---
+title: weather
+description: One server clock and one sky for everyone, with staff commands to set, roll and freeze both.
+---
+
+The server runs the time of day at a configured day length, rolls the next weather from a weighted table and sends a snapshot to every client, which applies it and corrects drift. State survives a resource reload, not a server restart.
+
+| | |
+|---|---|
+| Side | both |
+| Requires | none |
+| Contract | `weather` v1 — [server](/docs/opx_infinity/weather/server), [client](/docs/opx_infinity/weather/client) |
+| Config | `config/weather.lua` (shared) |
+| Data | none (reload carry-over only) |
+
+## Commands
+
+| Command | Access | Arguments | Effect |
+|---|---|---|---|
+| <a id="opx-weather" />`/opx.weather` | everyone | — | Time, day length, weather, next roll, revision. |
+| <a id="opx-weather-presets" />`/opx.weather.presets` | everyone | — | The weather table: name, preset, weight, duration, transition. |
+| <a id="opx-weather-set" />`/opx.weather.set` | ACL `command.opx.weather.set` | `<preset> [transitionSeconds]` | Crosses to a preset (`NAME` or `PRESET`). Transition 0..300 s, default the row's `TRANSITION_SECONDS`. |
+| <a id="opx-weather-next" />`/opx.weather.next` | ACL `command.opx.weather.next` | — | Rolls the weighted table now. |
+| <a id="opx-weather-freeze" />`/opx.weather.freeze` | ACL `command.opx.weather.freeze` | `on\|off` | Holds or releases the roll schedule. |
+| <a id="opx-time" />`/opx.time` | ACL `command.opx.time` | `HH:MM[:SS]` | Sets the clock. |
+| <a id="opx-time-freeze" />`/opx.time.freeze` | ACL `command.opx.time.freeze` | `on\|off` | Holds or releases the clock. |
+| <a id="opx-time-length" />`/opx.time.length` | ACL `command.opx.time.length` | `<minutes>` | Real minutes per game day, 1..10080; under 12 is refused (`day_too_short`). |
+
+Registered with `OPX.Command.Register`: the chat box suggests them and they can be aliased. Names and restriction come from [`COMMANDS`](#config-weather-commands). A player may run each once per 2 seconds. A report (`/opx.weather`, `/opx.weather.presets`) comes back as a chat read-back ([`OPX.CommandResult`](/docs/opx_infinity/core/server#opx-commandresult)); an action's answer comes back as a toast ([`OPX.CommandNotice`](/docs/opx_infinity/core/server#opx-commandnotice)). On the console the answer is printed.
+
+## Configuration
+
+`config/weather.lua` sets `OPX.Config.MODULES.weather`.
+
+| Key | Default | Effect |
+|---|---|---|
+| <a id="config-weather-enabled" />`enabled` | `true` | `false` switches the module off; the engine then runs its own clock and sky on each client. |
+| <a id="config-weather-day-length-minutes" />`DAY_LENGTH_MINUTES` | `180` | Real minutes per game day. 180 matches the engine. |
+| <a id="config-weather-start-time" />`START_TIME` | `{ HOUR = 12, MINUTE = 0, SECOND = 0 }` | Clock at server start. |
+| <a id="config-weather-time-frozen" />`TIME_FROZEN` | `false` | Start with the clock held. |
+| <a id="config-weather-weather-frozen" />`WEATHER_FROZEN` | `false` | Start with the roll schedule held. |
+| <a id="config-weather-initial-weather" />`INITIAL_WEATHER` | `'sunny'` | Weather at start, held 180 s before the first roll. Unknown names fall back to the first row. |
+| <a id="config-weather-weather" />`WEATHER` | 8 rows | The roll table: `sunny`, `lightclouds`, `cloudy`, `rain`, `heavyclouds`, `fog`, `pollution`, `sandstorm`. |
+| <a id="config-weather-commands" />`COMMANDS` | see [Commands](#commands) | `{ KEY = { NAME, RESTRICTED } }` for `STATUS`, `PRESETS`, `SET`, `NEXT`, `FREEZE`, `TIME`, `TIME_FREEZE`, `DAY_LENGTH`. An empty `NAME` turns the command off. `SET` to `DAY_LENGTH` stay restricted unless `RESTRICTED = false`. |
+
+```lua title="config/weather.lua — one WEATHER row"
+{ NAME = 'rain', PRESET = '24h_weather_rain', WEIGHT = 10,
+  MIN_SECONDS = 600, MAX_SECONDS = 1200, TRANSITION_SECONDS = 60 },
+```
+
+- `NAME`: what staff type and the state stores. Add rows freely; do not rename.
+- `PRESET`: the engine weather preset.
+- `WEIGHT`: relative chance of being rolled; `0` never rolls.
+- `MIN_SECONDS`, `MAX_SECONDS`: real seconds before the next roll.
+- `TRANSITION_SECONDS`: crossfade length, 0..300.
+
+## Refusal codes [#codes]
+
+| Code | Meaning | Locale key |
+|---|---|---|
+| `invalid_time` | Not `HH:MM[:SS]`, or out of range. | `weather.error.invalidTime` |
+| `invalid_day_length` | Not a number, or outside 1..10080. | `weather.error.invalidDayLength` |
+| `day_too_short` | Faster than 120 game seconds per real second (under 12 minutes a day). | `weather.error.dayTooShort` |
+| `unknown_preset` | Not a `NAME` or `PRESET` in the table. | `weather.error.unknownPreset` |
+| `invalid_transition` | Not a number in 0..300. | `weather.error.invalidTransition` |
+| `no_presets` | The table has no usable row. | `weather.error.noPresets` |

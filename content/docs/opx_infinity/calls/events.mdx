@@ -1,0 +1,124 @@
+---
+title: Events
+description: Network events, the local view event and the page channels of the calls module.
+---
+
+## opx:net:calls:state [#opx-net-calls-state]
+
+Server → client. The player's whole call state, pushed on every change.
+
+```lua
+RegisterNetEvent('opx:net:calls:state', function(state) end)
+```
+
+- state: `table`
+  - `call?`: `{ id, founder, elapsedMs, participants = { { id, name, self } } }`
+  - `invite?`: `{ id, kind, from, fromName, expiresInMs }`
+  - `outgoing?`: `{ id, kind, to, toName, expiresInMs }`
+
+## opx:net:calls:ready [#opx-net-calls-ready]
+
+Client → server. Ask for the state again. 1 per second.
+
+```lua
+TriggerServerEvent('opx:net:calls:ready')
+```
+
+## opx:net:calls:invite [#opx-net-calls-invite]
+
+Client → server. Call (or add to the current call) a player; `kind = 'contact'` offers a contact swap instead.
+
+```lua
+TriggerServerEvent('opx:net:calls:invite', targetId, kind)
+```
+
+- targetId: `number`
+- kind?: `'contact'`
+
+## opx:net:calls:accept [#opx-net-calls-accept]
+
+Client → server. Answer the waiting invite.
+
+```lua
+TriggerServerEvent('opx:net:calls:accept', inviteId)
+```
+
+- inviteId: `number`
+
+## opx:net:calls:decline [#opx-net-calls-decline]
+
+Client → server. Refuse the waiting invite.
+
+```lua
+TriggerServerEvent('opx:net:calls:decline', inviteId)
+```
+
+- inviteId: `number`
+
+## opx:net:calls:hangup [#opx-net-calls-hangup]
+
+Client → server. Leave the current call.
+
+```lua
+TriggerServerEvent('opx:net:calls:hangup')
+```
+
+- Not on a call: withdraws the outgoing invite instead.
+- On a call: never touches an invite you sent, but leaving also withdraws a pending invite you sent to join that call.
+
+## opx:net:calls:withdraw [#opx-net-calls-withdraw]
+
+Client → server. Withdraw the unanswered invite you sent, and nothing else; a live call is left alone. The callee gets a `missed` entry (not for a contact swap). Audit `calls.cancel`. One per `REQUEST_MS`.
+
+```lua
+TriggerServerEvent('opx:net:calls:withdraw')
+```
+
+## opx:net:calls:roster [#opx-net-calls-roster]
+
+Client → server. Ask for the hologram list. 1 per second.
+
+```lua
+TriggerServerEvent('opx:net:calls:roster')
+```
+
+## opx:net:calls:contacts [#opx-net-calls-contacts]
+
+Server → client. The hologram list.
+
+```lua
+RegisterNetEvent('opx:net:calls:contacts', function(list) end)
+```
+
+- list: `table`
+  - `rows`: online contacts `{ id, name, kind, refusal }`, callable ones first; `refusal` is why one cannot be called now
+  - `recent`: newest first `{ outcome, name, citizenId, atMs }`; `outcome` is `declined`, `refused`, `missed` or `unanswered`
+  - `onCall`: `boolean`
+
+## opx:on:calls:view [#opx-on-calls-view]
+
+Client, local. The state half talking to the view; the view sends it to the page as `calls:holo`.
+
+```lua
+AddEventHandler('opx:on:calls:view', function(payload) end)
+```
+
+- payload: `{ kind = 'holo', ... }`
+
+## Page channels [#page-channels]
+
+The hologram is on the `interactive` surface and takes keyboard and cursor while open. `Escape` (the platform's pause key) closes it. It shows `calls.holo.dialing` (*Calling...*) under the name you are ringing, and a `calls.holo.withdraw` button (*CANCEL*) that sends `calls:withdraw`. The client's internal `M.State()` answers `{ call, invite, outgoing }`.
+
+| Channel | Direction | Payload | Meaning |
+|---|---|---|---|
+| <a id="page-calls-ready" />`calls:ready` | page → Lua | `{}` | The hologram mounted; Lua asks the server for the state. |
+| <a id="page-calls-close" />`calls:close` | page → Lua | `{}` | Close the hologram. |
+| <a id="page-calls-toggle" />`calls:toggle` | page → Lua | `{}` | Open or close. Not sent by the shipped page. |
+| <a id="page-calls-call" />`calls:call` | page → Lua | `{ id }` | Call that player. |
+| <a id="page-calls-share" />`calls:share` | page → Lua | `{ id }` | Offer a contact swap. Not sent by the shipped page (the eye row does it). |
+| <a id="page-calls-accept" />`calls:accept` | page → Lua | `{}` | Answer the waiting invite. |
+| <a id="page-calls-decline" />`calls:decline` | page → Lua | `{}` | Refuse the waiting invite. |
+| <a id="page-calls-hangup" />`calls:hangUp` | page → Lua | `{}` | Hang up the live call; with no call, withdraw what you are ringing. |
+| <a id="page-calls-withdraw" />`calls:withdraw` | page → Lua | `{}` | The *Cancel* button: withdraw the invite you sent, leaving any live call alone. Calls `M.Withdraw()`. |
+| <a id="page-calls-diag" />`calls:diag` | page → Lua | `{ detail }` | A view-side message, relayed with `OPX.Note`. Not sent by the shipped page. |
+| `calls:holo` | Lua → page | `{ open, rows, recent, call, invite, outgoing, anchor, answerKey, declineKey }` | The hologram. Sent on open/close and on every state change, also while closed (`open = false`), so the page can show a ringing call without taking focus. |

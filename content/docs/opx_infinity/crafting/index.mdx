@@ -1,0 +1,113 @@
+---
+title: crafting
+description: A shared crafting service — other modules register benches with recipes, players hand over materials and collect the output when the timer ends.
+---
+
+Workbenches for other modules. No recipes of its own: a module such as [gunsmith](/docs/opx_infinity/gunsmith) registers a bench with its recipes. At a bench the player sees what can be made, what each recipe needs and what is already cooking. Ordering takes the materials (and an optional fee) at once; the item is ready after the recipe's time, even across a server restart, and the player comes back to collect it. Use it for "spend items, wait, receive an item".
+
+| | |
+|---|---|
+| Side | both |
+| Requires | `inventory`, `character` (hard) |
+| Optional | `menu` (the bench screen), `progress` (the handover bar) |
+| Contract | `crafting` v1 — [server](/docs/opx_infinity/crafting/server), [client](/docs/opx_infinity/crafting/client) |
+| Config | `config/crafting.lua` (shared) |
+| Data | `opx77_crafting_orders` |
+
+## How a bench works [#benches]
+
+- Each character has its own queue per bench, up to the bench's `queue` orders.
+- Sequential: a new order starts when the previous one is ready.
+- Ordering checks gate, reach, queue space, materials and money, then removes the materials, then takes the fee. If a later step fails, earlier ones are given back.
+- Ready times use the database clock (`ready_at`): an order keeps cooking while the server is down.
+- Collecting checks the bag can carry the output first. The order is deleted, then the item given; if it cannot be given, the order is put back on the shelf.
+- A bench with a `position` is reach-checked on the server; without one it can be used from anywhere.
+- Order and collect are audited (`crafting.order`, `crafting.collect`).
+
+## Bench definition
+
+The table passed to [`RegisterBench`](/docs/opx_infinity/crafting/server#server-crafting-registerbench). Lower-case keys.
+
+```lua title="A bench"
+crafting.RegisterBench('mymodule:bench', {
+  owner = 'mymodule',
+  label = 'Ammo bench',
+  position = { x = -1520.2, y = 891.4, z = 42.1, bucket = 0 },
+  canUse = function(player, recipeKey) return true end,
+  recipes = {
+    { KEY = 'handgun_rounds', ICON = 'ammo', OUTPUT = 'ammo_handgun', COUNT = 30,
+      SECONDS = 120, INPUTS = { scrap_metal = 2 }, PRICE = 40, MONEY = 'EDDIES' },
+  },
+})
+```
+
+| Field | Required | Effect |
+|---|---|---|
+| `owner` | yes | Name of the registering module. Used by `UnregisterBenches`. |
+| `label` | no | Menu title. Default: the bench key. Max 64 bytes. |
+| `position` | no | `{ x, y, z, bucket? }`. Turns on the server reach check. |
+| `reach` | no | Metres, above 0 and at most [`MAX_REACH`](#config-crafting-max-reach). Default [`REACH`](#config-crafting-reach). |
+| `queue` | no | 1 to [`MAX_QUEUE`](#config-crafting-max-queue). Default [`QUEUE`](#config-crafting-queue). |
+| `canUse` | no | `function(player, recipeKey) → allowed, code?`. Called with `recipeKey = nil` for the bench, then once per recipe. A code shows `crafting.<code>`. A raise refuses with `not_for_you`. |
+| `recipes` | yes | List of recipes, at most [`MAX_RECIPES`](#config-crafting-max-recipes). |
+
+Bench and recipe keys: letters, digits, `_`, `-`, `.`, `:`, up to 64.
+
+### Recipe fields
+
+Upper-case keys, as in a config file.
+
+| Field | Required | Effect |
+|---|---|---|
+| `KEY` | yes | Recipe key, unique on the bench. |
+| `OUTPUT` | yes | Item given. Must be in the inventory catalogue. |
+| `COUNT` | no | Units given, 1 to [`MAX_YIELD`](#config-crafting-max-yield). Default `1`. |
+| `SECONDS` | yes | Cooking time, [`MIN_SECONDS`](#config-crafting-min-seconds) to [`MAX_SECONDS`](#config-crafting-max-seconds). |
+| `INPUTS` | yes | `{ item = units }`, 1 to [`MAX_INPUTS`](#config-crafting-max-inputs) items, each in the catalogue. |
+| `PRICE` | no | Fee in whole units. Default `0`. |
+| `MONEY` | if `PRICE > 0` | Money type the fee is taken from. |
+| `LABEL` | no | Menu label. Default: the output's label. |
+| `ICON` | no | A name from `OPX.Glyphs`. |
+
+A recipe that breaks a rule is dropped with a boot warning. A bench left with no recipe is refused.
+
+## Configuration
+
+`config/crafting.lua` sets `OPX.Config.MODULES.crafting`. Shared. Limits on what a registering module may ask for; recipes live in the consumer's own config.
+
+| Key | Default | Effect |
+|---|---|---|
+| <a id="config-crafting-enabled" />`enabled` | `true` | `false` switches the module off. |
+| <a id="config-crafting-reach" />`REACH` | `3.0` | Default bench reach, metres. |
+| <a id="config-crafting-max-reach" />`MAX_REACH` | `25.0` | Largest reach a bench may ask for. |
+| <a id="config-crafting-queue" />`QUEUE` | `3` | Default orders per character per bench. |
+| <a id="config-crafting-max-queue" />`MAX_QUEUE` | `10` | Largest queue a bench may ask for. |
+| <a id="config-crafting-min-seconds" />`MIN_SECONDS` | `5` | Shortest recipe time. Seconds, not ms. |
+| <a id="config-crafting-max-seconds" />`MAX_SECONDS` | `86400` | Longest recipe time. |
+| <a id="config-crafting-max-yield" />`MAX_YIELD` | `1000` | Largest `COUNT`, and largest units per input. |
+| <a id="config-crafting-max-inputs" />`MAX_INPUTS` | `8` | Most materials per recipe. |
+| <a id="config-crafting-max-recipes" />`MAX_RECIPES` | `40` | Most recipes per bench; the rest are dropped. |
+| <a id="config-crafting-rate-limit" />`RATE_LIMIT` | `{ WINDOW_MS = 10000, REQUESTS = 20 }` | Requests per player per window, across all benches. `REQUESTS = 0` turns it off. |
+| <a id="config-crafting-handover-ms" />`HANDOVER_MS` | `1200` | Length of the `progress` bar shown when ordering. `0` turns it off. |
+| <a id="config-crafting-refresh-ms" />`REFRESH_MS` | `5000` | How often an open menu asks for a fresh view. |
+
+## Refusal codes [#codes]
+
+The toast key is `crafting.<code>`. A `canUse` gate may answer its own codes; the registering module must add `crafting.<code>` to its locales (gunsmith does).
+
+| Code | Meaning |
+|---|---|
+| `no_such_bench` | No bench with that key. |
+| `no_such_recipe` | The bench has no such recipe (or no longer has it). |
+| `not_for_you` | The `canUse` gate refused, or raised. |
+| `too_far` | Out of reach, or another bucket. |
+| `no_position` | The server cannot read the player's position. |
+| `no_character` | No character loaded. |
+| `short` | Not enough materials. |
+| `cannot_pay` | Fee could not be paid. |
+| `queue_full` | The queue is full. |
+| `no_such_order` | Not one of this character's orders. |
+| `not_ready` | Still cooking. |
+| `no_room` | The bag cannot carry the output. |
+| `too_fast` | Rate limit. |
+| `unavailable` | Database error. |

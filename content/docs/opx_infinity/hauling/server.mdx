@@ -1,0 +1,41 @@
+---
+title: Server
+description: The hauling contract on the server — crate counts and who is carrying.
+---
+
+```lua
+local hauling = OPX.Api.Get('hauling')
+```
+
+From server code inside opx_infinity.
+
+## State [#server-hauling-state]
+
+Crates per usable site.
+
+```lua
+hauling.State()
+```
+
+**Returns**
+- `Result` — value `{ sites, total }`
+  - `sites[key]`: `{ standing, claimed, carried }` for every usable site
+  - `total`: crates in the world
+
+## IsCarrying [#server-hauling-iscarrying]
+
+Whether a player has a crate attached right now. Not a Result.
+
+```lua
+hauling.IsCarrying(player)
+```
+
+**Parameters**
+- player: `number`
+
+**Returns**
+- `boolean`
+
+```lua title="Example"
+if hauling.IsCarrying(source) then return end
+```

@@ -1,0 +1,65 @@
+---
+title: Events
+description: Network and local events and page channels of the spawn module.
+---
+
+## opx:net:spawn:offer [#opx-net-spawn-offer]
+
+Server → client. A choice is open. The client ignores a second offer while one is open.
+
+```lua
+RegisterNetEvent('opx:net:spawn:offer', function(offer) end)
+```
+
+- offer: `table` — `{ timeoutMs }`
+
+## opx:net:spawn:opened [#opx-net-spawn-opened]
+
+Client → server. The menu is on screen; the player's window starts now. Only the first report counts.
+
+```lua
+TriggerServerEvent('opx:net:spawn:opened', {})
+```
+
+## opx:net:spawn:choose [#opx-net-spawn-choose]
+
+Client → server. The place clicked. Unknown ids are refused (`spawn.noChoice`) and the menu stays up. Cooldown `CHOOSE_COOLDOWN_MS`.
+
+```lua
+TriggerServerEvent('opx:net:spawn:choose', { id = placeId })
+```
+
+- id: `string`
+
+## opx:net:spawn:close [#opx-net-spawn-close]
+
+Server → client. The choice is over. The client toasts the result.
+
+```lua
+RegisterNetEvent('opx:net:spawn:close', function(result) end)
+```
+
+- result: `table`
+  - `reason`: `string` — `'chosen'` or `'timeout'`
+  - `place`: `string?` — the label chosen
+
+## opx:on:spawn:state [#opx-on-spawn-state]
+
+Client, local. `{ open = true, phase = 'spawn' }` when the menu opens, `{ open = false, phase = 'idle' }` when it closes. Same shape as `opx:on:entry:state`.
+
+```lua
+AddEventHandler('opx:on:spawn:state', function(state) end)
+```
+
+- state: `table` — `{ open, phase }`
+
+## Page channels
+
+On the `interactive` surface.
+
+| Channel | Direction | Payload | Meaning |
+|---|---|---|---|
+| `spawn:open` | Lua → page | `{ locations = [{ id, label, district }], title, about, hint }` | Draw the menu. Re-sent every 250 ms until the page takes it. |
+| `spawn:close` | Lua → page | `{}` | Take the menu down. |
+| <a id="page-spawn-choose" />`spawn:choose` | page → Lua | `{ id }` | The player clicked a place. A second click within 400 ms is dropped. |
+| `focus:set` | page → Lua | `{ focus, owner }` | Shared focus broadcast; the module takes keyboard and cursor while its owner `spawn` is on top. |

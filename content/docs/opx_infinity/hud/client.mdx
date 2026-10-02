@@ -1,0 +1,68 @@
+---
+title: Client
+description: The hud contract on the client — show, hide and the game's own HUD.
+---
+
+```lua
+local hud = OPX.Api.Get('hud')
+```
+
+From client code inside opx_infinity.
+
+## IsVisible [#client-hud-isvisible]
+
+```lua
+hud.IsVisible()
+```
+
+**Returns**
+- `Result` — value `{ visible, down, covered }`
+  - `visible`: the chosen state
+  - `down`: the player is down
+  - `covered`: a full-screen view (join, spawn, menu, wardrobe) holds the display
+
+## SetVisible [#client-hud-setvisible]
+
+Shows or hides the HUD. Not stored: resets to shown on restart. Raises [`opx:on:hud:visibility`](/docs/opx_infinity/hud/events#opx-on-hud-visibility) when it changes.
+
+```lua
+hud.SetVisible(value)
+```
+
+**Parameters**
+- value: `boolean`
+  - Any value but `false` shows.
+
+**Returns**
+- `Result` — value `{ visible, down, covered }`
+
+```lua title="Example"
+hud.SetVisible(false) -- cutscene
+-- ...
+hud.SetVisible(true)
+```
+
+## Vanilla [#client-hud-vanilla]
+
+Read-only report on the game's own HUD.
+
+```lua
+hud.Vanilla()
+```
+
+**Returns**
+- `Result` — value `{ available, found, state }`
+  - `available`: `Open77.hud` exists
+  - `found`: each component's visibility before this module first touched it
+  - `state`: `Open77.hud.state()` verbatim
+
+## ApplyVanilla [#client-hud-applyvanilla]
+
+Re-applies the [`VANILLA`](/docs/opx_infinity/hud#config-hud-vanilla) hide/show plan. Not a Result. `downed` calls it after a revive, because its own release cleared this resource's hide claims.
+
+```lua
+hud.ApplyVanilla()
+```
+
+**Returns**
+- `integer` — how many components were set

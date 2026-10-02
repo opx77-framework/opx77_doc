@@ -1,0 +1,4 @@
+{
+  "title": "weather",
+  "pages": ["index", "server", "client", "events"]
+}

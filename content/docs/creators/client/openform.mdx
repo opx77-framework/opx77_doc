@@ -1,0 +1,29 @@
+---
+title: OpenForm
+description: Opens an OPX form owned by your resource on the local player's screen.
+---
+
+<a id="export-client-openform" />
+
+```lua
+local res = exports.opx_infinity:OpenForm(spec)
+```
+
+Sync. The submit or cancel reaches your [reply export](/docs/creators/client#replies) as `opx:on:form:answer` with the form's [answer](/docs/opx_infinity/form/client#the-answer).
+
+**Parameters**
+- spec: `table` — the [form spec](/docs/opx_infinity/form/client#the-form-spec) without `owner`/`on`
+  - reply?: `string` — the export your answer goes to
+
+**Returns**
+- `{ handle, id, fields }`
+
+**Errors**
+- `form_busy` (another form is open), spec errors, `export.callerDenied`, `export.badArgument`, `error.unavailable` (module not running)
+
+```lua title="Example"
+local res = exports.opx_infinity:OpenForm({
+	title = 'Order',
+	fields = { { id = 'qty', label = 'Quantity', slider = { min = 1, max = 10, step = 1 } } },
+})
+```

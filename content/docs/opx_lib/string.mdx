@@ -1,0 +1,93 @@
+---
+title: Lib.String
+description: Trim, clean, split and fingerprint strings, measured in bytes.
+---
+
+Pure. No permission. Limits are in bytes; for characters use [`Lib.Text`](/docs/opx_lib/text).
+
+## Lib.String.Trim [#lib-string-trim]
+
+Whitespace off both ends.
+
+```lua
+Lib.String.Trim(value)
+```
+
+**Parameters**
+- value: `any`
+
+**Returns**
+- `string`
+
+## Lib.String.Clean [#lib-string-clean]
+
+Every control character replaced by a space, capped at `limit` bytes, `ellipsis` appended when cut. Use it on any value from the wire before it reaches a log, a chat line or a page (a newline would forge a log line). A non-string answers `''`.
+
+```lua
+Lib.String.Clean(value, limit, ellipsis)
+```
+
+**Parameters**
+- value: `any`
+- limit?: `integer`
+- ellipsis?: `string`
+
+**Returns**
+- `string`
+
+```lua title="Example"
+print('player said ' .. Lib.String.Clean(said, 120, '...'))
+```
+
+## Lib.String.Split [#lib-string-split]
+
+Splits on a one-character separator; empty fields are kept.
+
+```lua
+Lib.String.Split(value, separator)
+```
+
+**Parameters**
+- value: `any`
+- separator: `string`
+
+**Returns**
+- `string[]`
+
+```lua title="Example"
+local parts = Lib.String.Split('a,,b', ',') -- { 'a', '', 'b' }
+```
+
+## Lib.String.Starts [#lib-string-starts]
+
+Whether a string begins with a prefix.
+
+```lua
+Lib.String.Starts(value, prefix)
+```
+
+**Parameters**
+- value: `any`
+- prefix: `string`
+
+**Returns**
+- `boolean`
+
+## Lib.String.Signature [#lib-string-signature]
+
+A short stable hash (FNV-1a, 32-bit), for change detection. Not a checksum, never for security. A non-string answers `0`.
+
+```lua
+Lib.String.Signature(value)
+```
+
+**Parameters**
+- value: `any`
+
+**Returns**
+- `integer`
+
+```lua title="Example"
+local sig = Lib.String.Signature(json.encode(state))
+if sig ~= lastSig then lastSig = sig; redraw() end
+```

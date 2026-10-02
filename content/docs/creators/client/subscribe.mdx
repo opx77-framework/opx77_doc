@@ -1,0 +1,28 @@
+---
+title: Subscribe
+description: Forwards an OPX client event to your reply export each time it is raised.
+---
+
+<a id="export-client-subscribe" />
+
+```lua
+local res = exports.opx_infinity:Subscribe(event, reply)
+```
+
+Sync. Forwarding lasts until you unsubscribe or your resource stops. Subscribing again just changes the reply export. Only the [listed events](/docs/creators/client#subscribe) can be subscribed to.
+
+**Parameters**
+- event: `string` — e.g. `'opx:on:character:money'`
+- reply?: `string` — default [`CLIENT.EXPORTS.REPLY`](/docs/opx_infinity/core/config#config-client-exports)
+
+**Returns**
+- `true`
+
+**Errors**
+- `export.notSubscribable`, `export.badArgument`, `export.callerDenied`
+
+```lua title="Example"
+CreateThread(function()
+	exports.opx_infinity:Subscribe('opx:on:character:money')
+end)
+```

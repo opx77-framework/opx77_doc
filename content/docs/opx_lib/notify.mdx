@@ -1,0 +1,70 @@
+---
+title: Lib.Notify
+description: The game's own HUD notifications, in one line.
+---
+
+Permission `ui.vanilla.hud`. These are the game's HUD notifications, not the `opx_infinity` toasts. There is one vanilla slot per channel, shared with every resource.
+
+## Lib.Notify.Show [#lib-notify-show]
+
+Queues a notification.
+
+```lua
+Lib.Notify.Show(text, options)
+```
+
+**Parameters**
+- text: `string`
+  - 1–512 bytes.
+- options?: `table`
+  - replace?: `boolean` — replace what is on screen instead of queueing
+
+**Returns**
+- `Result` — errors `invalid_text`, `invalid_options`
+
+```lua title="Example"
+Lib.Notify.Show('Order ready')
+```
+
+## Lib.Notify.Replace [#lib-notify-replace]
+
+`Show` with `replace = true`.
+
+```lua
+Lib.Notify.Replace(text)
+```
+
+**Parameters**
+- text: `string`
+
+**Returns**
+- `Result`
+
+## Lib.Notify.Preset [#lib-notify-preset]
+
+Shows one of the engine's localised notifications.
+
+```lua
+Lib.Notify.Preset(preset)
+```
+
+**Parameters**
+- preset: `string`
+
+**Returns**
+- `Result` — error `invalid_preset`
+
+## Lib.Notify.Clear [#lib-notify-clear]
+
+Empties a channel, including another resource's notification.
+
+```lua
+Lib.Notify.Clear(channel)
+```
+
+**Parameters**
+- channel?: `'ingame' | 'menu'`
+  - Default: `'ingame'`.
+
+**Returns**
+- `Result` — error `invalid_channel`

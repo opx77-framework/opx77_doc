@@ -1,0 +1,57 @@
+---
+title: Server
+description: The elevators contract on the server — floor lists and the job gate for a player.
+---
+
+```lua
+local elevators = OPX.Api.Get('elevators')
+```
+
+From server code inside opx_infinity. Every function answers `{ ok, value }` / `{ ok = false, error }` and does not yield.
+
+## Floors [#server-elevators-floors]
+
+Every floor and whether this player may use it. Hidden floors are left out when `DENIED_FLOORS = 'hidden'`.
+
+```lua
+elevators.Floors(source, elevatorKey)
+```
+
+**Parameters**
+- source: `integer`
+- elevatorKey: `string`
+
+**Returns**
+- `Result` `{ elevator, floors = { { index, label, ok, error?, reason? } } }`
+
+## IsFloorAllowed [#server-elevators-isfloorallowed]
+
+Job gate only: no distance or bucket check.
+
+```lua
+elevators.IsFloorAllowed(source, elevatorKey, floorIndex)
+```
+
+**Parameters**
+- source: `integer`
+- elevatorKey: `string`
+- floorIndex: `integer` — the native floor index (`INDEX`).
+
+**Returns**
+- `Result` `{ elevator, floor, label }` — errors: the [job-gate codes](/docs/opx_infinity/elevators#codes) or `no_such_floor`
+
+```lua title="Example"
+local gate = elevators.IsFloorAllowed(source, 'ncpd_watson', 3)
+if not gate.ok then print(gate.error) end -- e.g. off_duty
+```
+
+## State [#server-elevators-state]
+
+Lifts this server has adopted.
+
+```lua
+elevators.State()
+```
+
+**Returns**
+- `Result` `{ adopted = { [key] = { id, floorCount, used } } }`

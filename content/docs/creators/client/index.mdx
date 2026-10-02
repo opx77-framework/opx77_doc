@@ -1,0 +1,121 @@
+---
+title: Client exports
+description: Put OPX menus, forms, toasts, progress bars and animations on the local player's screen from your own client script, and hear OPX client events.
+---
+
+Defined in `core/client/exports.lua`. They answer `{ ok, value | error }` like the [server exports](/docs/creators/server). Callers allowed: [`CLIENT.EXPORTS.CALLERS`](/docs/opx_infinity/core/config#config-client-exports) (`'*'`, everyone, by default). None of them yields, so the synchronous form is fine:
+
+```lua
+local answer = exports.opx_infinity:ShowToast({ message = 'Order ready', kind = 'success' })
+```
+
+Everything here acts on **this player's screen only**. The server must still check anything that matters.
+
+## Getting answers back: the reply export [#replies]
+
+A function cannot be passed to another resource, and a client `TriggerEvent` does not leave `opx_infinity`, so an answer is delivered by **calling an export of yours**. Publish this once:
+
+```lua title="my_shop/client/main.lua"
+exports('OnOpxEvent', function(event, payload)
+	TriggerEvent(event, payload)   -- re-raise it on your own resource's bus
+end)
+```
+
+Every answer then arrives in your resource as an ordinary event:
+
+| Event (on your bus) | Sent after | Payload |
+|---|---|---|
+| `opx:on:menu:action` | every action on a menu you opened | the menu's [action payload](/docs/opx_infinity/menu/client#the-action-payload) |
+| `opx:on:form:answer` | a form you opened is submitted or cancelled | the form's [answer](/docs/opx_infinity/form/client#the-answer) |
+| `opx:on:progress:done` | a bar you started ends | `{ owner, label, ending, finished }`; only `finished = true` means the action completed |
+| `opx:on:animations:result` | the server's verdict on an animation you asked for | `{ requestId, action, ok, error?, animation?, variant?, playbackId?, ... }` |
+
+- In each payload `owner` is your resource name.
+- The export is [`CLIENT.EXPORTS.REPLY`](/docs/opx_infinity/core/config#config-client-exports) (`OnOpxEvent`) unless the call names another with `reply` (letters, digits, `_`, max 64).
+- If your resource does not publish it, the answer is lost and the client log says `[exports] <you> did not take <event> through its OnOpxEvent export: ...`.
+
+## The exports [#exports]
+
+| Export | Does |
+|---|---|
+| [`OpenMenu`](/docs/creators/client/openmenu) | Opens a menu |
+| [`UpdateMenu`](/docs/creators/client/updatemenu) | Patches your open menu |
+| [`CloseMenu`](/docs/creators/client/closemenu) | Closes your menu |
+| [`OpenForm`](/docs/creators/client/openform) | Opens a form |
+| [`CloseForm`](/docs/creators/client/closeform) | Cancels your form |
+| [`ShowToast`](/docs/creators/client/showtoast) | Shows a toast |
+| [`DismissToast`](/docs/creators/client/dismisstoast) | Removes your toast |
+| [`StartProgress`](/docs/creators/client/startprogress) | Runs a progress bar |
+| [`StopProgress`](/docs/creators/client/stopprogress) | Stops your bar |
+| [`PlayAnimation`](/docs/creators/client/playanimation) | Asks for an emote on the local player |
+| [`StopAnimation`](/docs/creators/client/stopanimation) | Stops your animation |
+| [`Subscribe`](/docs/creators/client/subscribe) | Forwards an OPX client event to you |
+| [`Unsubscribe`](/docs/creators/client/unsubscribe) | Stops forwarding it |
+
+Errors common to all: `export.callerDenied`, `export.badArgument`, `error.unavailable` (the module is not running), `stale_handle`, and the codes of the module behind the export (for example `menu_busy`, `form_busy`, `progress_busy`, or a spec error such as `invalid_items`).
+
+## Subscribing to OPX client events [#subscribe]
+
+Your resource cannot hear `opx_infinity`'s client events directly. [`Subscribe`](/docs/creators/client/subscribe) forwards one to your [reply export](#replies) every time it is raised, until you unsubscribe or your resource stops. Each arrives as `(event, payload)` with **one table**:
+
+| Event | Payload |
+|---|---|
+| `opx:on:character:loaded` | the character's PlayerData **without `metadata`** |
+| `opx:on:character:unloaded` | `{}` |
+| `opx:on:character:changed` | PlayerData without `metadata` |
+| `opx:on:character:money` | `{ moneyType, amount, action, balance }` (one table, not four arguments) |
+| `opx:on:character:job` | the primary job table |
+| `opx:on:character:gang` | the primary gang table |
+| `opx:on:downed:changed` | `{ down, waiting }` |
+| `opx:on:inventory:changed` | `{ inventory, changes }` (see [inventory](/docs/opx_infinity/inventory/events)) |
+| `opx:on:inventory:used` | `{ name, slot, label, close, status?, animation? }` |
+| `opx:on:inventory:opened` | `{}` |
+| `opx:on:inventory:closed` | `{}` |
+| `opx:on:needs:changed` | `{ values, changed, source, citizenId, ready }` |
+| `opx:on:progress:state` | `{ open, owner?, label? }`. `owner` is your resource name for your bar; a bar drawn by **another** resource has no `owner`. |
+
+No other event can be subscribed to (`export.notSubscribable`).
+
+```lua title="my_hud/client.lua"
+exports('OnOpxEvent', function(event, payload) TriggerEvent(event, payload) end)
+
+CreateThread(function()
+	exports.opx_infinity:Subscribe('opx:on:character:money')
+end)
+
+AddEventHandler('opx:on:character:money', function(p)
+	print(('balance %s is now %d'):format(p.moneyType, p.balance))
+end)
+```
+
+## Ownership [#ownership]
+
+- Your screens are kept under the owner `ext:<your resource>`. You can update, close or stop only what you opened; you never take over another owner's menu or form.
+- When your resource stops, OPX closes your menus (reason `owner_stopped`) and forms, stops your bar and your animation, and drops your subscriptions.
+
+## Example: a shop menu [#example]
+
+```lua title="my_shop/client/main.lua"
+exports('OnOpxEvent', function(event, payload) TriggerEvent(event, payload) end)
+
+local function openShop()
+	local answer = exports.opx_infinity:OpenMenu({
+		title = 'NIGHT MARKET',
+		closeOnSelect = true,
+		items = {
+			{ id = 'water', label = 'Water', value = '5 €$' },
+			{ id = 'burrito', label = 'Burrito', value = '12 €$' },
+		},
+	})
+	if not answer.ok then print('menu refused: ' .. answer.error) end
+end
+
+AddEventHandler('opx:on:menu:action', function(p)
+	if p.action == 'select' and p.itemId then
+		-- ask YOUR server to sell it; the server checks and charges
+		TriggerServerEvent('my_shop:buy', p.itemId)
+	end
+end)
+```
+
+On the server, `my_shop:buy` re-checks the item and the player, then charges with [`RemoveMoney`](/docs/creators/server/removemoney#export-server-removemoney) and gives with [`AddItem`](/docs/creators/server/additem#export-server-additem), both awaited.

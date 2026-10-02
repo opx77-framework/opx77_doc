@@ -1,0 +1,124 @@
+---
+title: Client
+description: The animations contract on the client — play, stop and list animations on the local player.
+---
+
+```lua
+local anim = OPX.Api.Get('animations')
+```
+
+From client code inside opx_infinity. Every function answers a Result and does not yield; one that raises answers `internal_error`.
+
+## Play [#client-animations-play]
+
+Sends a play request. The server's verdict arrives on [`opx:on:animations:result`](/docs/opx_infinity/animations/events#opx-on-animations-result) with the same `requestId`.
+
+```lua
+anim.Play(name, options, owner)
+```
+
+**Parameters**
+- name: `string`
+- options?: `table` — see [Play options](#play-options)
+- owner?: `string`
+  - Your module id: the animation stops when that module stops, and the owner may stop or replace its own locked animation.
+
+**Returns**
+- `Result` — `{ queued = true, requestId, animation, variant }`
+
+```lua title="Example"
+local sent = anim.Play('drink', { loop = false, durationMs = 4000, cancelable = false }, 'mymodule')
+if not sent.ok then print(sent.error) end
+```
+
+### Play options [#play-options]
+
+- variant?: `integer` — default: the first offered
+- clip?: `string` — engine clip name, instead of `variant`
+- loop?: `boolean` — default `LOOP_BY_DEFAULT`; `false` plays once for `ONE_SHOT_MS` unless `durationMs` is given
+- durationMs?: `integer` — 1000..`MAX_DURATION_MS`; default none
+- cancelable?: `boolean` — default `true`; `false` blocks `/opx.anim.stop`, the stop key and other plays until it ends. Needs a duration (or a non-looping play).
+
+## Stop [#client-animations-stop]
+
+Stops the local player's animation. Refused with `animation_locked` while a non-cancelable one runs, unless `owner` started it.
+
+```lua
+anim.Stop(owner)
+```
+
+**Parameters**
+- owner?: `string`
+
+**Returns**
+- `Result` — `{ queued, requestId? }`
+
+## List [#client-animations-list]
+
+```lua
+anim.List(category)
+```
+
+**Parameters**
+- category?: `string`
+
+**Returns**
+- `Result` — `{ animations = { listing, … } }`, each listing:
+  - `name`, `label`, `category`, `categoryLabel`, `prop`, `placement`
+  - `variants`: `{ { variant, clip, words } }`
+
+## Categories [#client-animations-categories]
+
+```lua
+anim.Categories()
+```
+
+**Returns**
+- `Result` — `{ categories = { { name, label, count } } }`
+
+## Get [#client-animations-get]
+
+```lua
+anim.Get(name)
+```
+
+**Parameters**
+- name: `string`
+
+**Returns**
+- `Result` — `{ animation = listing }` (as in [List](#client-animations-list))
+
+## State [#client-animations-state]
+
+What a player is playing, as seen by this client.
+
+```lua
+anim.State(playerId)
+```
+
+**Parameters**
+- playerId?: `number` — default: you
+
+**Returns**
+- `Result` — `{ active, playbackId?, animation?, clip?, variant?, known?, step?, steps?, cycle?, presenting }`; errors `invalid_player`, `presentation_unavailable`
+
+## OpenPicker [#client-animations-openpicker]
+
+```lua
+anim.OpenPicker(category)
+```
+
+**Parameters**
+- category?: `string`
+
+**Returns**
+- `Result` — `{ queued = true }`
+
+## ClosePicker [#client-animations-closepicker]
+
+```lua
+anim.ClosePicker()
+```
+
+**Returns**
+- `Result` — `{ queued = true }`; error `picker_not_open` if none is up

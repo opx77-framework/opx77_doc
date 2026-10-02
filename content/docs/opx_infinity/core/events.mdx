@@ -1,0 +1,130 @@
+---
+title: Events
+description: The net events the core itself sends and listens to, the host event names in OPX.Host, the core's WebUI page channels, and its private internal events.
+---
+
+The core's own events, outside any module: refusals and command answers going to a player, notes coming back to the server journal, and the WebUI channels every view shares. Use this page for the exact name or payload, e.g. to draw command answers in a custom chat. Module events are on each module's events page; the three prefixes are explained in [Events and channels](/docs/opx_infinity/concepts/events).
+
+The core calls itself `runtime` on the net channel: `opx:net:runtime:<verb>`.
+
+# Net events [#net]
+
+## opx:net:runtime:notify [#opx-net-runtime-notify]
+
+Server → client. A refusal, sent by [`OPX.Refuse`](/docs/opx_infinity/core/server#opx-refuse). The client shows `locale(code)` as an error toast; an `icon` outside `OPX.Glyphs` is dropped.
+
+```lua
+RegisterNetEvent('opx:net:runtime:notify', function(payload) end)
+```
+
+- payload: `table`
+  - kind: `'error'`
+  - code: `string` — always a locale key that exists
+  - operation: `string`
+  - icon?: `string`
+
+## opx:net:runtime:commandAnswer [#opx-net-runtime-commandanswer]
+
+Server → client. What a command did, sent by [`OPX.CommandNotice`](/docs/opx_infinity/core/server#opx-commandnotice). The client shows `message` as a toast with id `opx.command` (a new answer replaces the last one), unless `toasted` is `true`.
+
+```lua
+RegisterNetEvent('opx:net:runtime:commandAnswer', function(raw, kind, message, toasted, icon) end)
+```
+
+- raw: `string`
+- kind: `string`
+- message: `string`
+- toasted: `boolean`
+- icon?: `string`
+
+## opx:net:runtime:commandResult [#opx-net-runtime-commandresult]
+
+Server → client. A command's read-back (a list or a dump), sent by [`OPX.CommandResult`](/docs/opx_infinity/core/server#opx-commandresult). The [chat](/docs/opx_infinity/chat) module draws it, styled by `kind`; with no listener nothing is shown.
+
+```lua
+RegisterNetEvent('opx:net:runtime:commandResult', function(line) end)
+```
+
+- line: `table`
+  - kind: `'info' | 'error'`
+  - author: `string` — `SERVER_NAME`
+  - text: `string`
+
+## opx:net:runtime:note [#opx-net-runtime-note]
+
+Client → server. One line for the server journal, sent by [`OPX.Note`](/docs/opx_infinity/core/client#opx-note). Evidence only: nothing reads it back.
+
+```lua
+TriggerServerEvent('opx:net:runtime:note', module, text)
+```
+
+- module: `string` — 1–32 characters matching `^[a-z0-9][a-z0-9_.-]*$`, else dropped
+- text: `string` — 1–2048 bytes, else dropped; stripped of control characters and cut to 400 characters
+
+The server allows 12 per player per 10 s and 60 per session.
+
+<Callout type="warn">
+
+Any client can raise `opx:net:runtime:note`. Do not act on what it says.
+
+</Callout>
+
+# Host events (OPX.Host) [#host]
+
+`OPX.Host` names the platform's own events, so code does not spell them by hand.
+
+| Key | Event name | Side the core uses it on |
+|---|---|---|
+| `PLAYER_CONNECTED` | `onPlayerConnected` | server |
+| `PLAYER_DISCONNECTED` | `onPlayerDisconnected` | server — the core clears notes, cooldowns and any session left behind |
+| `PLAYER_READY` | `onPlayerReady` | server — the core warns when the host opened a gate the core was holding (`liveness_lost:` or `timeout:`), or when it was never held (`no_holds`) |
+| `CLIENT_RESOURCE_START` | `onClientResourceStart` | client — client boot |
+| `CLIENT_RESOURCE_STOP` | `onClientResourceStop` | client — client shutdown |
+| `RESOURCE_START` | `onResourceStart` | server |
+| `RESOURCE_STOP` | `onResourceStop` | server — stops jobs and modules, releases selection buckets |
+| `WORLD_READY` | `open77:worldReady` | — |
+| `GAMEPLAY_READY` | `open77:session:gameplayReady` | — the platform's own gate hold clears only after a client sends it |
+| `VEHICLE_REMOVED` | `onVehicleRemoved` | — |
+| `TUNABLE_CHANGED` | `onTunableChanged` | server — re-raised as `opx:in:tune:changed` |
+| `KEYBINDS_CHANGED` | `open77:keybinds:changed` | client, no payload — raised after any key mapping is registered, rebound, reset or removed. Every module that shows a key name (admin, animations, clothing, dealership, garages, inventory, prompts, teleports) listens to this one constant to redraw. |
+
+The server and client pairs are different names: `CLIENT_RESOURCE_START` on the server registers a handler nothing raises.
+
+# Page channels [#page-channels]
+
+The runtime has one WebUI page, id `opx`. Lua sends and listens on `<channel>`; the page sees `opx:<channel>` ([The WebUI page](/docs/opx_infinity/concepts/webui)).
+
+## Page → Lua [#page-to-lua]
+
+| Channel | Payload | Meaning |
+|---|---|---|
+| <a id="page-ready" />`ready` | — | The page has loaded. Nothing is sent to it before this. Lua then writes the locale catalogue with `locale:set`. |
+| <a id="page-module-ready" />`<module>:ready` | any | A view has mounted. The core wires one for every declared module before any module starts, and holds what arrives (up to 8 payloads) until the module registers its handler. |
+| <a id="page-focus-set" />`focus:set` | `{ focus, owner }` | What the page holds focus for. With `focus` not `true` (or no `owner`), the core empties the Lua focus stack and drops focus; otherwise it drops every owner above `owner`. Modules may listen as well. |
+| <a id="page-diag" />`diag` | `{ text }` | A page-side error or message, written to the client log as `[surface opx] page: <text>`. |
+| <a id="page-notify-ready" />`notify:ready` | — | The toast view has mounted. Lua answers with `notify:config`, `notify:down` if the player is down, and every toast still up. |
+| <a id="page-notify-gone" />`notify:gone` | `{ id }` | A toast finished its countdown. Lua forgets it. |
+
+## Lua → page [#lua-to-page]
+
+| Channel | Payload | Meaning |
+|---|---|---|
+| `locale:set` | `{ locale, strings, first, done }` | The locale catalogue, in parts of 250 keys, one part per frame. `first` clears the page's copy; `done` marks the last part. |
+| `reply` | `{ ref, ... }` | The answer to a page request, from [`OPX.UI.Answer`](/docs/opx_infinity/core/client#opx-ui-answer). |
+| `notify:config` | `{ position, width }` | From [`TOASTS`](/docs/opx_infinity/core/config#config-client-toasts). |
+| `notify:show` | `{ id, kind, title, message, icon, durationMs, stinger }` | Show or replace a toast. |
+| `notify:update` | the whole toast | A toast changed. |
+| `notify:dismiss` | `{ id }` | Take one toast down. |
+| `notify:clear` | `{}` | Take every toast down. |
+| `notify:down` | `{ down }` | Hide or show the toast stacks. |
+
+# Internal events [#internal]
+
+Private to `opx_infinity`, raised with `TriggerEvent` on the server. A server `TriggerEvent` reaches every server resource, so another resource can hear them, but they are not a supported API and may change.
+
+| Event | Arguments | Raised when |
+|---|---|---|
+| `opx:in:gate:held` | `source` | [`OPX.Gate.Hold`](/docs/opx_infinity/core/server#opx-gate-hold) took a hold. No module listens to it in this version. |
+| `opx:in:gate:released` | `source, note` | [`OPX.Gate.Release`](/docs/opx_infinity/core/server#opx-gate-release) released one. No module listens to it in this version. |
+| `opx:in:session:forgotten` | `playerId` | [`OPX.ForgetSession`](/docs/opx_infinity/core/server#opx-forgetsession) is dropping a session. The `character` module unloads on it. |
+| `opx:in:tune:changed` | `key` | The host reported a tunable change. No module listens to it in this version: read tunables with `OPX.Tune.Number` at the moment of use. |

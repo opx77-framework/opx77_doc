@@ -1,0 +1,39 @@
+---
+title: SetGang
+description: Sets a character's primary gang and grade.
+---
+
+<a id="export-server-setgang" />
+
+```lua
+local res = exports.opx_infinity:SetGang(target, name, grade)
+```
+
+Scope `write` · must be awaited — a synchronous call answers `export.mustAwait` before touching anything.
+
+**Parameters**
+- target: `number | string` — player id or citizen id
+- name: `string`
+- grade?: `integer`
+
+- `target` is a connected player id or a citizen id (a character nobody is playing).
+- `grade` is 0–255, default 0.
+- Joins the gang (or regrades) and makes it primary.
+- Goes through the same function as the staff commands: the [`gang:beforeSet` hook](/docs/opx_infinity/character/events#hooks) can veto it; a change raises [`opx:on:character:gang`](/docs/creators/events#opx-on-character-gang).
+- `name` is 1–48 characters: letters, digits, `_`, `-`, `.`.
+
+**Returns**
+- the new primary gang table
+
+**Errors**
+- `gang.notFound`, `gang.gradeNotFound`, `gang.vetoed`, `character.notFound`, `export.badArgument`, `error.unavailable`
+
+```lua title="Example"
+CreateThread(function()
+  local pending, why = Open77.exports.call('opx_infinity', 'SetGang', playerId, 'valentinos')
+  if not pending then return print('not sent: ' .. tostring(why)) end
+  local res = pending:await()
+  if not (res and res.ok) then return print('refused: ' .. tostring(res and res.error)) end
+  print('joined ' .. res.value.label)
+end)
+```

@@ -1,0 +1,33 @@
+---
+title: Client
+description: The weather contract on the client — the projected clock and sky.
+---
+
+```lua
+local weather = OPX.Api.Get('weather')
+```
+
+## State [#client-weather-state]
+
+The applied snapshot, with the time projected to now. A flat table, not `{ ok, value }`.
+
+```lua
+weather.State()
+```
+
+**Returns**
+- `table`
+  - `ok`: `true`
+  - `hour`, `minute`, `second`, `secondsOfDay`: `number`
+  - `weather`, `weatherPreset`: `string`
+  - `timeFrozen`, `weatherFrozen`: `boolean`
+  - `revision`, `weatherRevision`: `number`
+  - `latencyCompensationMs`: `number`
+- or `{ ok = false, error }`
+  - `not_synchronized`: no snapshot yet.
+  - `environment_unavailable`: no environment natives on this client.
+
+```lua title="Example"
+local now = weather.State()
+if now.ok then print(('%02d:%02d %s'):format(now.hour, now.minute, now.weather)) end
+```

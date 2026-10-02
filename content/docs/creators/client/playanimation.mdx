@@ -1,0 +1,28 @@
+---
+title: PlayAnimation
+description: Asks the server to play an emote on the local player.
+---
+
+<a id="export-client-playanimation" />
+
+```lua
+local res = exports.opx_infinity:PlayAnimation(name, options, reply)
+```
+
+Sync. The server's verdict reaches your [reply export](/docs/creators/client#replies) as `opx:on:animations:result` `{ requestId, action, ok, error?, animation?, variant?, playbackId?, ... }` with the same `requestId`.
+
+**Parameters**
+- name: `string` — 1–64 characters
+- options?: `table` — as the module's [Play options](/docs/opx_infinity/animations/client#play-options)
+- reply?: `string` — the export the verdict goes to
+
+**Returns**
+- `{ queued = true, requestId, animation, variant }`
+
+**Errors**
+- `export.callerDenied`, `export.badArgument`, `error.unavailable` (module not running), and the module's codes
+
+```lua title="Example"
+local res = exports.opx_infinity:PlayAnimation('wave')
+if res.ok then pendingWave = res.value.requestId end
+```

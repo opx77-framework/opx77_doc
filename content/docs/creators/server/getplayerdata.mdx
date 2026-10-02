@@ -1,0 +1,27 @@
+---
+title: GetPlayerData
+description: The public view of a connected player's loaded character.
+---
+
+<a id="export-server-getplayerdata" />
+
+```lua
+local res = exports.opx_infinity:GetPlayerData(source)
+```
+
+Scope `read` · sync.
+
+**Parameters**
+- source: `number` — a connected player id
+
+**Returns**
+- `{ source, citizenId, userId, firstName, lastName, money, job, gang, jobs, gangs }` — no metadata
+  - `money`, `job`, `gang`, `jobs`, `gangs` have the shapes of the [Player object](/docs/opx_infinity/character/player#player).
+
+**Errors**
+- `export.badArgument`, `error.notLoggedIn`
+
+```lua title="Example"
+local res = exports.opx_infinity:GetPlayerData(source)
+if res.ok then print(res.value.firstName, res.value.citizenId) end
+```

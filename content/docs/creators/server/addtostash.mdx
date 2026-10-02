@@ -1,0 +1,44 @@
+---
+title: AddToStash
+description: Puts items into a stash, creating it under your resource name if allowed.
+---
+
+<a id="export-server-addtostash" />
+
+```lua
+local res = exports.opx_infinity:AddToStash(stash, item, count, metadata)
+```
+
+Scope `write` · must be awaited — a synchronous call answers `export.mustAwait` before touching anything.
+
+**Parameters**
+- stash: `string`
+- item: `string`
+- count?: `integer`
+- metadata?: `table`
+
+- `stash` is the storage key, 1–48 characters: letters, digits, `_`, `-`, `.`.
+- The stash is loaded, never opened in front of a player. One loaded this way and not opened by a player is saved and put away [`STASHES.IDLE_MS`](/docs/opx_infinity/core/config#config-server-exports) (60 s) after its last use.
+- `count` is 1–1 000 000, default 1; with `metadata`, only stacks with exactly that metadata match.
+
+A stash that does not exist is created only when:
+- it is listed in `config/inventory.lua` (`STASHES`), or
+- its name starts with **your resource name and a dot** (`my_shop.backroom`) and your resource has created fewer than [`STASHES.CREATE_CAP`](/docs/opx_infinity/core/config#config-server-exports) (25) of those. The count is read from the database, so a restart does not reset it.
+
+Otherwise it answers `stash_namespace` (wrong name) or `stash_cap` (too many). A stash that already exists is used whatever its name.
+
+**Returns**
+- `true`
+
+**Errors**
+- `stash_namespace`, `stash_cap`, `export.badArgument`, [inventory codes](/docs/opx_infinity/inventory#codes)
+
+```lua title="Example"
+CreateThread(function()
+  local pending, why = Open77.exports.call('opx_infinity', 'AddToStash', 'my_shop.backroom', 'water', 24)
+  if not pending then return print('not sent: ' .. tostring(why)) end
+  local res = pending:await()
+  if not (res and res.ok) then return print('refused: ' .. tostring(res and res.error)) end
+  print('restocked')
+end)
+```

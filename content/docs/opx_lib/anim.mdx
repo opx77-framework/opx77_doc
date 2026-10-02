@@ -1,0 +1,40 @@
+---
+title: Lib.Anim
+description: Play an emote on the local player or an animation on another body.
+---
+
+No permission declared by the module.
+
+## Lib.Anim.Self [#lib-anim-self]
+
+Plays an emote on the local player.
+
+```lua
+Lib.Anim.Self(animation, thirdPerson)
+```
+
+**Parameters**
+- animation: `string`
+- thirdPerson?: `boolean` — pull the camera out for the clip
+
+**Returns**
+- `Result` — error `invalid_animation`
+
+```lua title="Example"
+Lib.Anim.Self('wave', true)
+```
+
+## Lib.Anim.On [#lib-anim-on]
+
+Plays an animation on another body (never the local player).
+
+```lua
+Lib.Anim.On(entity, animation)
+```
+
+**Parameters**
+- entity: `number`
+- animation: `string`
+
+**Returns**
+- `Result` — errors `invalid_entity`, `is_local_player`, `invalid_animation`

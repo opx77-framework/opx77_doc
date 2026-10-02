@@ -1,0 +1,94 @@
+---
+title: Client
+description: The dealership contract on the client — the list, the offer answer and the dealer underfoot.
+---
+
+```lua
+local dealership = OPX.Api.Get('dealership')
+```
+
+From client code inside opx_infinity.
+
+## Open [#client-dealership-open]
+
+Same as pressing the key: opens the list for the dealer underfoot, or closes it if open.
+
+```lua
+dealership.Open(origin)
+```
+
+**Parameters**
+- origin?: `string` — echoed as `source` on [the decision](/docs/opx_infinity/dealership/events#opx-on-dealership-decision).
+
+**Returns**
+- `Result`
+
+## Close [#client-dealership-close]
+
+Closes the list. Refused when none is open.
+
+```lua
+dealership.Close()
+```
+
+**Returns**
+- `Result` `true` — error `not_open`
+
+## IsOpen [#client-dealership-isopen]
+
+```lua
+dealership.IsOpen()
+```
+
+**Returns**
+- `boolean`
+
+## Decide [#client-dealership-decide]
+
+Answers the offer waiting for this player.
+
+```lua
+dealership.Decide(yes, garage)
+```
+
+**Parameters**
+- yes: `boolean`
+- garage?: `string` — the garage to file it under (only sent with a yes); nil: the vehicles default. The server refuses an unknown one with `dealership.noSuchGarage`.
+
+**Returns**
+- `Result` `{ queued = true }` — errors `dealership.noOffer` (none waiting), `not_sent`
+
+```lua title="Example"
+dealership.Decide(true, 'watson_garage')
+```
+
+## Nearest [#client-dealership-nearest]
+
+```lua
+dealership.Nearest()
+```
+
+**Returns**
+- `Result` `{ key, label, kind }` — error `dealership.noSuchSpot` when not on a dealer
+
+## Spots [#client-dealership-spots]
+
+Dealers this client was sent (its own bucket).
+
+```lua
+dealership.Spots()
+```
+
+**Returns**
+- `Result` `{ spots }`
+
+## State [#client-dealership-state]
+
+Diagnostic: dealers, markers, nearest, open screen, stock count.
+
+```lua
+dealership.State()
+```
+
+**Returns**
+- `Result`

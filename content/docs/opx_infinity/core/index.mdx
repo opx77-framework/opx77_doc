@@ -1,0 +1,23 @@
+---
+title: Core
+description: The opx_infinity API that no single module owns — the OPX.* runtime, its configuration, runtime events, the lib/ helpers and the shared error codes.
+---
+
+Module APIs (contracts, commands, events, settings) are on each [module page](/docs/opx_infinity#modules). Everything here is reachable only from code running **inside** `opx_infinity` (`opx_infinity` publishes no Open77 exports besides the [creator exports](/docs/creators)); [`opx_lib`](/docs/opx_lib) is the one library any client resource can `require`.
+
+| Page | What is on it | Side |
+|---|---|---|
+| [Shared](/docs/opx_infinity/core/shared) | `OPX.Modules`, `OPX.Api`, `OPX.Event`, `OPX.Now`, `OPX.Scheduler`, runtime values, boot order | both |
+| [Server](/docs/opx_infinity/core/server) | `OPX.Publish`, `OPX.Command` and aliases, answers and refusals, the readiness gate, sessions, buckets, tunables, schema | server |
+| [Client](/docs/opx_infinity/core/client) | `OPX.UI`, `OPX.Toast`, `OPX.Note`, `OPX.Lib`, the client scheduler loop | client |
+| [Configuration](/docs/opx_infinity/core/config) | `config/shared.lua`, `config/server.lua`, `config/client.lua`, command aliases | both |
+| [Events](/docs/opx_infinity/core/events) | the core's own net events, host event names, the core page channels | both |
+| [Shared library (lib/)](/docs/opx_infinity/core/lib) | `OPX.Result`, `OPX.Text`, `OPX.Math`, `OPX.JobGate`, `OPX.Spots`, `OPX.Hooks`, `OPX.Locale`, `OPX.Storage`, `OPX.Audit`, `OPX.Surface`… | both / server / client |
+| [Error codes](/docs/opx_infinity/core/error-codes) | the shared refusal codes and the `Result` convention | both |
+
+## Reading the API pages [#conventions]
+
+- **Side** — `server`, `client` or `both`. A server-only function is `nil` on the client, and the other way round.
+- **Parameters** — in call order; `name?` is optional.
+- **Returns** — `Result` means `{ ok = true, value = … }` or `{ ok = false, error = code, detail = … }` ([Result convention](/docs/opx_infinity/core/error-codes#result)). `ok, code` means two values.
+- **Yields** — the call waits (database, network): call it from a thread.

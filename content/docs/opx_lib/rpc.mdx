@@ -1,0 +1,44 @@
+---
+title: Lib.Rpc
+description: Call another resource's client export and read its answer as a Result.
+---
+
+No permission. `Open77.exports` is absent when your manifest grants no export access. It can reach `opx_infinity`'s [client exports](/docs/creators/client), whose `{ ok, value | error }` answer it reads as a Result.
+
+## Lib.Rpc.IsRunning [#lib-rpc-isrunning]
+
+Whether a resource is running now.
+
+```lua
+Lib.Rpc.IsRunning(resource)
+```
+
+**Parameters**
+- resource: `string`
+
+**Returns**
+- `boolean`
+
+## Lib.Rpc.Call [#lib-rpc-call]
+
+Calls one client export on another resource through `Open77.exports.call` and awaits it. **Yields.** The remote must answer a table with `ok`.
+
+```lua
+Lib.Rpc.Call(resource, name, ...)
+```
+
+**Parameters**
+- resource: `string` — up to 64 bytes
+- name: `string` — up to 128 bytes
+- ...: `any`
+
+**Returns**
+- `Result` — the remote's answer table as `value`; `answered = true` when the remote itself answered
+  - errors `invalid_resource`, `invalid_name`, `no_exports`, `not_running`, `dispatch_raised`, `no_promise`, `malformed_answer`, the dispatch or await failure, or the remote's `error`
+
+```lua title="Example"
+CreateThread(function()
+  local shown = Lib.Rpc.Call('opx_infinity', 'ShowToast', { message = 'Order ready', kind = 'success' })
+  if not shown.ok then print(shown.error) end
+end)
+```

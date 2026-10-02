@@ -1,0 +1,189 @@
+---
+title: Client
+description: The panel contract on the client — open, patch, fill and close the drawer.
+---
+
+```lua
+local panel = OPX.Api.Get('panel')
+```
+
+From client code inside opx_infinity. Every function answers a Result. None yields. Messages written before the page is ready are queued (max 256), then sent once it reports ready.
+
+## Open [#client-panel-open]
+
+Opens a panel from a [spec](#the-panel-spec). An unknown field refuses it (`unknown_field`).
+
+```lua
+panel.Open(spec)
+```
+
+**Parameters**
+- spec: `table` — see [The panel spec](#the-panel-spec)
+
+**Returns**
+- `Result` — `{ handle, id }`; `panel_busy` if another owner's panel is open, unless `spec.steal = true`
+
+```lua title="Example"
+local opened = panel.Open({
+  owner = 'mymodule', id = 'stock', title = 'STOCK', search = true,
+  actions = { { id = 'buy', label = 'Buy', primary = true } },
+  on = function(p)
+    if p.action == 'select' then panel.Update(p.handle, { selected = { [p.tab] = p.item } }) end
+  end,
+})
+if opened.ok then panel.Append(opened.value.handle, { { id = 'a', label = 'Item A' } }, true) end
+```
+
+## Close [#client-panel-close]
+
+Closes it; the callback gets `close` with `reason`.
+
+```lua
+panel.Close(handle, reason)
+```
+
+**Parameters**
+- handle: `integer`
+- reason?: `string`
+  - Default `caller`, max 32 characters.
+
+**Returns**
+- `Result` — `true`
+
+## Update [#client-panel-update]
+
+Changes any [patchable field](#patchable-fields). `selected` is merged per tab.
+
+```lua
+panel.Update(handle, patch)
+```
+
+**Parameters**
+- handle?: `integer`
+  - `nil` targets the open panel; an old handle answers `stale_handle`.
+- patch: `table`
+  - Patchable fields, plus `clearItems = true` to empty the item list first.
+
+**Returns**
+- `Result` — `true`
+
+## Append [#client-panel-append]
+
+Adds [items](#items). An item with an existing `id` replaces it. Large batches are split to fit the host's 1024-node payload limit.
+
+```lua
+panel.Append(handle, items, done)
+```
+
+**Parameters**
+- handle?: `integer`
+- items: `table[]`
+  - Up to 200 per call, 5000 per panel.
+- done?: `boolean`
+  - `true` ends the loading state.
+
+**Returns**
+- `Result` — `true`
+
+## Confirm [#client-panel-confirm]
+
+Shows a confirm dialog. The answer arrives as a `confirm` action.
+
+```lua
+panel.Confirm(handle, question)
+```
+
+**Parameters**
+- handle?: `integer`
+- question: `table|false|nil`
+  - `{ id, title?, text?, yes?, no? }` — title max 60, text max 240, buttons max 40. `nil` or `false` withdraws it.
+
+**Returns**
+- `Result` — `true`
+
+```lua title="Example"
+panel.Confirm(handle, { id = 'buy', title = 'Buy it?', text = '250 eddies' })
+```
+
+## State [#client-panel-state]
+
+Whether a panel is open, and whose.
+
+```lua
+panel.State()
+```
+
+**Returns**
+- `Result`
+  - `{ open = false }`
+  - or `{ open, handle, owner, id, tab, items, busy, dialog }` — `items` is the item count
+
+## The panel spec [#the-panel-spec]
+
+Spec-only fields (cannot be patched):
+
+| Field | Type | Meaning |
+|---|---|---|
+| `owner` | string | Required. Your module id, max 64. Closes with `owner_stopped` if that module stops. |
+| `id` | string | Required. Panel id, max 64, echoed as `payload.panel`. |
+| `on` | function | Required. `on(payload)` for every action. |
+| `hover` | boolean | Report `hover`/`leave` on items. Default `false`. |
+| `dismiss` | `'close'` or `'ask'` | Escape on the page: `close` closes; `ask` raises a `dismiss` action and leaves the panel open. Default `close`. |
+| `columns` | `1` or `2` | Item columns. Default [`COLUMNS`](/docs/opx_infinity/panel#config-panel-columns). |
+| `steal` | boolean | Replace another owner's panel. |
+
+### Patchable fields
+
+Allowed in `Open` and `Update`.
+
+| Field | Shape | Meaning |
+|---|---|---|
+| `eyebrow`, `title`, `subtitle` | string (max 60, 60, 40) | Header text. |
+| `intro` | string (max 240) | Paragraph under the header. |
+| `tabs` | list of `{ id, label, marked?, disabled? }`, max 12 | Tab strip. |
+| `tab` | string | The active tab id. |
+| `search` | `true`, string, or `false` | Show the search box (string = initial text). Absent at open = no search box. |
+| `summary` | `{ label, value, action? }` | A summary plate; `action` is one button. |
+| `actions` | list of buttons, max 4 | The commit row. |
+| `tools` | list of buttons, max 8 | Buttons that adjust the view. |
+| `groups` | list of buttons, max 8 | Other screens reachable from this one. |
+| `sliders` | list of `{ id, label, count, index, value?, disabled? }`, max 12 | Ranges the caller owns. `index` is 0..`count`; 0 means "none". Replaces the item column with the rail. |
+| `tiles` | `{ slot, from, entries, labels?, images? }` | A window of up to 60 names for the picture grid of slider `slot`, starting at position `from`. See below. |
+| `selected` | `{ [tabId] = itemId or false }` | The selected item per tab. |
+| `status` | string, or `{ text, kind = 'info'/'error' }` | Status line, max 160. |
+| `busy` | boolean | While true, select, slide and button clicks are ignored. |
+| `loading` | boolean | Shows the loading label. |
+| `labels` | table | Overrides the words `count`, `empty`, `loading`, `search`, `nothing`, `confirmYes`, `confirmNo`. |
+| `clearItems` | boolean | `Update` only. |
+
+- A button is `{ id, label, icon?, primary?, disabled? }`: `id` max 64, `label` max 40, `icon` a name from `OPX.Glyphs`.
+- `tiles.entries` are the keys of the boxes (record names). `labels` (optional) is the caption under each box; `images` (optional) the picture in it: a bare file name under the page's `images/clothing/` (letters, digits, `_`, `-`, `.`; at most 64 characters), never a path.
+- `labels` and `images` are parallel to `entries` and must have the same length, or the whole `tiles` is refused (`invalid_tiles`). `''` means no caption or no picture; with no caption the box shows the entry name.
+
+## Items [#items]
+
+| Field | Meaning |
+|---|---|
+| `id` | Required, max 160 characters, no control characters. |
+| `label` | Required, max 80. |
+| `tab` | Tab id the item belongs to. |
+| `detail` | Second line, max 120. |
+| `disabled` | Drawn greyed. |
+
+## The action payload [#the-action-payload]
+
+`on(payload)` and [`opx:on:panel:action`](/docs/opx_infinity/panel/events#opx-on-panel-action) receive `{ panel, handle, owner, action, … }` plus:
+
+| `action` | Extra fields | Raised when |
+|---|---|---|
+| `select` | `item, tab` | An item was clicked (not while `busy`). The page does not select it itself: send `selected` back. |
+| `hover`, `leave` | `item, tab` / none | Pointer over an item, with `hover = true`. |
+| `tab` | `tab` | A tab was clicked. |
+| `action` | `id` | An `actions`, `tools`, `groups` or summary button was clicked (not while `busy`). |
+| `slide` | `id, index, commit` | A slider moved; `commit = false` is a preview, `true` the release. |
+| `tiles` | `slot, from` | The grid wants the window starting at `from`. Answer with `Update({ tiles = … })`. |
+| `confirm` | `item, value` | The dialog `item` was answered; `value` is true for yes. |
+| `dismiss` | none | Escape with `dismiss = 'ask'`. |
+| `close` | `reason` | `caller`, `dismissed`, `pause`, `reopened`, `superseded`, `owner_stopped`, `player_down`, `stopped`. |
+
+The pause key closes the panel even when `dismiss = 'ask'`.

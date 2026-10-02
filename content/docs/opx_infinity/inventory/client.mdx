@@ -1,0 +1,111 @@
+---
+title: Client
+description: The inventory contract on the client — open the screen and read the last bag the server pushed.
+---
+
+```lua
+local inventory = OPX.Api.Get('inventory')
+```
+
+From client code inside opx_infinity. Reads answer from the last bag the server pushed, never from what the screen predicts. Nothing yields. No function returns a Result.
+
+## Open [#client-inventory-open]
+
+Opens the bag screen. Does nothing while down, dead or already opening.
+
+```lua
+inventory.Open()
+```
+
+## Close [#client-inventory-close]
+
+Closes the screen.
+
+```lua
+inventory.Close()
+```
+
+## IsOpen [#client-inventory-isopen]
+
+```lua
+inventory.IsOpen()
+```
+
+**Returns**
+- `boolean`
+
+## GetInventory [#client-inventory-getinventory]
+
+The mirrored bag: same shape as the server's [`GetInventory`](/docs/opx_infinity/inventory/server#server-inventory-getinventory) value.
+
+```lua
+inventory.GetInventory()
+```
+
+**Returns**
+- `table?` — nil before the first push
+
+## GetItemCount [#client-inventory-getitemcount]
+
+No metadata filter.
+
+```lua
+inventory.GetItemCount(name)
+```
+
+**Parameters**
+- name: `string`
+
+**Returns**
+- `integer` — `0` before the first push
+
+## HasItem [#client-inventory-hasitem]
+
+```lua
+inventory.HasItem(name, count)
+```
+
+**Parameters**
+- name: `string`
+- count?: `integer`
+
+**Returns**
+- `boolean`
+
+```lua title="Example"
+if inventory.HasItem('lockpick') then --[[ show the row ]] end
+```
+
+## GetItem [#client-inventory-getitem]
+
+Same shape as the server's [`GetItem`](/docs/opx_infinity/inventory/server#server-inventory-getitem).
+
+```lua
+inventory.GetItem(name)
+```
+
+**Parameters**
+- name: `string`
+
+**Returns**
+- `table?`
+
+## GetHeldWeapon [#client-inventory-getheldweapon]
+
+```lua
+inventory.GetHeldWeapon()
+```
+
+**Returns**
+- `{ name, serial, slot }` or `nil`
+
+## OpenStash [#client-inventory-openstash]
+
+Asks to open a stash from [`STASHES`](/docs/opx_infinity/inventory#config-inventory-stashes). The server checks reach. A stash not in `STASHES` is refused.
+
+```lua
+inventory.OpenStash(name)
+```
+
+**Parameters**
+- name: `string` — the stash's `NAME`

@@ -1,0 +1,27 @@
+---
+title: HasGang
+description: Whether a player is in a gang, optionally from a grade.
+---
+
+<a id="export-server-hasgang" />
+
+```lua
+local res = exports.opx_infinity:HasGang(source, name, minGrade)
+```
+
+Scope `read` · sync.
+
+**Parameters**
+- source: `number`
+- name: `string`
+- minGrade?: `integer` — 0–255
+
+**Returns**
+- `boolean`
+
+**Errors**
+- `export.badArgument`, `error.notLoggedIn`
+
+```lua title="Example"
+local res = exports.opx_infinity:HasGang(playerId, 'valentinos')
+```

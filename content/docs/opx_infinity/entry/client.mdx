@@ -1,0 +1,32 @@
+---
+title: Client
+description: The entry contract on the client — what the join is still waiting on, and asking for the name again.
+---
+
+```lua
+local entry = OPX.Api.Get('entry')
+```
+
+From client code inside opx_infinity.
+
+## State [#client-entry-state]
+
+What the join is still waiting on.
+
+```lua
+entry.State()
+```
+
+**Returns**
+- `Result` `{ citizenId, creating, naming, named, wardrobe }`
+
+## AskName [#client-entry-askname]
+
+Shows the name form again now, skipping the retry delay.
+
+```lua
+entry.AskName()
+```
+
+**Returns**
+- `Result` — errors `no_character`, `already_asking`, `already_named`

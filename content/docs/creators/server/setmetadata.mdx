@@ -1,0 +1,39 @@
+---
+title: SetMetadata
+description: Writes or deletes a key in your resource's own metadata on a character.
+---
+
+<a id="export-server-setmetadata" />
+
+```lua
+local res = exports.opx_infinity:SetMetadata(source, key, value)
+```
+
+Scope `write` · sync — memory only, it answers at once.
+
+**Parameters**
+- source: `number`
+- key: `string`
+- value: `any` — plain data; `nil` deletes the key
+
+- Each resource has its **own** space: your `key` is stored as `ext.<your resource>.<key>`, so you cannot reach OPX's keys or another resource's.
+- **Online characters only.** Saved with the character.
+- `key`: one segment, 1–48 characters, letters, digits, `_` and `-` (no dot).
+- `value`: booleans, finite numbers, text, and tables of those keyed by text (up to 64 bytes) or position, at most 8 levels deep and 512 entries. Anything else is `export.badValue`.
+- Limits from [`SERVER.EXPORTS.METADATA`](/docs/opx_infinity/core/config#config-server-exports): 4096 bytes per value (encoded), 32 keys and 16384 bytes in total per resource per character. Over a limit: `export.tooLarge`.
+
+<Callout type="warn" title="No secrets in metadata">
+
+Metadata travels with the character's data to the **player's own client**. The player can read anything you store there.
+
+</Callout>
+
+**Returns**
+- `true`
+
+**Errors**
+- `export.badArgument`, `export.badValue`, `export.tooLarge`, `error.notLoggedIn`
+
+```lua title="Example"
+exports.opx_infinity:SetMetadata(source, 'deliveries', done + 1)
+```

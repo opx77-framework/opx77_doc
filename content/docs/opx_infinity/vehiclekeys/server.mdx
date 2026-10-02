@@ -1,0 +1,138 @@
+---
+title: Server
+description: The vehiclekeys contract on the server — plates, cutting and revoking keys, and turning the lock.
+---
+
+```lua
+local keys = OPX.Api.Get('vehiclekeys')
+```
+
+From server code inside opx_infinity. Functions that read the bag may yield: call them from a thread. `target` is a player source or a citizen id.
+
+## Identity [#server-vehiclekeys-identity]
+
+The vehicle's plate; mints a `TMP-` plate when it has none.
+
+```lua
+keys.Identity(vehicleId)
+```
+
+**Parameters**
+- vehicleId: `number | string` — the host's vehicle id
+
+**Returns**
+- `Result` — `{ plate, record, owned, label, owner? }`
+  - `owned` is true for a `vehicles` plate (`owner` = citizen id)
+
+## Count [#server-vehiclekeys-count]
+
+Keys to that plate in the bag of `target`.
+
+```lua
+keys.Count(target, plate)
+```
+
+**Parameters**
+- target: `number | string`
+- plate: `string`
+
+**Returns**
+- `integer` — `0` without inventory
+
+## Give [#server-vehiclekeys-give]
+
+Always adds one key.
+
+```lua
+keys.Give(target, plate, model)
+```
+
+**Parameters**
+- target: `number | string`
+- plate: `string`
+- model?: `string`
+  - A label or a TweakDB record, used for the key label.
+
+**Returns**
+- `Result` — `{ plate, label }`
+
+```lua title="Example"
+local cut = keys.Give(source, '12ABC345', 'Villefort Cortes')
+if not cut.ok then print(cut.error) end
+```
+
+## GiveFor [#server-vehiclekeys-givefor]
+
+Resolves the plate from the live vehicle ([`Identity`](#server-vehiclekeys-identity)), then `Give`.
+
+```lua
+keys.GiveFor(target, vehicleId, model)
+```
+
+**Parameters**
+- target: `number | string`
+- vehicleId: `number | string` — the host's vehicle id
+- model?: `string`
+
+**Returns**
+- `Result` — `{ plate, label }`
+
+## Ensure [#server-vehiclekeys-ensure]
+
+Adds a key only when the bag holds none.
+
+```lua
+keys.Ensure(target, plate, model)
+```
+
+**Parameters**
+- target: `number | string`
+- plate: `string`
+- model?: `string`
+
+**Returns**
+- `Result` — `{ given, plate, label }`; `given` says whether one was added
+
+## Revoke [#server-vehiclekeys-revoke]
+
+**Yields** for an offline bag. Takes every key to that plate out of one bag, whatever its label. Keys in stashes or trunks are not touched. Needs the inventory's `RemoveWhere` (else `vehiclekeys.unavailable`).
+
+```lua
+keys.Revoke(target, plate)
+```
+
+**Parameters**
+- target: `number | string`
+- plate: `string`
+
+**Returns**
+- `Result` — `{ plate, removed }`
+
+## RevokeAll [#server-vehiclekeys-revokeall]
+
+`Revoke` on the bag of every **loaded** character; offline bags are not walked. To re-key a car for good, change its plate. Audited `vehiclekeys.revokeAll`.
+
+```lua
+keys.RevokeAll(plate)
+```
+
+**Parameters**
+- plate: `string`
+
+**Returns**
+- `Result` — `{ plate, removed, holders }`
+
+## Toggle [#server-vehiclekeys-toggle]
+
+Locks or unlocks for a player who holds the key and is in reach. Does not mint a plate.
+
+```lua
+keys.Toggle(source, vehicleId)
+```
+
+**Parameters**
+- source: `number`
+- vehicleId: `number | string` — the host's vehicle id
+
+**Returns**
+- `Result` — `{ locked, label }`; `locked` is the new state

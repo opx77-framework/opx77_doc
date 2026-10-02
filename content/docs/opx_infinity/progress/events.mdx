@@ -1,0 +1,57 @@
+---
+title: Events
+description: Network and local events and page channels of the progress module.
+---
+
+The server half has no contract: a server module sends `opx:net:progress:start` itself and never hears the outcome.
+
+## opx:net:progress:start [#opx-net-progress-start]
+
+Server → client. Starts a bar owned by `@server`. A client `Stop` cannot end it.
+
+```lua
+TriggerClientEvent('opx:net:progress:start', playerId, spec)
+```
+
+- spec: `table` — as in [`Start`](/docs/opx_infinity/progress/client#client-progress-start)
+
+## opx:net:progress:cancel [#opx-net-progress-cancel]
+
+Server → client. Ends a bar owned by `@server` with `stopped`.
+
+```lua
+TriggerClientEvent('opx:net:progress:cancel', playerId)
+```
+
+## opx:on:progress:done [#opx-on-progress-done]
+
+Client, local. The bar ended.
+
+```lua
+AddEventHandler('opx:on:progress:done', function(done) end)
+```
+
+- done: `table`
+  - `owner`, `label`: `string`
+  - `ending`: `string` — `finished`, `stopped`, `cancelled` or `interrupted`
+  - `finished`: `boolean` — only `true` means the action happened
+
+## opx:on:progress:state [#opx-on-progress-state]
+
+Client, local. A bar went up or down.
+
+```lua
+AddEventHandler('opx:on:progress:state', function(state) end)
+```
+
+- state: `table` — `{ open, owner?, label? }`
+
+## Page channels
+
+On the `overlay` surface.
+
+| Channel | Direction | Payload | Meaning |
+|---|---|---|---|
+| `progress:show` | Lua → page | `{ label, durationMs, cancelable, cancelKey }` | Show the bar; the page animates from the duration. `cancelable` is true only when the bar allows it and the cancel key is registered; `cancelKey` is the bound key's label (drawn in the hint). |
+| `progress:hide` | Lua → page | `{}` | Hide the bar. |
+| <a id="page-progress-cancel" />`progress:cancel` | page → Lua | — | Removed. The player cancels with [`CANCEL_KEY`](/docs/opx_infinity/progress#config-progress-cancel-key) instead. |

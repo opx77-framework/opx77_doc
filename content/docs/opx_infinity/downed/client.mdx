@@ -1,0 +1,39 @@
+---
+title: Client
+description: The downed contract on the client — the local state and setting the down screen aside.
+---
+
+```lua
+local downed = OPX.Api.Get('downed')
+```
+
+## IsDown [#client-downed-isdown]
+
+The local player's state as the server last pushed it.
+
+```lua
+downed.IsDown()
+```
+
+**Returns**
+- `Result` `{ down, waiting }`
+
+## Suspend [#client-downed-suspend]
+
+Sets the down screen aside (it fades and gives the input back) while your own surface is up; `on = false` brings it back. A suspender whose module or resource stops is released automatically.
+
+```lua
+downed.Suspend(owner, on)
+```
+
+**Parameters**
+- owner: `string` — must be in [`SUSPENDERS`](/docs/opx_infinity/downed#config-downed-suspenders).
+- on: `boolean`
+
+**Returns**
+- `Result` `true` — errors `invalid_caller`, `caller_denied`
+
+```lua title="Example"
+downed.Suspend('admin', true)  -- panel opens
+downed.Suspend('admin', false) -- panel closed
+```

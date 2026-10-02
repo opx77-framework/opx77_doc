@@ -1,0 +1,22 @@
+---
+title: Events
+description: The local event of the entry module and what it listens to.
+---
+
+## opx:on:entry:state [#opx-on-entry-state]
+
+Client, local. Which screen of the join is up.
+
+```lua
+AddEventHandler('opx:on:entry:state', function(state) end)
+```
+
+- state: `table` — `{ open, phase }`
+  - `phase`: `'creator'`, `'name'`, `'wardrobe'` (a fitting room is still owed) or `'idle'`.
+  - `open`: `false` only for `'idle'`.
+
+## Listened to
+
+- `opx:on:character:loaded`, `changed` and `unloaded`.
+- The appearance module's `opx:on:appearance:decision`.
+- Refusals on `opx:net:runtime:notify` whose `operation` is `name`.

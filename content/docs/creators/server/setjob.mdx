@@ -1,0 +1,39 @@
+---
+title: SetJob
+description: Sets a character's primary job and grade.
+---
+
+<a id="export-server-setjob" />
+
+```lua
+local res = exports.opx_infinity:SetJob(target, name, grade)
+```
+
+Scope `write` · must be awaited — a synchronous call answers `export.mustAwait` before touching anything.
+
+**Parameters**
+- target: `number | string` — player id or citizen id
+- name: `string`
+- grade?: `integer`
+
+- `target` is a connected player id or a citizen id (a character nobody is playing).
+- `grade` is 0–255, default 0.
+- Joins the job (or regrades) and makes it primary; duty resets to the job's `defaultDuty`.
+- Goes through the same function as the staff commands: the [`job:beforeSet` hook](/docs/opx_infinity/character/events#hooks) can veto it; a change raises [`opx:on:character:job`](/docs/creators/events#opx-on-character-job).
+- `name` is 1–48 characters: letters, digits, `_`, `-`, `.`.
+
+**Returns**
+- the new primary job table
+
+**Errors**
+- `job.notFound`, `job.gradeNotFound`, `job.vetoed`, `character.notFound`, `export.badArgument`, `error.unavailable`
+
+```lua title="Example"
+CreateThread(function()
+  local pending, why = Open77.exports.call('opx_infinity', 'SetJob', playerId, 'mechanic', 1)
+  if not pending then return print('not sent: ' .. tostring(why)) end
+  local res = pending:await()
+  if not (res and res.ok) then return print('refused: ' .. tostring(res and res.error)) end
+  print('now ' .. res.value.label)
+end)
+```

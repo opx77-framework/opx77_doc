@@ -1,0 +1,45 @@
+---
+title: Two runtimes
+description: The Open77 dedicated server and game client run Lua differently — no require on the server, a per-resume instruction budget on the client, no metatables in shared code.
+---
+
+Open77 runs Lua on the **dedicated server** and in the **game client**, and they are not the same sandbox. Most surprises come from one of these differences.
+
+| | Server | Client |
+|---|---|---|
+| `require` | **no** | yes (used for `opx_lib`) |
+| `load`, `loadfile`, `dofile` | no | no |
+| `LoadResourceFile` | own resource only | own resource only |
+| `setmetatable`, `getmetatable` | yes | **no** |
+| Instruction budget | none (limit of 1,024 tasks) | **per resume; an overrun stops the coroutine silently** |
+| `TriggerEvent` reaches | every server resource | this resource only |
+| `GetGameTimer` | yes | no — use [`OPX.Now()`](/docs/opx_infinity/core/shared#opx-now) on both |
+| Logs (`Open77.log`) | the server journal | a file on the player's machine |
+
+## Shared scripts run on both [#shared]
+
+A `shared_script` runs in **both** sandboxes, so it may only use what both have: no `require`, no metatables. The CI checks this (`tools/check-sandbox-globals.py`).
+
+## Load order [#load-order]
+
+Scripts load in `open77.lua` order, with one platform rule on top: **every `shared_script` runs before any `server_script` or `client_script`**, even one listed below it. That is why `M.Settings` must not be captured at file scope ([Settings](/docs/opx_infinity/concepts/modules-and-contracts#settings)).
+
+## The client instruction budget [#budget]
+
+The client limits how many instructions a coroutine runs before it yields. Going over raises `Open77 script execution budget exceeded` and ends that coroutine: no crash, no repeat, often no log — it just stops.
+
+How `opx_infinity` copes:
+
+- every lifecycle phase yields one frame after each module;
+- repeating client work goes through one [scheduler](/docs/opx_infinity/concepts/scheduler) loop running at most four jobs per resume;
+- heavy per-frame work (e.g. the `target` module) is cut into slices.
+
+If a client feature "stops working" with no error, suspect the budget first. Client module failures reach the server journal as `client module: <id> failed ...` lines via the [diagnostics module](/docs/opx_infinity/diagnostics).
+
+## Why there is no server library [#no-server-lib]
+
+The server has no `require` and cannot read another resource's files, so no resource can load code into a server VM. Hence `opx_lib` is client-only, and server code uses the helpers in [`lib/shared/`](/docs/opx_infinity/core/lib), loaded by `opx_infinity`'s own manifest and installed on `OPX`.
+
+## Never guess a native [#natives]
+
+Open77 natives are not FiveM natives. Look each one up with the Open77 devkit before using it, and declare the manifest permission it needs ([Permissions](/docs/opx_infinity/concepts/permissions)).

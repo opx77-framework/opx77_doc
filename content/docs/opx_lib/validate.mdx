@@ -1,0 +1,113 @@
+---
+title: Lib.Validate
+description: Turn a value that came from outside into one you can use, or nil.
+---
+
+Pure. No permission. Each function answers the value, or `nil`.
+
+## Lib.Validate.Number [#lib-validate-number]
+
+A finite number within the inclusive bounds. Numeric strings are converted (`tonumber`); NaN and infinity are refused.
+
+```lua
+Lib.Validate.Number(value, low, high)
+```
+
+**Parameters**
+- value: `any`
+- low?: `number`
+- high?: `number`
+
+**Returns**
+- `number?`
+
+## Lib.Validate.Integer [#lib-validate-integer]
+
+A whole number within the bounds. A whole float (`3.0`) is accepted and narrowed; a fractional one is refused, never rounded.
+
+```lua
+Lib.Validate.Integer(value, low, high)
+```
+
+**Parameters**
+- value: `any`
+- low?: `integer`
+- high?: `integer`
+
+**Returns**
+- `integer?`
+
+```lua title="Example"
+local amount = Lib.Validate.Integer(payload.amount, 1, 100)
+if not amount then return end
+```
+
+## Lib.Validate.Text [#lib-validate-text]
+
+A non-empty string of at most `limit` **bytes**. Not trimmed.
+
+```lua
+Lib.Validate.Text(value, limit)
+```
+
+**Parameters**
+- value: `any`
+- limit?: `integer`
+
+**Returns**
+- `string?`
+
+## Lib.Validate.Word [#lib-validate-word]
+
+An identifier: letters, digits, `_ - .` only.
+
+```lua
+Lib.Validate.Word(value, limit)
+```
+
+**Parameters**
+- value: `any`
+- limit?: `integer`
+  - Bytes. Default: `64`.
+
+**Returns**
+- `string?`
+
+```lua title="Example"
+local name = Lib.Validate.Word(payload.name, 24)
+```
+
+## Lib.Validate.OneOf [#lib-validate-oneof]
+
+One of a closed set.
+
+```lua
+Lib.Validate.OneOf(value, allowed)
+```
+
+**Parameters**
+- value: `any`
+- allowed: `table`
+  - A set (`{ trunk = true }`) or a list (`{ 'trunk', 'glovebox' }`).
+
+**Returns**
+- `any?`
+
+```lua title="Example"
+local where = Lib.Validate.OneOf(payload.where, { 'trunk', 'glovebox' })
+```
+
+## Lib.Validate.Table [#lib-validate-table]
+
+A table with no metatable and at most `limit` entries (counted over `pairs`, so maps count too).
+
+```lua
+Lib.Validate.Table(value, limit)
+```
+
+**Parameters**
+- value: `any`
+- limit?: `integer`
+
+**Returns**
+- `table?`

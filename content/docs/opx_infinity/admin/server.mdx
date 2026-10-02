@@ -1,0 +1,67 @@
+---
+title: Server
+description: The admin contract on the server — staff check, roster and recent staff actions.
+---
+
+```lua
+local admin = OPX.Api.Get('admin')
+```
+
+From server code inside opx_infinity. Every member returns a Result, never yields and changes nothing: every change is a [command](/docs/opx_infinity/admin#commands).
+
+## IsStaff [#server-admin-isstaff]
+
+Whether the ACL grants the player `command.opx.admin`.
+
+```lua
+admin.IsStaff(playerId)
+```
+
+**Parameters**
+- playerId: `number`
+  - `0` (the console) is always staff.
+
+**Returns**
+- `Result` — `{ staff: boolean }`; `staff` is false when the ACL cannot be read.
+
+```lua title="Example"
+local res = admin.IsStaff(source)
+if res.ok and res.value.staff then print('staff') end
+```
+
+## Roster [#server-admin-roster]
+
+One row per connected player.
+
+```lua
+admin.Roster()
+```
+
+**Returns**
+- `Result` — `{ rows }`, each row:
+  - `id`: `number`
+  - `name`: `string` — character name, else account
+  - `user`: `string?` — account, when a character is loaded
+  - `citizenId`: `string?`
+  - `state`: `'loading' | 'gate' | 'down' | 'up'`
+  - `bucket`: `number`
+
+## RecentActions [#server-admin-recentactions]
+
+The latest staff actions from the in-memory ring, newest last.
+
+```lua
+admin.RecentActions(count)
+```
+
+**Parameters**
+- count?: `number`
+  - 1–200. Default 15.
+
+**Returns**
+- `Result` — `{ entries }`, each entry:
+  - `seq`, `atMs`: `number`
+  - `event`: `string` — e.g. `admin.player.kill`
+  - `ok`: `boolean`
+  - `actor`: `number` — 0 = console
+  - `actorName`, `target`, `targetName`, `detail`

@@ -1,0 +1,126 @@
+---
+title: Client
+description: The form contract on the client — open a form from a spec, set its status line, close it.
+---
+
+```lua
+local form = OPX.Api.Get('form')
+```
+
+From client code inside opx_infinity. Every function answers `{ ok = true, value = … }` or `{ ok = false, error = code }`. None yields: the answer arrives later through `spec.on`.
+
+## Open [#client-form-open]
+
+Opens a form from a [spec](#the-form-spec). Refused whole on the first bad field.
+
+- Another owner's form open: `form_busy` (there is no `steal`).
+- The same owner opening again cancels its old form with reason `reopened`.
+
+```lua
+form.Open(spec)
+```
+
+**Parameters**
+- spec: `table` — see [The form spec](#the-form-spec).
+
+**Returns**
+- `Result` `{ handle, id, fields }` — errors: the [refusal codes](/docs/opx_infinity/form#codes)
+
+```lua title="Example"
+OPX.Api.Get('form').Open({
+  owner = 'mymodule',
+  title = 'Withdraw',
+  fields = { { id = 'amount', label = 'Amount', charset = 'digits', required = true, maxLength = 7 } },
+  on = function(p)
+    if p.action == 'submit' then print(tonumber(p.values.amount)) end
+  end,
+})
+```
+
+## Close [#client-form-close]
+
+Takes the form down. The callback still runs, as `cancel` with reason `caller`.
+
+```lua
+form.Close(handle)
+```
+
+**Parameters**
+- handle: `number`
+
+**Returns**
+- `Result` `true` — errors `handle_required`, `no_form_open`, `stale_handle`
+
+## SetStatus [#client-form-setstatus]
+
+Writes the status line under the fields (max 120 characters), red when `bad`. Clears after [`STATUS_MS`](/docs/opx_infinity/form#config-form-status-ms).
+
+```lua
+form.SetStatus(handle, text, bad)
+```
+
+**Parameters**
+- handle?: `number`
+- text: `string?` — `nil` or `''` clears it.
+- bad?: `boolean`
+
+**Returns**
+- `Result` `true`
+
+```lua title="Example"
+form.SetStatus(handle, 'Not enough money', true)
+```
+
+## State [#client-form-state]
+
+The open form and the focused field.
+
+```lua
+form.State()
+```
+
+**Returns**
+- `Result` `{ open = false }` or `{ open, handle, owner, form, title, index, total, fieldId }`
+
+## The form spec
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `owner` | string | required | Your module id. Letters, digits, `_ : - .`, max 64. If that module stops, the form is cancelled (`owner_stopped`). |
+| `on` | function | required | `on(payload)`, called once on submit or cancel. See [The answer](#the-answer). |
+| `fields` | list | required | 1 to 8 [fields](#fields). Field ids must be unique. |
+| `id` | string | `owner` | Echoed as `payload.form`. |
+| `title` | string | `owner` upper-cased | The question, max 96 characters. |
+| `description` | string | — | A note under the title, max 160. |
+| `data` | table | — | Echoed as `payload.data`. Max 64 nodes, 4 levels. |
+| `cursor` | string or integer | first field | Field id or index to focus first. |
+| `status`, `statusBad` | string, boolean | — | Status line at open. |
+
+## Fields
+
+The kind comes from the shape: `options` makes a choice, `slider` makes a slider, anything else is text.
+
+| Kind | Shape | Answer value |
+|---|---|---|
+| text | `maxLength` (1..512, default 96), `placeholder` (max 64), `value` (initial text), `required`, `charset`, `pattern` | The typed string, `''` when empty. |
+| choice | `options = { 'A', 'B' }` or `{ { label, value }, … }` (max 64, label max 48), `selected` (index) | The chosen option's `value` (its label when no value was given). |
+| slider | `slider = { min = 0, max = 100, step = 1, value, suffix }` | A number. |
+
+Every field also takes `id` (default `field_<index>`), `label` (required, max 96) and `description` (max 160, shown when focused).
+
+| Text rule | Checked | On failure |
+|---|---|---|
+| `maxLength` | every keystroke | Keystroke refused, `form.refuse.tooLong` shown. |
+| `charset` | every keystroke | Keystroke refused, `form.refuse.character`. Values: `alnum`, `alpha`, `digits`, `hex`, `name` (letters, digits, space, `- _ . '`). |
+| `required` | on Enter | Focus moves to the field, `form.refuse.required`. |
+| `pattern` | on Enter | A Lua pattern, max 64 characters, anchored automatically. `form.refuse.format`. |
+
+## The answer
+
+`on(payload)` and [`opx:on:form:answer`](/docs/opx_infinity/form/events#opx-on-form-answer) receive:
+
+- `form`, `handle`, `owner`: which form.
+- `action`: `submit` or `cancel`.
+- `values`: on `submit` only, `{ [fieldId] = value }`.
+- `reason`: on `cancel` — `caller`, `dismissed` (Escape on the page), `pause`, `reopened`, `owner_stopped`, `player_down`, `stopped`.
+- `data`: the spec's `data`.

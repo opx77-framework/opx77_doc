@@ -1,0 +1,31 @@
+---
+title: Server
+description: The spawn contract on the server — offer the spawn menu to a joining character.
+---
+
+```lua
+local spawn = OPX.Api.Get('spawn')
+```
+
+From server code inside opx_infinity.
+
+## Offer [#server-spawn-offer]
+
+Called by `character` on every join. Does not yield. Do not call it for a character already placed.
+
+```lua
+spawn.Offer(source, citizenId)
+```
+
+**Parameters**
+- source: `number`
+- citizenId: `string`
+
+**Returns**
+- `boolean` — `true`: spawn has taken over placement; `false`: "place them yourself" (see [How a choice runs](/docs/opx_infinity/spawn#flow))
+
+```lua title="Example"
+if not spawn.Offer(source, citizenId) then
+  -- place the body yourself
+end
+```

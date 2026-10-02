@@ -1,0 +1,124 @@
+---
+title: Lib.Input
+description: Declare rebindable key actions and read the keyboard and cursor.
+---
+
+Permission `input.actions`. Up to 64 actions per resource (`Input.LIMIT`, enforced by the engine).
+
+## Lib.Input.On [#lib-input-on]
+
+Declares a rebindable action, shown in the game's key bindings. Passing `released` makes it a hold.
+
+```lua
+Lib.Input.On(id, label, key, pressed, released)
+```
+
+**Parameters**
+- id: `string`
+  - Unique in your resource; up to 64 bytes of `[A-Za-z0-9_.:-]`.
+- label: `string`
+  - Up to 96 bytes.
+- key: `string` — e.g. `'F6'`, `'CAPSLOCK'`
+- pressed: `function`
+- released?: `function`
+
+**Returns**
+- `Result` — the effective key (the saved rebind, else the default); errors `invalid_id`, `invalid_label`, `invalid_key`, `invalid_handler`
+
+```lua title="Example"
+Lib.Input.On('my_shop.open', 'Open shop', 'F6', function() openShop() end)
+```
+
+## Lib.Input.Off [#lib-input-off]
+
+Removes an action you declared.
+
+```lua
+Lib.Input.Off(id)
+```
+
+**Parameters**
+- id: `string`
+
+**Returns**
+- `Result` — error `invalid_id`
+
+## Lib.Input.Block [#lib-input-block]
+
+Blocks or unblocks one of the game's own actions.
+
+```lua
+Lib.Input.Block(action, blocked)
+```
+
+**Parameters**
+- action: `string`
+- blocked: `boolean`
+
+**Returns**
+- `Result` — error `invalid_action`
+
+## Lib.Input.IsCaptured [#lib-input-iscaptured]
+
+Whether another surface holds the keyboard. A read that raises answers `true`.
+
+```lua
+Lib.Input.IsCaptured()
+```
+
+**Returns**
+- `boolean`
+
+## Lib.Input.IsDown [#lib-input-isdown]
+
+Whether a key is held down now.
+
+```lua
+Lib.Input.IsDown(key)
+```
+
+**Parameters**
+- key: `string`
+
+**Returns**
+- `boolean`
+
+## Lib.Input.Cursor [#lib-input-cursor]
+
+The mouse cursor.
+
+```lua
+Lib.Input.Cursor()
+```
+
+**Returns**
+- `table?` — at least `inBounds` and `captured`; `nil` when it cannot be read
+
+## Lib.Input.KeyFor [#lib-input-keyfor]
+
+The key one of your actions answers to now, rebinds included.
+
+```lua
+Lib.Input.KeyFor(action)
+```
+
+**Parameters**
+- action: `string` — the id it was declared under
+
+**Returns**
+- `string?`
+
+```lua title="Example"
+Lib.Notify.Show(('Press %s to open the shop'):format(Lib.Input.KeyFor('my_shop.open') or 'F6'))
+```
+
+## Lib.Input.Mappings [#lib-input-mappings]
+
+Every key mapping on the client, all resources.
+
+```lua
+Lib.Input.Mappings()
+```
+
+**Returns**
+- `{ resource, id, key }[]?`, `string?` — the list, or `nil` and why

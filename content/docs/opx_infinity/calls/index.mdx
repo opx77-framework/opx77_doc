@@ -1,0 +1,75 @@
+---
+title: calls
+description: Holocalls between players — ring, answer, decline, hang up, add a third participant, and swap contacts face to face.
+---
+
+A player presses `H` to open a centred hologram with their contacts and recent calls, and calls someone from it. The callee hears the game's incoming-call sound and the hologram pops up; they answer with `Y` or refuse with `X` (`X` also hangs up a live call or withdraws a call you placed). During a call both players' eyes carry the game's blue holocall glow and they share a voice channel. A third player can be added. Contacts are swapped face to face through a row on the [target](/docs/opx_infinity/target) eye; only contacts appear in the hologram. The server owns every call; the client only asks.
+
+| | |
+|---|---|
+| Side | both |
+| Requires | `character` (hard) |
+| Optional | `target`, `menu` |
+| Contract | `calls` v1 — [server](/docs/opx_infinity/calls/server) (no client contract) |
+| Config | `config/calls.lua` (shared) |
+| Data | character metadata `callContacts` (≤ `MAX_CONTACTS` rows `{ citizenId, name }`) and `callRecent` (last 20 outcomes) |
+
+- One player is in at most one call, with at most one invite out and one waiting.
+- An invite has a `kind`, decided by the server: `call` (start a call), `join` (the sender is in a call; accepting adds you) or `contact` (swap contact rows; no call).
+- `invite`, `accept`, `decline` and `hangup` are each limited to one per `REQUEST_MS` per player; a refusal is shown as a toast.
+- A call is dropped when a participant disconnects, leaves the world or is no longer alive (checked every `SCAN_MS` and on life-state changes).
+- Audit entries: `calls.invite`, `calls.accept`, `calls.decline`, `calls.cancel`, `calls.hangUp`, `calls.contact`, `calls.unanswered`, `calls.eyes`, `calls.voice`.
+- No commands.
+
+## Key bindings [#keys]
+
+| Mapping id | Default | Label key | Action |
+|---|---|---|---|
+| `opx.calls.holo` | `H` | `calls.key.holo` | Open or close the hologram. |
+| `opx.calls.answer` | `Y` | `calls.key.answer` | Answer the waiting invite; nothing when nothing rings. |
+| `opx.calls.decline` | `X` | `calls.key.decline` | In order: refuse the invite ringing at you; else withdraw the invite you sent; else hang up the live call (`M.DeclineOrHangUp`). |
+
+`Y` is also the inventory hotbar peek and `X` stops an emote. Both actions fire; outside a call the calls handlers do nothing.
+
+## Configuration
+
+`config/calls.lua` sets `OPX.Config.MODULES.calls`. Shared script. Numbers are clamped to the ranges shown.
+
+| Key | Default | Effect |
+|---|---|---|
+| <a id="config-calls-enabled" />`enabled` | `true` | `false` switches the module off. |
+| <a id="config-calls-max-participants" />`MAX_PARTICIPANTS` | `3` | People on one call, 2–3 (3 is a hard ceiling). |
+| <a id="config-calls-invite-ttl-s" />`INVITE_TTL_S` | `30` | Seconds an unanswered invite rings, 5–300. Holds both players' invite slots meanwhile. |
+| <a id="config-calls-request-ms" />`REQUEST_MS` | `1500` | Minimum ms between two requests of one kind from one player, 0–60000. |
+| <a id="config-calls-contact-range" />`CONTACT_RANGE` | `6.0` | Metres between the two players for a contact swap, same bucket, 0.5–50. Calls have no range. |
+| <a id="config-calls-max-contacts" />`MAX_CONTACTS` | `64` | Contact rows per character, 1–512. The oldest is dropped past it. |
+| <a id="config-calls-eyes" />`EYES` | `{ LEASE_MS = 30000, RENEW_MS = 10000 }` | Eye-glow lease in ms (1000–600000), renewed every `RENEW_MS` (clamped 250..`LEASE_MS`/2), not on every `SCAN_MS` pass. |
+| <a id="config-calls-scan-ms" />`SCAN_MS` | `2000` | Ms between sweeps: expire invites, drop unreachable participants, renew due leases (250–30000). |
+| <a id="config-calls-sound" />`SOUND` | game `ui_phone_*` events | `INCOMING`, `INCOMING_STOP`, `ACCEPTED`, `DECLINED`, `OUTGOING`, `OUTGOING_STOP`, `HANG_UP`: Wwise events played with `Open77.sfx.play2d`. `''` switches one off. |
+| <a id="config-calls-ring-every-ms" />`RING_EVERY_MS` | `3500` | Ms between two plays of the ring, 1000–60000. |
+| <a id="config-calls-key" />`KEY` | `{ ID = 'opx.calls.holo', NAME = 'calls.key.holo', DEFAULT = 'H' }` | The hologram key. `false` (or no `DEFAULT`) binds none. |
+| <a id="config-calls-anchor" />`ANCHOR` | `'bottom-center'` | Hologram position: `top-left`, `top-center`, `top-right`, `left`, `center`, `right`, `bottom-left`, `bottom-center`, `bottom-right`. Unknown: logged, falls back to `bottom-center`. |
+| <a id="config-calls-answer-key" />`ANSWER_KEY` | `{ ID = 'opx.calls.answer', NAME = 'calls.key.answer', DEFAULT = 'Y' }` | The answer key. |
+| <a id="config-calls-decline-key" />`DECLINE_KEY` | `{ ID = 'opx.calls.decline', NAME = 'calls.key.decline', DEFAULT = 'X' }` | The refuse / hang-up key. |
+
+## Refusal codes [#codes]
+
+Shown to the player as `calls.error.<code>`.
+
+| Code | Meaning |
+|---|---|
+| `badRequest` | Malformed request. |
+| `tooFast` | Within `REQUEST_MS` of the last one. |
+| `self` | Calling yourself. |
+| `noSuchPlayer` | The target is not connected. |
+| `notReady` / `targetNotReady` | You / they are not in the world with a character. |
+| `notAlive` / `targetNotAlive` | You / they are down or dead. |
+| `alreadyInCall` / `targetInCall` | You / they are already on a call. |
+| `alreadyPending` / `targetPending` | You already have an invite out / they already have one waiting. |
+| `notInCall` | Hang up or add with no call. |
+| `callFull` | The call has `MAX_PARTICIPANTS`. |
+| `alreadyParticipant` | They are already on this call. |
+| `noSuchInvite` | No such invite waiting (or nothing to withdraw). |
+| `expired` | The invite rang out. |
+| `tooFar` | Contact swap outside `CONTACT_RANGE`. |
+| `unreadable` | A host read failed. |

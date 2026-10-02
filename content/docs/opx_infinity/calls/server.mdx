@@ -1,0 +1,81 @@
+---
+title: Server
+description: The calls contract on the server — read calls and contacts, hang a player up.
+---
+
+```lua
+local calls = OPX.Api.Get('calls')
+```
+
+From server code inside opx_infinity. Each function answers a Result; error codes are `calls.error.<reason>`.
+
+## IsOnCall [#server-calls-isoncall]
+
+```lua
+calls.IsOnCall(playerId)
+```
+
+**Parameters**
+- playerId: `number`
+
+**Returns**
+- `Result` — `{ onCall = false }` or `{ onCall = true, callId, founder, participants, elapsedMs }`; `participants` is a list of player ids.
+
+```lua title="Example"
+local res = calls.IsOnCall(source)
+if res.ok and res.value.onCall then print('on call', res.value.callId) end
+```
+
+## List [#server-calls-list]
+
+Every live call.
+
+```lua
+calls.List()
+```
+
+**Returns**
+- `Result` — `{ calls = { { id, participants = { { id, name } } } } }`
+
+## HangUp [#server-calls-hangup]
+
+Takes the player off their call; the call ends if fewer than two remain. The other participants get no toast.
+
+```lua
+calls.HangUp(playerId, caller)
+```
+
+**Parameters**
+- playerId: `number`
+- caller: `string` — only written to the audit line
+
+**Returns**
+- `Result` — `{ callId, ended }`
+
+## Eyes [#server-calls-eyes]
+
+Whether the holocall eye glow is on, and whether this module holds it.
+
+```lua
+calls.Eyes(playerId)
+```
+
+**Parameters**
+- playerId: `number`
+
+**Returns**
+- `Result` — `{ lit, ours }`; error `calls.error.unreadable`
+
+## Contacts [#server-calls-contacts]
+
+The player's stored contacts.
+
+```lua
+calls.Contacts(playerId)
+```
+
+**Parameters**
+- playerId: `number`
+
+**Returns**
+- `Result` — `{ contacts = { { citizenId, name } } }`

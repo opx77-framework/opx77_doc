@@ -1,0 +1,566 @@
+---
+title: Server
+description: The inventory contract on the server — give, take, count and check items in bags, stashes and trunks.
+---
+
+```lua
+local inventory = OPX.Api.Get('inventory')
+```
+
+From server code inside opx_infinity.
+
+- A **target** is a player id (their loaded character's bag) or a citizen id (also reaches an offline bag: loaded for the call, then written and released).
+- Every function that takes a target, a vehicle or a container **yields**: call it from a thread.
+- A `Result` is `{ ok = true, value }` or `{ ok = false, error, detail }`. Codes: [Refusal codes](/docs/opx_infinity/inventory#codes).
+
+```lua title="Example"
+CreateThread(function()
+    local inventory = OPX.Api.Get('inventory')
+    local result = inventory.AddItem(source, 'water', 2)
+    if not result.ok then print('refused: ' .. result.error) end
+end)
+```
+
+## AddItem [#server-inventory-additem]
+
+Adds items. Adds nothing on `no_room` / `too_heavy`. Yields. Audited.
+
+```lua
+inventory.AddItem(target, name, count, metadata)
+```
+
+**Parameters**
+- target: `number|string`
+- name: `string`
+- count?: `integer` — default 1
+- metadata?: `table` — copied onto each unit, max [`MAX_METADATA_BYTES`](/docs/opx_infinity/inventory#config-inventory-max-metadata-bytes) encoded
+
+**Returns**
+- `Result` — value `true`
+
+## RemoveItem [#server-inventory-removeitem]
+
+Takes from the last slot backwards. `not_enough` removes nothing. Yields.
+
+```lua
+inventory.RemoveItem(target, name, count, metadata)
+```
+
+**Parameters**
+- target: `number|string`
+- name: `string`
+- count?: `integer` — default 1
+- metadata?: `table` — nil matches any stack
+
+**Returns**
+- `Result` — value `true`
+
+## RemoveFromSlot [#server-inventory-removefromslot]
+
+One slot only. Yields.
+
+```lua
+inventory.RemoveFromSlot(target, slot, count)
+```
+
+**Parameters**
+- target: `number|string`
+- slot: `integer`
+- count?: `integer` — default the whole stack
+
+**Returns**
+- `Result` — value `true`
+
+## SetMetadata [#server-inventory-setmetadata]
+
+Replaces the stack's metadata. Yields.
+
+```lua
+inventory.SetMetadata(target, slot, metadata)
+```
+
+**Parameters**
+- target: `number|string`
+- slot: `integer`
+- metadata?: `table` — nil clears it
+
+**Returns**
+- `Result` — value `true`
+
+## ClearInventory [#server-inventory-clearinventory]
+
+Empties the bag. Yields.
+
+```lua
+inventory.ClearInventory(target)
+```
+
+**Parameters**
+- target: `number|string`
+
+**Returns**
+- `Result` — value `true`
+
+## GetItemCount [#server-inventory-getitemcount]
+
+Yields.
+
+```lua
+inventory.GetItemCount(target, name, metadata)
+```
+
+**Parameters**
+- target: `number|string`
+- name: `string`
+- metadata?: `table` — counts only stacks whose metadata is equal as a whole
+
+**Returns**
+- `Result` — value `integer`
+
+## CountWhere [#server-inventory-countwhere]
+
+Counts stacks whose metadata has every field of `match`. Yields.
+
+```lua
+inventory.CountWhere(target, name, match)
+```
+
+**Parameters**
+- target: `number|string`
+- name: `string`
+- match: `table` — non-empty; scalar values only (a table value matches nothing)
+
+**Returns**
+- `Result` — value `integer`
+
+```lua title="Example"
+local keys = inventory.CountWhere(source, 'vehicle_key', { plate = 'ABC123' })
+if keys.ok and keys.value > 0 then --[[ has a key ]] end
+```
+
+## RemoveWhere [#server-inventory-removewhere]
+
+Takes **every** unit of `name` whose metadata carries all fields of `match` (plain values only), whatever its other fields. Used to revoke keys. Yields for an offline bag. Audited `inventory.removeWhere`.
+
+```lua
+inventory.RemoveWhere(target, name, match)
+```
+
+**Parameters**
+- target: `number|string`
+- name: `string`
+- match: `table`
+
+**Returns**
+- `Result` — value `integer` (units taken)
+
+## HasItem [#server-inventory-hasitem]
+
+Ignores metadata. Yields.
+
+```lua
+inventory.HasItem(target, name, count)
+```
+
+**Parameters**
+- target: `number|string`
+- name: `string`
+- count?: `integer`
+
+**Returns**
+- `Result` — value `boolean`
+
+## CanCarry [#server-inventory-cancarry]
+
+Checks slots and weight. Gives no reason when false. Yields.
+
+```lua
+inventory.CanCarry(target, name, count, metadata)
+```
+
+**Parameters**
+- target: `number|string`
+- name: `string`
+- count?: `integer`
+- metadata?: `table`
+
+**Returns**
+- `Result` — value `boolean`
+
+## GetInventory [#server-inventory-getinventory]
+
+Yields.
+
+```lua
+inventory.GetInventory(target)
+```
+
+**Parameters**
+- target: `number|string`
+
+**Returns**
+- `Result` — value `{ id, kind, title, slots, maxWeight, weight, items }`
+  - `items`: `{ slot, name, count, metadata }[]`
+  - For a very large container, metadata other than `serial`, `ammo`, `durability`, `label`, `description` may be trimmed.
+
+## GetSlot [#server-inventory-getslot]
+
+A copy. Yields.
+
+```lua
+inventory.GetSlot(target, slot)
+```
+
+**Parameters**
+- target: `number|string`
+- slot: `integer`
+
+**Returns**
+- `Result` — value `{ slot, name, count, metadata }` or `nil`
+
+## AddToStash [#server-inventory-addtostash]
+
+Adds to a stash by its storage key, loading it without opening it. **Yields.** Audited `inventory.stashAdd`.
+
+```lua
+inventory.AddToStash(name, item, count, metadata, options)
+```
+
+**Parameters**
+- name: `string`
+- item: `string`
+- count?: `integer`
+- metadata?: `table`
+- options?: `table` — `{ creator, cap }` (what the export passes); limits creation
+  - A missing stash is created at the configured size (or 50 slots / 100 000 g).
+  - With `options`: only configured stashes, or names `<creator>.<name>` while the creator holds fewer than `cap` (default 25, counted in the database); else `stash_namespace` / `stash_cap`.
+
+**Returns**
+- `Result` — value `true`
+
+## RemoveFromStash [#server-inventory-removefromstash]
+
+Never creates a stash: a missing one answers `not_enough`. **Yields.** Audited `inventory.stashRemove`.
+
+```lua
+inventory.RemoveFromStash(name, item, count, metadata)
+```
+
+**Parameters**
+- name: `string`
+- item: `string`
+- count?: `integer`
+- metadata?: `table` — nil matches any stack
+
+**Returns**
+- `Result` — value `true`
+
+## CountInStash [#server-inventory-countinstash]
+
+`0` for a stash that does not exist (none is created). **Yields.**
+
+```lua
+inventory.CountInStash(name, item, metadata)
+```
+
+**Parameters**
+- name: `string`
+- item: `string`
+- metadata?: `table`
+
+**Returns**
+- `Result` — value `integer`
+
+## OpenStash [#server-inventory-openstash]
+
+Opens a stash beside the player's bag and raises their screen. Yields. The caller decides who may open it; this only checks reach, and only when `position` is given.
+
+```lua
+inventory.OpenStash(playerId, name, options)
+```
+
+**Parameters**
+- playerId: `number`
+- name: `string`
+- options?: `table`
+  - `slots`: default 50
+  - `maxWeight`: default 100000
+  - `label`, `position` (`{ x, y, z }`), `bucket`
+
+**Returns**
+- `Result` — value: container id
+
+```lua title="Example"
+inventory.OpenStash(source, 'police_evidence', {
+    label = 'Evidence', position = { x = 10.0, y = 20.0, z = 7.5 },
+})
+```
+
+## AddToTrunk [#server-inventory-addtotrunk]
+
+Adds to a vehicle's trunk. Yields. A locked vehicle refuses (`locked`). With `source`, an owned trunk answers to its owner only while `TRUNK_OWNER_ONLY` is on (`not_yours`). No reach check.
+
+```lua
+inventory.AddToTrunk(vehicleId, name, count, metadata, source)
+```
+
+**Parameters**
+- vehicleId: `number|string` — the host id (number or decimal string)
+- name: `string`
+- count?: `integer`
+- metadata?: `table`
+- source?: `number`
+
+**Returns**
+- `Result` — value `true`
+
+## RemoveFromTrunk [#server-inventory-removefromtrunk]
+
+Same rules as `AddToTrunk`. Yields.
+
+```lua
+inventory.RemoveFromTrunk(vehicleId, name, count, metadata, source)
+```
+
+**Parameters**
+- vehicleId: `number|string`
+- name: `string`
+- count?: `integer`
+- metadata?: `table` — nil matches any stack
+- source?: `number`
+
+**Returns**
+- `Result` — value `true`
+
+## CountInTrunk [#server-inventory-countintrunk]
+
+Same rules as `AddToTrunk`. Yields.
+
+```lua
+inventory.CountInTrunk(vehicleId, name, metadata, source)
+```
+
+**Parameters**
+- vehicleId: `number|string`
+- name: `string`
+- metadata?: `table`
+- source?: `number`
+
+**Returns**
+- `Result` — value `integer`
+
+## TrunkLocked [#server-inventory-trunklocked]
+
+Whether the trunk is shut to everybody. Does not yield. Not a Result.
+
+```lua
+inventory.TrunkLocked(vehicleId)
+```
+
+**Parameters**
+- vehicleId: `number|string`
+
+**Returns**
+- `boolean` — `false` when the host cannot answer
+
+## GetItem [#server-inventory-getitem]
+
+Does not yield. Not a Result.
+
+```lua
+inventory.GetItem(name)
+```
+
+**Parameters**
+- name: `string`
+
+**Returns**
+- `table?` — `{ label, description, weight, image, usable, stackable, droppable, category, weapon, ammo }`; `weapon` and `ammo` are booleans
+
+## GetItems [#server-inventory-getitems]
+
+The whole catalogue. Does not yield. Not a Result.
+
+```lua
+inventory.GetItems()
+```
+
+**Returns**
+- `{ [name] = item }` — same shape as `GetItem`
+
+## Holders [#server-inventory-holders]
+
+Database read, largest stacks first. Yields.
+
+```lua
+inventory.Holders(name, limit)
+```
+
+**Parameters**
+- name: `string`
+- limit?: `integer` — 1–200, default 20
+
+**Returns**
+- `Result` — value `{ id, kind, owner, slot, count }[]`
+
+## ResizeContainer [#server-inventory-resizecontainer]
+
+The only way to change a stored container's size. Stacks past the new slot count are kept but not drawn. Yields.
+
+```lua
+inventory.ResizeContainer(kind, owner, slots, maxWeight)
+```
+
+**Parameters**
+- kind: `string`
+- owner: `string`
+- slots: `integer` — 1–200
+- maxWeight: `integer` — grams
+
+**Returns**
+- `Result` — value: container id
+
+## DeleteContainer [#server-inventory-deletecontainer]
+
+Deletes the row and **everything in it**. Refuses memory-only containers. Yields.
+
+```lua
+inventory.DeleteContainer(kind, owner)
+```
+
+**Parameters**
+- kind: `string` — a [container kind](/docs/opx_infinity/inventory#containers)
+- owner: `string`
+
+**Returns**
+- `Result` — value `true`
+
+## CloseInventory [#server-inventory-closeinventory]
+
+Closes the player's screen and the second container.
+
+```lua
+inventory.CloseInventory(playerId)
+```
+
+**Parameters**
+- playerId: `number`
+
+**Returns**
+- `Result` — value `true`
+
+## RegisterUsable [#server-inventory-registerusable]
+
+Sets the function called when the item is used. The last registration wins. Not called for weapons or ammunition.
+
+```lua
+inventory.RegisterUsable(name, handler, owner)
+```
+
+**Parameters**
+- name: `string`
+- handler: `function` — `handler(source, info)`
+  - `info`: `{ name, slot, count, metadata, label, citizenId }`
+  - Must return `{ ok = true, consume? }` or `{ ok = false, error? }` within [`USE_HANDLER_MS`](/docs/opx_infinity/inventory#config-inventory-use-handler-ms). Runs on its own thread and may yield.
+  - `consume` overrides `USE.CONSUME`.
+- owner?: `string`
+
+**Returns**
+- `ok`: `boolean`, `code`: `string?`
+
+```lua title="Example"
+inventory.RegisterUsable('lockpick', function(source, info)
+    if not nearDoor(source) then return { ok = false, error = 'too_far' } end
+    return { ok = true, consume = 0 }
+end, 'mymodule')
+```
+
+## UnregisterUsable [#server-inventory-unregisterusable]
+
+Removes the handler only if `owner` matches the one that registered it.
+
+```lua
+inventory.UnregisterUsable(name, owner)
+```
+
+**Parameters**
+- name: `string`
+- owner?: `string`
+
+**Returns**
+- `boolean`
+
+## Withdraw [#server-inventory-withdraw]
+
+Balance → `eddies` items. Yields. See [Eddies as an item](/docs/opx_infinity/inventory#currency).
+
+```lua
+inventory.Withdraw(source, amount)
+```
+
+**Parameters**
+- source: `number`
+- amount: `integer` — 1 to `CURRENCY.MAX_WITHDRAW`
+
+**Returns**
+- `ok`: `boolean`, `code`: `string?`
+
+## Deposit [#server-inventory-deposit]
+
+`eddies` in that bag slot → balance. Yields.
+
+```lua
+inventory.Deposit(source, slot, count)
+```
+
+**Parameters**
+- source: `number`
+- slot: `integer`
+- count?: `integer` — default the whole stack
+
+**Returns**
+- `ok`: `boolean`, `code`: `string?`
+
+## CurrencyWired [#server-inventory-currencywired]
+
+Whether the money bridge is on.
+
+```lua
+local wired, item, moneyType = inventory.CurrencyWired()
+```
+
+**Returns**
+- `wired`: `boolean`, `item`: `string`, `moneyType`: `string`
+
+## GetHeldWeapon [#server-inventory-getheldweapon]
+
+The weapon this module put in the player's hands. Not a Result.
+
+```lua
+inventory.GetHeldWeapon(playerId)
+```
+
+**Parameters**
+- playerId: `number`
+
+**Returns**
+- `{ name, serial, slot }` or `nil`
+
+## HolsterWeapon [#server-inventory-holsterweapon]
+
+Puts away the weapon this module put in the player's hands, reading its rounds back into the bag first. The one way another module may holster somebody; the admin `/opx.admin.weapon.holster` goes through it.
+
+```lua
+inventory.HolsterWeapon(playerId)
+```
+
+**Parameters**
+- playerId: `number`
+
+**Returns**
+- `Result` — value `{ name, serial }`; errors `bad_argument`, `not_armed`
+
+```lua title="Example"
+local put = inventory.HolsterWeapon(target)
+if not put.ok and put.error == 'not_armed' then print('unarmed') end
+```

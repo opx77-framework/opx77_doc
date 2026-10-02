@@ -1,0 +1,4 @@
+{
+  "title": "inventory",
+  "pages": ["index", "items", "server", "client", "events"]
+}

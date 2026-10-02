@@ -1,0 +1,29 @@
+---
+title: Events
+description: Network events and page channels of the theme module.
+---
+
+## opx:net:theme:request [#opx-net-theme-request]
+
+Client → server. "What is the theme?" Sent once per client start. Answered at most every 2 s per player.
+
+```lua
+TriggerServerEvent('opx:net:theme:request')
+```
+
+## opx:net:theme:set [#opx-net-theme-set]
+
+Server → client. The resolved theme. The client checks it against the same bounds again.
+
+```lua
+RegisterNetEvent('opx:net:theme:set', function(payload) end)
+```
+
+- payload: `table` — as [`Current`](/docs/opx_infinity/theme/server#server-theme-current) returns it
+
+## Page channels
+
+| Channel | Direction | Payload | Meaning |
+|---|---|---|---|
+| <a id="page-theme-ready" />`theme:ready` | page → Lua | — | The page is up and can take the theme. |
+| `theme:set` | Lua → page | `payload` | Sent once both the page is ready and the server has answered; re-sent when the page is rebuilt. |

@@ -1,0 +1,151 @@
+---
+title: Client
+description: The needs contract on the client — read and move needs, add and remove status chips.
+---
+
+```lua
+local needs = OPX.Api.Get('needs')
+```
+
+From client code inside opx_infinity. Every function answers a `Result` (`{ ok = true, value }` or `{ ok = false, error, detail }`). None yields. Codes: [Refusal codes](/docs/opx_infinity/needs#codes).
+
+- `patch` (`SetNeeds`, `AddNeeds`) is `{ [needName] = number }`. One unknown key or bad value refuses the whole patch; nothing is written.
+- `owner` is the caller's own name (1–64 characters of letters, digits, `_ : - .`). It groups chips and lets the module drop them when the owner stops. If `owner` names a running Open77 resource, its chips are dropped when that resource stops or reloads. A module name inside opx_infinity is never swept this way.
+
+## GetNeeds [#client-needs-getneeds]
+
+```lua
+needs.GetNeeds()
+```
+
+**Returns**
+- `Result` — value `{ values, citizenId, ready = true }`; `values` is a copy
+  - errors `no_character`, `not_loaded` (`detail` = the citizen id)
+
+## SetNeeds [#client-needs-setneeds]
+
+Sets each named need outright, clamped to `MIN`..`MAX`.
+
+```lua
+needs.SetNeeds(patch)
+```
+
+**Parameters**
+- patch: `table` — `{ [needName] = number }`
+
+**Returns**
+- `Result` — value `{ values, changed }`; `changed` is the sorted list of keys whose value actually moved
+
+```lua title="Example"
+needs.SetNeeds({ hunger = 100, thirst = 100 })
+```
+
+## AddNeeds [#client-needs-addneeds]
+
+Adds each delta (negative to take away), clamped.
+
+```lua
+needs.AddNeeds(patch)
+```
+
+**Parameters**
+- patch: `table` — `{ [needName] = number }`
+
+**Returns**
+- `Result` — value `{ values, changed }`
+
+```lua title="Example"
+needs.AddNeeds({ hunger = 25, thirst = -5 })
+```
+
+## AddEffect [#client-needs-addeffect]
+
+Adds a chip, or replaces the owner's chip with the same `id` (start time and countdown restart).
+
+```lua
+needs.AddEffect(owner, spec)
+```
+
+**Parameters**
+- owner: `string`
+- spec: `table` — see [Effect spec](#effect-spec)
+
+**Returns**
+- `Result` — value `{ id }`
+
+```lua title="Example"
+local r = needs.AddEffect('mymodule', {
+  id = 'bleeding', label = 'Bleeding', tone = 'bleed',
+  priority = 80, durationMs = 30000, event = 'mymodule:bleedEnded',
+})
+if not r.ok then print(r.error) end
+```
+
+## UpdateEffect [#client-needs-updateeffect]
+
+Patches one of the owner's chips. Absent fields keep their value. Without `durationMs` the countdown keeps running; with it, it restarts.
+
+```lua
+needs.UpdateEffect(owner, id, patch)
+```
+
+**Parameters**
+- owner: `string`
+- id: `string`
+- patch: `table` — any [effect spec](#effect-spec) fields
+
+**Returns**
+- `Result` — value `true`
+
+```lua title="Example"
+needs.UpdateEffect('mymodule', 'bleeding', { tone = 'warn', progress = 0.5 })
+```
+
+## RemoveEffect [#client-needs-removeeffect]
+
+Removes the chip and raises its `removed` event.
+
+```lua
+needs.RemoveEffect(owner, id)
+```
+
+**Parameters**
+- owner: `string`
+- id: `string`
+
+**Returns**
+- `Result` — value `true`
+
+## ClearEffects [#client-needs-cleareffects]
+
+Removes every chip of the owner. Raises no event.
+
+```lua
+needs.ClearEffects(owner)
+```
+
+**Parameters**
+- owner: `string`
+
+**Returns**
+- `Result` — value `{ removed }`
+
+## Effect spec
+
+The chip format.
+
+| Field | Type | Rule |
+|---|---|---|
+| `id` | string | Required. 1–64 characters of letters, digits, `_ : - .`. Unique per owner. |
+| `label` | string | Required. Cleaned and cut to 32 characters; empty after cleaning is refused. |
+| `icon` | string | Optional. Cut to 2 characters. |
+| `tone` | string | Optional. One of `ok`, `warn`, `bad`, `accent`, `bleed`, `burn`, `shock`, `chem`. |
+| `priority` | number | Optional, default `0`. Higher draws first. |
+| `durationMs` | number | Optional. `1`..`3600000`. The chip expires on its own after this. |
+| `progress` | number | Optional. Clamped to `0`..`1`. |
+| `event` | string | Optional. A local event name (max 96 characters) raised when the chip is removed or expires. |
+| `data` | table | Optional. Opaque data handed back in the event. At most 64 nodes and 4 levels deep. |
+
+- One owner may hold 24 chips.
+- The strip is ordered by `priority` (highest first), then newest first.
+- Only `MAX_VISIBLE` chips are published; the rest are counted in `hidden`.

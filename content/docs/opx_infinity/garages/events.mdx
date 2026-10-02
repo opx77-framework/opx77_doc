@@ -1,0 +1,79 @@
+---
+title: Events
+description: Network and local events of the garages module.
+---
+
+## opx:net:garages:ask [#opx-net-garages-ask]
+
+Client → server. Asks for the points of the caller's bucket. Sent at start and every `POLL_MS`.
+
+```lua
+TriggerServerEvent('opx:net:garages:ask')
+```
+
+## opx:net:garages:sync [#opx-net-garages-sync]
+
+Server → client. The points of the player's bucket.
+
+```lua
+RegisterNetEvent('opx:net:garages:sync', function(payload) end)
+```
+
+- payload: `table` — `{ spots }`
+  - each spot: `key, label, kind, x, y, z, heading, bucket, garage, role, location`
+
+## opx:net:garages:list [#opx-net-garages-list]
+
+Client → server. Asks for the list behind a menu point. Counts against the request window.
+
+```lua
+TriggerServerEvent('opx:net:garages:list', key)
+```
+
+- key: `string`
+
+## opx:net:garages:vehicles [#opx-net-garages-vehicles]
+
+Server → client. The list for a menu point (same shape as server [`List`](/docs/opx_infinity/garages/server#server-garages-list)).
+
+```lua
+RegisterNetEvent('opx:net:garages:vehicles', function(list) end)
+```
+
+- list: `table` — `{ spot, garage, label, kind, vehicles }` or `{ spot, error }`
+
+## opx:net:garages:request [#opx-net-garages-request]
+
+Client → server. The key at an entry point, or a row picked in the list. Runs [`Use`](/docs/opx_infinity/garages/server#server-garages-use). Cooldown `COOLDOWN_MS` plus the request window.
+
+```lua
+TriggerServerEvent('opx:net:garages:request', key, plate)
+```
+
+- key: `string`
+- plate?: `string`
+
+## opx:net:garages:answer [#opx-net-garages-answer]
+
+Server → client. The verdict.
+
+```lua
+RegisterNetEvent('opx:net:garages:answer', function(key, ok, error, plate, action) end)
+```
+
+- key: `string`
+- ok: `boolean`
+- error?: `string`
+- plate?: `string`
+- action?: `string` — `brought`, `recalled` or `stored`
+
+## opx:on:garages:decision [#opx-on-garages-decision]
+
+Client, local. Every verdict, local refusals included. Only handlers inside opx_infinity's client hear it.
+
+```lua
+AddEventHandler('opx:on:garages:decision', function(verdict) end)
+```
+
+- verdict: `table` — `{ ok, error?, spot?, plate?, action?, queued?, closed?, source }`
+  - `source`: `key`, `menu`, `server`, `client` or the caller's `origin`

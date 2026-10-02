@@ -1,0 +1,119 @@
+---
+title: Client
+description: The prompts contract on the client — post, patch and take down groups of key-strip rows.
+---
+
+```lua
+local prompts = OPX.Api.Get('prompts')
+```
+
+From client code inside opx_infinity. Each function answers a Result. None yields.
+
+`owner` is your module name (1–64 characters of letters, digits, `_ : - .`). It is a label for grouping and expiry, not a security boundary. If it is a module of this runtime or a running resource, its groups are dropped when it stops.
+
+## Show [#client-prompts-show]
+
+Puts a group up, or replaces the owner's group with that id in place. The spec is validated whole or refused.
+
+```lua
+prompts.Show(owner, id, spec)
+```
+
+**Parameters**
+- owner: `string`
+- id: `string` — the group id
+- spec: `table` — see [Spec format](#spec)
+
+**Returns**
+- `Result` — `{ id, replaced, rows }`
+
+```lua title="Example"
+prompts.Show('mymodule', 'door', {
+  title = 'DOOR',
+  rows = { { id = 'open', label = 'Open', keys = { action = 'mymodule.open', fallback = 'E' } } },
+})
+```
+
+## Update [#client-prompts-update]
+
+Patches a held group. Absent fields keep their value.
+
+```lua
+prompts.Update(owner, id, patch)
+```
+
+**Parameters**
+- owner: `string`
+- id: `string`
+- patch: `table`
+  - `title`, `priority`, `rows`, or `values` = `{ [rowId] = value }` (`false` clears a value). `rows` and `values` cannot be combined.
+
+**Returns**
+- `Result` — `{ id }`; error `prompts.notFound`
+
+```lua title="Example"
+prompts.Update('mymodule', 'door', { values = { open = 'LOCKED' } })
+```
+
+## Hide [#client-prompts-hide]
+
+Takes one group down. An unknown id answers `removed = false`, not an error.
+
+```lua
+prompts.Hide(owner, id)
+```
+
+**Parameters**
+- owner: `string`
+- id: `string`
+
+**Returns**
+- `Result` — `{ removed }`
+
+## HideAll [#client-prompts-hideall]
+
+Takes every group of the owner down.
+
+```lua
+prompts.HideAll(owner)
+```
+
+**Parameters**
+- owner: `string`
+
+**Returns**
+- `Result` — `{ removed }`
+
+## List [#client-prompts-list]
+
+The owner's group ids (sorted), and whether any of them was in the last drawn strip.
+
+```lua
+prompts.List(owner)
+```
+
+**Parameters**
+- owner: `string`
+
+**Returns**
+- `Result` — `{ prompts, count, visible }`
+
+## Spec format [#spec]
+
+| Field | Type | Rule |
+|---|---|---|
+| `title` | string | Optional, max 32 bytes, no control characters. `false` or `''` = no title. |
+| `priority` | integer | Optional, default `0`, `-100`..`100`. Higher draws first; at equal priority the newest group wins. |
+| `rows` | table | Required, 1–8 rows. |
+
+Row fields:
+
+| Field | Type | Rule |
+|---|---|---|
+| `label` | string | Required, max 48 bytes. Your own text (translate it yourself). |
+| `keys` | string, table or list | Required. A literal string is split on spaces (`'W A S D'` = four caps). `{ action = 'mapping.id', fallback = 'E' }` is one cap drawn with the player's binding of that key mapping. A list mixes both. Max 6 caps per row. |
+| `id` | string | Optional, max 32 characters, unique in the group. Needed to patch with `values`. |
+| `value` | string or number | Optional, max 24 bytes. Drawn beside the label. |
+| `hold` | boolean | Optional. Sent to the page, but the shipped page no longer draws a hold tag. |
+| `combo` | boolean | Optional. The page joins the caps (one combination, not alternatives). |
+| `dim` | boolean | Optional. The page draws the row dimmed. |

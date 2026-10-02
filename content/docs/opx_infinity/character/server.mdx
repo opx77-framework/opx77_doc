@@ -1,0 +1,700 @@
+---
+title: Server
+description: The character contract on the server — players, money, metadata, jobs and gangs, characters and accounts.
+---
+
+```lua
+local character = OPX.Api.Get('character')
+```
+
+From server code inside opx_infinity.
+
+- An **identifier** is a [`Player`](/docs/opx_infinity/character/player#player) table, a player id (`number`) or a citizen id (`string`). Only a citizen id reaches an offline character.
+- *Yields*: reads or writes the database; run it in a coroutine (`CreateThread`).
+- `Result` is `{ ok = true, value = ... }` or `{ ok = false, error = code, detail = ... }`.
+- **Money**: types come from `MONEY.TYPES` in `config/shared.lua` (`EDDIES`, `BANK` shipped). The mutators work on **loaded characters only**, answer `ok, code` (`code` a locale key) and do not yield; the autosave writes the change. Every successful change sends [`opx:net:character:money`](/docs/opx_infinity/character/events#opx-net-character-money) to the owner, raises the internal money event and writes an audit line.
+- **Jobs and gangs**: a character holds any number of each, one grade per membership; one of each is **primary** (`PlayerData.job`, `PlayerData.gang`). Functions that write membership rows yield even for a loaded character. With an offline character's citizen id, the change is written to the row.
+- **Self-service** character functions take the caller's `source` and act on that account only. Somebody else's character answers `character.notFound` (same as a missing one) and the attempt is audited.
+- **Staff** functions do no permission check: call them only after your own ACL check (the `admin` module does).
+
+## GetPlayer [#server-character-getplayer]
+
+The loaded character on a player id.
+
+```lua
+character.GetPlayer(source)
+```
+
+**Parameters**
+- source: `number`
+
+**Returns**
+- `Player?` — nil for a connection with no character
+
+```lua title="Example"
+local player = character.GetPlayer(source)
+if player then print(player.PlayerData.citizenId) end
+```
+
+## GetPlayerByCitizenId [#server-character-getplayerbycitizenid]
+
+Loaded characters only.
+
+```lua
+character.GetPlayerByCitizenId(citizenId)
+```
+
+**Parameters**
+- citizenId: `string`
+
+**Returns**
+- `Player?`
+
+## GetPlayerByUserId [#server-character-getplayerbyuserid]
+
+Loaded characters only.
+
+```lua
+character.GetPlayerByUserId(userId)
+```
+
+**Parameters**
+- userId: `string`
+
+**Returns**
+- `Player?`
+
+## GetPlayers [#server-character-getplayers]
+
+Every loaded character. Evicts slots whose account changed.
+
+```lua
+character.GetPlayers()
+```
+
+**Returns**
+- `Player[]`
+
+## GetPlayerCount [#server-character-getplayercount]
+
+Count without building a table.
+
+```lua
+character.GetPlayerCount()
+```
+
+**Returns**
+- `integer`
+
+## ResolvePlayer [#server-character-resolveplayer]
+
+Turns any identifier into a loaded `Player`.
+
+```lua
+character.ResolvePlayer(identifier)
+```
+
+**Parameters**
+- identifier: `Player | number | string`
+
+**Returns**
+- `Player?`
+
+## GetCharacter [#server-character-getcharacter]
+
+Yields when offline.
+
+```lua
+character.GetCharacter(citizenId)
+```
+
+**Parameters**
+- citizenId: `string`
+
+**Returns**
+- `Result` — `{ player, offline = false }` or `{ entity, offline = true }` (the stored row)
+
+## PlaceCharacter [#server-character-placecharacter]
+
+Kill-then-respawn placement. Yields.
+
+```lua
+character.PlaceCharacter(player, target)
+```
+
+**Parameters**
+- player: `Player`
+- target?: `{ x, y, z, heading?, bucket? }`
+  - Omitted: the stored position, then `DEFAULT_SPAWN`.
+
+**Returns**
+- `boolean`, `string?` — `ok, reason`
+
+```lua title="Example"
+CreateThread(function()
+  local ok, why = character.PlaceCharacter(player, { x = 0.0, y = 0.0, z = 50.0, heading = 90.0 })
+  if not ok then print(why) end
+end)
+```
+
+## Save [#server-character-save]
+
+Writes the row now. Yields.
+
+```lua
+character.Save(identifier, loggedOut)
+```
+
+**Parameters**
+- identifier: `Player | number | string`
+- loggedOut?: `boolean` — `true` stamps `last_logged_out`
+
+**Returns**
+- `Result`
+
+## Logout [#server-character-logout]
+
+Unloads the character and dispatches its save on a thread. The player stays connected, in a private bucket.
+
+```lua
+character.Logout(source)
+```
+
+**Parameters**
+- source: `number`
+
+## AddMoney [#server-character-addmoney]
+
+Runs hook [`money:beforeAdd`](/docs/opx_infinity/character/events#hooks).
+
+```lua
+character.AddMoney(identifier, moneyType, amount, reason)
+```
+
+**Parameters**
+- identifier: `Player | number | string`
+- moneyType: `string`
+- amount: `number` — rounded; must be positive and finite
+- reason?: `string`
+
+**Returns**
+- `boolean`, `string` — `ok, code`
+
+```lua title="Example"
+local ok, code = character.AddMoney(source, 'BANK', 250, 'delivery')
+if not ok then print(code) end
+```
+
+## RemoveMoney [#server-character-removemoney]
+
+Refuses (`money.insufficient`) rather than going below zero, unless the type is in `MONEY.ALLOW_NEGATIVE`. Runs `money:beforeRemove`.
+
+```lua
+character.RemoveMoney(identifier, moneyType, amount, reason)
+```
+
+**Parameters**
+- identifier: `Player | number | string`
+- moneyType: `string`
+- amount: `number`
+- reason?: `string`
+
+**Returns**
+- `boolean`, `string` — `ok, code`
+
+## SetMoney [#server-character-setmoney]
+
+Sets the balance outright; the only way to reach zero. Runs `money:beforeSet`.
+
+```lua
+character.SetMoney(identifier, moneyType, amount, reason)
+```
+
+**Parameters**
+- identifier: `Player | number | string`
+- moneyType: `string`
+- amount: `number`
+- reason?: `string`
+
+**Returns**
+- `boolean`, `string` — `ok, code`
+
+## GetMoney [#server-character-getmoney]
+
+```lua
+character.GetMoney(identifier, moneyType)
+```
+
+**Parameters**
+- identifier: `Player | number | string`
+- moneyType?: `string` — nil returns the whole money table
+
+**Returns**
+- `integer | table | nil` — nil when not loaded
+
+## FormatMoney [#server-character-formatmoney]
+
+Grouped digits; `EDDIES` (or nil) gets ` €$`, other types their name.
+
+```lua
+character.FormatMoney(amount, moneyType)
+```
+
+**Parameters**
+- amount: `number`
+- moneyType?: `string`
+
+**Returns**
+- `string`
+
+## IsMoneyType [#server-character-ismoneytype]
+
+Whether the type exists on this server.
+
+```lua
+character.IsMoneyType(moneyType)
+```
+
+**Returns**
+- `boolean`
+
+## AddMoneyOffline [#server-character-addmoneyoffline]
+
+Adds money whether or not the character is being played. **Yields.**
+
+- Online: same as `AddMoney` (`offline = false`).
+- Offline: runs hook `money:beforeAddOffline`, writes the row directly, audits `money.addOffline` and publishes `opx:on:character:money` with `offline = true`.
+
+```lua
+character.AddMoneyOffline(citizenId, moneyType, amount, reason)
+```
+
+**Parameters**
+- citizenId: `string`
+- moneyType: `string`
+- amount: `number`
+- reason?: `string`
+
+**Returns**
+- `Result` — `{ balance, offline }`; errors `character.notFound`, `money.badType`, `money.badAmount`, `money.vetoed`, `error.unavailable` (row being written, or boot failed)
+
+## GetMetadata [#server-character-getmetadata]
+
+```lua
+character.GetMetadata(identifier, key)
+```
+
+**Parameters**
+- identifier: `Player | number | string`
+- key?: `string` — nil returns the whole table
+
+**Returns**
+- `any` — nil when not loaded
+
+## SetMetadata [#server-character-setmetadata]
+
+Loaded characters only. Sends the new PlayerData to the owner.
+
+```lua
+character.SetMetadata(identifier, key, value)
+```
+
+**Parameters**
+- identifier: `Player | number | string`
+- key: `string`
+- value: `any`
+
+**Returns**
+- `boolean`
+
+## SetName [#server-character-setname]
+
+**Write-once**: refused with `character.nameSet` if a name exists. Each half is checked against `CHARACTERS.NAME`. Yields (saves at once).
+
+```lua
+character.SetName(identifier, firstName, lastName)
+```
+
+**Parameters**
+- identifier: `Player | number | string`
+- firstName, lastName: `string`
+
+**Returns**
+- `Result`
+
+## PublicView [#server-character-publicview]
+
+Copies, no metadata. What the `GetPlayerData` export and `opx:on:character:loaded` carry.
+
+```lua
+character.PublicView(player)
+```
+
+**Parameters**
+- player: `Player`
+
+**Returns**
+- `table` — `{ source, citizenId, userId, firstName, lastName, money, job, gang, jobs, gangs }`
+
+## SetBodyFamily [#server-character-setbodyfamily]
+
+Write-once (`character.bodySet`); the same value again is OK. Called by the appearance module. Yields.
+
+```lua
+character.SetBodyFamily(identifier, family)
+```
+
+**Parameters**
+- identifier: `Player | number | string`
+- family: `'female' | 'male'`
+
+**Returns**
+- `Result`
+
+## GetJob [#server-character-getjob]
+
+The job **definition** from `JOBS`.
+
+```lua
+character.GetJob(name)
+```
+
+**Returns**
+- `table?`
+
+## GetGang [#server-character-getgang]
+
+The gang definition from `GANGS`.
+
+```lua
+character.GetGang(name)
+```
+
+**Returns**
+- `table?`
+
+## SetJob [#server-character-setjob]
+
+Joins (or regrades) and makes primary. Duty resets to the job's `defaultDuty`. Runs hook `job:beforeSet`. Yields.
+
+```lua
+character.SetJob(identifier, name, grade)
+```
+
+**Parameters**
+- identifier: `Player | number | string`
+- name: `string`
+- grade: `integer`
+
+**Returns**
+- `Result` — the job table
+
+```lua title="Example"
+CreateThread(function()
+  local res = character.SetJob(citizenId, 'ncpd', 0)
+  if not res.ok then print(res.error) end
+end)
+```
+
+## SetGang [#server-character-setgang]
+
+Same as `SetJob`, for gangs. Runs hook `gang:beforeSet`. Yields.
+
+```lua
+character.SetGang(identifier, name, grade)
+```
+
+**Returns**
+- `Result`
+
+## SetJobDuty [#server-character-setjobduty]
+
+Refused (`job.noDuty`) for a `defaultDuty` job. Toasts the owner. Yields only when offline.
+
+```lua
+character.SetJobDuty(identifier, onDuty)
+```
+
+**Parameters**
+- identifier: `Player | number | string`
+- onDuty: `boolean`
+
+**Returns**
+- `Result` — the new duty
+
+## HasJob [#server-character-hasjob]
+
+Primary job only, loaded only. Never yields.
+
+```lua
+character.HasJob(identifier, name, onDutyOnly, minGrade)
+```
+
+**Parameters**
+- identifier: `Player | number | string`
+- name: `string`
+- onDutyOnly?: `boolean`
+- minGrade?: `integer`
+
+**Returns**
+- `boolean`
+
+## HasGang [#server-character-hasgang]
+
+Primary gang only, loaded only.
+
+```lua
+character.HasGang(identifier, name, minGrade)
+```
+
+**Returns**
+- `boolean`
+
+## AddPlayerToJob [#server-character-addplayertojob]
+
+Adds a membership without changing the primary job. Yields.
+
+```lua
+character.AddPlayerToJob(identifier, name, grade)
+```
+
+**Returns**
+- `Result`
+
+## AddPlayerToGang [#server-character-addplayertogang]
+
+Yields.
+
+```lua
+character.AddPlayerToGang(identifier, name, grade)
+```
+
+**Returns**
+- `Result`
+
+## RemovePlayerFromJob [#server-character-removeplayerfromjob]
+
+If it was primary, the character falls back to `PLAYER.DEFAULT_JOB`. Yields.
+
+```lua
+character.RemovePlayerFromJob(identifier, name)
+```
+
+**Returns**
+- `Result`
+
+## RemovePlayerFromGang [#server-character-removeplayerfromgang]
+
+Falls back to `PLAYER.DEFAULT_GANG`. Yields.
+
+```lua
+character.RemovePlayerFromGang(identifier, name)
+```
+
+**Returns**
+- `Result`
+
+## SetPlayerPrimaryJob [#server-character-setplayerprimaryjob]
+
+Refused (`job.notMember`) unless already a member. Yields.
+
+```lua
+character.SetPlayerPrimaryJob(identifier, name)
+```
+
+**Returns**
+- `Result`
+
+## SetPlayerPrimaryGang [#server-character-setplayerprimarygang]
+
+Refused (`gang.notMember`). Yields.
+
+```lua
+character.SetPlayerPrimaryGang(identifier, name)
+```
+
+**Returns**
+- `Result`
+
+## GetPlayersByJob [#server-character-getplayersbyjob]
+
+Loaded characters whose primary job matches.
+
+```lua
+character.GetPlayersByJob(name, onDutyOnly)
+```
+
+**Returns**
+- `Player[]`
+
+## GetPlayersByGang [#server-character-getplayersbygang]
+
+Loaded characters whose primary gang matches.
+
+```lua
+character.GetPlayersByGang(name)
+```
+
+**Returns**
+- `Player[]`
+
+## GetGroupMembers [#server-character-getgroupmembers]
+
+Up to 200 members, online or not. Yields.
+
+```lua
+character.GetGroupMembers(groupType, name)
+```
+
+**Parameters**
+- groupType: `'job' | 'gang'`
+- name: `string`
+
+**Returns**
+- `Result` — `{ citizenId, grade, name }[]`
+
+## ListCharacters [#server-character-listcharacters]
+
+Self-service. Yields.
+
+```lua
+character.ListCharacters(source)
+```
+
+**Returns**
+- `Result` — `{ characters, slots, active }`; each summary `{ citizenId, cid, firstName, lastName, gender, job, gang, lastLoggedOut }`
+
+## EnterSession [#server-character-entersession]
+
+The whole entry: loads the locked character, or creates one. Called by the runtime on connect. Yields.
+
+```lua
+character.EnterSession(source)
+```
+
+**Returns**
+- `Result`
+
+## SelectCharacter [#server-character-selectcharacter]
+
+Loads and enters one of the caller's characters, in the world. 1 s cooldown. Yields.
+
+```lua
+character.SelectCharacter(source, citizenId)
+```
+
+**Returns**
+- `Result` — the `Player`
+
+## SwitchTo [#server-character-switchto]
+
+What `/opx.select` runs: moves the lock, then relogs or disconnects per `CHARACTERS.SWITCH`. Yields.
+
+```lua
+character.SwitchTo(source, citizenId)
+```
+
+**Returns**
+- `Result`
+
+## NewCharacter [#server-character-newcharacter]
+
+What `/opx.create` runs: clears the lock and **disconnects**. Yields.
+
+```lua
+character.NewCharacter(source)
+```
+
+**Returns**
+- `Result` — `{ used, slots }`
+
+## CreateCharacter [#server-character-createcharacter]
+
+Inserts an empty character (no name, no body) on the caller's account. Does not load it. 3 s cooldown. Yields.
+
+```lua
+character.CreateCharacter(source)
+```
+
+**Returns**
+- `Result`
+
+## DeleteCharacter [#server-character-deletecharacter]
+
+Soft-deletes one of the caller's own characters. Honours `SELF_DELETE`. 3 s cooldown. Yields.
+
+```lua
+character.DeleteCharacter(source, citizenId)
+```
+
+**Returns**
+- `Result`
+
+## ListCharactersFor [#server-character-listcharactersfor]
+
+**Staff.** Any account's characters; summaries also carry `createdAt`. No ownership check. Yields.
+
+```lua
+character.ListCharactersFor(userId)
+```
+
+**Returns**
+- `Result`
+
+## FindCharacters [#server-character-findcharacters]
+
+**Staff.** Searches every account. 25 per page. Yields.
+
+```lua
+character.FindCharacters(query)
+```
+
+**Parameters**
+- query: `table`
+  - `mode`: `'recent'` (last played first) or `'search'`
+  - `term?`: `string` — 3–48 bytes, against name, account name, citizen id
+  - `seenAt?`, `cursor?` — from the previous page
+
+**Returns**
+- `Result` — `{ characters, mode, more, cursor, seenAt }`
+
+```lua title="Example"
+local page = character.FindCharacters({ mode = 'search', term = 'vik' })
+```
+
+## RenameCharacter [#server-character-renamecharacter]
+
+**Staff.** Renames any character, online or offline. Same name rules as `SetName`. Yields.
+
+```lua
+character.RenameCharacter(citizenId, firstName, lastName, source)
+```
+
+**Parameters**
+- citizenId: `string`
+- firstName, lastName: `string`
+- source?: `number`
+
+**Returns**
+- `Result`
+
+## RemoveCharacter [#server-character-removecharacter]
+
+**Staff.** Soft-deletes any character. Ignores `SELF_DELETE`. Yields.
+
+```lua
+character.RemoveCharacter(citizenId, source)
+```
+
+**Parameters**
+- citizenId: `string`
+- source?: `number`
+
+**Returns**
+- `Result`
+
+<Callout type="error" title="Deleting a character">
+
+A delete stamps `deleted_at` and keeps the row, but every module that owns per-character data (clothes, needs, containers, vehicles…) **really deletes** its rows, and so does every `CASCADE_TABLES` entry. There is no undo. A character being played is disconnected.
+
+</Callout>

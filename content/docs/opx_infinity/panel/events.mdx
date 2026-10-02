@@ -1,0 +1,32 @@
+---
+title: Events
+description: The local event and page channels of the panel module.
+---
+
+## opx:on:panel:action [#opx-on-panel-action]
+
+Client, local. Raised after the owner's callback for every action. Reaches only code inside opx_infinity's client VM.
+
+```lua
+AddEventHandler('opx:on:panel:action', function(payload) end)
+```
+
+- payload: `table` — the [action payload](/docs/opx_infinity/panel/client#the-action-payload)
+
+## Page channels
+
+All on the `interactive` surface; every payload carries the panel `handle`.
+
+| Channel | Direction | Payload | Meaning |
+|---|---|---|---|
+| <a id="page-panel-select" />`panel:select` | page → Lua | `{ handle, item }` | Item clicked. |
+| <a id="page-panel-hover" />`panel:hover` | page → Lua | `{ handle, item }` | Pointer on an item. |
+| <a id="page-panel-leave" />`panel:leave` | page → Lua | `{ handle }` | Pointer left the items. |
+| <a id="page-panel-tab" />`panel:tab` | page → Lua | `{ handle, tab }` | Tab clicked. |
+| <a id="page-panel-slide" />`panel:slide` | page → Lua | `{ handle, id, index, commit }` | Slider moved. |
+| <a id="page-panel-tiles" />`panel:tiles` | page → Lua | `{ handle, slot, from }` | Grid needs the next window. |
+| <a id="page-panel-action" />`panel:action` | page → Lua | `{ handle, id }` | Button clicked. |
+| <a id="page-panel-answer" />`panel:answer` | page → Lua | `{ handle, id, value }` | Confirm dialog answered. |
+| <a id="page-panel-dismiss" />`panel:dismiss` | page → Lua | `{ handle }` | Escape on the page. Ignored while a dialog is up. |
+| `focus:set` | page → Lua | `{ owner, focus }` | Shared; the panel answers for owners `panel` and `panel.confirm`. |
+| `panel:open`, `panel:update`, `panel:items`, `panel:confirm`, `panel:close` | Lua → page | the parsed view, a patch, `{ handle, items, done }`, a dialog, `{ handle }` | Drawing. |

@@ -1,0 +1,4 @@
+{
+  "title": "crafting",
+  "pages": ["index", "server", "client", "events"]
+}

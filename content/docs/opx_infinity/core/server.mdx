@@ -1,0 +1,610 @@
+---
+title: Server
+description: The server-only OPX.* runtime — public events, chat commands and aliases, answers and refusals, the readiness gate, sessions, routing buckets, tunables and the schema.
+---
+
+Everything on this page is `nil` in the client VM. Nothing here is reachable from another resource; outside code uses the [creator exports](/docs/creators).
+
+# Server values [#server-values]
+
+| Name | Type | Notes |
+|---|---|---|
+| <a id="opx-booted" />`OPX.Booted` | `boolean` | `false` until the server boot has run every phase, then `true` whatever the outcome. |
+| <a id="opx-booterror" />`OPX.BootError` | `string?` | Why the server is degraded: `'no database'`, `'schema failed: <table>'` or `'module failed: <id>'`. Set once, never cleared. A database that comes back later needs a resource restart. |
+| <a id="opx-sessions" />`OPX.Sessions` | `table<integer, table>` | Live sessions by player id: `source`, `userId`, `displayName`, `connectedAt`, `gateSession`, plus `departing`, `heldAt`, `released` when set. Read it; create and drop sessions only with the [session functions](#sessions). |
+
+# Public events [#public-events]
+
+## OPX.Publish [#opx-publish]
+
+Raises a **public** server event for every resource on the host: `TriggerEvent(name, source, payload)`. See [Public server events](/docs/creators/events).
+
+```lua
+OPX.Publish(name, source, payload)
+```
+
+**Parameters**
+- name: `string` — must start with `opx:on:` (anything else raises)
+- source: `integer?` — the player id, or `nil`
+- payload: `table` — a plain table built for the event, never a live record
+
+**Returns**
+- `boolean` — a refusal by the host is logged once per name and answered `false`; it never raises
+
+```lua title="Example"
+OPX.Publish('opx:on:thing:done', source, { citizenId = citizenId, amount = 50 })
+```
+
+# Commands [#commands]
+
+Register chat commands here, not with `RegisterCommand`. The host checks the ACL right `command.<name>` before the handler of a restricted command runs.
+
+## OPX.Command.Register [#opx-command-register]
+
+Registers a chat command, plus its alias from [`COMMAND_ALIASES`](/docs/opx_infinity/core/config#config-server-command-aliases) if any (a refused alias is logged and skipped).
+
+```lua
+OPX.Command.Register(name, opts, handler)
+```
+
+**Parameters**
+- name: `string`
+- opts?: `table`
+  - restricted?: `boolean` — gate on `command.<name>`
+  - help?: `string` — locale key
+  - params?: `{ name, help?, optional? }[]` — passed through as written
+  - cooldownMs?: `number` — per-player window; a hit answers `error.tooFast`
+  - key?: `string` — cooldown key, default `command.<name>`; share it with other doors into the same operation
+- handler: `function(source, args, raw)`
+
+Raises on a duplicate name (case-blind) or a `cooldownMs` that is not a number `>= 0`.
+
+```lua title="Example"
+OPX.Command.Register('opx.thing.reset', {
+	restricted = true,
+	help = 'thing.command.reset',
+	params = { { name = 'target', help = 'thing.param.target' } },
+	cooldownMs = 2000,
+}, function(source, args, raw)
+	OPX.CommandNotice(source, raw, 'success', locale('thing.reset'))
+end)
+```
+
+## OPX.Command.Suggestions [#opx-command-suggestions]
+
+Commands this player may run. An aliased command is listed under its alias. `help` is resolved through the locale now.
+
+```lua
+OPX.Command.Suggestions(source)
+```
+
+**Parameters**
+- source: `integer`
+
+**Returns**
+- `{ name, help?, params }[]` — sorted by name
+
+## OPX.Command.Known [#opx-command-known]
+
+Whether a command or alias is registered. Case-blind. An alias answers its command's `restricted` flag.
+
+```lua
+OPX.Command.Known(name)
+```
+
+**Parameters**
+- name: `string` — command or alias
+
+**Returns**
+- registered: `boolean`
+- restricted: `boolean`
+
+## OPX.Command.Aliases [#opx-command-aliases]
+
+The aliases that were actually registered.
+
+```lua
+OPX.Command.Aliases()
+```
+
+**Returns**
+- `table<alias, command>`
+- count: `integer`
+
+## Aliases and the ACL [#aliases]
+
+- An alias is registered unrestricted on the host, then checks the ACL right of the **full** command name itself (`command.opx.admin.self.noclip` for `noclip`). Grant only the long name in `acl.jsonc`.
+- The console (source `0`) is always allowed.
+- A host without `Open77.acl` makes every restricted alias refuse with `error.noPermission`, while the long name still works.
+- An alias may not start with `opx.`, must be 1–64 characters of letters, digits, `_ . : -`, and must not be taken by another resource.
+- The shipped list (`chars`, `duty`, `withdraw`, `noclip`, `goto`, …) is on [COMMAND_ALIASES](/docs/opx_infinity/core/config#command-aliases).
+
+# Answers, refusals and cooldowns [#answers]
+
+## OPX.Notify [#opx-notify]
+
+Sends a toast through `Open77.notifications.send` (the platform's `open77_notifications` package), titled [`SERVER_NAME`](/docs/opx_infinity/core/config#config-shared-server-name), at [`NOTIFY_POSITION`](/docs/opx_infinity/core/config#config-shared-notify-position). Takes no icon.
+
+```lua
+OPX.Notify(source, message, kind, durationMs)
+```
+
+**Parameters**
+- source: `integer`
+- message: `string`
+- kind?: `'info' | 'success' | 'warning' | 'error'` — default `info`
+- durationMs?: `integer` — default 5000
+
+**Returns**
+- ok: `boolean`
+- reason?: `string` — `'duplicate'` (an identical toast to the same player within 2 s), `'invalid_source'`, `'notification_refused'`, or the host's own refusal
+
+## OPX.NotifyLocale [#opx-notifylocale]
+
+`OPX.Notify` with the text of a locale key (through `RefusalKey`).
+
+```lua
+OPX.NotifyLocale(source, key, params, kind)
+```
+
+**Parameters**
+- source: `integer`
+- key: `string`
+- params?: `table`
+- kind?: `string`
+
+**Returns**
+- ok: `boolean`
+- reason?: `string`
+
+```lua title="Example"
+OPX.NotifyLocale(source, 'thing.done', { count = 3 }, 'success')
+```
+
+## OPX.RefusalKey [#opx-refusalkey]
+
+`code` if it is a locale key that exists, else `'error.unavailable'` (and a warning in the log).
+
+```lua
+OPX.RefusalKey(code)
+```
+
+**Parameters**
+- code: `any`
+
+**Returns**
+- `string`
+
+## OPX.Refuse [#opx-refuse]
+
+Sends [`opx:net:runtime:notify`](/docs/opx_infinity/core/events#opx-net-runtime-notify) to one player: an error toast with the text of `RefusalKey(code)`. Does nothing for source `<= 0`.
+
+```lua
+OPX.Refuse(source, code, operation, icon)
+```
+
+**Parameters**
+- source: `integer`
+- code: `string` — a locale key
+- operation?: `string` — which request was refused; default `'unknown'`. Not shown in the toast.
+- icon?: `string` — a name from `OPX.Glyphs`; the client drops an unknown one
+
+```lua title="Example"
+if OPX.Cooling(source, 'thing.use', 1000) then
+	return OPX.Refuse(source, 'error.tooFast', 'thing.use')
+end
+```
+
+## OPX.CommandResult [#opx-commandresult]
+
+Answers a command that reads something back (a list, a dump). Sends [`opx:net:runtime:commandResult`](/docs/opx_infinity/core/events#opx-net-runtime-commandresult) with `kind = 'info'` (accepted) or `'error'`; the [chat](/docs/opx_infinity/chat) module draws it. Newlines are kept; cut to 8192 bytes on a character boundary (the cut is logged). Source `nil`/`0` prints to the console.
+
+```lua
+OPX.CommandResult(source, accepted, message)
+```
+
+**Parameters**
+- source: `integer?`
+- accepted: `boolean`
+- message: `string`
+
+## OPX.CommandNotice [#opx-commandnotice]
+
+One-line toast saying what a command did. Sends [`opx:net:runtime:commandAnswer`](/docs/opx_infinity/core/events#opx-net-runtime-commandanswer). Source `nil`/`0` prints.
+
+```lua
+OPX.CommandNotice(source, raw, kind, message, toasted, icon)
+```
+
+**Parameters**
+- source: `integer?`
+- raw: `string?` — the typed command line
+- kind: `'success' | 'warning' | 'error'`
+- message: `string` — stripped of control characters and cut to 240 characters
+- toasted?: `boolean` — `true`: the action already showed a toast, so the client shows none
+- icon?: `string` — dropped unless in `OPX.Glyphs`
+
+```lua title="Example"
+OPX.CommandNotice(source, raw, 'error', locale('weather.error.unknownPreset'))
+```
+
+## OPX.Cooling [#opx-cooling]
+
+`true` if `key` was used by this player less than `everyMs` ago; otherwise records the use and answers `false`. The window is per player and per operation, shared by every door into it. The console is never cooled. Not a security check.
+
+```lua
+OPX.Cooling(source, key, everyMs)
+```
+
+**Parameters**
+- source: `integer`
+- key: `string`
+- everyMs: `integer`
+
+**Returns**
+- `boolean`
+
+## OPX.ForgetCooldowns [#opx-forgetcooldowns]
+
+Drops a player's cooldowns and toast dedupe windows. The core also does this on disconnect.
+
+```lua
+OPX.ForgetCooldowns(source)
+```
+
+**Parameters**
+- source: `integer`
+
+# Readiness gate [#gate]
+
+No player may be moved, spawned, killed or respawned before their gate opens. The core takes part in the gate at load, so every new connection is held in its name. The `character` module drives entry with these functions. Settings: [`ENTRY`](/docs/opx_infinity/core/config#config-server-entry).
+
+## OPX.Gate.Participate [#opx-gate-participate]
+
+Declares the core's participation with the `ENTRY.GATE_MS` liveness interval. Called once at load. Logs a warning if no resource emits `open77:session:gameplayReady`.
+
+```lua
+OPX.Gate.Participate()
+```
+
+**Returns**
+- `boolean` — `false` when the host has no readiness gate
+
+## OPX.Gate.Hold [#opx-gate-hold]
+
+Takes the hold and stores its session token. Raises `opx:in:gate:held`.
+
+```lua
+OPX.Gate.Hold(source, reason)
+```
+
+**Parameters**
+- source: `integer`
+- reason?: `string`
+
+**Returns**
+- `boolean` — `false` with no session or when the host refuses
+
+## OPX.Gate.Release [#opx-gate-release]
+
+Releases the hold. Raises `opx:in:gate:released`.
+
+```lua
+OPX.Gate.Release(source, note, expectedUserId)
+```
+
+**Parameters**
+- source: `integer`
+- note?: `string` — reaches every resource as the `onPlayerReady` detail, prefixed `opx_infinity:`
+- expectedUserId?: `string` — refuses if the slot now belongs to another account
+
+**Returns**
+- `boolean` — `true` on a host with no readiness API
+
+## OPX.Gate.IsReady [#opx-gate-isready]
+
+Whether the gate is open. A host read that raises counts as open.
+
+```lua
+OPX.Gate.IsReady(source)
+```
+
+**Parameters**
+- source: `integer`
+
+**Returns**
+- `boolean`
+
+## OPX.Gate.Watch [#opx-gate-watch]
+
+Gives up on a player at a deadline. One thread per player.
+
+```lua
+OPX.Gate.Watch(source, timeoutMs, onGiveUp)
+```
+
+**Parameters**
+- source: `integer`
+- timeoutMs?: `integer` — clamped below `ENTRY.GATE_MS`; default `ENTRY.WATCH_MS`
+- onGiveUp?: `function(source)` — called at the deadline; returning `false` stops the watch and leaves the hold to the caller, otherwise the core releases with note `watch-timeout`
+
+**Returns**
+- `boolean` — started
+
+Stops early if the slot empties, changes account or is released.
+
+# Sessions [#sessions]
+
+A session is a connected machine, keyed by the account the host vouches for. The `character` module loads a character onto it.
+
+## OPX.UserIdOf [#opx-useridof]
+
+The durable account id (`GetPlayerIdentifier`).
+
+```lua
+OPX.UserIdOf(playerId)
+```
+
+**Parameters**
+- playerId: `integer`
+
+**Returns**
+- `string?` — `nil` once the player has gone
+
+## OPX.DisplayNameOf [#opx-displaynameof]
+
+The player's verified display name (`GetPlayerName`).
+
+```lua
+OPX.DisplayNameOf(playerId)
+```
+
+**Parameters**
+- playerId: `integer`
+
+**Returns**
+- `string?`
+
+## OPX.EnsureSession [#opx-ensuresession]
+
+The session on a slot, created if needed. If the slot now belongs to another account, the old session is dropped first.
+
+```lua
+OPX.EnsureSession(playerId)
+```
+
+**Parameters**
+- playerId: `integer | string`
+
+**Returns**
+- `table?` — `nil` when the host vouches for no account
+
+## OPX.ForgetSession [#opx-forgetsession]
+
+Marks the session `departing`, raises `opx:in:session:forgotten`, then drops it. The core does this itself one frame after a disconnect if no module did.
+
+```lua
+OPX.ForgetSession(playerId)
+```
+
+**Parameters**
+- playerId: `integer`
+
+## OPX.SessionHolds [#opx-sessionholds]
+
+Whether the slot still belongs to the account the session was made for.
+
+```lua
+OPX.SessionHolds(playerId)
+```
+
+**Parameters**
+- playerId: `integer`
+
+**Returns**
+- `boolean`
+
+# Routing buckets [#buckets]
+
+Each player can wait in their own selection bucket (`ENTRY.BUCKET.BASE + playerId`) before a character is placed. A bucket move writes no position and is allowed while the gate is closed. Settings: [`ENTRY.BUCKET`](/docs/opx_infinity/core/config#config-server-entry).
+
+## OPX.Buckets.IsSelection [#opx-buckets-isselection]
+
+Whether the id is in `BASE+1 .. BASE+65535`, even with isolation off.
+
+```lua
+OPX.Buckets.IsSelection(bucket)
+```
+
+**Parameters**
+- bucket: `integer`
+
+**Returns**
+- `boolean`
+
+## OPX.Buckets.PlacementOf [#opx-buckets-placementof]
+
+The bucket a stored position places someone in. A selection bucket or an invalid id reads as `WORLD`.
+
+```lua
+OPX.Buckets.PlacementOf(stored)
+```
+
+**Parameters**
+- stored: `integer`
+
+**Returns**
+- `integer`
+
+## OPX.Buckets.Move [#opx-buckets-move]
+
+Moves one player.
+
+```lua
+OPX.Buckets.Move(source, bucket, why)
+```
+
+**Parameters**
+- source: `integer`
+- bucket: `integer`
+- why?: `string`
+
+**Returns**
+- `boolean` — `true` if already there
+
+## OPX.Buckets.Isolate [#opx-buckets-isolate]
+
+Moves a player into their own selection bucket and applies the population and lockdown settings to it. Do not call it for a player with a loaded character.
+
+```lua
+OPX.Buckets.Isolate(source, why, expectedUserId)
+```
+
+**Parameters**
+- source: `integer`
+- why?: `string`
+- expectedUserId?: `string`
+
+**Returns**
+- `boolean` — `false` when isolation is off, there is no session, the session is departing, or the account does not match
+
+## OPX.Buckets.Release [#opx-buckets-release]
+
+Moves a player out of a selection bucket into `WORLD`. Leaves any other bucket alone (`true, false`). On resource stop the core releases every session.
+
+```lua
+OPX.Buckets.Release(source, why, expectedUserId)
+```
+
+**Parameters**
+- source: `integer`
+- why?: `string`
+- expectedUserId?: `string`
+
+**Returns**
+- ok: `boolean`
+- moved: `boolean`
+
+# Tunables [#tunables]
+
+Values an operator can change from the host's tunables panel while the server runs. A change raises `opx:in:tune:changed` with the key.
+
+## OPX.Tune.Declare [#opx-tune-declare]
+
+Adds a module's tunables. Call from `Init`. Raises on a key declared twice, or after publishing.
+
+```lua
+OPX.Tune.Declare(block)
+```
+
+**Parameters**
+- block: `table<key, spec>` — a spec is what the host panel takes; `value` is the default
+
+```lua title="Example"
+OPX.Tune.Declare({
+	['thing.sweepMs'] = { value = 1000, type = 'integer', min = 250, max = 600000 },
+})
+```
+
+## OPX.Tune.Publish [#opx-tune-publish]
+
+Declares every collected key to the host in one call. Boot calls it between `Api` and `Start`. On a host with no panel, or a refusal, every key reads its default.
+
+```lua
+OPX.Tune.Publish()
+```
+
+**Returns**
+- `boolean` — the panel is live
+
+## OPX.Tune.Get [#opx-tune-get]
+
+The live value, or the declared default.
+
+```lua
+OPX.Tune.Get(key)
+```
+
+**Parameters**
+- key: `string`
+
+**Returns**
+- `any`
+
+## OPX.Tune.Number [#opx-tune-number]
+
+The value as a finite number, never below `floor`. Answers `floor` for an unknown key or a bad value. Read it at the moment of use; do not store it.
+
+```lua
+OPX.Tune.Number(key, floor)
+```
+
+**Parameters**
+- key: `string`
+- floor: `number`
+
+**Returns**
+- `number`
+
+```lua title="Example"
+OPX.Scheduler.Every('thing.sweep', function() return OPX.Tune.Number('thing.sweepMs', 250) end, sweep)
+```
+
+## OPX.Tune.Known [#opx-tune-known]
+
+Whether anyone declared the key.
+
+```lua
+OPX.Tune.Known(key)
+```
+
+**Parameters**
+- key: `string`
+
+**Returns**
+- `boolean`
+
+# Schema [#schema]
+
+## OPX.Schema.Add [#opx-schema-add]
+
+Adds `CREATE TABLE IF NOT EXISTS` statements, in foreign-key order. Call from `Init`.
+
+```lua
+OPX.Schema.Add(list)
+```
+
+**Parameters**
+- list: `string[]`
+
+## OPX.Schema.AddIndexes [#opx-schema-addindexes]
+
+Adds indexes a table that already exists may be missing. Applied by `OPX.Schema.Apply` after every table, through [`OPX.Storage.EnsureIndex`](/docs/opx_infinity/core/lib#opx-storage-ensureindex). A failure is a logged warning, not a boot failure. Call from `Init`.
+
+```lua
+OPX.Schema.AddIndexes(list)
+```
+
+**Parameters**
+- list: `table[]`
+  - TABLE: `string`
+  - NAME: `string` — index name
+  - COLUMNS: `string[]`
+
+```lua title="Example"
+OPX.Schema.AddIndexes({
+	{ TABLE = 'opx77_characters', NAME = 'idx_opx77_characters_seen', COLUMNS = { 'deleted_at', 'last_logged_out', 'citizen_id' } },
+}) -- what character does, from M.Storage.INDEXES
+```
+
+## OPX.Schema.Apply [#opx-schema-apply]
+
+Runs every statement through [`OPX.Storage.ApplySchema`](/docs/opx_infinity/core/lib#opx-storage-applyschema), stopping at the first failure, then ensures every index. Boot calls it before `Start` (not at all with no database); a failure sets `OPX.BootError`.
+
+```lua
+OPX.Schema.Apply()
+```
+
+**Returns**
+- ok: `boolean`
+- failedTable?: `string`

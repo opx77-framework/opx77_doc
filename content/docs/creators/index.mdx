@@ -1,0 +1,88 @@
+---
+title: Creators
+description: How your own Open77 resource talks to opx_infinity — exports, events, who may call, and when to await.
+---
+
+For a **separate** resource (your own job, shop or heist). `opx_infinity` gives you three doors and nothing else:
+
+| Door | Side | Use it to |
+|---|---|---|
+| [Server exports](/docs/creators/server) | server | read a player (money, job, items, down state); change money, jobs, gangs, duty, your own metadata, items, stashes, chat, keys, a vehicle's state; revive |
+| [Client exports](/docs/creators/client) | client | open a menu or form, show a toast, run a progress bar, play an animation on the local player; subscribe to OPX client events |
+| [Public server events](/docs/creators/events) | server | react when a character loads, money moves, an item is used… |
+
+The modules' own contracts (`OPX.Api.Get`) stay inside `opx_infinity`. If you need more, write a [module](/docs/guides/writing-a-module) instead.
+
+## Every export answers one table [#answer]
+
+```lua
+{ ok = true,  value = <answer> }    -- value may be nil
+{ ok = false, error = '<code>' }    -- a stable code you can branch on
+```
+
+An export never raises. Always test `answer.ok == true`.
+
+| Code | Meaning |
+|---|---|
+| `export.callerDenied` | Your resource is not allowed to make this call ([Who may call](#allowlist)). |
+| `export.badArgument` | An argument could not be read (wrong type, bad player id, bad citizen id, name too long…). |
+| `export.booting` | The server has not finished starting. Try again later. |
+| `export.badValue` | `SetMetadata`: the value is not plain data. |
+| `export.tooLarge` | `SetMetadata`: over a size or key-count limit. |
+| `export.notSubscribable` | `Subscribe`: that event is not on the list. |
+| `export.mustAwait` | This call can reach the database. Call it with `Open77.exports.call(...)` and `:await()` ([below](#await)). |
+| `error.unavailable` | The module behind the export is not running, or the call failed. |
+| `error.notLoggedIn` | That player has no character loaded. |
+| other codes | Passed through from the module: `money.insufficient`, `stash_cap`, `vehicle.busy`… Each export lists its own. |
+
+A code is not a sentence. The `export.*` codes have English and French text in `opx_infinity`, but your resource shows its own text: translate the codes you show. See [Error codes](/docs/opx_infinity/core/error-codes).
+
+## Who may call [#allowlist]
+
+The caller is the resource name **the host reports** (`GetInvokingResource`), never an argument. The operator decides:
+
+| Setting | File | Default | Controls |
+|---|---|---|---|
+| [`SERVER.EXPORTS.READ`](/docs/opx_infinity/core/config#config-server-exports) | `config/server.lua` | `'*'` (everyone) | server exports that only read |
+| [`SERVER.EXPORTS.WRITERS`](/docs/opx_infinity/core/config#config-server-exports) | `config/server.lua` | `{}` (**nobody**) | server exports that change something |
+| [`CLIENT.EXPORTS.CALLERS`](/docs/opx_infinity/core/config#config-client-exports) | `config/client.lua` | `'*'` (everyone) | client exports |
+
+A list is `'*'`, a set `{ my_shop = true }` or an array `{ 'my_shop' }`. When a server export refuses your resource, the journal prints the line to add, once per resource and export:
+
+```text
+[exports] my_shop was refused AddMoney; to admit it, add `my_shop = true` to EXPORTS.WRITERS in config/server.lua
+```
+
+<Callout type="warn" title="Writers are trusted with money">
+
+A resource in `WRITERS` can create money and items. Every write is audited with the caller's name (`event=export.<Name>`), and money reasons are written `ext:<resource>:<reason>`.
+
+</Callout>
+
+## Sync or await? [#await]
+
+```lua
+-- synchronous: answers at once; fails if the export has to wait
+local answer = exports.opx_infinity:GetPlayerData(playerId)
+
+-- asynchronous: returns a promise; call it from a thread and await it
+local pending, why = Open77.exports.call('opx_infinity', 'AddMoney', playerId, 'EDDIES', 250, 'tip')
+local answer = pending and pending:await()
+```
+
+| Sync is fine | Must use `Open77.exports.call(...):await()` |
+|---|---|
+| `GetVersion`, `GetPlayerData`, `GetPlayerByCitizenId`, `IsStaff`, `GetMoney`, `HasJob`, `HasGang`, `GetJob`, `GetGang`, `GetMetadata`, `IsDown`, and the memory-only writes `SetDuty`, `SetMetadata`, `Revive` | `AddMoneyOffline`, `SetJob`, `SetGang`, `RemoveJob`, `RemoveGang`, the stash exports, `RevokeKeys`, `RevokeAllKeys`, `SetVehicleState`, and the item exports when `target` is a citizen id. The promise form for every other write is a safe habit. |
+
+- A call that may reach the database, made synchronously, answers `export.mustAwait` **before** touching anything, so it is safe to retry with the promise form.
+- `await` needs a thread: `CreateThread`, an event handler or a command handler, never file scope.
+
+## Your manifest [#manifest]
+
+```lua title="my_shop/open77.lua"
+dependency "opx_infinity"  -- optional, recommended
+```
+
+- A declared dependency starts `opx_infinity` first and stops your resource with it. It grants nothing: the allowlist still decides.
+- Publishing and calling exports needs no permission.
+- A client resource that wants answers must publish a reply export: see [Client exports](/docs/creators/client#replies).

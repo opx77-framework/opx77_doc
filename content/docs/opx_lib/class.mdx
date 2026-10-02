@@ -1,0 +1,46 @@
+---
+title: Lib.Class
+description: Classes with single inheritance, for code that stays in one VM.
+---
+
+Pure. No permission.
+
+## Lib.Class
+
+Builds a class. Call the class to make an instance; `init(self, ...)` runs if defined (looked up through the parent too). Single inheritance, no `super()`: an override names the parent (`Zone.holds(self, p)`).
+
+```lua
+Lib.Class(name, parent)
+```
+
+**Parameters**
+- name: `string`
+- parent?: `table` — a class from a previous call
+
+**Returns**
+- `table` — the class
+
+```lua title="Example"
+local Zone = Lib.Class('Zone')
+function Zone:init(centre, radius) self.centre, self.radius = centre, radius end
+
+local Circle = Lib.Class('Circle', Zone)
+local here = Circle(centre, 15)
+```
+
+- It uses metatables, so an instance does not survive being passed through an export: it arrives as plain fields without methods.
+- Not verified on the client: `getmetatable` is absent from the Open77 client sandbox and `setmetatable` has not been proven there.
+
+## Class.Holds
+
+Whether a value is an instance of the class or of a subclass.
+
+```lua
+Circle.Holds(value)
+```
+
+**Parameters**
+- value: `any`
+
+**Returns**
+- `boolean`

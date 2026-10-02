@@ -1,0 +1,21 @@
+---
+title: GetGang
+description: A copy of a player's primary gang.
+---
+
+<a id="export-server-getgang" />
+
+```lua
+local res = exports.opx_infinity:GetGang(source)
+```
+
+Scope `read` · sync.
+
+**Parameters**
+- source: `number`
+
+**Returns**
+- the primary gang table, as the [Player object](/docs/opx_infinity/character/player#player) holds it
+
+**Errors**
+- `export.badArgument`, `error.notLoggedIn`

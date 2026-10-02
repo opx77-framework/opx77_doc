@@ -1,0 +1,86 @@
+---
+title: Lib.Zone
+description: Test whether a point or the player is inside a zone, and watch entries and exits.
+---
+
+No permission. A zone definition is what `Open77.zones.contains` takes, e.g. `{ position = { x, y, z }, radius = 8.0 }`. A client zone is a display cue, never proof: re-check on the server.
+
+## Lib.Zone.Contains [#lib-zone-contains]
+
+Whether a point is inside a zone. `ok = true, value = false` means outside.
+
+```lua
+Lib.Zone.Contains(definition, point, options)
+```
+
+**Parameters**
+- definition: `table`
+- point: `{ x, y, z }`
+- options?: `table` — `grace`, `origin`, `rotation`
+
+**Returns**
+- `Result` — `boolean`
+
+## Lib.Zone.Here [#lib-zone-here]
+
+Whether the local player is inside a zone now.
+
+```lua
+Lib.Zone.Here(definition, options)
+```
+
+**Parameters**
+- definition: `table`
+- options?: `table`
+
+**Returns**
+- `Result` — `boolean`
+
+## Lib.Zone.Watch [#lib-zone-watch]
+
+Calls `onEnter` / `onExit` as the local player crosses the boundary. One shared thread polls every 250 ms (`Zone.INTERVAL`). A player already inside gets `onEnter`.
+
+```lua
+Lib.Zone.Watch(definition, handlers)
+```
+
+**Parameters**
+- definition: `table`
+- handlers: `table`
+  - onEnter?: `function`
+  - onExit?: `function`
+  - grace?: `number`
+
+**Returns**
+- `Result` — a watch handle; errors `invalid_definition`, `invalid_handlers`, `no_handlers`
+
+```lua title="Example"
+local watch = Lib.Zone.Watch({ position = { x = 10.0, y = 20.0, z = 5.0 }, radius = 8.0 }, {
+  onEnter = function() Lib.Notify.Show('Welcome to the market') end,
+})
+```
+
+## Lib.Zone.Unwatch [#lib-zone-unwatch]
+
+Stops a watch. The shared thread stops with the last one.
+
+```lua
+Lib.Zone.Unwatch(handle)
+```
+
+**Parameters**
+- handle: `any`
+
+**Returns**
+- `Result` — error `no_such_watch`
+
+## Lib.Zone.Count [#lib-zone-count]
+
+Running watches.
+
+```lua
+Lib.Zone.Count()
+```
+
+**Returns**
+- `integer`

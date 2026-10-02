@@ -1,0 +1,118 @@
+---
+title: appearance
+description: The character's face, the clothes it wears, the fitting room, and the looks other players are drawn from.
+---
+
+At join the module decides which body the world loads with, puts the stored face and clothes on, and sends the announcement that lets the player into the world. It opens the game's own mirror to edit a face, runs the **fitting room** where a player picks clothes slot by slot, and hands every player's look to the others so they are drawn at all. Players open their panel with `/opx.appearance`; the fitting room opens at a clothing store, a shop, from staff, or once after character creation. Other modules use the contract to dress, preview or bill clothing.
+
+| | |
+|---|---|
+| Side | both |
+| Requires | `character` (hard) |
+| Optional | `menu`, `panel` (they draw the panel and the fitting room) |
+| Contract | `appearance` v1 — [server](/docs/opx_infinity/appearance/server), [client](/docs/opx_infinity/appearance/client) |
+| Config | `config/appearance.lua` (shared) |
+| Data | `opx77_character_clothing` (owned); the `appearance` column of `opx77_characters` (row owned by `character`) |
+
+<Callout type="warn" title="Fatal module">
+
+Declared `fatal = true`. Its client sends `open77:session:gameplayReady`, the only thing that clears the platform's join hold. With it stopped, no player gets into the world.
+
+</Callout>
+
+## Commands
+
+| Command | Access | Arguments | Effect |
+|---|---|---|---|
+| <a id="opx-appearance" />`/opx.appearance` | everyone | — | Toggles the caller's appearance panel. Cooldown 2 s. |
+
+There is no fitting-room command (`/opx.appearance.wardrobe` is gone) and no panel key. Staff open the room for a player with [`/opx.admin.player.wardrobe`](/docs/opx_infinity/admin#opx-admin-player-wardrobe).
+
+### What the panel offers
+
+- **Looks**: put the stored face back on (**Wear it**), open the mirror on the face (**Edit face**, `ripperdoc` mode) or the hair (**Hair only**, `hairdresser` mode).
+- **Body**: shows the body type. It cannot be changed: it belongs to the character.
+- **Outfits**: opens the fitting room. A room opened this way has no server grant, so its save is refused with `clothing.noFittingRoom` unless another door granted one in the last 10 minutes.
+
+## Garment names and pictures [#garments]
+
+The fitting room shows each piece with its real name and a picture on the player's body family. The data is generated; nothing here is a setting.
+
+| Piece | What it is |
+|---|---|
+| `modules/appearance/data/garments-1.lua` … `garments-5.lua` | Generated: `["Items.<record>"] = { NAME, FEMALE, MALE }` — the item's name and the picture for each body family (either may be missing). Do not edit by hand. |
+| `modules/appearance/client/garments.lua` | Loaded before the parts; reads them. Exposes `M.Garments.Describe` (client, inside the module). |
+| `web/images/clothing/*.webp` | The pictures (160 px WebP), shipped to every client, built from `ui/public/images/clothing/` by `npm run build`. Named `<first 10 hex digits of sha256(slug)>.webp` (e.g. `0ff29bbf8d.webp`), so a path is 35 characters. |
+| `web/images/clothing/ATTRIBUTION.md` | Sources: pictures © CD PROJEKT RED (in-game renders from the Cyberpunk Wiki, not covered by this repository's licence); names from the Cyberpunk Wiki, CC BY-SA. |
+| `tools/generate-garments.mjs` | Rebuilds pictures, attribution and the `garments-*.lua` parts from a staged collection: `npm i --no-save sharp`, then `node tools/generate-garments.mjs <collection-dir>`. Keeps only records the server's items table knows (with a wardrobe slot). Names each picture by a hash of its slug; stops on a name collision or a path that is too long. If the number of parts changes, update the `garments-*.lua` lines in `open77.lua`. |
+
+```lua
+local name, picture = M.Garments.Describe(record, family)
+```
+
+- record: `string` — an `Items.*` name
+- family: `'female' | 'male'`
+- Returns the name and picture (each may be nil): the family's own picture, else the other body's, else nil. A malformed row is reported once with `OPX.Note` and treated as missing. Not on the contract.
+
+<Callout type="warn" title="Shipped paths must be 47 characters or less">
+
+A client installs a server's resources deep under the game folder. A Steam install in Program Files leaves 59 characters of Windows `MAX_PATH` for a path inside the resource, and **one** file past that makes the whole resource fail on that client. Every shipped path is held to 47 characters (59 less a 12-character margin); `tests/run.lua` checks every file under `web/`. That is why clothing pictures have hashed names. Keep any new file under `web/` short.
+
+</Callout>
+
+- Each box in the room is drawn through the [panel](/docs/opx_infinity/panel) `tiles` spec with `labels` (the garment name, or one made from the record) and `images` (the picture, or `''` for a monogram).
+- Category names are the `wardrobe.slot.*` locale keys: *Head*, *Face*, *Top* (`InnerChest`), *Jacket* (`OuterChest`), *Pants* (`Legs`), *Shoes* (`Feet`), *Outfit*; in French *Tête*, *Visage*, *Haut*, *Veste*, *Pantalon*, *Chaussures*, *Tenue*.
+
+## Configuration
+
+`config/appearance.lua` sets `OPX.Config.MODULES.appearance`. Shared script. Nothing else in opx_infinity sends the join announcement, so `enabled = false` only when another resource does.
+
+| Key | Default | Effect |
+|---|---|---|
+| <a id="config-appearance-enabled" />`enabled` | `true` | Switches the module on or off. |
+| <a id="config-appearance-game-builds" />`GAME_BUILDS` | `{ ['2.31'] = true }` | Builds a stored face may be read back on. A face from another build is refused, not applied. |
+| <a id="config-appearance-max-json-bytes" />`MAX_JSON_BYTES` | `49152` | Largest encoded face stored; under 1024 falls back to 49152. The clothing limit is fixed at 16384. |
+| <a id="config-appearance-present-bodies" />`PRESENT_BODIES` | `true` | Hand every player's look to everyone else. `false` only when another resource does it, otherwise nobody sees anybody. |
+| <a id="config-appearance-commit-ms" />`COMMIT_MS` | `20000` | How long the client waits for the server to answer a face or clothing save. |
+| <a id="config-appearance-save-cooldown-ms" />`SAVE_COOLDOWN_MS` | `2000` | Client-side wait between two saves. The server's cooldown is fixed at 2 s. |
+| <a id="config-appearance-clothing" />`CLOTHING` | `{ PERSIST = true, SAVE_DEBOUNCE_MS = 2000 }` | `PERSIST`: put stored clothing on and save changes (`false` leaves clothing to something else). `SAVE_DEBOUNCE_MS`: how long a change must hold before it is saved. |
+| <a id="config-appearance-restore-retries" />`RESTORE_RETRIES` | `3` | Re-tries of a join-time face restore the mirror aborted. |
+| <a id="config-appearance-family-retries" />`FAMILY_RETRIES` | `2` | World reloads onto the character's body family before the player keeps the body they are on. |
+| <a id="config-appearance-body-reload-settle-ms" />`BODY_RELOAD_SETTLE_MS` | `10000` | After a body reload, how long a face waits for the respawn to finish. |
+| <a id="config-appearance-body-reload-timeout-ms" />`BODY_RELOAD_TIMEOUT_MS` | `30000` | After this, a reload is ended if the puppet is attached, alive and in the world. Not a positive number: recovery off. |
+| <a id="config-appearance-creation-wait-ms" />`CREATION_WAIT_MS` | `15000` | How long a character with no face waits for something to answer `needsCreation` before entering on the default face. |
+| <a id="config-appearance-bootstrap" />`BOOTSTRAP` | `{ CHOICE_WAIT_MS = 15000, CHOICE_CEILING_MS = 45000, DEFAULT_FAMILY = 'female' }` | Wait for a character choice while nothing is on screen; the whole wait, screen or not (`0` = off); the body loaded when no character is known in time. |
+| <a id="config-appearance-wardrobe" />`WARDROBE` | see below | The fitting room. |
+
+```lua title="config/appearance.lua — WARDROBE"
+WARDROBE = {
+  OFFER_POLICY = 'first',
+  CREATION_WAIT_MS = 60000,
+  CAMERA_OFFSET = { X = 0.0, Y = 2.6, Z = 1.1 },
+  CAMERA_FOV = 95,
+},
+```
+
+- `OFFER_POLICY`: which world entries get the room. `'first'`: only a character just built in the creator. `'always'`: every entry. `'never'`: none. Unknown: warning, reads `'first'`.
+- `CREATION_WAIT_MS`: how long the join retries opening the owed room before moving on.
+- `CAMERA_OFFSET`: camera position in metres in the puppet's space (X across, Y in front, Z up).
+- `CAMERA_FOV`: used only when the camera cannot be moved to `CAMERA_OFFSET`; `nil` leaves the player's own.
+
+Join order for a new character: name → fitting room → spawn menu. A player dressing is inside the spawn module's `HOLD_MAX_SECONDS`; keep that longer than a player needs to dress.
+
+## Refusal codes [#codes]
+
+Sent on [`opx:net:appearance:refused`](/docs/opx_infinity/appearance/events#opx-net-appearance-refused). Face refusals are also shown to the player through the locale catalogue; clothing refusals are only published and logged.
+
+| Code | Meaning |
+|---|---|
+| `error.badRequest` | The payload was not a table. |
+| `error.tooFast` | Inside the 2 s cooldown. The client retries a clothing save. |
+| `error.notLoggedIn` | No character loaded on the connection. |
+| `appearance.stale` / `clothing.stale` | The save was captured for another character. |
+| `appearance.invalid` / `clothing.invalid` | The face or record failed validation. |
+| `appearance.tooLarge` / `clothing.tooLarge` | Over the size limit. |
+| `clothing.noFittingRoom` | No server door granted a clothing save in the last 10 minutes. |
+| `error.unavailable` | The stored clothing could not be read at login; saves are off this session. |
+
+Validation details on `appearance.invalid`: `unsupported_schema`, `unsupported_game_build`, `invalid_catalog_digest`, `invalid_gender`, `invalid_option_count`, `option_out_of_range`, `duplicate_option`, `sparse_options`. On `clothing.invalid`: `unknown_field`, `invalid_slot`, `invalid_item`, `invalid_active`, `invalid_outfit`, `invalid_outfit_slot`.

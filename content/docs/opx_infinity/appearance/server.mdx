@@ -1,0 +1,120 @@
+---
+title: Server
+description: The appearance contract on the server — read and store faces and clothing, open the fitting room.
+---
+
+```lua
+local appearance = OPX.Api.Get('appearance')
+```
+
+From server code inside opx_infinity. `identifier` is a player table, a server id or a citizen id.
+
+## GetAppearance [#server-appearance-getappearance]
+
+The stored face. Online: reads memory. Offline (citizen id string): reads the database, so it yields.
+
+```lua
+appearance.GetAppearance(identifier)
+```
+
+**Parameters**
+- identifier: `table | number | string`
+
+**Returns**
+- `Result` — the snapshot, or nil
+
+## SaveAppearance [#server-appearance-saveappearance]
+
+Validates and stores a face, then tells the client (`faceSaved`). Yields: call from a thread. The character must be loaded.
+
+```lua
+appearance.SaveAppearance(identifier, snapshot)
+```
+
+**Parameters**
+- identifier: `table | number | string`
+- snapshot: `table`
+
+**Returns**
+- `Result` — the canonical snapshot; errors `error.notLoggedIn`, `appearance.invalid` (`detail` = validation code), `appearance.tooLarge`
+
+```lua title="Example"
+CreateThread(function()
+  local saved = appearance.SaveAppearance(source, snapshot)
+  if not saved.ok then print(saved.error, saved.detail) end
+end)
+```
+
+## GetClothing [#server-appearance-getclothing]
+
+The stored [clothing record](#the-clothing-record). Offline reads yield.
+
+```lua
+appearance.GetClothing(identifier)
+```
+
+**Parameters**
+- identifier: `table | number | string`
+
+**Returns**
+- `Result` — the record, `false` when nothing is stored, `nil` when the stored row could not be read; error `clothing.unreadable`
+
+## SaveClothing [#server-appearance-saveclothing]
+
+Stores a clothing record. Yields. The character must be loaded. Does **not** check a fitting-room grant.
+
+```lua
+appearance.SaveClothing(identifier, clothing)
+```
+
+**Parameters**
+- identifier: `table | number | string`
+- clothing: `table` — a [clothing record](#the-clothing-record)
+
+**Returns**
+- `Result` — errors `error.notLoggedIn`, `clothing.invalid` (`detail` = code), `error.unavailable` (`clothing_unavailable`: stored record unreadable this session), `clothing.tooLarge`
+
+## OpenWardrobe [#server-appearance-openwardrobe]
+
+Asks the player's client to open the fitting room and grants a clothing save. The caller checks permission.
+
+```lua
+appearance.OpenWardrobe(playerId)
+```
+
+**Parameters**
+- playerId: `number`
+
+**Returns**
+- `boolean` — `true`: the ask went out (not that a room opened)
+- `string?` — `'invalid_player'` on `false`
+
+## AllowClothingSave [#server-appearance-allowclothingsave]
+
+Lets the player's client save clothing for the next 10 minutes. For doors that put clothes on without a room (a bought uniform, a saved outfit).
+
+```lua
+appearance.AllowClothingSave(playerId, owner)
+```
+
+**Parameters**
+- playerId: `number`
+- owner: `string` — only logged
+
+**Returns**
+- `boolean`
+- `string?` — `'invalid_player'` on `false`
+
+## The clothing record
+
+```lua
+{
+  schemaVersion = 1,
+  equipment = { Head = 'Items.…' or false, Face, InnerChest, OuterChest, Legs, Feet,
+                Outfit, UnderwearTop, UnderwearBottom },
+  wardrobe = { active = 0..6 or nil, outfits = { ['0'] = { Head = 'Items.…', … }, … } },
+}
+```
+
+- Every item matches `^Items%.[%w_%.%-]+$` and is at most 160 bytes.
+- Outfits are indexed `0` to `6` and may override the seven visible slots only (not underwear).

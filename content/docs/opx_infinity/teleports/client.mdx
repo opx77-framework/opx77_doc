@@ -1,0 +1,63 @@
+---
+title: Client
+description: The teleports contract on the client — the pad under the player, and using it.
+---
+
+```lua
+local teleports = OPX.Api.Get('teleports')
+```
+
+From client code inside opx_infinity.
+
+## Nearest [#client-teleports-nearest]
+
+The entrance the player is standing on.
+
+```lua
+teleports.Nearest()
+```
+
+**Returns**
+- `Result` — `{ key, leg, label, allowed }`; error `teleports.noSuchTeleport`
+
+## Entrances [#client-teleports-entrances]
+
+The last list the server sent.
+
+```lua
+teleports.Entrances()
+```
+
+**Returns**
+- `Result` — `{ entrances }`, keyed `key .. '\1' .. leg`
+
+## Use [#client-teleports-use]
+
+Same as pressing the key. "Ok" means sent; the result arrives on [`opx:on:teleports:decision`](/docs/opx_infinity/teleports/events#opx-on-teleports-decision).
+
+```lua
+teleports.Use(origin)
+```
+
+**Parameters**
+- origin?: `string`
+  - The caller's name, reported back as `source`. Default `'key'`.
+
+**Returns**
+- `{ ok = true, key, leg, source }`, or `{ ok = false, error }` with a locale key: `error.noPermission` (input captured), `teleports.busy` (a progress bar is up), `teleports.noSuchTeleport`, `teleports.inFlight`, `teleports.refused`
+
+```lua title="Example"
+local sent = teleports.Use('mymodule')
+if not sent.ok then print(sent.error) end
+```
+
+## State [#client-teleports-state]
+
+Counts and the current key label.
+
+```lua
+teleports.State()
+```
+
+**Returns**
+- `Result` — `{ entrances, markers, nearest, leg, allowed, shown, asking, key }`

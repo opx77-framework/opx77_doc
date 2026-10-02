@@ -1,0 +1,83 @@
+---
+title: Server
+description: The prompts contract on the server — post key-strip rows to one player.
+---
+
+```lua
+local prompts = OPX.Api.Get('prompts')
+```
+
+From server code inside opx_infinity. Each call only sends a net event to one player; the client validates the spec. The answer says the event was sent, not that the group was accepted.
+
+- Errors: `prompts.invalidPlayer` (`source` is not a number), `prompts.invalidOwner`.
+- The server owner is stored on the client as `@server:<owner>`, so it never collides with a client owner.
+- A client cannot see a server module stop: a server module that restarts should call `HideAll` before posting again.
+
+## Show [#server-prompts-show]
+
+Sends [`opx:net:prompts:show`](/docs/opx_infinity/prompts/events#opx-net-prompts-show).
+
+```lua
+prompts.Show(source, owner, id, spec)
+```
+
+**Parameters**
+- source: `number`
+- owner: `string`
+- id: `string`
+- spec: `table` — as the [client spec](/docs/opx_infinity/prompts/client#spec)
+
+**Returns**
+- `Result` — `{ id }`
+
+```lua title="Example"
+prompts.Show(source, 'garage', 'menu', { rows = { { label = 'Garage', keys = 'E' } } })
+```
+
+## Update [#server-prompts-update]
+
+Sends [`opx:net:prompts:update`](/docs/opx_infinity/prompts/events#opx-net-prompts-update).
+
+```lua
+prompts.Update(source, owner, id, patch)
+```
+
+**Parameters**
+- source: `number`
+- owner: `string`
+- id: `string`
+- patch: `table` — as the client [`Update`](/docs/opx_infinity/prompts/client#client-prompts-update)
+
+**Returns**
+- `Result` — `{ id }`
+
+## Hide [#server-prompts-hide]
+
+Sends [`opx:net:prompts:hide`](/docs/opx_infinity/prompts/events#opx-net-prompts-hide).
+
+```lua
+prompts.Hide(source, owner, id)
+```
+
+**Parameters**
+- source: `number`
+- owner: `string`
+- id: `string`
+
+**Returns**
+- `Result` — `{ id }`
+
+## HideAll [#server-prompts-hideall]
+
+Sends [`opx:net:prompts:hideAll`](/docs/opx_infinity/prompts/events#opx-net-prompts-hideall).
+
+```lua
+prompts.HideAll(source, owner)
+```
+
+**Parameters**
+- source: `number`
+- owner: `string`
+
+**Returns**
+- `Result` — `true`

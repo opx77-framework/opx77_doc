@@ -1,0 +1,237 @@
+---
+title: Client
+description: The target contract on the client — register rows on world things and steer the eye.
+---
+
+```lua
+local target = OPX.Api.Get('target')
+```
+
+From client code inside opx_infinity. Every function answers a Result. None yields.
+
+`owner` is your module name. A module of this runtime keeps its rows until it stops. A separate Open77 resource's rows are dropped when it stops or reloads.
+
+## Register [#client-target-register]
+
+Registers one [row definition](#row-definition) (a table with `id`) or a list of up to 32, whole or not at all. Re-registering an owner's `id` replaces that row.
+
+```lua
+target.Register(owner, definitions)
+```
+
+**Parameters**
+- owner: `string`
+- definitions: `table | table[]`
+
+**Returns**
+- `Result` — `{ token }` (one) or `{ tokens }` (list)
+
+```lua title="Example"
+target.RegisterVehicles('mymodule', {
+  id = 'refuel', label = 'Refuel', icon = 'bolt', order = 10, distance = 4.0,
+  canInteract = function(ctx) return ctx.target.vehicleId ~= nil end,
+  onSelect = function(ctx) print('refuel', ctx.target.vehicleId) end,
+})
+```
+
+## Register shortcuts
+
+Same parameters and return as `Register`; each forces the filter fields below, overwriting the same fields in your definitions.
+
+| Function | Signature | Forces |
+|---|---|---|
+| <a id="client-target-registerplayers" />`RegisterPlayers` | `(owner, definitions)` | `types = { 'player' }` (other players). |
+| <a id="client-target-registerself" />`RegisterSelf` | `(owner, definitions)` | `types = { 'player' }, allowSelf = true, selfOnly = true` (own body). |
+| <a id="client-target-registervehicles" />`RegisterVehicles` | `(owner, definitions)` | `types = { 'vehicle' }`. |
+| <a id="client-target-registernpcs" />`RegisterNpcs` | `(owner, definitions)` | `types = { 'npc' }`. |
+| <a id="client-target-registerprops" />`RegisterProps` | `(owner, definitions)` | `types = { 'prop' }`. |
+| <a id="client-target-registerdoors" />`RegisterDoors` | `(owner, definitions)` | `types = { 'door' }`. |
+| <a id="client-target-registerworld" />`RegisterWorld` | `(owner, definitions)` | `types = { 'world' }` (bare surfaces). |
+| <a id="client-target-registersky" />`RegisterSky` | `(owner, definitions)` | `types = { 'sky' }` (empty space; distance is not checked). |
+| <a id="client-target-registermodels" />`RegisterModels` | `(owner, records, definitions)` | `records` (list of record names). |
+| <a id="client-target-registerentities" />`RegisterEntities` | `(owner, entities, definitions)` | `entities` (see [row definition](#row-definition)). |
+| <a id="client-target-registerspheres" />`RegisterSpheres` | `(owner, spheres, definitions)` | `spheres`: the ray's hit point must fall inside one. |
+
+```lua title="Example"
+target.RegisterSpheres('mymodule', { { x = 10.0, y = 20.0, z = 5.0, radius = 1.5 } },
+  { id = 'atm', label = 'Use ATM', icon = 'money', onSelect = function(ctx) end })
+```
+
+## Update [#client-target-update]
+
+Re-registers the row with the patched fields under a **new** token. `patch.id` cannot change.
+
+```lua
+target.Update(owner, token, patch)
+```
+
+**Parameters**
+- owner: `string`
+- token: `string`
+- patch: `table`
+
+**Returns**
+- `Result` — `{ token }`
+
+## Get [#client-target-get]
+
+A copy of the stored definition.
+
+```lua
+target.Get(owner, token)
+```
+
+**Parameters**
+- owner: `string`
+- token: `string`
+
+**Returns**
+- `Result` — `{ token, definition }`
+
+## Unregister [#client-target-unregister]
+
+Removes one row.
+
+```lua
+target.Unregister(owner, token)
+```
+
+**Parameters**
+- owner: `string`
+- token: `string`
+
+**Returns**
+- `Result` — `true`
+
+## UnregisterMany [#client-target-unregistermany]
+
+Removes up to 32 rows, all or none.
+
+```lua
+target.UnregisterMany(owner, tokens)
+```
+
+**Parameters**
+- owner: `string`
+- tokens: `string[]`
+
+**Returns**
+- `Result` — `true`
+
+## Clear [#client-target-clear]
+
+Removes every row of the owner.
+
+```lua
+target.Clear(owner)
+```
+
+**Parameters**
+- owner: `string`
+
+**Returns**
+- `Result` — `true`
+
+## SetEnabled [#client-target-setenabled]
+
+Switches one row on or off.
+
+```lua
+target.SetEnabled(owner, token, value)
+```
+
+**Parameters**
+- owner: `string`
+- token: `string`
+- value: `boolean`
+
+**Returns**
+- `Result` — `true`
+
+## List [#client-target-list]
+
+The owner's rows, sorted by id.
+
+```lua
+target.List(owner)
+```
+
+**Parameters**
+- owner: `string`
+
+**Returns**
+- `Result` — `{ options = { { token, id, label, enabled } } }`
+
+## SetTargetingEnabled [#client-target-settargetingenabled]
+
+`false` switches the whole eye off while the owner runs (closes it if open); `true` lifts your own switch.
+
+```lua
+target.SetTargetingEnabled(owner, value)
+```
+
+**Parameters**
+- owner: `string`
+- value: `boolean`
+
+**Returns**
+- `Result` — `true`
+
+## Close [#client-target-close]
+
+Closes the eye.
+
+```lua
+target.Close()
+```
+
+**Returns**
+- `Result` — `true`
+
+## State [#client-target-state]
+
+```lua
+target.State()
+```
+
+**Returns**
+- `Result` — `{ ready, open, enabled, handle, target, context, rows, owners }`
+  - `ready`: this client can screen-pick
+  - `rows`, `owners`: registry size
+
+## Row definition [#row-definition]
+
+| Field | Type | Default | Rule |
+|---|---|---|---|
+| `id` | string | — | Required. 1–64 characters of letters, digits, `_ . : -`. Unique per owner. |
+| `label` | string | — | Required. 1–80 bytes, one line. |
+| `onSelect` | function, string or `{ resource, export }` | — | Required. Called with the [context](#the-context) when the row is chosen. A function runs in-process. A string is an export of the owner's resource; `{ resource, export }` names another resource's export (called through `OPX.Lib.Rpc.Call`). |
+| `canInteract` | same as `onSelect` | none | Optional. Called at pick time; the row is listed only if it answers `true`. |
+| `checked` | same as `onSelect` | none | Optional. Answer `true`/`false` to draw a check box. |
+| `description` | string | none | 1–180 bytes. |
+| `group` | string | `''` | 1–40 bytes. Rows of one group form a folder. |
+| `icon` | string | `'interact'` | A name from `OPX.Glyphs` (e.g. `person`, `vehicle`, `door`, `lock`, `money`, `heal`, `tag`, `warning`). |
+| `enabled` | boolean | `true` | A disabled row is never listed. |
+| `networked` | boolean | any | If set, the target's `networked` flag must equal it. |
+| `allowSelf` | boolean | `false` | Allow the local player's own body. |
+| `selfOnly` | boolean | `false` | Only the local player's body. Needs `allowSelf = true` and, if `types` is set, `player` in it. |
+| `danger` | boolean | `false` | Drawn as a dangerous action. |
+| `distance` | number | `3.0` | Metres from the player to the hit point, 0.1–50. Not checked for `sky`. |
+| `order` | integer | `0` | −1000..1000. Lower first. A group sorts at its lowest `order`. |
+| `types` | string list | any | Up to 32 of `player`, `vehicle`, `npc`, `prop`, `door`, `device`, `item`, `object`, `world`, `sky`. `sky` rows must list `sky`. |
+| `records` | string list | any | Up to 32 record names (1–200 bytes each). The target's record must be one of them. |
+| `entities` | table list | any | Up to 32 entries, each naming exactly one of `playerId`, `vehicleId`, `npcId` (positive integers), `engineEntity` or `propId` (digit strings). |
+| `spheres` | table list | any | Up to 32 `{ x, y, z, radius }`, radius 0.1–10 m. |
+| `data` | table | none | Plain data (no functions, max 4 levels, about 2 KB). Handed back in `context.option.data`. |
+
+## The context
+
+`canInteract`, `checked` and `onSelect` receive one table:
+
+- the screen-ray hit: `position`, `direction`, `origin`, `hit`, …
+- `screen`: `{ x, y }` (0–1)
+- `kind`, `playerDistance`
+- `target`: `kind`, `networked`, `isLocalPlayer`, `record`, and the id field that applies (`playerId`, `vehicleId`, `npcId`, `engineEntity` or `propId`). For empty sky, `{ kind = 'sky', networked = false }`.
+- `option`: `{ id, owner, token, data }`
+
+Before `onSelect`, the target and `canInteract` are checked again; if the target moved, the eye closes instead.

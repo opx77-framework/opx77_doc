@@ -1,0 +1,273 @@
+---
+title: Events
+description: Network and local events of the admin module.
+---
+
+Every client → server payload is checked on the server; none changes anything except noclip turning off. Lists arrive in chunks of `{ rows, offset, total?, done }`. Every menu row, eye row and form ends in `open77:command:execute`, exactly as if typed in chat.
+
+## opx:net:admin:open [#opx-net-admin-open]
+
+Server → client. Answer to `/opx.admin`.
+
+```lua
+RegisterNetEvent('opx:net:admin:open', function(payload) end)
+```
+
+- payload: `table`
+  - `access`: `table` — command names the ACL grants, mapped to `true`
+  - `aclKnown`: `boolean`
+  - `inventory`: `boolean`
+
+## opx:net:admin:access [#opx-net-admin-access]
+
+Server → client. Refreshed access map, same shape as `open`. Empty when the opener is no longer granted.
+
+```lua
+RegisterNetEvent('opx:net:admin:access', function(payload) end)
+```
+
+- payload: `{ access, aclKnown, inventory }`
+
+## opx:net:admin:roster [#opx-net-admin-roster]
+
+Server → client. The player list.
+
+```lua
+RegisterNetEvent('opx:net:admin:roster', function(chunk) end)
+```
+
+- chunk: `table` — [roster rows](/docs/opx_infinity/admin/server#server-admin-roster) plus `distance` (metres, same bucket)
+
+## opx:net:admin:locations [#opx-net-admin-locations]
+
+Server → client. Saved locations.
+
+```lua
+RegisterNetEvent('opx:net:admin:locations', function(chunk) end)
+```
+
+- chunk: `table` — rows `{ name, label, runtime }`
+
+## opx:net:admin:items [#opx-net-admin-items]
+
+Server → client. The inventory catalogue.
+
+```lua
+RegisterNetEvent('opx:net:admin:items', function(chunk) end)
+```
+
+- chunk: `table` — rows `{ name, label, category, weapon?, ammo? }`, `error?`
+
+## opx:net:admin:bag [#opx-net-admin-bag]
+
+Server → client. One holder's bag.
+
+```lua
+RegisterNetEvent('opx:net:admin:bag', function(chunk) end)
+```
+
+- chunk: `table` — rows `{ slot, name, count, label }`, `target`, `error?`
+
+## opx:net:admin:characters [#opx-net-admin-characters]
+
+Server → client. One account's characters.
+
+```lua
+RegisterNetEvent('opx:net:admin:characters', function(chunk) end)
+```
+
+- chunk: `table` — character rows, `target`, `error?`
+
+## opx:net:admin:found [#opx-net-admin-found]
+
+Server → client. One page of the offline character search.
+
+```lua
+RegisterNetEvent('opx:net:admin:found', function(chunk) end)
+```
+
+- chunk: `table` — rows, `tag`, `mode`, `more?`, `cursor?`, `seenAt?`, `error?`
+
+## opx:net:admin:answer [#opx-net-admin-answer]
+
+Server → client. A command's answer to the operator.
+
+```lua
+RegisterNetEvent('opx:net:admin:answer', function(raw, ok, message, kind) end)
+```
+
+- raw: `string`
+- ok: `boolean`
+- message: `string`
+- kind: `'info' | 'success' | 'warning' | 'error'`
+
+## opx:net:admin:travel [#opx-net-admin-travel]
+
+Server → client. Noclip and map-travel state.
+
+```lua
+RegisterNetEvent('opx:net:admin:travel', function(action, value) end)
+```
+
+- action: `'noclip' | 'speed' | 'mapPick' | 'copy'`
+- value: `boolean` (noclip, mapPick) · `number` (speed) · `string` (copy: the clipboard row)
+
+## opx:net:admin:bodies [#opx-net-admin-bodies]
+
+Server → client. State for the menu's and the eye's checkboxes.
+
+```lua
+RegisterNetEvent('opx:net:admin:bodies', function(state) end)
+```
+
+- state: `{ invisible, frozen, worn, wornSelf, models }`
+
+## opx:net:admin:tagsState [#opx-net-admin-tagsstate]
+
+Server → client. Name tags on or off.
+
+```lua
+RegisterNetEvent('opx:net:admin:tagsState', function(on, persist) end)
+```
+
+- on: `boolean`
+- persist: `boolean`
+
+## opx:net:admin:tagRows [#opx-net-admin-tagrows]
+
+Server → client. Who to tag.
+
+```lua
+RegisterNetEvent('opx:net:admin:tagRows', function(chunk) end)
+```
+
+- chunk: `table` — rows `{ id, name, staff? }`
+
+## opx:net:admin:doors [#opx-net-admin-doors]
+
+Server → client. All door states of the player's bucket.
+
+```lua
+RegisterNetEvent('opx:net:admin:doors', function(chunk) end)
+```
+
+- chunk: `table` — rows `{ id, open, locked, sealed }`
+
+## opx:net:admin:door [#opx-net-admin-door]
+
+Server → client. One door changed.
+
+```lua
+RegisterNetEvent('opx:net:admin:door', function(id, state) end)
+```
+
+- id: `string` — `0x` + hex
+- state: `table | false` — `{ open, locked, sealed }`; `false` means reset
+
+## opx:net:admin:pvp [#opx-net-admin-pvp]
+
+Server → client. Current PvP state, broadcast on change.
+
+```lua
+RegisterNetEvent('opx:net:admin:pvp', function(on) end)
+```
+
+- on: `boolean`
+
+## opx:net:admin:announce [#opx-net-admin-announce]
+
+Server → client. An announcement; each client wraps it in its own `ANNOUNCE.STINGER` clips.
+
+```lua
+RegisterNetEvent('opx:net:admin:announce', function(payload) end)
+```
+
+- payload: `{ text: string, durationMs: number }`
+
+## opx:net:admin:refresh [#opx-net-admin-refresh]
+
+Client → server. Asks for a list. Needs the opener grant, plus the matching command for `bag`/`characters`/`found`.
+
+```lua
+TriggerServerEvent('opx:net:admin:refresh', topic, arg)
+```
+
+- topic: `'roster' | 'locations' | 'access' | 'items' | 'bag' | 'characters' | 'found'`
+- arg?: `any`
+
+## opx:net:admin:noclipBody [#opx-net-admin-noclipbody]
+
+Client → server. Noclip went off on the client, so the server stops hiding the body.
+
+```lua
+TriggerServerEvent('opx:net:admin:noclipBody', false)
+```
+
+## opx:net:admin:tagsRestore [#opx-net-admin-tagsrestore]
+
+Client → server. Turn the remembered name tags back on; the grant is checked again.
+
+```lua
+TriggerServerEvent('opx:net:admin:tagsRestore')
+```
+
+## opx:net:admin:doorsHello [#opx-net-admin-doorshello]
+
+Client → server. Asks for the bucket's door states again.
+
+```lua
+TriggerServerEvent('opx:net:admin:doorsHello')
+```
+
+## opx:net:admin:pvpRequest [#opx-net-admin-pvprequest]
+
+Client → server. Asks for the current PvP state.
+
+```lua
+TriggerServerEvent('opx:net:admin:pvpRequest')
+```
+
+## opx:net:admin:targetReport [#opx-net-admin-targetreport]
+
+Client → server. A line about the eye's rows (including the grants it lacked) for the server journal.
+
+```lua
+TriggerServerEvent('opx:net:admin:targetReport', text)
+```
+
+- text: `string`
+
+## opx:on:admin:tags [#opx-on-admin-tags]
+
+Client, local. For a name tag view. Only resources in the same client VM receive it.
+
+```lua
+AddEventHandler('opx:on:admin:tags', function(payload) end)
+```
+
+- payload: `table`
+  - `kind = 'config'`: colours, distance, labels
+  - `kind = 'rows'`: `rows` of `{ playerId, entity, own, name, user, citizenId, staff, offsetZ, alpha }`
+  - `kind = 'hide'`
+
+## Listened to
+
+### opx:on:downed:changed [#opx-on-downed-changed]
+
+Client, local. `downed`'s payload (see [`downed`](/docs/opx_infinity/downed)). Keeps the menu key and the name tags working while the operator is down.
+
+```lua
+AddEventHandler('opx:on:downed:changed', function(payload) end)
+```
+
+### open77:command:result [#open77-command-result]
+
+Server → client. The host dispatcher's answer to a line the menu sent; shown under the menu or as a toast.
+
+```lua
+RegisterNetEvent('open77:command:result', function(raw, accepted, message) end)
+```
+
+- raw: `string`
+- accepted: `boolean`
+- message: `string`

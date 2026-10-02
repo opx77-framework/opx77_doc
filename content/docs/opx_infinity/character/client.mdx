@@ -1,0 +1,232 @@
+---
+title: Client
+description: The character contract on the client — a read-only mirror of the local character, and other players' public state.
+---
+
+```lua
+local character = OPX.Api.Get('character')
+```
+
+From client code inside opx_infinity. These read a local mirror of the server; nothing is authoritative. Never yields. The client also puts each player's character name on the platform nameplate above their head.
+
+## GetPlayerData [#client-character-getplayerdata]
+
+The mirrored PlayerData. Read only.
+
+```lua
+character.GetPlayerData()
+```
+
+**Returns**
+- `table` — `{}` before a character loads; see [PlayerData](/docs/opx_infinity/character/player#player)
+
+## GetCitizenId [#client-character-getcitizenid]
+
+```lua
+character.GetCitizenId()
+```
+
+**Returns**
+- `string?`
+
+## IsLoggedIn [#client-character-isloggedin]
+
+True between loaded and unloaded.
+
+```lua
+character.IsLoggedIn()
+```
+
+**Returns**
+- `boolean`
+
+## IsNamed [#client-character-isnamed]
+
+Whether the loaded character has a first name.
+
+```lua
+character.IsNamed()
+```
+
+**Returns**
+- `boolean`
+
+## GetJobData [#client-character-getjobdata]
+
+The primary job.
+
+```lua
+character.GetJobData()
+```
+
+**Returns**
+- `table?`
+
+## GetGangData [#client-character-getgangdata]
+
+The primary gang.
+
+```lua
+character.GetGangData()
+```
+
+**Returns**
+- `table?`
+
+## GetJobGrade [#client-character-getjobgrade]
+
+Grade level of the primary job.
+
+```lua
+character.GetJobGrade(name)
+```
+
+**Parameters**
+- name?: `string`
+
+**Returns**
+- `integer` — `-1` when that job is not held
+
+## HasJob [#client-character-hasjob]
+
+Primary job only.
+
+```lua
+character.HasJob(name, onDutyOnly, minGrade)
+```
+
+**Parameters**
+- name: `string`
+- onDutyOnly?: `boolean`
+- minGrade?: `integer`
+
+**Returns**
+- `boolean`
+
+```lua title="Example"
+if character.HasJob('ncpd', true, 2) then print('on duty, grade 2+') end
+```
+
+## HasGang [#client-character-hasgang]
+
+Primary gang only.
+
+```lua
+character.HasGang(name, minGrade)
+```
+
+**Parameters**
+- name: `string`
+- minGrade?: `integer`
+
+**Returns**
+- `boolean`
+
+## GetMoney [#client-character-getmoney]
+
+```lua
+character.GetMoney(moneyType)
+```
+
+**Parameters**
+- moneyType: `string`
+
+**Returns**
+- `integer` — `0` when unknown
+
+## GetMetadata [#client-character-getmetadata]
+
+```lua
+character.GetMetadata(key)
+```
+
+**Parameters**
+- key?: `string` — nil returns the whole table
+
+**Returns**
+- `any`
+
+## GetPosition [#client-character-getposition]
+
+The local player's position.
+
+```lua
+character.GetPosition()
+```
+
+**Returns**
+- `{ x, y, z }?`
+
+## SetName [#client-character-setname]
+
+Checks the name locally and sends it. The server checks again and accepts it once.
+
+```lua
+character.SetName(firstName, lastName)
+```
+
+**Parameters**
+- firstName, lastName: `string`
+
+**Returns**
+- `boolean`, `string?` — `ok, code`
+
+## GetPlayerState [#client-character-getplayerstate]
+
+Any player in your bucket, from the [state bag](#state-bag). Cached; do not write to it.
+
+```lua
+character.GetPlayerState(playerId)
+```
+
+**Parameters**
+- playerId: `number`
+
+**Returns**
+- `table` — `{}` when unknown
+
+## GetPlayerName [#client-character-getplayername]
+
+The character name.
+
+```lua
+character.GetPlayerName(playerId)
+```
+
+**Parameters**
+- playerId: `number`
+
+**Returns**
+- `string?` — nil while unnamed
+
+## GetPlayerIdentity [#client-character-getplayeridentity]
+
+Three strings for a name tag.
+
+```lua
+character.GetPlayerIdentity(playerId)
+```
+
+**Parameters**
+- playerId: `number`
+
+**Returns**
+- `{ name?, username?, citizenId? }`
+
+## State bag [#state-bag]
+
+The server writes the public part of each loaded character to that player's state bag. Any client in the same routing bucket can read it, from any resource, with `Open77.state.player(playerId)`; inside opx_infinity use [`GetPlayerState`](#client-character-getplayerstate). Money, metadata, user id, pay and `bankAuth` are never on the bag. Keys are written only when they change, and cleared on logout or character switch. Every key is readable by every client in the bucket.
+
+| Key | Shape |
+|---|---|
+| `citizenId` | `string` |
+| `name` | `string` `"First Last"`, absent until the character is named |
+| `charInfo` | `{ firstName?, lastName?, gender?, origin? }` — `origin` is always empty today |
+| `job` | `{ name, label, type?, onDuty, isBoss, grade = { name, level } }` |
+| `gang` | `{ name, label, onDuty, isBoss, grade = { name, level } }` |
+| `username` | `string`, the platform account name |
+| `life` | `{ dead, lastStand }` from `metadata.isDead` / `metadata.inLastStand` |
+
+```lua title="Example (any resource)"
+local bag = Open77.state.player(playerId)
+```

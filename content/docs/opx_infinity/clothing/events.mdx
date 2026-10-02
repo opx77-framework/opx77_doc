@@ -1,0 +1,42 @@
+---
+title: Events
+description: Network and local events of the clothing module.
+---
+
+## opx:net:clothing:ask [#opx-net-clothing-ask]
+
+Client → server. Send me the stores of my routing bucket. Asked at start and every `POLL_MS`.
+
+```lua
+TriggerServerEvent('opx:net:clothing:ask')
+```
+
+## opx:net:clothing:sync [#opx-net-clothing-sync]
+
+Server → client. The stores of the player's bucket. Also sent to everyone after a capture or removal.
+
+```lua
+RegisterNetEvent('opx:net:clothing:sync', function(payload) end)
+```
+
+- payload: `table` — `{ spots = { { key, label, x, y, z, bucket }, … } }`
+
+## opx:net:clothing:open [#opx-net-clothing-open]
+
+Client → server. The key was pressed. The server measures the player's distance to a store in their bucket (`USE_RADIUS`) and, if on one, calls `appearance.AllowClothingSave`. Nothing is sent back. Cooldown 1 s.
+
+```lua
+TriggerServerEvent('opx:net:clothing:open')
+```
+
+## opx:on:clothing:decision [#opx-on-clothing-decision]
+
+Client, local. Raised after every key press or `Open` call.
+
+```lua
+AddEventHandler('opx:on:clothing:decision', function(decision) end)
+```
+
+- decision: `table` — `{ source, ok, error?, reason?, store?, citizenId? }`
+  - `error`: a locale key.
+  - `reason`: the fitting room's own refusal (e.g. `player_down`, `no_character`, `appearance_busy`).

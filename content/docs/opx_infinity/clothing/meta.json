@@ -1,0 +1,4 @@
+{
+  "title": "clothing",
+  "pages": ["index", "server", "client", "events"]
+}

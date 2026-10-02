@@ -1,0 +1,1349 @@
+---
+title: Shared library (lib/)
+description: Every helper in opx_infinity's lib/ directory — results, text, numbers, validation, hooks, locales, citizen ids, job gates, placed spots, storage, audit logging and the WebUI surface.
+---
+
+`lib/` holds the plain helpers every module uses. They load before any module, on the side shown, and like the rest of `OPX` are only reachable from code inside `opx_infinity`. A separate resource can use the client-side [`opx_lib`](/docs/opx_lib) instead — a different library. Runtime functions (`OPX.Modules`, `OPX.Scheduler`, `OPX.Refuse` …) are under [Core](/docs/opx_infinity/core).
+
+# Result [#result]
+
+`lib/shared/result.lua`, both sides. A Result is `{ ok = true, value = v }` or `{ ok = false, error = code, detail = text? }`: `error` is a stable code to branch on, `detail` is for the log only ([Result convention](/docs/opx_infinity/core/error-codes#result)).
+
+## OPX.Result.Ok [#opx-result-ok]
+
+```lua
+OPX.Result.Ok(value)
+```
+
+**Parameters**
+- value?: `any` — may be `nil`
+
+**Returns**
+- `{ ok = true, value }`
+
+## OPX.Result.Err [#opx-result-err]
+
+```lua
+OPX.Result.Err(code, detail)
+```
+
+**Parameters**
+- code: `string`
+- detail?: `string`
+
+**Returns**
+- `{ ok = false, error, detail }`
+
+```lua title="Example"
+if not row then return OPX.Result.Err('not_found') end
+return OPX.Result.Ok(row)
+```
+
+# Table [#table]
+
+`lib/shared/table.lua`, both sides.
+
+## OPX.Table.DeepCopy [#opx-table-deepcopy]
+
+Copies keys and values; safe on self-referencing tables.
+
+```lua
+OPX.Table.DeepCopy(source, seen)
+```
+
+**Parameters**
+- source: `any`
+- seen?: `table` — internal
+
+**Returns**
+- the copy
+
+## OPX.Table.Count [#opx-table-count]
+
+Every key, array part included.
+
+```lua
+OPX.Table.Count(source)
+```
+
+**Parameters**
+- source: `table`
+
+**Returns**
+- `integer`
+
+# String [#string]
+
+`lib/shared/string.lua`, both sides.
+
+## OPX.String.Length [#opx-string-length]
+
+Length in characters. Bytes when the `utf8` library is missing.
+
+```lua
+OPX.String.Length(text)
+```
+
+**Parameters**
+- text: `string`
+
+**Returns**
+- `integer?` — `nil` if not valid UTF-8
+
+## OPX.String.Trim [#opx-string-trim]
+
+Removes leading and trailing whitespace, in linear time.
+
+```lua
+OPX.String.Trim(text)
+```
+
+**Parameters**
+- text: `string`
+
+**Returns**
+- `string`
+
+## OPX.String.Interpolate [#opx-string-interpolate]
+
+Replaces `{name}` with `params.name`. Unknown names stay as written.
+
+```lua
+OPX.String.Interpolate(text, params)
+```
+
+**Parameters**
+- text: `string`
+- params?: `table`
+
+**Returns**
+- `string`
+
+```lua title="Example"
+OPX.String.Interpolate('Hello {name}', { name = 'V' }) -- 'Hello V'
+```
+
+## OPX.String.Random [#opx-string-random]
+
+`A` → random letter, `1` → random digit, `.` → either; other characters are copied.
+
+```lua
+OPX.String.Random(template)
+```
+
+**Parameters**
+- template: `string`
+
+**Returns**
+- `string`
+
+```lua title="Example"
+OPX.String.Random('AAA-111') -- e.g. 'KQZ-482'
+```
+
+# Math [#math]
+
+`lib/shared/math.lua`, both sides.
+
+## OPX.Math.Clamp [#opx-math-clamp]
+
+```lua
+OPX.Math.Clamp(value, low, high)
+```
+
+**Parameters**
+- value, low, high: `number`
+
+**Returns**
+- `number`
+
+## OPX.Math.IsFinite [#opx-math-isfinite]
+
+`true` only for a number that is not NaN or ±infinity.
+
+```lua
+OPX.Math.IsFinite(value)
+```
+
+**Parameters**
+- value: `any`
+
+**Returns**
+- `boolean`
+
+## OPX.Math.Finite [#opx-math-finite]
+
+`tonumber(value)` if finite. No size cap (unlike `OPX.Text.Finite`).
+
+```lua
+OPX.Math.Finite(value)
+```
+
+**Parameters**
+- value: `any`
+
+**Returns**
+- `number?`
+
+## OPX.Math.DistanceSquared [#opx-math-distancesquared]
+
+Squared distance; a missing `z` counts as 0.
+
+```lua
+OPX.Math.DistanceSquared(a, b)
+```
+
+**Parameters**
+- a, b: `{ x, y, z? }`
+
+**Returns**
+- `number`
+
+## OPX.Math.GroupDigits [#opx-math-groupdigits]
+
+Whole part grouped by thousands.
+
+```lua
+OPX.Math.GroupDigits(value, separator)
+```
+
+**Parameters**
+- value: `number`
+- separator?: `string` — default a space
+
+**Returns**
+- `string`
+
+```lua title="Example"
+OPX.Math.GroupDigits(1234567) -- '1 234 567'
+```
+
+# Text [#text]
+
+`lib/shared/text.lua`, both sides. Display text, measured in characters, never split inside a UTF-8 character.
+
+## OPX.Text.Span [#opx-text-span]
+
+Byte length of the first `maximum` characters.
+
+```lua
+OPX.Text.Span(text, maximum)
+```
+
+**Parameters**
+- text: `string`
+- maximum: `integer`
+
+**Returns**
+- `integer`
+
+## OPX.Text.Clean [#opx-text-clean]
+
+Replaces control characters with spaces and cuts to `maximum` characters, adding `ellipsis` if cut. Numbers are converted.
+
+```lua
+OPX.Text.Clean(value, maximum, ellipsis)
+```
+
+**Parameters**
+- value: `any`
+- maximum: `integer`
+- ellipsis?: `string`
+
+**Returns**
+- `string?` — `nil` for a non-string, non-number
+
+## OPX.Text.Bytes [#opx-text-bytes]
+
+Cuts to at most `limit` bytes on a character boundary.
+
+```lua
+OPX.Text.Bytes(text, limit)
+```
+
+**Parameters**
+- text: `string`
+- limit: `integer`
+
+**Returns**
+- `string`
+
+## OPX.Text.Finite [#opx-text-finite]
+
+A finite number within ±2^53, else `nil`.
+
+```lua
+OPX.Text.Finite(value)
+```
+
+**Parameters**
+- value: `any`
+
+**Returns**
+- `number?`
+
+## OPX.Text.Integer [#opx-text-integer]
+
+`Finite`, and whole.
+
+```lua
+OPX.Text.Integer(value)
+```
+
+**Parameters**
+- value: `any`
+
+**Returns**
+- `integer?`
+
+## OPX.Text.Rest [#opx-text-rest]
+
+Joins command arguments from index `first` with spaces. Uses `args.n` when set.
+
+```lua
+OPX.Text.Rest(args, first)
+```
+
+**Parameters**
+- args: `string[]`
+- first: `integer`
+
+**Returns**
+- `string?` — `nil` when nothing is left
+
+```lua title="Example"
+local message = OPX.Text.Rest(args, 2) -- '/opx.thing 12 hello there' -> 'hello there'
+```
+
+## OPX.Text.Switch [#opx-text-switch]
+
+Reads an on/off argument.
+
+```lua
+OPX.Text.Switch(value)
+```
+
+**Parameters**
+- value: `any`
+
+**Returns**
+- `boolean?` — `on/true/1/yes` → `true`, `off/false/0/no` → `false`, `nil` → `nil`
+- `'invalid'?` — anything else answers `nil, 'invalid'`
+
+## OPX.Text.Slug [#opx-text-slug]
+
+Lower-cased; 1–32 characters of letters, digits, `_` and `-`, else `nil`.
+
+```lua
+OPX.Text.Slug(value)
+```
+
+**Parameters**
+- value: `any`
+
+**Returns**
+- `string?`
+
+# Validate [#validate]
+
+`lib/shared/validate.lua`, both sides. For values that came from a client. Both answer a [Result](#result).
+
+## OPX.Validate.Text [#opx-validate-text]
+
+Trims text and checks its length in characters and its pattern. Input longer than `max × 4 + 16` bytes (at most 1024) is refused before any work.
+
+```lua
+OPX.Validate.Text(value, opts)
+```
+
+**Parameters**
+- value: `any`
+- opts?: `table`
+  - min?: `integer` — default 1
+  - max?: `integer` — default 255
+  - pattern?: `string`
+
+**Returns**
+- `Result` — value is the trimmed text; errors `type`, `too-long`, `not-utf8`, `too-short`, `format`
+
+```lua title="Example"
+local name = OPX.Validate.Text(payload.name, { min = 2, max = 32 })
+if not name.ok then return OPX.Refuse(source, 'error.badRequest', 'thing.rename') end
+```
+
+## OPX.Validate.Number [#opx-validate-number]
+
+```lua
+OPX.Validate.Number(value, opts)
+```
+
+**Parameters**
+- value: `any`
+- opts?: `table`
+  - integer?: `boolean`
+  - min?: `number`
+  - max?: `number`
+
+**Returns**
+- `Result` — value is the number; errors `type`, `not-finite`, `not-integer`, `too-small`, `too-large`
+
+# Hooks [#hooks]
+
+`lib/shared/hooks.lua`, both sides. Named points where code inside `opx_infinity` can veto an action.
+
+## OPX.Hooks.Register [#opx-hooks-register]
+
+Lower priority runs first; equal priorities keep registration order. Raises if `name` is not a string or `fn` not a function.
+
+```lua
+OPX.Hooks.Register(name, fn, priority)
+```
+
+**Parameters**
+- name: `string`
+- fn: `function(payload)` — return exactly `false` to veto
+- priority?: `number`
+
+**Returns**
+- `integer` — id
+
+```lua title="Example"
+OPX.Hooks.Register('money:beforeAdd', function(p)
+	if p.amount > 1000000 then return false end
+end)
+```
+
+## OPX.Hooks.Remove [#opx-hooks-remove]
+
+Also stops a trigger already in progress from calling it.
+
+```lua
+OPX.Hooks.Remove(id)
+```
+
+**Parameters**
+- id: `integer`
+
+**Returns**
+- `boolean` — removed
+
+## OPX.Hooks.Trigger [#opx-hooks-trigger]
+
+Runs every hook in order. Stops and answers `false` at the first hook that returns exactly `false`. A hook that raises is logged and skipped.
+
+```lua
+OPX.Hooks.Trigger(name, payload)
+```
+
+**Parameters**
+- name: `string`
+- payload: `table`
+
+**Returns**
+- `boolean` — allowed; `true` when no hook is registered
+
+## Hook points [#hook-points]
+
+Raised by the shipped modules (server side, all in `character`). Payload fields and refusal codes: [character](/docs/opx_infinity/character).
+
+| Name | Payload | A `false` does |
+|---|---|---|
+| `money:beforeAdd` | `{ player, moneyType, amount, reason }` | refuses the credit |
+| `money:beforeRemove` | `{ player, moneyType, amount, reason }` | refuses the debit |
+| `money:beforeSet` | `{ player, moneyType, amount, reason }` | refuses the change |
+| `paycheck:before` | `{ player, amount }` | skips that player's paycheck |
+| `character:loading` | `{ citizenId, entity, data = {} }` | nothing: the result is not read. Hooks fill `data` (the `appearance` module puts `clothing` there). |
+
+# Locale [#locale]
+
+`lib/shared/locale.lua`, both sides. Language catalogues; English (`en`) is always the fallback. The active language comes from [`LOCALE`](/docs/opx_infinity/core/config#config-shared-locale). The global `locale(key, params)` is `OPX.Locale.Text`.
+
+## OPX.Locale.Register [#opx-locale-register]
+
+Merges keys into that language; existing keys are replaced.
+
+```lua
+OPX.Locale.Register(code, strings)
+```
+
+**Parameters**
+- code: `string`
+- strings: `table<key, text>`
+
+## OPX.Locale.Set [#opx-locale-set]
+
+Changes the active language.
+
+```lua
+OPX.Locale.Set(code)
+```
+
+**Parameters**
+- code: `string`
+
+**Returns**
+- `boolean` — `false` for a non-string or empty code
+
+## OPX.Locale.Current [#opx-locale-current]
+
+The active language code.
+
+```lua
+OPX.Locale.Current()
+```
+
+**Returns**
+- `string`
+
+## OPX.Locale.Exists [#opx-locale-exists]
+
+In the active or the fallback catalogue.
+
+```lua
+OPX.Locale.Exists(key)
+```
+
+**Parameters**
+- key: `string`
+
+**Returns**
+- `boolean`
+
+## OPX.Locale.Text [#opx-locale-text]
+
+Active language, then English, then the key itself. `{name}` placeholders are filled from `params`.
+
+```lua
+OPX.Locale.Text(key, params)
+```
+
+**Parameters**
+- key: `string`
+- params?: `table`
+
+**Returns**
+- `string`
+
+```lua title="Example"
+locale('thing.done', { count = 3 })
+```
+
+## OPX.Locale.Catalogue [#opx-locale-catalogue]
+
+A flat copy: English with the active language on top. Sent to the WebUI page.
+
+```lua
+OPX.Locale.Catalogue()
+```
+
+**Returns**
+- `table<key, text>`
+
+# CitizenId [#citizenid]
+
+`lib/shared/citizenid.lua`, both sides. A citizen id is seven symbols from `34679ACDEFGHJKMNPRTWXYZ`, written `XXX-XXXX`. The seventh is a check symbol (weighted sum modulo 23), so one wrong symbol or two swapped neighbours are caught. `OPX.CitizenId.ALPHABET` holds the symbol set; changing it invalidates every id already issued.
+
+## OPX.CitizenId.Build [#opx-citizenid-build]
+
+Builds the id from six values (each taken modulo 23) and adds the check symbol.
+
+```lua
+OPX.CitizenId.Build(values)
+```
+
+**Parameters**
+- values: `integer[]` — six
+
+**Returns**
+- `string`
+
+## OPX.CitizenId.Generate [#opx-citizenid-generate]
+
+A random id. Does not check the database for collisions.
+
+```lua
+OPX.CitizenId.Generate(rng)
+```
+
+**Parameters**
+- rng?: `function(low, high)` — default `math.random`
+
+**Returns**
+- `string`
+
+## OPX.CitizenId.Parse [#opx-citizenid-parse]
+
+Case-insensitive; spaces, `-` and `_` are ignored.
+
+```lua
+OPX.CitizenId.Parse(input)
+```
+
+**Parameters**
+- input: `any`
+
+**Returns**
+- `Result` — value is the grouped id; errors `type`, `length` (more than 32 bytes, or not 7 symbols), `alphabet`, `checksum`
+
+```lua title="Example"
+local id = OPX.CitizenId.Parse('k7m 4 dxw')
+if id.ok then print(id.value) end -- 'K7M-4DXW' if the check symbol matches
+```
+
+# Anchors [#anchors]
+
+`lib/shared/anchors.lua`, both sides. One set of screen positions for floating surfaces. `OPX.Anchors.ALL`: `top-left`, `top-center`, `top-right`, `left`, `center`, `right`, `bottom-left`, `bottom-center`, `bottom-right`. Not every module uses this set yet; check each module's `ANCHOR` key.
+
+## OPX.Anchors.Resolve [#opx-anchors-resolve]
+
+`value` if it is one of the nine positions, else `fallback` (or `'center'` if `fallback` is not valid either). A wrong non-nil value is logged, naming `where`.
+
+```lua
+OPX.Anchors.Resolve(value, fallback, where)
+```
+
+**Parameters**
+- value: `any`
+- fallback: `string`
+- where: `string`
+
+**Returns**
+- `string`
+
+# JobGate [#jobgate]
+
+`lib/shared/jobgate.lua`, both sides. Decides whether a character may use something gated by job. Used by `elevators`, `gunsmith`, `hauling`, `teleports` and `blips`; `shops` asks the character module instead.
+
+## The JOBS format [#jobs-format]
+
+```lua
+JOBS = { ncpd = 2, medic = 0 },  -- job name -> minimum grade level
+ON_DUTY = true,                  -- optional: must be on duty in that job
+```
+
+- One matching job is enough. A minimum of `0` means "anyone holding the job".
+- No `JOBS`, or an empty one, means public: always open, even with no character data.
+- A minimum that is not a number never matches (the gate stays shut), and `Problems` reports it.
+
+The module turns this into a requirement `{ jobs = JOBS, onDuty = ON_DUTY }` and passes a snapshot of the character:
+
+```lua
+{ job  = { name = 'ncpd', grade = { level = 2 }, onDuty = true },
+  jobs = { ncpd = 2, fixer = 0 },  -- every membership, grade only
+  atMs = OPX.Now() }               -- when the snapshot was read
+```
+
+## OPX.JobGate.Evaluate [#opx-jobgate-evaluate]
+
+A gated requirement fails on any doubt.
+
+```lua
+OPX.JobGate.Evaluate(requirement, snapshot, nowMs, policy)
+```
+
+**Parameters**
+- requirement: `{ jobs, onDuty? }`
+- snapshot: `table?`
+- nowMs: `integer`
+- policy?: `table`
+  - maxAgeMs?: `integer` — default 0
+  - membership?: `'primary' | 'any'` — default `'primary'`: only the worked job counts; `'any'` also counts other memberships for the grade (never for on-duty)
+
+**Returns**
+- allowed: `boolean`
+- code?: `string` — nearest miss first: `off_duty`, `grade_too_low`, `job_required`; also `no_character` and `job_stale` (snapshot older than `maxAgeMs`, from the future, or a clock that cannot be read)
+
+```lua title="Example"
+local ok, code = OPX.JobGate.Evaluate({ jobs = row.JOBS, onDuty = row.ON_DUTY }, snapshot, OPX.Now())
+if not ok then return OPX.Refuse(source, 'thing.' .. code) end
+```
+
+## OPX.JobGate.Problems [#opx-jobgate-problems]
+
+Appends one line per malformed `JOBS` entry (not a table, or a name/grade that is not string → number). Job names are not checked against the character config.
+
+```lua
+OPX.JobGate.Problems(jobs, where, lines)
+```
+
+**Parameters**
+- jobs: `any`
+- where: `string`
+- lines?: `string[]`
+
+**Returns**
+- `string[]`
+
+# Spots [#spots]
+
+`lib/shared/spots.lua`, both sides. The shared format for places an operator writes down as coordinates and a player walks to. Used by `garages`, `dealership` and `clothing` (full record), and by `teleports`, `elevators`, `gunsmith` and `hauling` (coordinate box and marker look). `OPX.Spots.SHAPES` and `OPX.Spots.STYLES` hold the two allowed sets.
+
+## The spot format [#spot-format]
+
+```lua title="config"
+SPOTS = {
+  watson_kabuki = { KIND = 'garage', LABEL = 'Kabuki', X = -1442.2, Y = 127.4, Z = 18.0,
+                    HEADING = 90.0, BUCKET = 0 },
+}
+```
+
+| Field | Rule |
+|---|---|
+| key | String, 1 to `spec.maxKey` characters. |
+| `KIND` | Required only when the module has kinds; one of `spec.kinds`, case-insensitive. |
+| `LABEL` | Optional string; defaults to the key. |
+| `X`, `Y`, `Z` | Finite numbers within ±1 000 000 (`OPX.Spots.BOUND`). |
+| `HEADING` | Only for modules whose spec has `heading`; finite number, default `0.0`. |
+| `BUCKET` | Whole number `>= 0`, default `0`. |
+
+- A spot that breaks a rule is refused with a message and skipped.
+- On the wire (server to client) the same record uses lower-case fields: `key, label, kind, x, y, z, heading, bucket`.
+- A module's **spec** says how its spots differ: `{ noun, maxKey, kinds?, kindNames?, heading? }`. `noun` is the word used in refusals (`'spot'`, `'dealer'`, `'store'`).
+
+## The marker format [#marker-format]
+
+```lua title="config"
+MARKER = { shape = 'ring', style = 'interaction', RADIUS = 1.5 },
+MAX_DISTANCE = 60,     -- metres a marker is drawn from
+GROUND_OFFSET = 0.06,  -- metres the marker sits above the floor
+```
+
+| Field | Allowed | Bad value |
+|---|---|---|
+| `shape` | `ring`, `cylinder` | the module's default shape |
+| `style` | `interaction`, `objective`, `spawn`, `danger` | the module's default style |
+| `RADIUS` | 0.1–50 | the module's default radius |
+| `MAX_DISTANCE` | 1–500 m | the module's default |
+| `GROUND_OFFSET` | 0–2 m | `0.06` |
+
+Each field falls back on its own, so one typo does not reset the others.
+
+## OPX.Spots.Coordinate [#opx-spots-coordinate]
+
+Finite and within `BOUND`.
+
+```lua
+OPX.Spots.Coordinate(value)
+```
+
+**Returns**
+- `number?`
+
+## OPX.Spots.Integer [#opx-spots-integer]
+
+A whole `Coordinate`.
+
+```lua
+OPX.Spots.Integer(value)
+```
+
+**Returns**
+- `integer?`
+
+## OPX.Spots.Marker [#opx-spots-marker]
+
+Resolves the marker look per field.
+
+```lua
+OPX.Spots.Marker(declared, fallback, groundOffset)
+```
+
+**Parameters**
+- declared: `{ shape, style, RADIUS }?`
+- fallback: `{ shape, style, RADIUS }`
+- groundOffset?: `number`
+
+**Returns**
+- `{ shape, style, radius, lift }`
+
+## OPX.Spots.MaxDistance [#opx-spots-maxdistance]
+
+`value` if 1–500, else `fallback`.
+
+```lua
+OPX.Spots.MaxDistance(value, fallback)
+```
+
+**Returns**
+- `number`
+
+## OPX.Spots.MarkerProblems [#opx-spots-markerproblems]
+
+Appends what is wrong with a marker block.
+
+```lua
+OPX.Spots.MarkerProblems(declared, label, lines)
+```
+
+**Parameters**
+- declared: `table?`
+- label: `string` — e.g. `MARKER.avpad`
+- lines: `string[]`
+
+**Returns**
+- `string[]`
+
+## OPX.Spots.DrawProblems [#opx-spots-drawproblems]
+
+Appends what is wrong with `MAX_DISTANCE` and `GROUND_OFFSET`.
+
+```lua
+OPX.Spots.DrawProblems(maxDistance, groundOffset, lines)
+```
+
+**Returns**
+- `string[]`
+
+## OPX.Spots.FromDefinition [#opx-spots-fromdefinition]
+
+One config or database row (upper-case fields).
+
+```lua
+OPX.Spots.FromDefinition(spec, key, raw)
+```
+
+**Returns**
+- spot: `table?`
+- why?: `string`
+
+## OPX.Spots.FromWire [#opx-spots-fromwire]
+
+One wire record (lower-case fields).
+
+```lua
+OPX.Spots.FromWire(spec, raw)
+```
+
+**Returns**
+- spot: `table?`
+- why?: `string`
+
+## OPX.Spots.Serialise [#opx-spots-serialise]
+
+The wire record.
+
+```lua
+OPX.Spots.Serialise(spot)
+```
+
+**Returns**
+- `table`
+
+## OPX.Spots.Coerce [#opx-spots-coerce]
+
+Builds every spot; refusals are appended to `problems`.
+
+```lua
+OPX.Spots.Coerce(spec, definitions, problems)
+```
+
+**Parameters**
+- spec: `table`
+- definitions: `table<key, table>`
+- problems?: `string[]`
+
+**Returns**
+- `table<key, spot>`
+
+```lua title="Example"
+local problems = {}
+local spots = OPX.Spots.Coerce({ noun = 'spot', maxKey = 32, heading = true }, M.Settings.SPOTS, problems)
+for _, line in ipairs(problems) do Open77.log.warn(line) end
+```
+
+## OPX.Spots.Spot [#opx-spots-spot]
+
+Exact key match.
+
+```lua
+OPX.Spots.Spot(spots, key)
+```
+
+**Returns**
+- `spot?`
+
+## OPX.Spots.InBucket [#opx-spots-inbucket]
+
+Every spot in a bucket, sorted by key.
+
+```lua
+OPX.Spots.InBucket(spots, bucket)
+```
+
+**Returns**
+- `spot[]`
+
+## OPX.Spots.FlatDistanceSquared [#opx-spots-flatdistancesquared]
+
+Squared horizontal distance (Z ignored).
+
+```lua
+OPX.Spots.FlatDistanceSquared(spot, x, y)
+```
+
+**Returns**
+- `number?`
+
+## OPX.Spots.Nearest [#opx-spots-nearest]
+
+Nearest spot within the squared radius; ties go to the lower key.
+
+```lua
+OPX.Spots.Nearest(spots, x, y, radiusSq)
+```
+
+**Returns**
+- spot: `spot?`
+- distanceSq?: `number`
+
+# Vehicle [#vehicle]
+
+`lib/shared/vehicle.lua`, both sides.
+
+## OPX.Vehicle.IsAvRecord [#opx-vehicle-isavrecord]
+
+Whether a TweakDB record starts with one of [`AV_PREFIXES`](/docs/opx_infinity/core/config#config-shared-av-prefixes), lower-cased. The one rule `garages`, `dealership` and `admin` share, and the only reader of `AV_PREFIXES`.
+
+```lua
+OPX.Vehicle.IsAvRecord(record)
+```
+
+**Parameters**
+- record: `string` — TweakDB record name
+
+**Returns**
+- `boolean`
+
+## OPX.Vehicle.AvLift [#opx-vehicle-avlift]
+
+Metres above ground an AV is created at.
+
+```lua
+OPX.Vehicle.AvLift(value)
+```
+
+**Parameters**
+- value: `any` — a module's `AV_LIFT`
+
+**Returns**
+- `number` — `value` if 0–10, else `1.2`
+
+## OPX.Vehicle.AvLiftProblem [#opx-vehicle-avliftproblem]
+
+Appends a line when `AV_LIFT` is not 0–10.
+
+```lua
+OPX.Vehicle.AvLiftProblem(value, lines)
+```
+
+**Returns**
+- `string[]`
+
+# Storage [#storage]
+
+`lib/server/storage.lua`, server only. The only door to the database (the MySQL bridge, which needs the `database.access` permission). Every call **yields** — call it from a thread, never at file scope — and answers a [Result](#result), never raising.
+
+- Codes for the single-statement calls: `no-database` (bridge not installed), `query-failed` (`detail` holds the raw database error; log it, never show it to a player).
+- Use named parameters (`@citizen`), and never put a SQL comment inside a statement.
+
+## OPX.Storage.Query [#opx-storage-query]
+
+```lua
+OPX.Storage.Query(sql, params)
+```
+
+**Parameters**
+- sql: `string`
+- params?: `table`
+
+**Returns**
+- `Result` — value: list of rows
+
+```lua title="Example"
+local rows = OPX.Storage.Query('SELECT value FROM opx_thing WHERE citizen_id = @citizen', { citizen = citizenId })
+```
+
+## OPX.Storage.Single [#opx-storage-single]
+
+```lua
+OPX.Storage.Single(sql, params)
+```
+
+**Returns**
+- `Result` — value: one row or `nil` (no row, not a failure)
+
+## OPX.Storage.Scalar [#opx-storage-scalar]
+
+```lua
+OPX.Storage.Scalar(sql, params)
+```
+
+**Returns**
+- `Result` — value: one value
+
+## OPX.Storage.Insert [#opx-storage-insert]
+
+```lua
+OPX.Storage.Insert(sql, params)
+```
+
+**Returns**
+- `Result` — value: inserted id
+
+## OPX.Storage.Update [#opx-storage-update]
+
+Also for DDL.
+
+```lua
+OPX.Storage.Update(sql, params)
+```
+
+**Returns**
+- `Result` — value: rows affected
+
+## OPX.Storage.Execute [#opx-storage-execute]
+
+Same as `Update`.
+
+```lua
+OPX.Storage.Execute(sql, params)
+```
+
+**Returns**
+- `Result` — value: rows affected
+
+## OPX.Storage.Transaction [#opx-storage-transaction]
+
+All or nothing.
+
+```lua
+OPX.Storage.Transaction(statements)
+```
+
+**Parameters**
+- statements: `{ { query, values }, … }` — each a SQL string and its parameters, as the bridge's transaction takes them (shipped callers use `?` placeholders with `values`)
+
+**Returns**
+- `Result` — value `true`; errors `no-database`, `transaction-raised`, `transaction-failed` (rolled back)
+
+```lua title="Example"
+local done = OPX.Storage.Transaction({
+	{ query = 'UPDATE a SET n = n - 1 WHERE id = ?', values = { 1 } },
+	{ query = 'UPDATE b SET n = n + 1 WHERE id = ?', values = { 2 } },
+})
+```
+
+## OPX.Storage.Decode [#opx-storage-decode]
+
+Decodes a JSON column (string or already a table). A bad value answers `fallback`.
+
+```lua
+OPX.Storage.Decode(value, fallback)
+```
+
+**Returns**
+- `table | fallback`
+
+## OPX.Storage.Nullable [#opx-storage-nullable]
+
+JSON-encodes `value`, or `''` for `nil`. Pair it with `NULLIF(@x, '')` in the SQL: the bridge drops `nil` parameters.
+
+```lua
+OPX.Storage.Nullable(value)
+```
+
+**Returns**
+- `string`
+
+## OPX.Storage.Ready [#opx-storage-ready]
+
+Probes `SELECT 1` once and remembers the answer for the life of the resource.
+
+```lua
+OPX.Storage.Ready()
+```
+
+**Returns**
+- ok: `boolean`
+- reason: `string`
+
+## OPX.Storage.ApplySchema [#opx-storage-applyschema]
+
+Runs each statement in order; stops at the first failure. Use [`OPX.Schema.Add`](/docs/opx_infinity/core/server#opx-schema-add) rather than calling it.
+
+```lua
+OPX.Storage.ApplySchema(statements)
+```
+
+**Parameters**
+- statements: `string[]`
+
+**Returns**
+- `Result` — value: count; error `schema-failed` with the table name as `detail`
+
+## OPX.Storage.EnsureIndex [#opx-storage-ensureindex]
+
+Adds an index to a table that may predate it; a no-op when it is present. Asks `information_schema.STATISTICS`, then runs `ALTER TABLE … ADD KEY`. Safe on every boot. Usually reached through [`OPX.Schema.AddIndexes`](/docs/opx_infinity/core/server#opx-schema-addindexes).
+
+```lua
+OPX.Storage.EnsureIndex(tableName, indexName, columns)
+```
+
+**Parameters**
+- tableName: `string`
+- indexName: `string`
+- columns: `string[]` — at least one
+
+Every identifier must match `^[%a_][%w_]*$`.
+
+**Returns**
+- `Result` — value `true` added, `false` already there; error `bad-index` (bad identifier or empty column list, `detail` = index name), or a storage code
+
+```lua title="Example"
+local ensured = OPX.Storage.EnsureIndex('opx_thing', 'idx_opx_thing_value', { 'value' })
+```
+
+# Carry [#carry]
+
+`lib/server/storage.lua`, server only. State that survives a resource reload, kept in the host's one-value-per-resource store (`Open77.state`) and split into namespaces so modules do not overwrite each other.
+
+## OPX.Carry.Load [#opx-carry-load]
+
+What that namespace carried across the last reload.
+
+```lua
+OPX.Carry.Load(namespace)
+```
+
+**Parameters**
+- namespace: `string`
+
+**Returns**
+- `any` — or `nil`
+
+## OPX.Carry.Save [#opx-carry-save]
+
+Stores a JSON-encodable value; `nil` clears that namespace only.
+
+```lua
+OPX.Carry.Save(namespace, value)
+```
+
+**Parameters**
+- namespace: `string`
+- value: `any`
+
+**Returns**
+- ok: `boolean`
+- reason?: `string` — `bad-namespace`, `no-state-api`, or the host's refusal
+
+```lua title="Example"
+OPX.Carry.Save('thing', { round = M.round })
+-- after the reload:
+local carried = OPX.Carry.Load('thing')
+```
+
+# Audit [#audit]
+
+`lib/server/audit.lua`, server only. One greppable line per entry in the server log: `[audit] event=… severity=… citizen=… user=… player=… message="…" data=…`. Text is stripped of control characters and cut. Never raises.
+
+## OPX.Audit.Log [#opx-audit-log]
+
+```lua
+OPX.Audit.Log(entry)
+```
+
+**Parameters**
+- entry: `table`
+  - event: `string`
+  - severity?: `'debug' | 'info' | 'warn' | 'error'` — default `info`
+  - message?: `string` — cut to 200 characters
+  - data?: `any` — cut to 200 characters
+  - source?: `integer`
+  - citizenId?: `string`
+  - userId?: `string`
+
+- The same event from the same owner within 10 s is collapsed; the next line says `[+N suppressed]`.
+- `info`/`debug` events starting `money.` or `character.` are never collapsed.
+
+```lua title="Example"
+OPX.Audit.Log({ event = 'thing.reset', severity = 'warn', source = source, message = 'reset by staff' })
+```
+
+## OPX.Audit.Player [#opx-audit-player]
+
+`Log` with `source`, `citizenId` and `userId` taken from `player.PlayerData`.
+
+```lua
+OPX.Audit.Player(player, event, message, data)
+```
+
+**Parameters**
+- player: `table` — a character player object
+- event: `string`
+- message?: `string`
+- data?: `any`
+
+## OPX.Audit.Security [#opx-audit-security]
+
+A `warn` entry for a refused or suspicious request. Pass `source`, or one player's spam hides everyone else's.
+
+```lua
+OPX.Audit.Security(event, message, data, source)
+```
+
+**Parameters**
+- event: `string`
+- message?: `string`
+- data?: `any`
+- source?: `integer`
+
+## OPX.Audit.Safe [#opx-audit-safe]
+
+Any value as log-safe text: control characters become spaces, cut to `maximum` characters with `...`. Use it on any text a client sent before you log it.
+
+```lua
+OPX.Audit.Safe(value, maximum)
+```
+
+**Parameters**
+- value: `any`
+- maximum?: `integer` — default 64
+
+**Returns**
+- `string`
+
+## OPX.Audit.Forget [#opx-audit-forget]
+
+Drops a departing player's dedupe windows.
+
+```lua
+OPX.Audit.Forget(source, citizenId)
+```
+
+**Parameters**
+- source: `integer`
+- citizenId?: `string`
+
+# OPX.Lib [#opx-lib]
+
+`lib/client/lib.lua`, client only. Loads [`opx_lib`](/docs/opx_lib) once with `require('@opx_lib')` and stores it as `OPX.Lib`. Raises at load if `opx_lib` is not running. Inside `opx_infinity`, use `OPX.Lib.Input`, `OPX.Lib.Rpc` and the rest instead of requiring it again. The server has no `require`, so `OPX.Lib` is `nil` there.
+
+# Surface [#surface]
+
+`lib/client/surface.lua`, client only. A thin wrapper over one WebUI page. The core builds the runtime's page with it; modules use [`OPX.UI`](/docs/opx_infinity/core/client#ui) instead. Channel names are given without the `<id>:` prefix.
+
+## OPX.Surface.Create [#opx-surface-create]
+
+Creates a page and wires `ready` and `diag`.
+
+```lua
+OPX.Surface.Create(spec)
+```
+
+**Parameters**
+- spec: `table`
+  - id: `string`
+  - entry: `string`
+  - layer?: `string` — default `hud`
+  - zIndex?: `integer` — default 700
+  - fps?: `integer` — default 30
+  - width?, height?: `integer` — default 1920×1080
+  - transparent?: `boolean` — default `true`
+  - visible?: `boolean` — default `true`
+
+**Returns**
+- surface: `table?`
+- why?: `string` — `bad_spec`, `no_webui`, or the host's
+
+## OPX.Surface.On [#opx-surface-on]
+
+Adds a handler (several may listen). `nil` clears the channel. Payloads that arrived before any handler (up to 8) are replayed to the first one. Handlers run under `pcall`.
+
+```lua
+OPX.Surface.On(surface, channel, handler)
+```
+
+**Parameters**
+- surface: `table`
+- channel: `string`
+- handler?: `function(payload)`
+
+**Returns**
+- `function | boolean` — a remover function
+
+## OPX.Surface.Send [#opx-surface-send]
+
+`false` before `ready` or after `Destroy`. A refused payload is also sent once per channel to the server journal with `OPX.Note`.
+
+```lua
+OPX.Surface.Send(surface, channel, payload)
+```
+
+**Parameters**
+- surface: `table`
+- channel: `string`
+- payload?: `table`
+
+**Returns**
+- sent: `boolean`
+- refused: `boolean` — the host rejected the payload
+
+## OPX.Surface.Wire [#opx-surface-wire]
+
+Registers the host listener for a channel before any handler exists, so early payloads are held, not lost.
+
+```lua
+OPX.Surface.Wire(surface, channel)
+```
+
+**Returns**
+- `boolean`
+
+## OPX.Surface.Focus [#opx-surface-focus]
+
+Gives the page the keyboard and/or the cursor.
+
+```lua
+OPX.Surface.Focus(surface, keyboard, cursor)
+```
+
+**Parameters**
+- surface: `table`
+- keyboard: `boolean`
+- cursor: `boolean`
+
+**Returns**
+- `boolean`
+
+## OPX.Surface.HasFocus [#opx-surface-hasfocus]
+
+```lua
+OPX.Surface.HasFocus(surface)
+```
+
+**Returns**
+- `boolean`
+
+## OPX.Surface.Visible [#opx-surface-visible]
+
+Shows or hides the page without destroying it.
+
+```lua
+OPX.Surface.Visible(surface, visible)
+```
+
+**Parameters**
+- surface: `table`
+- visible: `boolean`
+
+**Returns**
+- `boolean`
+
+## OPX.Surface.Destroy [#opx-surface-destroy]
+
+Destroys the page; later `Send` and `Focus` answer `false`.
+
+```lua
+OPX.Surface.Destroy(surface)
+```

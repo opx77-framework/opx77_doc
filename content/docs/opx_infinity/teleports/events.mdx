@@ -1,0 +1,57 @@
+---
+title: Events
+description: Network and local events of the teleports module.
+---
+
+## opx:net:teleports:ask [#opx-net-teleports-ask]
+
+Client → server. Asks for the entrance list. Sent at start, every `POLL_MS`, and after a job refusal.
+
+```lua
+TriggerServerEvent('opx:net:teleports:ask')
+```
+
+## opx:net:teleports:use [#opx-net-teleports-use]
+
+Client → server. Take this pad in this direction. No coordinates are sent.
+
+```lua
+TriggerServerEvent('opx:net:teleports:use', key, leg)
+```
+
+- key: `string`
+- leg: `string` — `'out'` or `'back'`
+
+## opx:net:teleports:sync [#opx-net-teleports-sync]
+
+Server → client. The list for the player's bucket, as in [`Entrances`](/docs/opx_infinity/teleports/server#server-teleports-entrances).
+
+```lua
+RegisterNetEvent('opx:net:teleports:sync', function(data) end)
+```
+
+- data: `table` — `{ entrances = { … } }`
+
+## opx:net:teleports:answer [#opx-net-teleports-answer]
+
+Server → client. The verdict after the move finished.
+
+```lua
+RegisterNetEvent('opx:net:teleports:answer', function(key, leg, ok, code, labelOrReason) end)
+```
+
+- key: `string`
+- leg: `string`
+- ok: `boolean`
+- code?: `string`
+- labelOrReason?: `string` — on success the destination label; on refusal the pad's `REASON`, if any
+
+## opx:on:teleports:decision [#opx-on-teleports-decision]
+
+Client, local. Every verdict, local refusals included. Only reaches code inside opx_infinity's client VM.
+
+```lua
+AddEventHandler('opx:on:teleports:decision', function(decision) end)
+```
+
+- decision: `table` — `{ source, key?, leg?, ok, error? }`

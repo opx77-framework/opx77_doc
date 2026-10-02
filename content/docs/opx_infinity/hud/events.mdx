@@ -1,0 +1,38 @@
+---
+title: Events
+description: The local event, the events the hud listens to, and its page channels.
+---
+
+## opx:on:hud:visibility [#opx-on-hud-visibility]
+
+Client, local. Raised when `SetVisible` changes the chosen state, or when `covered` changes.
+
+```lua
+AddEventHandler('opx:on:hud:visibility', function(state) end)
+```
+
+- state: `table` — `{ visible, down, covered }`
+
+## Listened to
+
+- `opx:on:character:loaded`, `unloaded`, `changed`, `money`, `job`
+- `opx:on:needs:changed`, `opx:on:needs:effects`, `opx:on:downed:changed`
+- `opx:on:entry:state`, `opx:on:spawn:state`, `opx:on:menu:state`, `opx:on:appearance:decision`
+- host: `open77:playerStatsChanged`, `open-voice:modeChanged`, `open77:voice:pushToTalkKeyChanged`
+
+It sends nothing to the server.
+
+## Page channels
+
+All on the `overlay` surface. The page sees them as `opx:<channel>`.
+
+| Channel | Direction | Payload | Meaning |
+|---|---|---|---|
+| <a id="page-hud-ready" />`hud:ready` | page → Lua | `{}` | The page mounted. Lua resends everything. |
+| `hud:config` | Lua → page | `{ anchor, infoAnchor, statusAnchor, statusOffset, vehicleAnchor, width, segments, voiceSegments }` | Layout. |
+| `hud:show` | Lua → page | `{ visible }` | Whole-HUD switch (false while hidden, down or covered). |
+| `hud:vitals` | Lua → page | `{ gauges = { { id, icon, label, pct, points, tone } } }` | The gauge column. `label` is a locale key; `tone` is decided here. |
+| `hud:info` | Lua → page | `{ eyebrow, lines = { { id, label, value, tone } } }` | Money, job and cred lines, values already formatted. |
+| `hud:status` | Lua → page | `{ chips, hidden }` | The chip strip from `needs`. |
+| `hud:voice` | Lua → page | `{ active, state, caption, mode, distance, level, count, index, key, activation, heard }` or `{ active = false }` | Microphone block. `state`: `offline`, `muted`, `talking`, `detected` or `idle`. |
+| `hud:vehicle` | Lua → page | `{ active, speed, unit, gear, rpm?, integrity?, integrityLabel, tone, airborne, airborneLabel }` or `{ active = false }` | Speed dial in km/h. |

@@ -1,0 +1,128 @@
+---
+title: Troubleshooting
+description: The log lines opx_infinity prints when something is wrong, what each one means, and what to do about it.
+---
+
+Start with the server journal. `opx_infinity` names every problem it can see there, client-side module failures included (forwarded to the server as `client module: ...` lines). Search the journal for the quoted text.
+
+## Boot [#boot]
+
+### `no database: nobody will be able to connect until this is fixed.`
+
+Also `[storage] no database: ...`. The database is unreachable: the resource boots, but no character can load.
+
+- Fix the connection string and restart. A database that comes back later is only picked up by a restart.
+
+### `[storage] creating <table> failed: ...`
+
+A `CREATE TABLE` failed. Boot is degraded (`schema failed`).
+
+- Check the database user's rights.
+
+### `opx_infinity <version> up -- degraded: <reason>`
+
+Boot finished with a problem; the reason follows.
+
+- Read the lines above it.
+
+### `[<module>] init failed: ...`
+
+Or `api`, `start`. A module raised in that phase and is `failed`; its dependants become `unavailable`.
+
+- Read the error.
+
+### `[<module>] requires "<other>", which is ...`
+
+A required module is off, missing or failed.
+
+- Enable or fix `<other>`.
+
+### `[<module>] contract "<name>" is withdrawn with it`
+
+A failed module had published a contract; it is removed.
+
+- Fix the failing module.
+
+### `[boot] <name> is running and also places players`
+
+Another resource also moves players.
+
+- Remove it. See [`CONFLICTING_PLACERS`](/docs/opx_infinity/core/config#config-server-conflicting-placers).
+
+### `[commands] the alias "<alias>" for "<command>" was skipped: ...`
+
+Another resource owns that short name. Harmless; the long command works.
+
+- Change the alias in [`COMMAND_ALIASES`](/docs/opx_infinity/core/config#config-server-command-aliases).
+
+### `[tune] no tunables panel on this host; configured defaults are used`
+
+Tunables cannot be changed live. Harmless.
+
+## Players stuck at the loading screen [#stuck]
+
+### `[gate] no resource here emits ... so the __platform hold never clears`
+
+The line names `open77:session:gameplayReady`. Nobody tells the platform the player is in the world; the [appearance module](/docs/opx_infinity/appearance) sends it.
+
+- Make sure `appearance` is `started`.
+
+### `[gate] <id> spent too long behind the gate; releasing without them`
+
+The entry flow did not finish in time and the gate was opened anyway.
+
+- Read the lines about that player; check `character`, `spawn` and `form`.
+
+### `client module: form failed ...`
+
+Or any client module. A client module failed, often on the instruction budget.
+
+- See [Two runtimes](/docs/opx_infinity/concepts/two-runtimes#budget). Report it with the full line.
+
+## Something on screen stopped working [#client]
+
+| Log line | Meaning |
+|---|---|
+| `Open77 script execution budget exceeded` | The client instruction budget was exceeded; the coroutine that hit it stopped. |
+| `[scheduler] <job> suspended after 3 failures` | A client job raised three times in a row and was cancelled for the session. The previous lines give the error. |
+| `[boot] the surface could not be built: ...` | The WebUI page was not created; nothing will be drawn. |
+| `[surface opx] <channel> not sent: ...` | A message to the page was refused (often the page is not ready yet). |
+
+- Ask the player to run `/opx.client` in the game console: it prints the client module states and the job list to their client log.
+
+## Staff menu or eye rows missing [#acl]
+
+A row a role may not run is greyed in the staff menu and **not shown** on the target eye. The admin module logs the missing grants once per registration:
+
+```text
+[admin] target rows, player 3: 25 staff rows on the eye; 12 hidden, this ACL does not grant: opx.inventory.open opx.weather.set
+```
+
+- Add `command.<name>` for each listed name to `acl.jsonc`. See [Permissions](/docs/opx_infinity/concepts/permissions#acl).
+
+## `/opx.admin.self.model` answers `models_unavailable` [#models]
+
+The model commands need the host's `players.setModel` native, which is in no published server build as of 2.31.13+op77.78. The admin module checks for it before every call, answers `models_unavailable` and logs `[admin] this build has no players.setModel native: ...`.
+
+- Nothing is broken; the commands start working on a build that has the native.
+
+## `open77_validate` reports errors [#validate]
+
+The devkit validator reports some errors on `opx_infinity` that are **not** real problems (checked against 2.31.13+op77.78). Ignore these; treat anything else as real.
+
+| Validator says | Why it is wrong here |
+|---|---|
+| `loadscreen`, `web_ui_page`, `web_ui_auto_create`: unknown directive | Its manifest schema is incomplete. All three work in production. |
+| `require` in `lib/client/lib.lua` is nil in the sandbox | That rule is for the server sandbox. The file is a `client_script`, and the client has `require`. |
+| `players.damage.apply` / `players.damage.read` required but not declared | An older spelling the runtime still accepts. The manifest declares the current names, `players.stats.apply` and `players.stats.read`. Do not add the old ones. |
+| `Open77.players.setModel` is in no published server build | True, and handled: see [above](#models). |
+
+## Useful commands [#commands]
+
+| Command | Where | Prints |
+|---|---|---|
+| `/opx.modules` | server (staff) | every module's state and reason |
+| `/opx.version` | server (staff) | versions |
+| `/opx.client` | client console | client module states and scheduler jobs |
+
+See the [diagnostics module](/docs/opx_infinity/diagnostics).

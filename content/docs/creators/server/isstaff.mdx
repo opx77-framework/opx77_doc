@@ -1,0 +1,26 @@
+---
+title: IsStaff
+description: Whether a player holds the staff right.
+---
+
+<a id="export-server-isstaff" />
+
+```lua
+local res = exports.opx_infinity:IsStaff(source)
+```
+
+Scope `read` · sync.
+
+**Parameters**
+- source: `number`
+
+**Returns**
+- `boolean` — `true` when the player holds [`STAFF_PERMISSION`](/docs/opx_infinity/core/config#config-server-exports) (`command.opx.admin` by default); `false` on a host with no ACL
+
+**Errors**
+- `export.badArgument`
+
+```lua title="Example"
+local res = exports.opx_infinity:IsStaff(source)
+if res.ok and res.value then print('staff') end
+```

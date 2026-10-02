@@ -1,0 +1,134 @@
+---
+title: Lib.Blip
+description: Place, follow, patch and track the game's own map pins.
+---
+
+Permission `ui.vanilla.map`.
+
+## Lib.Blip.Place [#lib-blip-place]
+
+Creates a blip at a world position.
+
+```lua
+Lib.Blip.Place(position, options)
+```
+
+**Parameters**
+- position: `{ x, y, z }`
+- options?: `table` — `sprite`, `label`, `icon`, `active`, `visibleThroughWalls`, `routable`, `range`
+
+**Returns**
+- `Result` — the handle; errors `invalid_position`, `invalid_options`
+
+```lua title="Example"
+local pin = Lib.Blip.Place({ x = -1442.2, y = 127.4, z = 18.0 }, { label = 'Night market', routable = true })
+```
+
+## Lib.Blip.Follow [#lib-blip-follow]
+
+Creates a blip that follows an entity.
+
+```lua
+Lib.Blip.Follow(entity, options)
+```
+
+**Parameters**
+- entity: `number`
+- options?: `table`
+
+**Returns**
+- `Result` — the handle; errors `invalid_entity`, `invalid_options`
+
+## Lib.Blip.Move [#lib-blip-move]
+
+Patches a blip; only the fields given change.
+
+```lua
+Lib.Blip.Move(handle, patch)
+```
+
+**Parameters**
+- handle: `string`
+- patch: `table`
+
+**Returns**
+- `Result` — errors `invalid_handle`, `invalid_patch`
+
+## Lib.Blip.Get [#lib-blip-get]
+
+Reads one of your blips.
+
+```lua
+Lib.Blip.Get(handle)
+```
+
+**Parameters**
+- handle: `string`
+
+**Returns**
+- `Result` — error `invalid_handle`
+
+## Lib.Blip.SetActive [#lib-blip-setactive]
+
+Switches a blip on or off without removing it.
+
+```lua
+Lib.Blip.SetActive(handle, active)
+```
+
+**Parameters**
+- handle: `string`
+- active: `boolean`
+
+**Returns**
+- `Result` — error `invalid_handle`
+
+## Lib.Blip.Track [#lib-blip-track]
+
+Sets it as the tracked destination.
+
+```lua
+Lib.Blip.Track(handle)
+```
+
+**Parameters**
+- handle: `string`
+
+**Returns**
+- `Result` — error `invalid_handle`
+
+## Lib.Blip.Remove [#lib-blip-remove]
+
+Removes one blip.
+
+```lua
+Lib.Blip.Remove(handle)
+```
+
+**Parameters**
+- handle: `string`
+
+**Returns**
+- `Result` — error `invalid_handle`
+
+## Lib.Blip.List [#lib-blip-list]
+
+Your blips.
+
+```lua
+Lib.Blip.List()
+```
+
+**Returns**
+- `Result` — array
+
+## Lib.Blip.Clear [#lib-blip-clear]
+
+Removes **every** blip your resource owns, including ones made without this module.
+
+```lua
+Lib.Blip.Clear()
+```
+
+**Returns**
+- `Result`
