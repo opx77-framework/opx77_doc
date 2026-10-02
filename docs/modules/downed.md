@@ -43,7 +43,7 @@ The `downed` module decides who is down and how they get back up. A player whose
 | <a id="opx-net-downed-ready"></a>`opx:net:downed:ready` | client → server | — | Ask for the state again (on start and world entry). |
 | <a id="opx-net-downed-wait"></a>`opx:net:downed:wait` | client → server | — | Wait for help. Marks the player as waiting. |
 | <a id="opx-net-downed-giveup"></a>`opx:net:downed:giveup` | client → server | — | Give up. The server checks the delay, that the player is still dead and the readiness gate, then respawns at the nearest hospital in the same bucket. |
-| <a id="opx-on-downed-changed"></a>`opx:on:downed:changed` | client local | `{ down, waiting }` | Down or waiting changed. `hud`, `prompts`, `target`, `progress` and `appearance` react to it. |
+| <a id="opx-on-downed-changed"></a>`opx:on:downed:changed` | client local, and server (host-wide) | client: `{ down, waiting }`; server: `playerId, { citizenId, down = true, waiting, restored }` or `playerId, { citizenId, down = false, reason, kept }` | Down or waiting changed. On the client, `hud`, `prompts`, `target`, `progress` and `appearance` react to it. On the server it is raised for every server resource; see [Public server events](../creators/server-events.md#downed). |
 | <a id="opx-on-downed-view"></a>`opx:on:downed:view` | client local | `{ kind, ... }` | The state half talking to the view. `kind` is `config`, `show`, `hide`, `notice` or `focus`. |
 | <a id="opx-on-downed-key"></a>`opx:on:downed:key` | client local | `key` | A key (`F1`–`F12`, `A`–`Z`, `0`–`9`) pressed while the down screen holds the keyboard. Key mappings do not fire then, so this is how another module hears one. |
 

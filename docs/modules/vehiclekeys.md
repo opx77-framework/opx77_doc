@@ -40,6 +40,8 @@ Without `inventory` (or an inventory without `CountWhere`) no key is ever cut an
 | <a id="server-vehiclekeys-give"></a>`Give` | `target, plate, model?` | Result `{ok, value = {plate, label}}` | Always adds one key. `model` is a label or a TweakDB record, used for the key label. |
 | <a id="server-vehiclekeys-givefor"></a>`GiveFor` | `target, vehicleId, model?` | Result `{ok, value = {plate, label}}` | Resolves the plate from the live vehicle (`Identity`), then `Give`. |
 | <a id="server-vehiclekeys-ensure"></a>`Ensure` | `target, plate, model?` | Result `{ok, value = {given, plate, label}}` | Adds a key only when the bag holds none; `given` says whether one was added. |
+| <a id="server-vehiclekeys-revoke"></a>`Revoke` | `target, plate` | Result `{ok, value = {plate, removed}}` | **Yields** for an offline bag. Takes every key to that plate out of one bag, whatever its label. Keys in stashes or trunks are not touched. Needs the inventory's `RemoveWhere` (else `vehiclekeys.unavailable`). |
+| <a id="server-vehiclekeys-revokeall"></a>`RevokeAll` | `plate` | Result `{ok, value = {plate, removed, holders}}` | `Revoke` on the bag of every **loaded** character; offline bags are not walked. To re-key a car for good, change its plate. Audited `vehiclekeys.revokeAll`. |
 | <a id="server-vehiclekeys-toggle"></a>`Toggle` | `source, vehicleId` | Result `{ok, value = {locked, label}}` | Locks or unlocks for a player who holds the key and is in reach. `locked` is the new state. Does not mint a plate. |
 
 ## Events {#events}

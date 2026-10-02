@@ -87,6 +87,7 @@ Money types come from `MONEY.TYPES` in `config/shared.lua` (`EDDIES`, `BANK` shi
 | <a id="server-character-getmoney"></a>`GetMoney` | `identifier, moneyType?` | `integer\|table\|nil` | One balance, or the whole money table when `moneyType` is nil. Nil when not loaded. |
 | <a id="server-character-formatmoney"></a>`FormatMoney` | `amount, moneyType?` | `string` | Grouped digits; `EDDIES` (or nil) gets ` €$`, other types their name. |
 | <a id="server-character-ismoneytype"></a>`IsMoneyType` | `moneyType` | `boolean` | Whether the type exists on this server. |
+| <a id="server-character-addmoneyoffline"></a>`AddMoneyOffline` | `citizenId, moneyType, amount, reason?` | `Result` `{ balance, offline }` | **Yields.** Adds money whether or not the character is being played. Online: same as `AddMoney` (`offline = false`). Offline: runs hook `money:beforeAddOffline`, writes the row directly, audits `money.addOffline` and publishes `opx:on:character:money` with `offline = true`. Errors `character.notFound`, `money.badType`, `money.badAmount`, `money.vetoed`, `error.unavailable` (row being written, or boot failed). |
 
 Every successful change sends `opx:net:character:money` to the owner, raises the internal money event and writes an audit line.
 
@@ -97,6 +98,7 @@ Every successful change sends `opx:net:character:money` to the owner, raises the
 | <a id="server-character-getmetadata"></a>`GetMetadata` | `identifier, key?` | `any` | One key, or the whole table. Nil when not loaded. |
 | <a id="server-character-setmetadata"></a>`SetMetadata` | `identifier, key, value` | `boolean` | Loaded characters only. Sends the new PlayerData to the owner. |
 | <a id="server-character-setname"></a>`SetName` | `identifier, firstName, lastName` | `Result` | Yields (saves at once). **Write-once**: refused with `character.nameSet` if a name exists. Each half is checked against `CHARACTERS.NAME`. |
+| <a id="server-character-publicview"></a>`PublicView` | `player` | `table` | `{ source, citizenId, userId, firstName, lastName, money, job, gang, jobs, gangs }`: copies, no metadata. What the `GetPlayerData` export and `opx:on:character:loaded` carry. |
 | <a id="server-character-setbodyfamily"></a>`SetBodyFamily` | `identifier, family` | `Result` | Yields. `family` is `'female'` or `'male'`. Write-once (`character.bodySet`); the same value again is OK. Called by the appearance module. |
 
 ### Jobs and gangs
@@ -215,6 +217,9 @@ Register with `OPX.Hooks.Register(name, fn, priority?)` on the server, inside op
 | `money:beforeRemove` | `{ player, moneyType, amount, reason }` | yes — `money.vetoed` | After the sufficiency check, before the balance moves. |
 | `money:beforeSet` | `{ player, moneyType, amount, reason }` | yes — `money.vetoed` | `amount` is the new balance. |
 | `paycheck:before` | `{ player, amount }` | yes — that character is not paid this cycle | Before each paycheck. The payment itself then goes through `AddMoney` and `money:beforeAdd`. |
+| `money:beforeAddOffline` | `{ citizenId, moneyType, amount, reason }` | yes — `AddMoneyOffline` answers `money.vetoed` | Before an offline character's balance is written. (An online character goes through `money:beforeAdd`.) |
+| `job:beforeSet` | `{ player, citizenId, offline, name, grade, previous }` | yes — `SetJob` answers `job.vetoed`, nothing is written | Before the primary job changes. `player` may be an offline Player (`offline = true`); `previous` is the current job. |
+| `gang:beforeSet` | `{ player, citizenId, offline, name, grade, previous }` | yes — `gang.vetoed` | The same for `SetGang`. |
 | `character:loading` | `{ citizenId, entity, data = {} }` | no — the verdict is ignored | During login, before the Player is built. A hook may yield and may fill `data`; every key in `data` is copied onto `PlayerData`. |
 
 ## Events {#events}
@@ -237,7 +242,9 @@ Register with `OPX.Hooks.Register(name, fn, priority?)` on the server, inside op
 | <a id="opx-on-character-job"></a>`opx:on:character:job` | client local | `job` | |
 | <a id="opx-on-character-gang"></a>`opx:on:character:gang` | client local | `gang` | |
 
-The `opx:on:` events are raised only on the client, with `TriggerEvent`, so only client code inside opx_infinity hears them. Server-side, the module raises private `opx:in:character:` events (`loaded`, `unloaded`, `money`, `job`, `gang`, `paycheck`, `deleted`) for other modules of the runtime.
+The rows above marked *client local* are client events: only client code inside opx_infinity hears them. The **server** also raises `opx:on:character:loaded`, `unloaded`, `money`, `job` and `gang` for every server resource, with `(playerId, payload)` — see [Public server events](../creators/server-events.md#character).
+
+Server-side, the module also raises private `opx:in:character:` events (`loaded`, `unloaded`, `money`, `job`, `gang`, `paycheck`, `deleted`) for other modules of the runtime. `job` and `gang` are now raised on removal too, not only on a set. Because server `TriggerEvent` is host-wide, these private events are visible to every server resource; do not depend on them.
 
 ## Configuration {#configuration}
 
@@ -366,7 +373,8 @@ The code is also the locale key shown to the player.
 | `money.insufficient` | Removal would go below zero. |
 | `money.negative` | `SetMoney` below zero on a type that does not allow it. |
 | `money.vetoed` | A hook refused it. |
-| `money.offline` | The character is not loaded. |
+| `money.offline` | The character is not loaded. Use `AddMoneyOffline` to credit an offline character. |
+| `job.vetoed` / `gang.vetoed` | A `job:beforeSet` / `gang:beforeSet` hook refused the change. |
 | `job.notFound` / `job.gradeNotFound` | Unknown job or grade. |
 | `job.noDuty` | The job has `defaultDuty = true`. |
 | `job.notMember` | Not a member of that job. |

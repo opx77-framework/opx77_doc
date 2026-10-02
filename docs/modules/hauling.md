@@ -55,6 +55,7 @@ The server owns every clock: a completion that arrives sooner than the bar minus
 | <a id="opx-net-hauling-sellers"></a>`opx:net:hauling:sellers` | server → client | `{ npc, site, dropoff }[]` | The seller NPCs (`npc` is a decimal string). |
 | <a id="opx-net-hauling-run"></a>`opx:net:hauling:run` | server → client | `{ id, step, durationMs, site }` | Draw a bar for this step. |
 | <a id="opx-net-hauling-answer"></a>`opx:net:hauling:answer` | server → client | `ok, reason?, heldId` | Verdict for the last request. `heldId` is the carried crate id or `false`. |
+| <a id="opx-on-hauling-sold"></a>`opx:on:hauling:sold` | server, host-wide | `playerId, { citizenId, site, dropoff, count, pay, each, currency }` | Crates were sold and paid. Every server resource hears it; see [Public server events](../creators/server-events.md#vehicles). |
 | <a id="opx-on-hauling-decision"></a>`opx:on:hauling:decision` | client local | `{ ok, reason?, carrying }` | Every verdict. Only handlers inside opx_infinity's client hear it. |
 
 The target rows are `hauling.pickup` (crates), `hauling.load` (vehicles) and `hauling.sell` (NPCs).
