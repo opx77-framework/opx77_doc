@@ -1,0 +1,39 @@
+---
+title: BroadcastChat
+description: Sends a chat line to everyone, a bucket or a radius.
+---
+
+<a id="export-server-broadcastchat" />
+
+```lua
+local res = exports.opx_infinity:BroadcastChat(message, options)
+```
+
+Scope `write` · await it. It answers from memory today, but it is a write: use the promise form.
+
+**Parameters**
+- message: `string | table`
+- options?: `table`
+  - bucket?: `integer` — a routing bucket
+  - radius?: `number` — metres, up to 10 000, with `origin`
+  - origin?: `number | { x, y, z }` — a player id or a point
+
+- `message` is a string, or `{ text, author?, kind? }`. `kind` is `chat`, `system` (default), `info`, `warning` or `error`.
+- The line is not attributed to a player.
+- With a player as `origin` and no `bucket`, only that player's bucket is reached. With no options, everyone gets the line.
+
+**Returns**
+- `integer` — how many players got the line
+
+**Errors**
+- `chat.invalidMessage`, `chat.invalidKind`, `chat.invalidScope`, `export.badArgument`
+
+```lua title="Example"
+CreateThread(function()
+  local pending, why = Open77.exports.call('opx_infinity', 'BroadcastChat', 'Shots fired near the market', { origin = playerId, radius = 150 })
+  if not pending then return print('not sent: ' .. tostring(why)) end
+  local res = pending:await()
+  if not (res and res.ok) then return print('refused: ' .. tostring(res and res.error)) end
+  print(res.value .. ' heard it')
+end)
+```

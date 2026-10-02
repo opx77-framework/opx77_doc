@@ -1,0 +1,43 @@
+---
+title: panel
+description: The mouse-driven drawer with tabs, a searchable item list, buttons, sliders and a confirm dialog, opened by other client modules through the panel contract.
+---
+
+Draws a large mouse-driven drawer: a title, optional tabs, a searchable and paged list of items, rows of buttons, and a confirm dialog. Instead of items a caller can send sliders, which turns the left side into a category rail with a picture grid (the clothing fitting room uses this). Other client modules open it through the `panel` contract, stream items into it, and get a callback for every click. Use it for lists too long for a [menu](/docs/opx_infinity/menu), such as shop stock or a wardrobe.
+
+| | |
+|---|---|
+| Side | client |
+| Requires | none |
+| Optional | `downed` (no panel opens over a downed player) |
+| Contract | `panel` v1 — [client](/docs/opx_infinity/panel/client) |
+| Config | `config/panel.lua` (shared) |
+| Data | none |
+
+## Configuration
+
+`config/panel.lua` sets `OPX.Config.MODULES.panel`.
+
+| Key | Default | Effect |
+|---|---|---|
+| <a id="config-panel-enabled" />`enabled` | `true` | `false` switches the module off. |
+| <a id="config-panel-columns" />`COLUMNS` | `2` | Item columns when a spec names none. `1` or `2`. |
+| <a id="config-panel-while-down" />`WHILE_DOWN` | `{ admin = true }` | Owners whose panel may open, and stays open, while the player is down. |
+
+## Refusal codes [#codes]
+
+| Code | Meaning |
+|---|---|
+| `spec_must_be_a_table`, `patch_must_be_a_table` | Not a table. |
+| `invalid_owner`, `invalid_id`, `callback_required`, `invalid_dismiss` | Spec basics wrong. |
+| `unknown_field` | A field the panel does not draw (or `clearItems` in `Open`). |
+| `no_surface` | The interactive WebUI surface does not exist. |
+| `player_down` | The player is down and the owner is not in `WHILE_DOWN`. |
+| `panel_busy` | Another owner's panel is open and `steal` was not set. |
+| `invalid_<field>` | That field is malformed: `eyebrow`, `title`, `subtitle`, `intro`, `tabs`, `tab`, `search`, `summary`, `actions`, `tools`, `groups`, `sliders`, `tiles`, `selected`, `status`, `labels`. |
+| `invalid_items`, `invalid_item`, `too_many_items` | `Append` list over 200, a bad item, or more than 5000 items in the panel. |
+| `invalid_dialog` | `Confirm` question malformed. |
+| `handle_required`, `no_panel_open`, `stale_handle` | Nothing open, or an old handle. |
+| `payload_too_large`, `payload_refused`, `page_not_ready`, `queue_full` | A message did not reach the page. |
+
+Locale keys owned here: `panel.count`, `panel.empty`, `panel.loading`, `panel.search`, `panel.nothing`, `panel.confirmYes`, `panel.confirmNo`.

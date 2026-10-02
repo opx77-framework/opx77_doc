@@ -1,0 +1,242 @@
+---
+title: Client
+description: The appearance contract on the client — faces, the mirror, the panel, the fitting room and clothing previews.
+---
+
+```lua
+local appearance = OPX.Api.Get('appearance')
+```
+
+From client code inside opx_infinity. Every function answers a Result and never raises. A write answers that it was **queued**; the outcome arrives on [`opx:on:appearance:decision`](/docs/opx_infinity/appearance/events#opx-on-appearance-decision). Every function except `State`, `ClosePanel`, `CloseWardrobe`, `OfferWardrobeGroups` and `EndClothingPreview` answers `appearance_unavailable` when the client has no native appearance API.
+
+## GetSkin [#client-appearance-getskin]
+
+The stored face as the server holds it.
+
+```lua
+appearance.GetSkin()
+```
+
+**Returns**
+- `Result` — `{ citizenId, family, snapshot }`; error `no_character`
+
+## CaptureSkin [#client-appearance-captureskin]
+
+What the puppet wears now.
+
+```lua
+appearance.CaptureSkin()
+```
+
+**Returns**
+- `Result` — `{ snapshot, citizenId }`; error: the capture failure, e.g. `capture_failed`
+
+## GetFamily [#client-appearance-getfamily]
+
+```lua
+appearance.GetFamily()
+```
+
+**Returns**
+- `Result` — `{ family: 'female' | 'male', citizenId }`
+
+## SetSkin [#client-appearance-setskin]
+
+Puts a face on the puppet; stores nothing. Raises `applied`.
+
+```lua
+appearance.SetSkin(snapshot)
+```
+
+**Parameters**
+- snapshot: `table`
+
+**Returns**
+- `Result` — `{ queued = true, citizenId }`; errors `no_character`, `appearance_busy`, `stored_build_mismatch`, snapshot validation codes
+
+## SaveSkin [#client-appearance-saveskin]
+
+Sends a face to the server. Raises `saved`.
+
+```lua
+appearance.SaveSkin(snapshot)
+```
+
+**Parameters**
+- snapshot?: `table` — nil sends a capture
+
+**Returns**
+- `Result` — `{ queued = true, citizenId }`; errors `no_character`, `appearance_busy`, `stored_build_mismatch`
+
+## OpenEditor [#client-appearance-openeditor]
+
+Opens the game's mirror.
+
+```lua
+appearance.OpenEditor(mode)
+```
+
+**Parameters**
+- mode?: `'ripperdoc' | 'hairdresser'` — default `'ripperdoc'`
+
+**Returns**
+- `Result` — `{ queued = true, citizenId }`; errors `invalid_mode`, `player_down`, `character_creation_in_progress`, `appearance_busy`, `no_character`
+
+## OpenCreator [#client-appearance-opencreator]
+
+Answers `needsCreation`: opens the creation editor on the character's body.
+
+```lua
+appearance.OpenCreator()
+```
+
+**Returns**
+- `Result` — `{ queued = true, citizenId }`; errors `player_down`, `no_character`, `appearance_busy`, `creation_refused`, `already_has_a_face`
+
+## IsOpen [#client-appearance-isopen]
+
+```lua
+appearance.IsOpen()
+```
+
+**Returns**
+- `Result` — `{ open, editing, creating, panel, wardrobe }`; `open` = a native modal is on screen
+
+## IsSettled [#client-appearance-issettled]
+
+While `settled` is false the player is not in the world.
+
+```lua
+appearance.IsSettled()
+```
+
+**Returns**
+- `Result` — `{ settled, announced, waiting, citizenId }`; `waiting` is `creator`, `creation`, `server`, `body`, `restore` or nil
+
+## State [#client-appearance-state]
+
+Diagnostic snapshot.
+
+```lua
+appearance.State()
+```
+
+**Returns**
+- `Result` — `table`: face state, `body`, `panel`, `wardrobe`, `wardrobeOwed`, `wardrobePolicy`, `clothing` (`waiting`, `worn`, `previewing`, `saving`, `unsaved`…), `available`
+
+## OpenPanel [#client-appearance-openpanel]
+
+Opens the appearance panel for a named caller; the same owner again redraws it.
+
+```lua
+appearance.OpenPanel(owner)
+```
+
+**Parameters**
+- owner: `string`
+
+**Returns**
+- `Result` — `{ queued = true, citizenId }`; errors `invalid_caller`, `player_down`, `no_character`, `appearance_busy`, `panel_busy`
+
+## ClosePanel [#client-appearance-closepanel]
+
+```lua
+appearance.ClosePanel(owner)
+```
+
+**Parameters**
+- owner: `string`
+
+**Returns**
+- `Result` — `true`; errors `no_panel_open`, `not_owner`
+
+## OpenWardrobe [#client-appearance-openwardrobe]
+
+Opens the fitting room for a named caller, on a thread. Does **not** grant a server save (see [`AllowClothingSave`](/docs/opx_infinity/appearance/server#server-appearance-allowclothingsave)). A later failure raises `wardrobeOpened` with `ok = false`.
+
+```lua
+appearance.OpenWardrobe(owner)
+```
+
+**Parameters**
+- owner: `string`
+
+**Returns**
+- `Result` — `{ queued = true, citizenId }`; errors `invalid_caller`, `wardrobe_busy`, `equipment_api_unavailable`, `player_down`, `player_unavailable` (not alive on foot, or in a vehicle), `spawn_up`, `input_captured`
+
+## CloseWardrobe [#client-appearance-closewardrobe]
+
+Closes the room and puts back what the puppet wore.
+
+```lua
+appearance.CloseWardrobe(owner)
+```
+
+**Parameters**
+- owner: `string`
+
+**Returns**
+- `Result` — `true`; errors `no_wardrobe_open`, `not_owner`
+
+## OfferWardrobeGroups [#client-appearance-offerwardrobegroups]
+
+Adds a strip of buttons to the open room. A press raises `wardrobeGroup`. The strip goes when the room closes.
+
+```lua
+appearance.OfferWardrobeGroups(owner, groups)
+```
+
+**Parameters**
+- owner: `string`
+- groups: `table[]` — `{ id, label, disabled }`; an empty list removes the caller's strip
+
+**Returns**
+- `Result` — `true`; errors `no_wardrobe_open`, `invalid_caller`, `invalid_groups`
+
+```lua title="Example"
+appearance.OfferWardrobeGroups('shops', { { id = 'buy', label = 'Buy' } })
+```
+
+## DressWardrobe [#client-appearance-dresswardrobe]
+
+Puts a look on the open room's draft. Slots this body's catalogue lacks are skipped.
+
+```lua
+appearance.DressWardrobe(records)
+```
+
+**Parameters**
+- records: `table` — slot → record name, or `false`
+
+**Returns**
+- `Result` — `true`; errors `no_wardrobe_open`, `wardrobe_closed`, `invalid_look`, `nothing_wearable`
+
+## BeginClothingPreview [#client-appearance-beginclothingpreview]
+
+Borrows the puppet: nothing is saved or shown to others while it is lent. Refused while the fitting room holds it.
+
+```lua
+appearance.BeginClothingPreview(owner)
+```
+
+**Parameters**
+- owner: `string`
+
+**Returns**
+- `Result` — `{ clothing, family, citizenId }`; errors `player_down`, `invalid_caller`, `preview_busy`, `no_character`, `clothing_unavailable`, `clothing_not_saved`, `clothing_not_ready`, `clothing_saving`
+
+## EndClothingPreview [#client-appearance-endclothingpreview]
+
+Gives the puppet back.
+
+```lua
+appearance.EndClothingPreview(owner, keep, records)
+```
+
+**Parameters**
+- owner: `string`
+- keep?: `boolean` — `true` saves what it wears; otherwise the stored record goes back on
+- records?: `string[]` — record names put on
+
+**Returns**
+- `Result` — `true`; errors `no_preview`, `not_owner`

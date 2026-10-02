@@ -1,0 +1,54 @@
+---
+title: prompts
+description: The key strip — "press this to do that" rows any module can post, drawn with the player's own key bindings.
+---
+
+Draws the key strip: short rows such as "E — Open" or "F — Pick up", posted by whichever module has something to offer. A caller posts a group of rows under its own name. The module orders the groups, names every key with the player's current binding, cuts the strip to `MAX_ROWS`, and drops a group when its owner stops. Server modules can post to one player through the server contract.
+
+| | |
+|---|---|
+| Side | both |
+| Requires | none |
+| Optional | `downed`, `hud` |
+| Contract | `prompts` v1 — [server](/docs/opx_infinity/prompts/server), [client](/docs/opx_infinity/prompts/client) |
+| Config | `config/prompts.lua` (shared) |
+| Data | none |
+
+- The strip steps aside (without forgetting anything) while another surface holds the keyboard, while the HUD is turned off, and while the player is down.
+- One owner may hold 8 groups; 32 groups are held at most across all owners.
+- A row whose key cannot be named (no binding and no `fallback`) is held but not drawn.
+
+## Configuration
+
+`config/prompts.lua` sets `OPX.Config.MODULES.prompts`. An invalid value is replaced by its default with a warning.
+
+| Key | Default | Effect |
+|---|---|---|
+| <a id="config-prompts-enabled" />`enabled` | `true` | `false` switches the module off. |
+| <a id="config-prompts-anchor" />`ANCHOR` | `'bottom-right'` | `bottom-right`, `bottom-left`, `top-right` or `top-left`. |
+| <a id="config-prompts-offset" />`OFFSET` | `0` | Pixels above the anchored edge, 0–540. |
+| <a id="config-prompts-max-width" />`MAX_WIDTH` | `420` | Widest row in pixels, 200–960. |
+| <a id="config-prompts-max-rows" />`MAX_ROWS` | `10` | Rows drawn at once across all groups, 1–24. |
+| <a id="config-prompts-hide-when-captured" />`HIDE_WHEN_CAPTURED` | `true` | Hide while chat, a form or the pause menu holds the keyboard. |
+| <a id="config-prompts-follow-hud" />`FOLLOW_HUD` | `true` | Hide while `hud.IsVisible()` answers `visible = false`. |
+| <a id="config-prompts-tick-ms" />`TICK_MS` | `150` | Milliseconds between two passes, 50–1000. |
+| <a id="config-prompts-owner-sweep-ms" />`OWNER_SWEEP_MS` | `1000` | Milliseconds between two checks that owners still run, 250–10000. |
+
+## Refusal codes [#codes]
+
+All codes start with `prompts.`.
+
+| Code | Meaning |
+|---|---|
+| `prompts.invalidOwner` / `prompts.invalidId` | Owner or group id is not a valid name. |
+| `prompts.invalidPlayer` | Server only: `source` is not a number. |
+| `prompts.invalidSpec` / `prompts.invalidPatch` | Spec or patch is not a table. |
+| `prompts.invalidTitle` / `prompts.invalidPriority` | Bad title or priority. |
+| `prompts.rowsRequired` / `prompts.tooManyRows` | No rows, or more than 8. |
+| `prompts.invalidRow` / `prompts.invalidRowId` / `prompts.duplicateRowId` | Bad row, row id, or repeated row id. |
+| `prompts.invalidLabel` / `prompts.invalidValue` | Bad label or value. |
+| `prompts.invalidHold` / `prompts.invalidCombo` / `prompts.invalidDim` | Not a boolean. |
+| `prompts.keysRequired` / `prompts.invalidKey` / `prompts.invalidFallback` / `prompts.tooManyKeys` | Bad `keys` entry, or more than 6 caps. |
+| `prompts.invalidValues` / `prompts.rowsAndValues` / `prompts.rowNotFound` | Bad `values` patch. |
+| `prompts.ownerLimit` / `prompts.limit` | 8 groups for this owner, or 32 in total. |
+| `prompts.notFound` | `Update` on a group the owner does not hold. |

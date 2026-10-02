@@ -1,0 +1,80 @@
+---
+title: Lib.Callback
+description: Ask your resource's server half a question, and answer the server's questions.
+---
+
+Permission `network.events`. Asks the server half of **your own** resource (or another one you name). The server must re-check everything it receives.
+
+## Lib.Callback.Ask [#lib-callback-ask]
+
+Asks the server and answers the promise.
+
+```lua
+Lib.Callback.Ask(name, ...)
+```
+
+**Parameters**
+- name: `string` or `{ resource?, name, timeout? }`
+  - timeout: milliseconds, 100–120000. Default: `10000`.
+- ...: `any`
+  - Up to 29 arguments, 48 KiB per frame.
+
+**Returns**
+- `Result` — an `Open77.Promise`; error `invalid_name`
+
+## Lib.Callback.AskAwait [#lib-callback-askawait]
+
+Asks and waits for the answer. **Yields.**
+
+```lua
+Lib.Callback.AskAwait(name, ...)
+```
+
+**Parameters**
+- name: `string` or `{ resource?, name, timeout? }`
+- ...: `any`
+
+**Returns**
+- `Result` — the answer; errors `invalid_name`, `no_promise`
+
+```lua title="Example"
+CreateThread(function()
+  local stock = Lib.Callback.AskAwait('my_shop:stock', 'water')
+  if stock.ok then print(stock.value) end
+end)
+```
+
+## Lib.Callback.Answer [#lib-callback-answer]
+
+Answers a question the server asks with `callClient`.
+
+```lua
+Lib.Callback.Answer(name, handler)
+```
+
+**Parameters**
+- name: `string`
+- handler: `function(...)`
+
+**Returns**
+- `Result` — errors `invalid_name`, `invalid_handler`
+
+```lua title="Example"
+Lib.Callback.Answer('my_shop:where', function()
+  return Lib.Character.Position().value
+end)
+```
+
+## Lib.Callback.Silence [#lib-callback-silence]
+
+Stops answering a question.
+
+```lua
+Lib.Callback.Silence(name)
+```
+
+**Parameters**
+- name: `string`
+
+**Returns**
+- `Result` — error `invalid_name`

@@ -1,0 +1,4 @@
+{
+  "title": "garages",
+  "pages": ["index", "server", "client", "events"]
+}

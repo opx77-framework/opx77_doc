@@ -1,0 +1,4 @@
+{
+  "title": "hud",
+  "pages": ["index", "client", "events"]
+}

@@ -1,0 +1,4 @@
+{
+  "title": "elevators",
+  "pages": ["index", "server", "client", "events"]
+}

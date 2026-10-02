@@ -1,0 +1,52 @@
+---
+title: Lib.Permission
+description: Read the permission each module needs and build the manifest line from it.
+---
+
+Pure. No permission. Used to build [`Lib.NEEDS`](/docs/opx_lib#lib-needs) and [`Lib.Manifest`](/docs/opx_lib#lib-manifest); you rarely call it yourself.
+
+## Lib.Permission.Of [#lib-permission-of]
+
+Reads each module's `NEEDS` field. Modules without one are skipped.
+
+```lua
+Lib.Permission.Of(modules)
+```
+
+**Parameters**
+- modules: `table<name, module>`
+
+**Returns**
+- `table<name, permission>`
+
+## Lib.Permission.List [#lib-permission-list]
+
+Every distinct permission, sorted.
+
+```lua
+Lib.Permission.List(needs)
+```
+
+**Parameters**
+- needs: `table<name, permission>`
+
+**Returns**
+- `string[]`
+
+## Lib.Permission.Line [#lib-permission-line]
+
+The `permissions { ... }` line to paste.
+
+```lua
+Lib.Permission.Line(needs)
+```
+
+**Parameters**
+- needs: `table<name, permission>`
+
+**Returns**
+- `string?` — `nil` when nothing is needed
+
+```lua title="Example"
+print(Lib.Permission.Line({ Marker = Lib.Marker.NEEDS, Blip = Lib.Blip.NEEDS }))
+```

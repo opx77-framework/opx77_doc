@@ -1,0 +1,120 @@
+---
+title: Lib.Text
+description: Display text measured and cut in UTF-8 characters, not bytes.
+---
+
+Pure. No permission.
+
+## Lib.Text.Span [#lib-text-span]
+
+Byte length of the first `maximum` characters.
+
+```lua
+Lib.Text.Span(text, maximum)
+```
+
+**Parameters**
+- text: `string`
+- maximum: `integer` — characters
+
+**Returns**
+- `integer`
+
+## Lib.Text.Length [#lib-text-length]
+
+How many characters a string holds.
+
+```lua
+Lib.Text.Length(value)
+```
+
+**Parameters**
+- value: `any`
+
+**Returns**
+- `integer`
+
+## Lib.Text.Clean [#lib-text-clean]
+
+Control characters replaced, cut to `maximum` characters, `ellipsis` appended when cut.
+
+```lua
+Lib.Text.Clean(value, maximum, ellipsis)
+```
+
+**Parameters**
+- value: `any`
+- maximum: `integer` — characters
+- ellipsis?: `string`
+
+**Returns**
+- `string?`
+
+```lua title="Example"
+local title = Lib.Text.Clean(input.title, 32, '…')
+```
+
+## Lib.Text.Bytes [#lib-text-bytes]
+
+Cuts to `limit` bytes without splitting a character.
+
+```lua
+Lib.Text.Bytes(text, limit)
+```
+
+**Parameters**
+- text: `string`
+- limit: `integer` — bytes
+
+**Returns**
+- `string`
+
+## Lib.Text.Slug [#lib-text-slug]
+
+A lower-cased name of letters, digits, `_` and `-`.
+
+```lua
+Lib.Text.Slug(value, limit)
+```
+
+**Parameters**
+- value: `any`
+- limit?: `integer`
+  - Bytes. Default: `64`.
+
+**Returns**
+- `string?`
+
+## Lib.Text.Rest [#lib-text-rest]
+
+Joins the words from `first` on with spaces.
+
+```lua
+Lib.Text.Rest(words, first)
+```
+
+**Parameters**
+- words: `string[]`
+- first?: `integer`
+  - Default: `1`.
+
+**Returns**
+- `string`
+
+```lua title="Example"
+local reason = Lib.Text.Rest(args, 2) -- '/kick 12 too loud' -> 'too loud'
+```
+
+## Lib.Text.Switch [#lib-text-switch]
+
+Reads on/off and synonyms (`on true 1 yes`, `off false 0 no`, any case, or a boolean); `nil` for anything else.
+
+```lua
+Lib.Text.Switch(value)
+```
+
+**Parameters**
+- value: `any`
+
+**Returns**
+- `boolean?`

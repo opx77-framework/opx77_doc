@@ -1,0 +1,98 @@
+---
+title: Client
+description: The chat contract on the client — this player's log, completions and the box's on/off switch.
+---
+
+```lua
+local chat = OPX.Api.Get('chat')
+```
+
+From client code inside opx_infinity. Every function answers `{ ok = true, value }` or `{ ok = false, error = code }`. None yields.
+
+## AddMessage [#client-chat-addmessage]
+
+Adds a line to this player's log only.
+
+```lua
+chat.AddMessage(message)
+```
+
+**Parameters**
+- message: `string | table` — or `{ kind?, author?, text }`
+  - `kind` decides the look: `say` (default), `chat`, `error`, `warning`.
+
+**Returns**
+- `Result` `true` — error `chat.invalidMessage`
+
+```lua title="Example"
+chat.AddMessage({ kind = 'error', author = 'NCPD', text = 'You are wanted.' })
+```
+
+## ClearMessages [#client-chat-clearmessages]
+
+Empties this player's log.
+
+```lua
+chat.ClearMessages()
+```
+
+**Returns**
+- `Result` `true`
+
+## AddSuggestion [#client-chat-addsuggestion]
+
+Adds or replaces one completion in the input line.
+
+```lua
+chat.AddSuggestion(command, help, params)
+chat.AddSuggestion({ command, help, parameters })
+```
+
+**Parameters**
+- command: `string` — also `name` in the table form.
+- help?: `string`
+- params?: `table` — also `parameters` in the table form.
+
+**Returns**
+- `Result` `true` — error `chat.invalidCommand`
+
+```lua title="Example"
+chat.AddSuggestion('/opx.mything', 'Does my thing')
+```
+
+## RemoveSuggestion [#client-chat-removesuggestion]
+
+Removes one completion.
+
+```lua
+chat.RemoveSuggestion(command)
+```
+
+**Parameters**
+- command: `string`
+
+**Returns**
+- `Result` `true`
+
+## SetEnabled [#client-chat-setenabled]
+
+`false` closes the box and refuses to open it.
+
+```lua
+chat.SetEnabled(enabled)
+```
+
+**Parameters**
+- enabled: `boolean`
+
+**Returns**
+- `Result` — the new state
+
+## IsEnabled [#client-chat-isenabled]
+
+```lua
+chat.IsEnabled()
+```
+
+**Returns**
+- `Result` `boolean`

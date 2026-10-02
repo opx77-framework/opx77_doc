@@ -1,0 +1,91 @@
+---
+title: Lib.Result
+description: Build, test and read the Result table every wrapper answers.
+---
+
+Pure. No permission.
+
+## Lib.Result.Ok [#lib-result-ok]
+
+An answer. `value` may be `nil`: that is what `ok` is for.
+
+```lua
+Lib.Result.Ok(value)
+```
+
+**Parameters**
+- value?: `any`
+
+**Returns**
+- `{ ok = true, value }`
+
+## Lib.Result.Err [#lib-result-err]
+
+A refusal. `code` is stable and branchable; `detail` is for the journal.
+
+```lua
+Lib.Result.Err(code, detail)
+```
+
+**Parameters**
+- code: `string`
+- detail?: `any`
+
+**Returns**
+- `{ ok = false, error, detail }`
+
+```lua title="Example"
+if not name then return Lib.Result.Err('invalid_name', 'no name given') end
+```
+
+## Lib.Result.Is [#lib-result-is]
+
+Whether a value is a Result: a table with a boolean `ok`.
+
+```lua
+Lib.Result.Is(value)
+```
+
+**Parameters**
+- value: `any`
+
+**Returns**
+- `boolean`
+
+## Lib.Result.Or [#lib-result-or]
+
+The value of a success, else `fallback`.
+
+```lua
+Lib.Result.Or(result, fallback)
+```
+
+**Parameters**
+- result: `Result`
+- fallback?: `any`
+
+**Returns**
+- `any`
+
+```lua title="Example"
+local here = Lib.Result.Or(Lib.Character.Position(), { x = 0, y = 0, z = 0 })
+```
+
+## Lib.Result.Map [#lib-result-map]
+
+Applies `fn` to a successful value; a failure passes straight through.
+
+```lua
+Lib.Result.Map(result, fn)
+```
+
+**Parameters**
+- result: `Result`
+- fn: `function`
+
+**Returns**
+- `Result` — errors `not-a-result`, `not-a-function`, `map-raised`
+
+```lua title="Example"
+local count = Lib.Result.Map(Lib.Blip.List(), function(list) return #list end)
+```

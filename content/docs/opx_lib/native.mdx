@@ -1,0 +1,57 @@
+---
+title: Lib.Native
+description: Reach and call an Open77 native safely — the building block every other wrapper uses.
+---
+
+No permission of its own (the `permission` you pass is the one the native needs).
+
+## Lib.Native.Reach [#lib-native-reach]
+
+Looks a native up under `Open77` at call time.
+
+```lua
+Lib.Native.Reach(path)
+```
+
+**Parameters**
+- path: `string` — e.g. `'hud.notify'`
+
+**Returns**
+- `function?`, `string?` — the native, or `nil` and `open77_unavailable` / `native_not_found`
+
+## Lib.Native.Call [#lib-native-call]
+
+Calls a native under `pcall` and answers a Result. A `nil` or `false` first answer is a refusal, so do not use it for a native whose real answer can be `false`.
+
+```lua
+Lib.Native.Call(path, permission, ...)
+```
+
+**Parameters**
+- path: `string`
+- permission?: `string` — named in the `permission_denied` detail
+- ...: `any` — the native's arguments
+
+**Returns**
+- `Result` — errors `open77_unavailable`, `native_not_found`, `native_raised`, `permission_denied`, or the native's own reason
+
+```lua title="Example"
+local shown = Lib.Native.Call('hud.notify', 'ui.vanilla.hud', 'Saved')
+if not shown.ok then print(shown.error, shown.detail) end
+```
+
+## Lib.Native.Refusal [#lib-native-refusal]
+
+Turns a native's refusal into a Result. A `permission_denied…` reason becomes `permission_denied` with a detail naming the manifest line to add.
+
+```lua
+Lib.Native.Refusal(path, permission, reason)
+```
+
+**Parameters**
+- path: `string`
+- permission?: `string`
+- reason: `any`
+
+**Returns**
+- `Result`

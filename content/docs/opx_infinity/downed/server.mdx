@@ -1,0 +1,55 @@
+---
+title: Server
+description: The downed contract on the server — who is down, and reviving them.
+---
+
+```lua
+local downed = OPX.Api.Get('downed')
+```
+
+From server code inside opx_infinity. Each function answers `{ ok = true, value }` or `{ ok = false, error = code }`.
+
+## IsDown [#server-downed-isdown]
+
+```lua
+downed.IsDown(playerId)
+```
+
+**Parameters**
+- playerId: `integer`
+
+**Returns**
+- `Result` `{ down, waiting, downForMs? }` — `downForMs` only when down. Error `bad_player`.
+
+## List [#server-downed-list]
+
+Every downed player: those waiting for help first, then longest down. For a dispatch screen.
+
+```lua
+downed.List()
+```
+
+**Returns**
+- `Result` `{ players = { { id, name, waiting, downForMs, position } } }`
+  - `position`: `{ x, y, z, bucket }`
+
+## Revive [#server-downed-revive]
+
+Revives where the body lies, at `REVIVE.HEALTH`. The [`Revive` server export](/docs/creators/server/revive#export-server-revive) calls this with the calling resource's name.
+
+```lua
+downed.Revive(playerId, caller, why)
+```
+
+**Parameters**
+- playerId: `integer`
+- caller: `string` — your module name; audited and checked against [`REVIVERS`](/docs/opx_infinity/downed#config-downed-revivers).
+- why?: `string` — reason, audited after the caller (cut to 64 characters).
+
+**Returns**
+- `Result` `true` — errors `invalid_caller`, `caller_denied`, `bad_player`, `not_down`, `not_incarnated`, `gate_unreadable`, `gate_closed`, or the host's refusal reason
+
+```lua title="Example"
+local up = downed.Revive(target, 'ems', 'defib')
+if not up.ok then print(up.error) end
+```

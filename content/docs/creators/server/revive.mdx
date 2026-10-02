@@ -1,0 +1,31 @@
+---
+title: Revive
+description: Gets a downed player up where the body lies.
+---
+
+<a id="export-server-revive" />
+
+```lua
+local res = exports.opx_infinity:Revive(source, reason)
+```
+
+Scope `write` · sync — memory only, it answers at once.
+
+**Parameters**
+- source: `number`
+- reason?: `string` — up to 256 characters, cut to 64 in the log
+
+- Goes through the [downed module](/docs/opx_infinity/downed)'s own revive.
+- Your resource must be allowed by the module's `REVIVERS` (everyone by default), or it answers `caller_denied`.
+- The audit line names your resource and `reason`.
+
+**Returns**
+- `true`
+
+**Errors**
+- `not_down`, `not_incarnated`, `gate_closed`, `caller_denied`, `export.badArgument`, `error.unavailable`
+
+```lua title="Example"
+local res = exports.opx_infinity:Revive(patientId, 'medkit')
+if not res.ok then print(res.error) end
+```

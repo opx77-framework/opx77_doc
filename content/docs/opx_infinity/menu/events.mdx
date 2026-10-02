@@ -1,0 +1,40 @@
+---
+title: Events
+description: Local events and page channels of the menu module.
+---
+
+Client-local only: they reach handlers inside opx_infinity's client VM, not other resources.
+
+## opx:on:menu:action [#opx-on-menu-action]
+
+Client, local. Raised after the owner's callback for every action on every menu.
+
+```lua
+AddEventHandler('opx:on:menu:action', function(payload) end)
+```
+
+- payload: `table` — the [action payload](/docs/opx_infinity/menu/client#the-action-payload)
+
+## opx:on:menu:state [#opx-on-menu-state]
+
+Client, local. A menu opened, or the last one closed. Raised on change only. The HUD listens to it.
+
+```lua
+AddEventHandler('opx:on:menu:state', function(state) end)
+```
+
+- state: `table` — `{ open = boolean }`
+
+## Page channels
+
+All on the `interactive` surface. Every payload carries the menu `handle`; a payload with a stale handle is dropped.
+
+| Channel | Direction | Payload | Meaning |
+|---|---|---|---|
+| <a id="page-menu-key" />`menu:key` | page → Lua | `{ handle, key, repeat }` | `key`: `up`, `down`, `left`, `right`, `enter` or `back`. Only sent when the page holds the keyboard (`focus = 'full'`). |
+| <a id="page-menu-choose" />`menu:choose` | page → Lua | `{ handle, index }` | A row was clicked: move there and activate it. |
+| <a id="page-menu-dismiss" />`menu:dismiss` | page → Lua | `{ handle }` | Escape on the page; closes with reason `dismissed`. |
+| `focus:set` | page → Lua | `{ owner, focus }` | Shared by every view; the menu answers for owner `menu` only. |
+| `menu:open` | Lua → page | first frame plus `anchor, width, maxHeight, height, focus, closable` | Re-sent until the page is ready. |
+| `menu:frame` | Lua → page | `{ handle, title, trail, rows, first, total, hint }` | The visible window of rows. |
+| `menu:close` | Lua → page | `{ handle }` | Take the menu down. |

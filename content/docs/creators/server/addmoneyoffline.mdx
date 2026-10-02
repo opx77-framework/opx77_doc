@@ -1,0 +1,41 @@
+---
+title: AddMoneyOffline
+description: Gives money to a character by citizen id, online or not.
+---
+
+<a id="export-server-addmoneyoffline" />
+
+```lua
+local res = exports.opx_infinity:AddMoneyOffline(citizenId, moneyType, amount, reason)
+```
+
+Scope `write` · must be awaited — a synchronous call answers `export.mustAwait` before touching anything.
+
+**Parameters**
+- citizenId: `string`
+- moneyType: `string`
+- amount: `integer`
+- reason?: `string`
+
+- Money types are the server's [`MONEY.TYPES`](/docs/opx_infinity/core/config#config-shared-money) (`EDDIES`, `BANK` shipped).
+- `amount` is a whole number from 1 to 9 999 999 999.
+- `reason` is optional text, cut to 64 characters, stored as `ext:<your resource>:<reason>`.
+- Runs the same [hooks](/docs/opx_infinity/character/events#hooks) as any other change and raises [`opx:on:character:money`](/docs/creators/events#opx-on-character-money).
+- The event comes with `offline = true` and no `playerId`.
+
+**Returns**
+- `{ balance, offline }` — `offline = false` when the character turned out to be online
+
+**Errors**
+- `money.badType`, `money.badAmount`, `money.vetoed`, `character.notFound`, `export.badArgument`
+- `error.unavailable` while the row is being written
+
+```lua title="Example"
+CreateThread(function()
+  local pending, why = Open77.exports.call('opx_infinity', 'AddMoneyOffline', citizenId, 'BANK', 1200, 'salary')
+  if not pending then return print('not sent: ' .. tostring(why)) end
+  local res = pending:await()
+  if not (res and res.ok) then return print('refused: ' .. tostring(res and res.error)) end
+  print(res.value.balance, res.value.offline)
+end)
+```

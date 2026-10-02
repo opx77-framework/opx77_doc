@@ -1,0 +1,22 @@
+---
+title: Lib.Character
+description: The local body's world position.
+---
+
+No permission.
+
+## Lib.Character.Position [#lib-character-position]
+
+The local body's world position.
+
+```lua
+Lib.Character.Position()
+```
+
+**Returns**
+- `Result` — `{ x, y, z }`; error `no_character` before the local body exists
+
+```lua title="Example"
+local here = Lib.Character.Position()
+if here.ok then print(here.value.x, here.value.y, here.value.z) end
+```

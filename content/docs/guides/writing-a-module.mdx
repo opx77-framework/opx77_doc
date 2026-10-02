@@ -1,0 +1,161 @@
+---
+title: Write a module
+description: Add a new module to opx_infinity step by step — declaration, config, text, server and client halves, a contract, a network event, a command and the manifest lines.
+---
+
+A module is the normal way to add a feature. It lives inside `opx_infinity` under `modules/<id>/`, runs in the same Lua VM as every other module and can use their [contracts](/docs/opx_infinity/concepts/modules-and-contracts#contracts). This guide builds `tips`: a player tips another player some money.
+
+<Callout type="info">
+
+Read [Modules and contracts](/docs/opx_infinity/concepts/modules-and-contracts) and [Server authority](/docs/opx_infinity/concepts/server-authority) first.
+
+</Callout>
+
+### The files [step] [#files]
+
+```text
+config/tips.lua                 settings
+modules/tips/module.lua         declaration and event names
+modules/tips/locales.lua        English and French text
+modules/tips/server/main.lua    the rules
+modules/tips/client/main.lua    the request
+```
+
+### Declare it [step] [#declare]
+
+```lua title="modules/tips/module.lua"
+local M = OPX.Modules.Declare{
+	id = 'tips',
+	side = 'both',
+	fatal = false,
+	requires = { 'character' },   -- money lives in the character contract
+}
+
+M.Event = {
+	SEND = OPX.Event(OPX.Channel.NET, 'tips', 'send'),      -- client -> server
+	SENT = OPX.Event(OPX.Channel.LOCAL, 'tips', 'sent'),    -- server-side announcement
+}
+```
+
+### Configure it [step] [#config]
+
+```lua title="config/tips.lua"
+OPX.Config.MODULES.tips = {
+	enabled = true,
+	MAX_AMOUNT = 500,
+	COOLDOWN_MS = 10000,
+}
+```
+
+Read it as `M.Settings.MAX_AMOUNT` inside a phase, never at file scope (see [Settings](/docs/opx_infinity/concepts/modules-and-contracts#settings)).
+
+### Text [step] [#locales]
+
+```lua title="modules/tips/locales.lua"
+OPX.Locale.Register('en', {
+	['tips.sent'] = 'You tipped {amount} eddies.',
+	['tips.badAmount'] = 'That is not a valid tip.',
+})
+OPX.Locale.Register('fr', {
+	['tips.sent'] = 'Vous avez donné un pourboire de {amount} eddies.',
+	['tips.badAmount'] = "Ce n'est pas un pourboire valide.",
+})
+```
+
+### The server half [step] [#server]
+
+```lua title="modules/tips/server/main.lua"
+local M = OPX.Modules.Get('tips')
+
+local character   -- the contract, resolved in Start
+
+local function send(source, target, amount)
+	amount = math.floor(tonumber(amount) or 0)
+	target = tonumber(target)
+	if amount < 1 or amount > M.Settings.MAX_AMOUNT or target == nil or target == source then
+		return OPX.Refuse(source, 'tips.badAmount', 'tips.send')
+	end
+	-- ... take from `source`, give to `target` through the character contract,
+	-- refunding if the second half fails. See the character module page for
+	-- the exact functions and their answers.
+	OPX.Publish(M.Event.SENT, source, { target = target, amount = amount })
+	OPX.NotifyLocale(source, 'tips.sent', { amount = amount }, 'success')
+end
+
+function M.Api()
+	OPX.Api.Provide('tips', 1, {
+		Send = send,
+	})
+end
+
+function M.Start()
+	character = OPX.Api.Require('character')
+
+	RegisterNetEvent(M.Event.SEND, function(target, amount)
+		local source = source          -- from the connection, never the payload
+		if OPX.Cooling(source, 'tips.send', M.Settings.COOLDOWN_MS) then
+			return OPX.Refuse(source, 'error.tooFast', 'tips.send')
+		end
+		send(source, target, amount)
+	end)
+
+	OPX.Command.Register('opx.tip', { help = 'tips.help' }, function(source, args)
+		send(source, args[1], args[2])
+	end)
+end
+```
+
+- `OPX.Publish` raises `opx:on:tips:sent` for **every resource on the server** (server `TriggerEvent` is host-wide). Give it a plain payload, never a live record, and list the event on [Public server events](/docs/creators/events).
+- Wiring between your own halves or other modules only: an `opx:in:` name — still visible to other server resources, but not a promise.
+- To let other resources **call** your module, add a wrapper to `core/server/exports.lua` (or `core/client/exports.lua`) and document it under [For creators](/docs/creators).
+- `source` comes from the connection. Re-check every value in the payload.
+- [`OPX.Command.Register`](/docs/opx_infinity/core/server#opx-command-register), not `RegisterCommand`, so the chat box knows the command. `{ restricted = true }` for a staff command: the host then checks `command.opx.tip` before the handler runs.
+- Refuse with a code (`OPX.Refuse`), not a sentence.
+
+### The client half [step] [#client]
+
+```lua title="modules/tips/client/main.lua"
+local M = OPX.Modules.Get('tips')
+
+function M.Start()
+	-- e.g. a target row or a menu row calls this
+end
+
+function M.Ask(target, amount)
+	TriggerServerEvent(M.Event.SEND, target, amount)
+end
+```
+
+- Repeating client work goes through [`OPX.Scheduler.Every`](/docs/opx_infinity/concepts/scheduler).
+- Screens go through the [menu](/docs/opx_infinity/menu), [form](/docs/opx_infinity/form) or [panel](/docs/opx_infinity/panel) contracts before you write a new Vue view.
+
+### List every file in the manifest [step] [#manifest]
+
+One line per file in `open77.lua`, after the modules you depend on and after `config/<id>.lua`:
+
+```lua title="open77.lua"
+shared_script "config/tips.lua"
+
+shared_script "modules/tips/module.lua"
+shared_script "modules/tips/locales.lua"
+server_script "modules/tips/server/main.lua"
+client_script "modules/tips/client/main.lua"
+```
+
+- A file that is not listed never loads, and nothing tells you. The framework's test suite fails on an unlisted `.lua` file.
+- A native that needs a new manifest permission: add it to the `permissions` block.
+
+### Check it [step] [#check]
+
+From the `opx_infinity` folder:
+
+```bash
+lua tests/run.lua
+luac -p $(find . -name '*.lua' -not -name 'open77.lua')
+```
+
+Deploy, restart, and look for `[module] tips started` in the journal.
+
+### Document it [step] [#document]
+
+Add `content/docs/opx_infinity/tips/` to this site (`index.mdx`, `server.mdx`, `client.mdx`, `events.mdx`, `meta.json`) and `"tips"` to the `pages` of `content/docs/opx_infinity/meta.json`; see [Contributing](/docs/guides/contributing#new-module). The coverage check fails until every command, event, contract function and config key has an anchor.

@@ -1,0 +1,56 @@
+---
+title: Server
+description: The chat contract on the server — lines in the server's own voice.
+---
+
+```lua
+local chat = OPX.Api.Get('chat')
+```
+
+From server code inside opx_infinity. Both answer a Result and never yield. The line is the **server's** voice: not attributed to a player, skips the per-player rate limit. Text is cleaned and bounded like a player's. Other resources use the [`SendChat`](/docs/creators/server/sendchat#export-server-sendchat) and [`BroadcastChat`](/docs/creators/server/broadcastchat#export-server-broadcastchat) exports.
+
+A `message` is a `string`, or `{ text, author?, kind? }`:
+- `kind`: `chat`, `system` (default), `info`, `warning` or `error`.
+- `author`: cut to 64 characters.
+
+## Send [#server-chat-send]
+
+One line to one connected player.
+
+```lua
+chat.Send(target, message)
+```
+
+**Parameters**
+- target: `integer` — player id
+- message: `string | table`
+
+**Returns**
+- `Result` `true` — errors `chat.noPlayer`, `chat.invalidMessage`, `chat.invalidKind`
+
+```lua title="Example"
+chat.Send(playerId, { kind = 'warning', text = 'Restart in 5 minutes.' })
+```
+
+## Broadcast [#server-chat-broadcast]
+
+One line to many players. Distance uses the server's own positions.
+
+```lua
+chat.Broadcast(message, options)
+```
+
+**Parameters**
+- message: `string | table`
+- options?: `table` — none: every player.
+  - bucket?: `integer` — routing bucket.
+  - radius?: `number` — metres, up to 10 000; needs `origin`.
+  - origin?: `integer | table` — a player id or `{ x, y, z }`. A player origin also limits to that player's bucket unless `bucket` is given.
+
+**Returns**
+- `Result` `integer` (players reached) — errors `chat.invalidMessage`, `chat.invalidKind`, `chat.invalidScope`
+
+```lua title="Example"
+local sent = chat.Broadcast('Gunfire reported.', { origin = playerId, radius = 50 })
+if sent.ok then print(sent.value .. ' players heard it') end
+```

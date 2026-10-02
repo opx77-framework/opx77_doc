@@ -1,0 +1,26 @@
+---
+title: IsDown
+description: Whether a player is down, and for how long.
+---
+
+<a id="export-server-isdown" />
+
+```lua
+local res = exports.opx_infinity:IsDown(source)
+```
+
+Scope `read` · sync.
+
+**Parameters**
+- source: `number`
+
+**Returns**
+- `{ down, waiting, downForMs? }` — `downForMs` only when down
+
+**Errors**
+- `export.badArgument`, `error.unavailable`
+
+```lua title="Example"
+local res = exports.opx_infinity:IsDown(source)
+if res.ok and res.value.down then print('down for ' .. res.value.downForMs .. ' ms') end
+```

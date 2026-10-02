@@ -1,0 +1,82 @@
+---
+title: Lib.Table
+description: Deep copy, deep compare, sorted keys, counting and read-only views.
+---
+
+Pure. No permission.
+
+## Lib.Table.Copy [#lib-table-copy]
+
+A deep copy with no shared reference to the original.
+
+```lua
+Lib.Table.Copy(value, seen)
+```
+
+**Parameters**
+- value: `any`
+- seen?: `table` — internal, for cycles; leave it out.
+
+**Returns**
+- `any` — the copy
+
+```lua title="Example"
+local mine = Lib.Table.Copy(defaults)
+```
+
+## Lib.Table.Same [#lib-table-same]
+
+Whether two values are the same data, to any depth.
+
+```lua
+Lib.Table.Same(left, right)
+```
+
+**Parameters**
+- left: `any`
+- right: `any`
+
+**Returns**
+- `boolean`
+
+## Lib.Table.Keys [#lib-table-keys]
+
+Every key, sorted, so a walk is the same twice.
+
+```lua
+Lib.Table.Keys(value)
+```
+
+**Parameters**
+- value: `table`
+
+**Returns**
+- `any[]`
+
+## Lib.Table.Count [#lib-table-count]
+
+How many entries a table holds, map keys included.
+
+```lua
+Lib.Table.Count(value)
+```
+
+**Parameters**
+- value: `table`
+
+**Returns**
+- `integer`
+
+## Lib.Table.Freeze [#lib-table-freeze]
+
+A shallow read-only view: reading works, writing raises.
+
+```lua
+Lib.Table.Freeze(value)
+```
+
+**Parameters**
+- value: `table`
+
+**Returns**
+- `table`

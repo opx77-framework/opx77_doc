@@ -1,0 +1,187 @@
+---
+title: Server
+description: The vehicles contract on the server — register, list, spawn and store owned vehicles.
+---
+
+```lua
+local vehicles = OPX.Api.Get('vehicles')
+```
+
+From server code inside opx_infinity. Every function that reads the database **yields**: call it from a `CreateThread`.
+
+A **vehicle** table has `plate`, `citizenId`, `record`, `appearance`, `garage`, `state` (`0` out, `1` stored, `2` impounded), `health`, `damage`, `paint`, `metadata`.
+
+## Register [#server-vehicles-register]
+
+Yields. Creates a row under a fresh plate, state stored, in `options.garage` or `DEFAULT_GARAGE`.
+
+```lua
+vehicles.Register(citizenId, record, options)
+```
+
+**Parameters**
+- citizenId: `string`
+- record: `string` — the vehicle record, max 256 characters
+- options?: `table`
+  - `appearance`, `garage`, `paint`, `metadata`
+
+**Returns**
+- `Result` — the vehicle; errors `vehicle.limit` (at `PER_CHARACTER`), `vehicle.badRecord` (over 256 characters), `vehicle.plateExhausted` (after 5 colliding draws)
+
+```lua title="Example"
+CreateThread(function()
+  local made = vehicles.Register(citizenId, 'Vehicle.v_standard2_archer_hella_player')
+  if made.ok then print(made.value.plate) end
+end)
+```
+
+## List [#server-vehicles-list]
+
+Yields. Every row the character owns, oldest first.
+
+```lua
+vehicles.List(citizenId)
+```
+
+**Parameters**
+- citizenId: `string`
+
+**Returns**
+- `Result` — `vehicle[]`
+
+## Get [#server-vehicles-get]
+
+Yields. One row, plus `spawned` (boolean) and `id` (runtime id when out).
+
+```lua
+vehicles.Get(plate)
+```
+
+**Parameters**
+- plate: `string`
+
+**Returns**
+- `Result` — the vehicle; `vehicle.notFound` when no row
+
+## PlateOf [#server-vehicles-plateof]
+
+No yield. Only vehicles this module has out.
+
+```lua
+vehicles.PlateOf(vehicleId)
+```
+
+**Parameters**
+- vehicleId: `number`
+
+**Returns**
+- `string?`, `string?` — `plate, citizenId`, or `nil, nil`
+
+## LiveId [#server-vehicles-liveid]
+
+No yield, no database. Says nothing about ownership.
+
+```lua
+vehicles.LiveId(plate)
+```
+
+**Parameters**
+- plate: `string`
+
+**Returns**
+- `number?` — the runtime id, or `nil`
+
+## Occupied [#server-vehicles-occupied]
+
+No yield. The owned vehicle the player sits in, read from the host's seat assignment.
+
+```lua
+vehicles.Occupied(source)
+```
+
+**Parameters**
+- source: `number`
+
+**Returns**
+- `Result` — `{ plate, id }`, or value `nil` on foot or in a car they do not own
+
+## Spawn [#server-vehicles-spawn]
+
+Yields. Ownership is proved from the loaded character. Stored damage and flags are re-applied.
+
+```lua
+vehicles.Spawn(source, plate, at)
+```
+
+**Parameters**
+- source: `number`
+- plate: `string`
+- at?: `table`
+  - `{ x, y, z, yaw?, bucket? }`. Without it the car appears `SPAWN_OFFSET` m beside the player; if it is already out the answer is `alreadyOut = true` and nothing moves.
+  - With it the car is created exactly there; a car already out is stored first and created again at `at` (`recalled = true`), or refused `vehicle.occupied` if anyone sits in it.
+
+**Returns**
+- `Result` — `{ plate, id, recalled?, alreadyOut? }`
+
+<Callout type="warn">
+
+`Spawn` with a named place moves a car that is already out. That is how a garage marker "recalls" a car parked elsewhere.
+
+</Callout>
+
+```lua title="Example"
+CreateThread(function()
+  local out = vehicles.Spawn(source, '12ABC345', { x = -1442.2, y = 127.4, z = 18.0, yaw = 90.0 })
+  if not out.ok then print(out.error) end
+end)
+```
+
+## Store [#server-vehicles-store]
+
+Yields. Writes condition back and removes the car. No ownership check: the caller must prove it.
+
+```lua
+vehicles.Store(plate, garage)
+```
+
+**Parameters**
+- plate: `string`
+- garage?: `string` — re-files it
+
+**Returns**
+- `Result` — `{ plate }`
+
+## SetState [#server-vehicles-setstate]
+
+**Yields.** A car that is out is put away first; refused with `vehicle.occupied` while anyone sits in it. Takes the same per-plate claim as `Spawn` (`vehicle.busy` while one runs). Audited `vehicle.state`.
+
+```lua
+vehicles.SetState(plate, state, garage)
+```
+
+**Parameters**
+- plate: `string`
+- state: `string`
+  - `'stored'` or `'impounded'` (`out` cannot be set: only `Spawn` creates a car).
+- garage?: `string` — refiles it
+
+**Returns**
+- `Result` — `{ plate, state, garage }`
+
+```lua title="Example"
+CreateThread(function() vehicles.SetState('12ABC345', 'impounded', 'impound') end)
+```
+
+## StoreAll [#server-vehicles-storeall]
+
+Yields. Stores every out vehicle of one character, or of everyone when `nil`.
+
+```lua
+vehicles.StoreAll(citizenId)
+```
+
+**Parameters**
+- citizenId?: `string`
+
+**Returns**
+- `integer` — how many were stored

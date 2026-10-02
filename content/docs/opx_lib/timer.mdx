@@ -1,0 +1,98 @@
+---
+title: Lib.Timer
+description: Delays, debounce, throttle and wait-until without writing a thread each time.
+---
+
+No permission. Everything it returns is a closure and lives in your VM.
+
+## Lib.Timer.After [#lib-timer-after]
+
+Runs a function once after a delay.
+
+```lua
+Lib.Timer.After(delay, run)
+```
+
+**Parameters**
+- delay: `integer` — milliseconds
+- run: `function`
+
+**Returns**
+- `any?` — a handle for [`Cancel`](#lib-timer-cancel), `nil` if the arguments were wrong
+
+```lua title="Example"
+local hint = Lib.Timer.After(3000, function() Lib.Notify.Show('Press E') end)
+```
+
+## Lib.Timer.Cancel [#lib-timer-cancel]
+
+Cancels a timer from `After`.
+
+```lua
+Lib.Timer.Cancel(handle)
+```
+
+**Parameters**
+- handle: `any`
+
+**Returns**
+- `boolean`
+
+## Lib.Timer.Debounce [#lib-timer-debounce]
+
+Wraps a function so it runs once, `wait` ms after the last call, with the last call's arguments.
+
+```lua
+Lib.Timer.Debounce(wait, run)
+```
+
+**Parameters**
+- wait: `integer` — milliseconds
+- run: `function`
+
+**Returns**
+- `function`
+
+```lua title="Example"
+local save = Lib.Timer.Debounce(500, function(value) Lib.Store.Set('volume', value) end)
+```
+
+## Lib.Timer.Throttle [#lib-timer-throttle]
+
+Wraps a function: the first call runs at once, then at most one more per window, with the latest arguments.
+
+```lua
+Lib.Timer.Throttle(window, run)
+```
+
+**Parameters**
+- window: `integer` — milliseconds
+- run: `function`
+
+**Returns**
+- `function`
+
+## Lib.Timer.Until [#lib-timer-until]
+
+Waits until `test` answers truthy, or the deadline passes. **Yields.**
+
+```lua
+Lib.Timer.Until(test, timeout, interval)
+```
+
+**Parameters**
+- test: `function`
+- timeout?: `integer`
+  - Milliseconds. Default: `5000`.
+- interval?: `integer`
+  - Milliseconds between tries. Default: `50`.
+
+**Returns**
+- `any?` — the first truthy answer, or `nil` on timeout
+
+```lua title="Example"
+CreateThread(function()
+  local ready = Lib.Timer.Until(function() return Lib.Character.Position().ok end, 10000)
+  if not ready then return print('no body after 10 s') end
+end)
+```

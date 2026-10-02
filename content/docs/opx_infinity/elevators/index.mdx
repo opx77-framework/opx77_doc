@@ -1,0 +1,101 @@
+---
+title: elevators
+description: Job-gated floor lists on Night City's existing lifts, with the server re-checking job, grade, duty, bucket and distance before it moves a cabin.
+---
+
+Takes over lifts that already exist in the game world and gives them a floor list from `config/elevators.lua`. Each floor can be public or locked to jobs, a minimum grade and being on duty. The client finds configured lifts near the player and reports them; the server adopts and locks each lift, then moves the cabin only after re-checking the player's job, bucket and distance itself. Players ride with the key (`E` by default), which opens the floor list drawn with the [menu](/docs/opx_infinity/menu) module. Use it to keep a precinct's upper floors for police, or a corporate tower's offices for its staff.
+
+| | |
+|---|---|
+| Side | both |
+| Requires | `character` (hard) |
+| Optional | `menu` (floor list), `downed` (no list while down), `prompts` (the key's hint row) |
+| Contract | `elevators` v1 — [server](/docs/opx_infinity/elevators/server), [client](/docs/opx_infinity/elevators/client) |
+| Config | `config/elevators.lua` (shared) |
+| Data | none |
+
+- The key ([`KEY`](#config-elevators-key), `opx.elevators.use`) opens the floor list at the lift the player stands at. A strip row (`prompts`) names the key while within `USE_RADIUS` of a configured lift; without `prompts` the key still works.
+- With `KEY.DEFAULT = false` no key is declared and [`OpenPanel`](/docs/opx_infinity/elevators/client#client-elevators-openpanel) is the only way in. Adopted lifts are locked, so the game's own lift panel is refused either way.
+
+<Callout type="warn" title="The shipped elevators are samples">
+
+The four entries in `config/elevators.lua` have placeholder positions and guessed floor indexes. A lift is matched only within `MATCH_RADIUS` of its declared position, so a wrong position matches nothing and the lift is never adopted. Read real positions with the client console command `resource.emit open77:elevators:nearby 100`.
+
+</Callout>
+
+## Commands
+
+| Command | Access | Arguments | Effect |
+|---|---|---|---|
+| <a id="opx-elevators-where" />`/opx.elevators.where` | ACL `command.opx.elevators.where` | `[key]` | Prints config problems, then one line per elevator: label, position, floor counts, adopted id, phase, active floor, flags; then `DENIED_FLOORS` and `MEMBERSHIP`. Name set by [`COMMAND`](#config-elevators-command). |
+
+## Configuration
+
+`config/elevators.lua` sets `OPX.Config.MODULES.elevators`. Shared. Distances are measured across the ground (X and Y) against the declared position, so a lift can be called from any floor of its shaft.
+
+| Key | Default | Effect |
+|---|---|---|
+| <a id="config-elevators-enabled" />`enabled` | `true` | `false` switches the module off. |
+| <a id="config-elevators-denied-floors" />`DENIED_FLOORS` | `'shown'` | `shown` greys a refused floor; `hidden` leaves it out of the list. |
+| <a id="config-elevators-membership" />`MEMBERSHIP` | `'primary'` | `primary` reads the worked job only; `any` also counts every job membership for the grade (never for `ON_DUTY`). |
+| <a id="config-elevators-job-max-age-ms" />`JOB_MAX_AGE_MS` | `60000` | Past this snapshot age every gated floor closes (`job_stale`); public floors stay open. |
+| <a id="config-elevators-poll-ms" />`POLL_MS` | `15000` | How often the client re-reads the character's job. |
+| <a id="config-elevators-scan-ms" />`SCAN_MS` | `2000` | How often the client looks for lifts (and syncs the strip row). |
+| <a id="config-elevators-match-radius" />`MATCH_RADIUS` | `6.0` | Metres between a seen lift and a declared position for them to match. |
+| <a id="config-elevators-use-radius" />`USE_RADIUS` | `4.0` | Metres from the declared position within which a player may ride. |
+| <a id="config-elevators-scan-radius" />`SCAN_RADIUS` | `40.0` | Metres the client scans, and the server's limit on a sighting. |
+| <a id="config-elevators-travel-ms" />`TRAVEL_MS` | `8000` | Cabin travel time. Tunable `ELEV_TRAVEL_MS`. |
+| <a id="config-elevators-request-window-ms" />`REQUEST_WINDOW_MS` | `10000` | Rate window. Tunable `ELEV_REQUEST_WINDOW_MS`. |
+| <a id="config-elevators-requests-per-window" />`REQUESTS_PER_WINDOW` | `6` | Ride requests per player per window. Tunable `ELEV_REQUESTS_PER_WINDOW`. |
+| <a id="config-elevators-key" />`KEY` | `{ ID = 'opx.elevators.use', NAME = 'elevators.key.use', DEFAULT = 'E' }` | Rebindable key that opens the floor list. `ID` stores the player's rebind; `NAME` is the label's locale key. `DEFAULT = false` declares no key, leaving `OpenPanel` the only way in. |
+| <a id="config-elevators-command" />`COMMAND` | `'opx.elevators.where'` | The diagnostic command name; `false` registers none. |
+| <a id="config-elevators-elevators" />`ELEVATORS` | 4 samples: `arasaka_tower`, `ncpd_watson`, `vik_clinic`, `afterlife` | Elevator key → definition. Below. |
+
+```lua title="config/elevators.lua — one ELEVATORS entry"
+ncpd_watson = {
+    LABEL = 'NCPD WATSON',
+    X = -652.10, Y = 1394.55, Z = 12.40,
+    BUCKET = 0,
+    FLOOR_COUNT = 5,
+    FLOORS = {
+        { INDEX = 0, LABEL = 'Street' },
+        { INDEX = 2, LABEL = 'Bullpen', JOBS = { ncpd = 0, maxtac = 0 }, REASON = 'NCPD only' },
+        { INDEX = 3, LABEL = 'Holding', JOBS = { ncpd = 1, maxtac = 0 },
+            ON_DUTY = true, REASON = 'NCPD Officer, on duty' },
+    },
+},
+```
+
+- key: the durable name of the elevator (the host's id changes each restart).
+- `LABEL`: menu title. Never translated.
+- `X`, `Y`, `Z`: declared position.
+- `BUCKET`: routing bucket, default `0`.
+- `ENTITY`: optional engine hash, when two shafts share a lobby.
+- `FLOOR_COUNT`: floors of the native lift. Overrides what the client reports.
+- `FLOORS`: list of `{ INDEX, LABEL, JOBS?, ON_DUTY?, REASON? }`. `INDEX` is the native floor index (0-based), not the list position.
+
+### The job gate
+
+A floor's `JOBS`, `ON_DUTY` and `REASON` follow the shared job-gate format; see [`OPX.JobGate.Evaluate`](/docs/opx_infinity/core/lib#opx-jobgate-evaluate).
+
+- `JOBS`: `{ [jobName] = minimumGradeLevel }`, e.g. `{ ncpd = 1, maxtac = 0 }`. Any one listed job at its grade passes. No `JOBS` = public.
+- `ON_DUTY`: `true` also requires that job to be the worked job and on duty.
+- `REASON`: text shown to a refused player instead of the generic sentence. Never translated.
+
+## Refusal codes [#codes]
+
+| Code | Meaning | Locale key |
+|---|---|---|
+| `no_elevator_nearby` | No configured lift within `USE_RADIUS`. | `elevators.noElevatorNearby` |
+| `no_such_elevator`, `no_such_floor` | Not in the config. | `elevators.noSuchElevator`, `elevators.noSuchFloor` |
+| `no_character` | No character, or no job snapshot. | `elevators.noCharacter` |
+| `job_stale` | Snapshot older than `JOB_MAX_AGE_MS`. | `elevators.jobStale` |
+| `job_required`, `grade_too_low`, `off_duty` | The job gate refused. | `elevators.jobRequired`, `elevators.gradeTooLow`, `elevators.offDuty` |
+| `not_adopted` | The server has not taken the lift yet. | `elevators.notAdopted` |
+| `floor_out_of_range` | Index past the lift's floor count. | `elevators.floorOutOfRange` |
+| `no_position`, `wrong_bucket`, `too_far` | The server's position check failed. | `elevators.noPosition`, `elevators.wrongBucket`, `elevators.tooFar` |
+| `move_rejected` | The platform refused to move the cabin. | `elevators.moveRejected` |
+| `rate_limited` | Too many requests. | `elevators.rateLimited` |
+| `not_sent` | The net event was not sent. | `elevators.notSent` |
+| `player_down`, `menu_not_running`, `no_floors_available` | `OpenPanel` only. From the key, toasted as `elevators.refused`, `elevators.noPanel`, `elevators.noFloors`. | — |
+| `internal_error` | A client contract function raised; see the log. | — |

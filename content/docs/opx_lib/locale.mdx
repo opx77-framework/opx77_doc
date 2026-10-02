@@ -1,0 +1,72 @@
+---
+title: Lib.Locale
+description: A per-resource translation catalogue formatted with string.format.
+---
+
+Pure. No permission. Each resource has its own catalogue. Formatting uses `string.format` (`%s`, `%d`), not `{name}` placeholders.
+
+## Lib.Locale.Load [#lib-locale-load]
+
+Replaces the catalogue. Non-string keys and values are refused.
+
+```lua
+Lib.Locale.Load(catalogue)
+```
+
+**Parameters**
+- catalogue: `table<key, string>`
+
+**Returns**
+- `integer` — entries accepted
+
+```lua title="Example"
+Lib.Locale.Load({ ['shop.bought'] = 'You bought %d %s.' })
+```
+
+## Lib.Locale.Set [#lib-locale-set]
+
+Adds or replaces one entry.
+
+```lua
+Lib.Locale.Set(key, value)
+```
+
+**Parameters**
+- key: `string`
+- value: `string`
+
+**Returns**
+- `boolean` — accepted
+
+## Lib.Locale.Get [#lib-locale-get]
+
+The translation, formatted with any arguments. A missing key answers the key itself; a format that fails answers the key. Never `nil`.
+
+```lua
+Lib.Locale.Get(key, ...)
+```
+
+**Parameters**
+- key: `string`
+- ...: `any`
+
+**Returns**
+- `string`
+
+```lua title="Example"
+Lib.Notify.Show(Lib.Locale.Get('shop.bought', 2, 'water'))
+```
+
+## Lib.Locale.Has [#lib-locale-has]
+
+Whether a key is in the catalogue.
+
+```lua
+Lib.Locale.Has(key)
+```
+
+**Parameters**
+- key: `string`
+
+**Returns**
+- `boolean`

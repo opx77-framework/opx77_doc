@@ -1,0 +1,161 @@
+---
+title: inventory
+description: The bag, fixed stashes, vehicle trunks and gloveboxes, piles on the ground, weapons drawn from the bag and eddies carried as an item.
+---
+
+Holds every item a character carries. `I` opens a grid of slots with a weight bar; beside the bag the screen can show a second container: a stash, a vehicle's trunk or glovebox, a pile on the ground, or (for staff) another player's bag. Items are dragged between the two, used, split, sorted, handed to a nearby player or dropped. Weapons in the bag are drawn by using them; ammunition is loaded into the drawn weapon the same way. The server decides every move; the screen only sends what the player asked for. Use it whenever your code gives, takes, counts or checks items.
+
+| | |
+|---|---|
+| Side | both |
+| Requires | `character` (hard) |
+| Optional | `vehicles` (owned trunks are stored by plate), `target` (pile, trunk, glovebox and stash rows), `downed` (no screen while down), `panel` (declared, not used yet). The client also reads `needs`, `progress` and `animations` when an item is used. |
+| Contract | `inventory` v1 — [server](/docs/opx_infinity/inventory/server), [client](/docs/opx_infinity/inventory/client) |
+| Config | `config/inventory.lua` (shared); catalogue in [`data/items.lua`, `data/weapons.lua`](/docs/opx_infinity/inventory/items) |
+| Data | `opx77_inventories`, `opx77_inventory_items` |
+
+## Containers
+
+A container is a `(kind, owner)` pair. Positive id: a database row. Negative id: lives only in memory, never written.
+
+| Kind | Owner | Size | Stored | Opened by |
+|---|---|---|---|---|
+| `character` (the bag) | citizen id | [`BAG`](#config-inventory-bag), fixed when the row is created | yes | the open key, or `/opx.inventory.open` (staff search) |
+| `stash` | the stash name | from [`STASHES`](#config-inventory-stashes) or the caller of [`OpenStash`](/docs/opx_infinity/inventory/server#server-inventory-openstash) | yes | a target row at a configured stash, or `OpenStash` |
+| `trunk` | plate of an owned vehicle, or `vehicle:<id>` | [`TRUNK`](#config-inventory-trunk); a bike gets it divided by [`BIKES.TRUNK_DIVISOR`](#config-inventory-bikes) | only for an owned vehicle | a target row on the vehicle, standing outside it |
+| `glovebox` | plate, or `vehicle:<id>` | [`GLOVEBOX`](#config-inventory-glovebox); bikes have none | only for an owned vehicle | the open key or a target row, seated in the vehicle |
+| `drop` (a pile) | — | [`DROPS.SLOTS`](#config-inventory-drops) | never | the open key or a target row near the pile |
+
+- A vehicle nobody owns (no plate known to `vehicles`) gets memory-only storage that lives as long as the vehicle.
+- [`TRUNK_OWNER_ONLY`](#config-inventory-trunk-owner-only) (default `true`) refuses an owned trunk to anyone but its owner, with `not_yours`.
+- A locked vehicle refuses its trunk to everyone, with `locked`. An open trunk closes when the vehicle is locked. The lock is the host's own lock state (`Open77.vehicles.isLocked`); [vehiclekeys](/docs/opx_infinity/vehiclekeys) moves it. The glovebox ignores both rules: it opens only from a seat.
+- Reach is measured on the server: [`REACH.DISTANCE`](#config-inventory-reach) to a stash, pile or player; `REACH.VEHICLE` from a vehicle's centre to its trunk. A second container out of reach is closed by a sweep every second.
+- A pile is swept after `DROPS.LIFETIME_MINUTES` untouched; nothing in it survives a restart.
+- Changes are written [`SAVE.DELAY_MS`](#config-inventory-save) after the last change, in batches.
+- A stash loaded by name (by the [stash functions](/docs/opx_infinity/inventory/server#server-inventory-addtostash)) and not opened by a player is saved and put away after `SERVER.EXPORTS.STASHES.IDLE_MS` (60 s) without use; a sweep runs every 15 s.
+- Deleting a character deletes all its containers and their items.
+
+### Weight and slots
+
+- Weight is in whole grams. A change that would pass `maxWeight` is refused `too_heavy`; one that finds no slot, `no_room`.
+- A stackable item holds up to [`MAX_STACK`](#config-inventory-max-stack) units per slot. An ammunition slot holds at most the ammo item's [`AMMO.MAX`](/docs/opx_infinity/inventory/items#weapons-as-items) (rounds per box, e.g. 500 for handgun), never above `MAX_STACK`.
+- A non-stackable item and every weapon hold one per slot.
+- Two stacks merge only when their metadata is equal.
+- A stored item the catalogue no longer has weighs [`DEFAULT_ITEM_WEIGHT`](#config-inventory-default-item-weight) per unit.
+
+## Eddies as an item [#currency]
+
+When [`CURRENCY`](#config-inventory-currency) is on, cash can be carried as the `eddies` item. The balance stays the real money; the item is a note drawn against it.
+
+- `/withdraw <amount>` (or [`Withdraw`](/docs/opx_infinity/inventory/server#server-inventory-withdraw)) takes the amount from the `EDDIES` balance, then puts that many `eddies` in the bag. If the item cannot be added, the money is refunded.
+- Using an `eddies` stack (or [`Deposit`](/docs/opx_infinity/inventory/server#server-inventory-deposit)) removes the units, then credits the balance. If the credit fails, the units are put back.
+- Shops, garages and the dealership read the balance only. Notes in a bag cannot be spent until deposited.
+- `eddies` weighs `0` and has `DROP = false`: it cannot be left on the ground or put in a memory-only trunk.
+- The bridge does not wire itself (boot warning) when `CURRENCY.ITEM` is not in the catalogue, `MONEY_TYPE` is not a declared money type, or there is no `character` contract.
+
+## Commands
+
+| Command | Access | Arguments | Effect |
+|---|---|---|---|
+| <a id="opx-inventory-give" />`/opx.inventory.give` | ACL `command.opx.inventory.give` | `<playerId\|citizenId> <item> [count]` | Adds items to a bag (online or offline). Count 1 to [`MAX_COMMAND_COUNT`](#config-inventory-max-command-count). |
+| <a id="opx-inventory-remove" />`/opx.inventory.remove` | ACL `command.opx.inventory.remove` | `<playerId\|citizenId> <item> [count]` | Removes items from a bag. |
+| <a id="opx-inventory-clear" />`/opx.inventory.clear` | ACL `command.opx.inventory.clear` | `<playerId\|citizenId>` | Empties a bag. |
+| <a id="opx-inventory-open" />`/opx.inventory.open` | ACL `command.opx.inventory.open` | `<playerId\|citizenId>` | Opens that bag beside yours (staff search). In game only. Reach does not close it. |
+| <a id="opx-inventory-holders" />`/opx.inventory.holders` | ACL `command.opx.inventory.holders` | `<item>` | Up to 20 containers holding the item, largest stacks first. Reads the database, so changes not yet written are missing. |
+| <a id="opx-withdraw" />`/opx.withdraw` (alias `/withdraw`) | everyone | `<amount>` | Turns balance into `eddies` items. 1 to `CURRENCY.MAX_WITHDRAW`. In game only. |
+
+Staff commands are audited (`inventory.give`, `inventory.remove`, `inventory.clear`, `inventory.search`, `inventory.holders`).
+
+## Keys
+
+| Mapping id | Default | Effect |
+|---|---|---|
+| `opx.inventory.open` | `I` | Toggles the screen. Seated: opens the glovebox. Beside a pile: takes the pile. Otherwise: the bag. |
+| `opx.inventory.hotbar1` … `hotbar5` | `4` … `8` | Uses bag slot 1 … 5 with the screen closed. An empty slot does nothing. |
+| `opx.inventory.peek` | `Y` | Shows the hotbar row for `HOTBAR.PEEK_MS`. |
+
+Players rebind them in Pause → Settings → KEY BINDINGS.
+
+## Configuration
+
+`config/inventory.lua` sets `OPX.Config.MODULES.inventory`. Shared script. Out-of-range values fall back to the default with a boot warning.
+
+| Key | Default | Effect |
+|---|---|---|
+| <a id="config-inventory-enabled" />`enabled` | `true` | `false` switches the module off. |
+| <a id="config-inventory-bag" />`BAG` | `{ SLOTS = 40, MAX_WEIGHT = 30000 }` | Size of a **new** bag. Slots 1–200, grams. An existing bag keeps its size; use [`ResizeContainer`](/docs/opx_infinity/inventory/server#server-inventory-resizecontainer). |
+| <a id="config-inventory-default-item-weight" />`DEFAULT_ITEM_WEIGHT` | `100` | Grams per unit for an item the catalogue no longer has, and for a catalogue row with a bad `WEIGHT`. |
+| <a id="config-inventory-max-stack" />`MAX_STACK` | `1000000` | Most units per slot of a stackable item (ammunition: its `AMMO.MAX`, if lower). |
+| <a id="config-inventory-max-metadata-bytes" />`MAX_METADATA_BYTES` | `1024` | Largest encoded metadata per stack (64–4096). |
+| <a id="config-inventory-reach" />`REACH` | `{ DISTANCE = 3.0, VEHICLE = 4.5 }` | Metres. `DISTANCE`: to a stash, pile or player. `VEHICLE`: vehicle centre to trunk; also the vehicle target rows' distance. |
+| <a id="config-inventory-hotbar" />`HOTBAR` | `{ ENABLED = true, SLOTS = 5, PEEK_MS = 4000 }` | Bag slots usable by key without the screen (0–9), and how long the peek shows the row (500–30000 ms). |
+| <a id="config-inventory-keys" />`KEYS` | `{ OPEN = 'I', HOTBAR = { '4','5','6','7','8' }, PEEK = 'Y' }` | Default keys. `false` registers no mapping. A hotbar or peek key equal to the open key is dropped. |
+| <a id="config-inventory-use-cooldown-ms" />`USE_COOLDOWN_MS` | `750` | Least time between two uses by one player. Also the live tunable `INVENTORY_USE_COOLDOWN_MS`. |
+| <a id="config-inventory-use-handler-ms" />`USE_HANDLER_MS` | `5000` | Time a use handler has to answer (500–25000). |
+| <a id="config-inventory-rate-limit" />`RATE_LIMIT` | `{ WINDOW_MS = 1000, REQUESTS = 20 }` | Screen requests per player per window. Refused requests are still answered `too_fast`. |
+| <a id="config-inventory-save" />`SAVE` | `{ DELAY_MS = 2000, SWEEP_MS = 1000, BATCH = 16 }` | A container is written `DELAY_MS` after its last change, `BATCH` per transaction, looked for every `SWEEP_MS`. |
+| <a id="config-inventory-drops" />`DROPS` | `{ ENABLED = true, SLOTS = 25, LIFETIME_MINUTES = 30, MAX = 200, MAX_PER_CHARACTER = 10, COOLDOWN_MS = 1000, DISTANCE = 1.5, MODEL = 'crate.small', PROMPT_RADIUS = 20.0 }` | Piles on the ground. `DISTANCE`: a drop this close to a pile joins it. `MODEL`: prop alias for a pile whose item has none. `PROMPT_RADIUS`: where a pile gets a target row. |
+| <a id="config-inventory-trunk" />`TRUNK` | `{ SLOTS = 30, MAX_WEIGHT = 80000 }` | Trunk size. `SLOTS = 0` gives vehicles no trunk. |
+| <a id="config-inventory-glovebox" />`GLOVEBOX` | `{ SLOTS = 10, MAX_WEIGHT = 10000 }` | Glovebox size. `SLOTS = 0` gives none. |
+| <a id="config-inventory-trunk-owner-only" />`TRUNK_OWNER_ONLY` | `true` | An owned vehicle's trunk opens for its owner only. `false` lets anyone in reach open it. |
+| <a id="config-inventory-bikes" />`BIKES` | `{ PATTERNS = { 'sportbike', '_bike_' }, TRUNK_DIVISOR = 3 }` | A vehicle record containing a pattern is a bike: no glovebox, trunk divided by `TRUNK_DIVISOR`. |
+| <a id="config-inventory-stashes" />`STASHES` | `{}` | Fixed stashes, each `{ NAME, LABEL?, SLOTS? (50), MAX_WEIGHT? (100000), POSITION = { X, Y, Z }, BUCKET? (0) }`. `NAME` is the storage key: renaming it gives an empty stash. Anyone in reach may open one. |
+| <a id="config-inventory-weapons" />`WEAPONS` | `{ ENABLED = true, SLOT = 1, REMOVE_UNBACKED = true, SCAN_MS = 5000, AMMO_SYNC_MS = 2000 }` | Weapons from the bag. `SLOT`: game weapon slot 1–3. `REMOVE_UNBACKED`: take off weapons no bag item backs. |
+| <a id="config-inventory-nearby" />`NEARBY` | `{ MAX = 4, SCAN_MS = 1000 }` | Players offered in "give to", and the refresh rate. |
+| <a id="config-inventory-tabs" />`TABS` | `all`, `weapons` (weapon, ammo), `food` (food, drink), `medical`, `materials` (material, tool), `misc` (`REST = true`) | Category tabs over the grid. `REST` takes every category no other tab names. |
+| <a id="config-inventory-currency" />`CURRENCY` | `{ ENABLED = true, ITEM = 'eddies', MONEY_TYPE = 'EDDIES', MAX_WITHDRAW = 1000000 }` | The money bridge. `MAX_WITHDRAW` caps one withdraw. |
+| <a id="config-inventory-max-command-count" />`MAX_COMMAND_COUNT` | `10000` | Largest count a staff command accepts. |
+
+Live tunables (operator panel): `INVENTORY_SAVE_DELAY_MS` (2000), `INVENTORY_RATE_REQUESTS` (20), `INVENTORY_DROP_LIFETIME_MIN` (30), `INVENTORY_USE_COOLDOWN_MS` (750).
+
+## Refusal codes [#codes]
+
+Toasted to the player as locale `inventory.error.<code>` (commands use `inventory.command.error.<code>`). An unknown code shows `inventory.error.failed`.
+
+| Code | Meaning |
+|---|---|
+| `bad_argument` | A contract argument is invalid (`detail` names it). |
+| `bad_request` | A request or a slot number is malformed. |
+| `bad_target` | Not a player id or a citizen id. |
+| `not_loaded` | No character loaded on that player id. |
+| `no_character` | No living character has that citizen id. |
+| `storage` | The `character` contract or the database is unavailable. |
+| `not_ready` | The player is held at the readiness gate. |
+| `dead` | The player is dead. |
+| `not_found` | The container or pile is gone. |
+| `empty_slot` | Nothing in that slot. |
+| `bad_count` | Count out of range. |
+| `bad_slot` | That slot cannot take it. |
+| `not_enough` | Fewer units than asked for. |
+| `no_room` | No free or stackable slot. |
+| `too_heavy` | Over the weight limit. |
+| `cannot_swap` | Only whole stacks swap places. |
+| `unknown_item` | Not in the catalogue. |
+| `not_usable` | No `USE` and no handler. |
+| `use_refused` | The use handler answered `ok = false` with no code. |
+| `handler_failed` | The use handler did not return a table. |
+| `handler_timeout` | The use handler raised or took longer than `USE_HANDLER_MS`. |
+| `too_fast` | Rate limit or use cooldown. |
+| `stash_namespace` | A resource tried to create a stash outside its own `<resource>.<name>` namespace. |
+| `stash_cap` | That resource already created `CREATE_CAP` stashes. |
+| `hands_full` | The player is carrying a `hauling` crate; no use or draw. |
+| `too_far` | Out of reach. |
+| `target_unavailable` | The player to hand to cannot receive. |
+| `drops_disabled` | Piles are switched off. |
+| `drop_limit` | Too many piles on the server or for this character. |
+| `no_drop` | The item has `DROP = false`. |
+| `in_vehicle` / `seated` | Get out of the vehicle first. |
+| `not_seated` | The glovebox needs a seat. |
+| `no_position` | The player's position could not be read. |
+| `no_vehicle` | The vehicle is gone. |
+| `no_storage` | The vehicle has no trunk or glovebox. |
+| `not_yours` | Someone else's owned trunk, with `TRUNK_OWNER_ONLY` on. |
+| `locked` | The vehicle is locked. |
+| `weapons_unavailable` | No weapon relay on this host. |
+| `weapon_refused` | The host refused to draw the weapon. |
+| `no_weapon_for_ammo` | No drawn weapon takes this ammunition. |
+| `weapon_full` | The weapon is fully loaded. |
+| `not_armed` | [`HolsterWeapon`](/docs/opx_infinity/inventory/server#server-inventory-holsterweapon): the player holds no weapon from this module. |
+| `not_enough_money` | Balance too low to withdraw. |
+| `unavailable` | The money bridge is off, or a stash could not be opened. |
+| `load_timeout` | A container did not load in time. |

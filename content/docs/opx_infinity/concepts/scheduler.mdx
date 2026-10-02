@@ -1,0 +1,48 @@
+---
+title: The scheduler
+description: OPX.Scheduler.Every is how a module runs repeating work on the server and on the client, and the two implementations behave differently.
+---
+
+Use `OPX.Scheduler` for repeating work instead of `CreateThread(function() while true do ... Wait(n) end end)`. Same four functions on both sides, implemented differently because the two runtimes fail differently.
+
+```lua
+local handle = OPX.Scheduler.Every('mymodule.sweep', 1000, function()
+	-- runs about once a second
+end)
+OPX.Scheduler.Cancel(handle)   -- in M.Stop
+```
+
+| Function | Server | Client |
+|---|---|---|
+| [`Every(name, intervalMs, step)`](/docs/opx_infinity/core/shared#opx-scheduler-every) | One managed task per job. `intervalMs` is a number **or a function** re-read every pass (to follow a live tunable). | One shared loop for every job. `intervalMs` must be a number; a function raises. `0` = every pass. |
+| [`Cancel(handle)`](/docs/opx_infinity/core/shared#opx-scheduler-cancel) | Stops the job. | Stops the job; it is dropped at the next pass. |
+| [`Report()`](/docs/opx_infinity/core/shared#opx-scheduler-report) | One line per job. | One line per job: name, interval, `running`/`stopped`. |
+| [`Stop()`](/docs/opx_infinity/core/shared#opx-scheduler-stop) | Stops every job (resource stop). | Stops the loop (resource stop). |
+
+`name` only appears in log lines; write it as `<module>.<purpose>`.
+
+## Server behaviour [#server]
+
+| Rule | Value |
+|---|---|
+| First run | One interval after registration, never at once. |
+| Smallest interval | 50 ms. A smaller value is raised to 50. |
+| Interval that cannot be read | Runs at its last good interval, or every 60 s, and logs once. |
+| A step that raises | Logged once per run of failures. The job is **never** suspended. |
+
+## Client behaviour [#client]
+
+| Rule | Value |
+|---|---|
+| Jobs per pass | At most 4 due jobs per resume, in rotation, so none starves. |
+| First run | Staggered, so jobs on the same interval do not land on the same frame. |
+| A step that raises | Logged on the first and third failure. After 3 failures in a row the job is **suspended** (cancelled): `[scheduler] <name> suspended after 3 failures`. |
+| Idle | The loop sleeps at most 100 ms between passes. |
+
+The client loop starts after every module's `Start` ([`OPX.Scheduler.Start`](/docs/opx_infinity/core/client#opx-scheduler-start)). `/opx.client` in the client console prints the job list.
+
+<Callout type="warn" title="Keep each client step small">
+
+All client jobs share the loop. A step that walks a long list every frame can exceed the client's instruction budget, and the platform then kills the coroutine **without any log line**. Spread long work over several passes ([Two runtimes](/docs/opx_infinity/concepts/two-runtimes#budget)).
+
+</Callout>

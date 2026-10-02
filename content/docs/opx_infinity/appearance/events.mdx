@@ -1,0 +1,176 @@
+---
+title: Events
+description: Network and local events of the appearance module, and the decision events raised on the client.
+---
+
+`opx:in:appearance:face` and `opx:in:appearance:clothing` are private server events.
+
+## opx:net:appearance:saveFace [#opx-net-appearance-saveface]
+
+Client → server. Store this face. Cooldown 2 s.
+
+```lua
+TriggerServerEvent('opx:net:appearance:saveFace', { snapshot = snapshot, citizenId = citizenId })
+```
+
+- payload: `table`
+  - `snapshot`: `table`
+  - `citizenId?`: `string`
+  - `family?`: `string` — sent by a creation only; written once to the character
+
+## opx:net:appearance:saveClothing [#opx-net-appearance-saveclothing]
+
+Client → server. Store this clothing record. Refused with `clothing.noFittingRoom` unless a grant is live. Cooldown 2 s.
+
+```lua
+TriggerServerEvent('opx:net:appearance:saveClothing', { clothing = record, citizenId = citizenId })
+```
+
+- payload: `{ clothing, citizenId }`
+
+## opx:net:appearance:faceSaved [#opx-net-appearance-facesaved]
+
+Server → client. The face was stored.
+
+```lua
+RegisterNetEvent('opx:net:appearance:faceSaved', function(snapshot) end)
+```
+
+## opx:net:appearance:clothingSaved [#opx-net-appearance-clothingsaved]
+
+Server → client. The clothing was stored.
+
+```lua
+RegisterNetEvent('opx:net:appearance:clothingSaved', function(record) end)
+```
+
+## opx:net:appearance:refused [#opx-net-appearance-refused]
+
+Server → client. A save was refused; see [refusal codes](/docs/opx_infinity/appearance#codes).
+
+```lua
+RegisterNetEvent('opx:net:appearance:refused', function(code, operation) end)
+```
+
+- code: `string`
+- operation: `'appearance.saveFace' | 'appearance.saveClothing'`
+
+## opx:net:appearance:show [#opx-net-appearance-show]
+
+Server → client. `/opx.appearance` ran: toggle the `panel`.
+
+```lua
+RegisterNetEvent('opx:net:appearance:show', function(kind) end)
+```
+
+## opx:net:appearance:openWardrobe [#opx-net-appearance-openwardrobe]
+
+Server → client. Sent by the server [`OpenWardrobe`](/docs/opx_infinity/appearance/server#server-appearance-openwardrobe): open the fitting room.
+
+```lua
+RegisterNetEvent('opx:net:appearance:openWardrobe', function() end)
+```
+
+## opx:net:appearance:openPanel [#opx-net-appearance-openpanel]
+
+Server → client. Opens the appearance panel. The client listens; nothing in opx_infinity sends it.
+
+```lua
+RegisterNetEvent('opx:net:appearance:openPanel', function() end)
+```
+
+## opx:net:appearance:present [#opx-net-appearance-present]
+
+Client → server. This player's look, for the others. Floor 500 ms.
+
+```lua
+TriggerServerEvent('opx:net:appearance:present', body, equipment, wardrobe, sequence)
+```
+
+## opx:net:appearance:presentAck [#opx-net-appearance-presentack]
+
+Server → client. Whether the body could be read.
+
+```lua
+RegisterNetEvent('opx:net:appearance:presentAck', function(sequence, accepted) end)
+```
+
+## opx:net:appearance:replay [#opx-net-appearance-replay]
+
+Client → server. Send me everybody else's look. Floor 500 ms.
+
+```lua
+TriggerServerEvent('opx:net:appearance:replay', sequence)
+```
+
+## opx:net:appearance:replayed [#opx-net-appearance-replayed]
+
+Server → client. Every held look was sent.
+
+```lua
+RegisterNetEvent('opx:net:appearance:replayed', function(sequence) end)
+```
+
+## opx:net:appearance:look [#opx-net-appearance-look]
+
+Server → client. Another player's look, or `false` while their body is away.
+
+```lua
+RegisterNetEvent('opx:net:appearance:look', function(playerId, look) end)
+```
+
+## opx:net:appearance:absent [#opx-net-appearance-absent]
+
+Client → server. My body is going (reload or unload).
+
+```lua
+TriggerServerEvent('opx:net:appearance:absent')
+```
+
+## opx:net:appearance:resend [#opx-net-appearance-resend]
+
+Server → all clients. The server half started: publish and ask again.
+
+```lua
+RegisterNetEvent('opx:net:appearance:resend', function() end)
+```
+
+## opx:on:appearance:view [#opx-on-appearance-view]
+
+Client, local. The view seam: what the panel and the room should draw. Read by `client/view.lua`.
+
+```lua
+AddEventHandler('opx:on:appearance:view', function(payload) end)
+```
+
+- payload: `{ kind, … }`
+
+## opx:on:appearance:decision [#opx-on-appearance-decision]
+
+Client, local. Raised with `TriggerEvent` after every decision, so only code inside opx_infinity hears it. Branch on `event`.
+
+```lua
+AddEventHandler('opx:on:appearance:decision', function(decision)
+  if decision.event == 'wardrobeClosed' and decision.kept then print(#decision.slots) end
+end)
+```
+
+- decision: `{ ok, event, error?, citizenId?, … }`
+
+| `event` | Extra fields | Raised when |
+|---|---|---|
+| `gameplayReady` | | The join announcement went out. |
+| `restored` | | A stored face was applied (`ok`), or the apply failed (`error`). |
+| `settled` | | `ok = false`, `error = 'stored_build_mismatch'`: the stored face is from another game build; the player enters on the default face. |
+| `needsCreation` | `family` | The character has no face. Nothing opens the creator until a caller calls `OpenCreator`. |
+| `applied` | | A face from `SetSkin` or **Wear it** reached the puppet, or did not. |
+| `created` | | The creation's face was stored, or not (`error`). |
+| `saved` | `unchanged?` | An edit was stored, or refused (`error`). `unchanged = true` when it matched the stored face. |
+| `characterChanged` | | The live character changed. |
+| `panelOpened` / `panelClosed` | `reason` on close | The panel went up or down. |
+| `wardrobeWanted` | | `ok = true`: the join owes a fitting room. `ok = false`: no longer owed (`error` says why). |
+| `wardrobeOpened` | `creation` | The room opened, or failed to (`ok = false`, `error`). |
+| `wardrobeClosed` | `reason, kept, creation, slots` | The room closed. `slots` lists the slots changed when kept, for billing. |
+| `wardrobeGroup` | `owner, group` | A button from `OfferWardrobeGroups` was pressed. |
+| `clothingRestored` | | Stored clothing read back on the puppet, or not (`clothing_not_restored`, `clothing_gate_shut`). |
+| `clothingSaved` | | A clothing save was stored, or refused (`error` is the server code). |

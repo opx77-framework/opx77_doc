@@ -1,0 +1,88 @@
+---
+title: Lib.Store
+description: Small values kept on the player's own disk, per server and per resource.
+---
+
+No permission. Backed by `Open77.kvp`, per server address and per resource, 1 MiB per resource. The player can edit them: never trust them.
+
+## Lib.Store.Get [#lib-store-get]
+
+Reads one value. Not a Result.
+
+```lua
+Lib.Store.Get(key, fallback)
+```
+
+**Parameters**
+- key: `string`
+- fallback?: `any` — answered when the key is absent or unreadable
+
+**Returns**
+- `any`
+
+```lua title="Example"
+local volume = Lib.Store.Get('volume', 0.8)
+```
+
+## Lib.Store.Has [#lib-store-has]
+
+Whether a key is stored.
+
+```lua
+Lib.Store.Has(key)
+```
+
+**Parameters**
+- key: `string`
+
+**Returns**
+- `boolean`
+
+## Lib.Store.Set [#lib-store-set]
+
+Persists one typed value. No tables.
+
+```lua
+Lib.Store.Set(key, value)
+```
+
+**Parameters**
+- key: `string`
+  - 1–128 bytes.
+- value: `string | number | boolean`
+  - Numbers must be finite.
+
+**Returns**
+- `Result` — errors `invalid_key`, `invalid_value`
+
+```lua title="Example"
+Lib.Store.Set('volume', 0.5)
+```
+
+## Lib.Store.Delete [#lib-store-delete]
+
+Deletes one key.
+
+```lua
+Lib.Store.Delete(key)
+```
+
+**Parameters**
+- key: `string`
+
+**Returns**
+- `Result` — whether it existed; error `invalid_key`
+
+## Lib.Store.Keys [#lib-store-keys]
+
+Your keys under a prefix, sorted.
+
+```lua
+Lib.Store.Keys(prefix)
+```
+
+**Parameters**
+- prefix?: `string`
+
+**Returns**
+- `Result` — sorted keys

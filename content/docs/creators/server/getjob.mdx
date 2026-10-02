@@ -1,0 +1,26 @@
+---
+title: GetJob
+description: A copy of a player's primary job.
+---
+
+<a id="export-server-getjob" />
+
+```lua
+local res = exports.opx_infinity:GetJob(source)
+```
+
+Scope `read` · sync.
+
+**Parameters**
+- source: `number`
+
+**Returns**
+- `{ name, label, type, payment, onDuty, isBoss, bankAuth, grade = { name, level } }`
+
+**Errors**
+- `export.badArgument`, `error.notLoggedIn`
+
+```lua title="Example"
+local res = exports.opx_infinity:GetJob(source)
+if res.ok then print(res.value.name, res.value.grade.level) end
+```

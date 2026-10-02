@@ -1,0 +1,4 @@
+{
+  "title": "teleports",
+  "pages": ["index", "server", "client", "events"]
+}

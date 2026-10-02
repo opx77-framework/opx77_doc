@@ -1,0 +1,117 @@
+---
+title: shops
+description: Clothing shops that open the fitting room, bill per changed clothing slot, offer ready-made looks and keep saved outfits with share codes.
+---
+
+Places clothing shops in the world. At a shop a player picks "Try clothes on" on the target eye and the `appearance` fitting room opens. When the room closes, the player pays for each clothing slot that changed. Inside the room the shop adds four groups: ready-made looks (uniforms), saved outfits, "Save outfit" and "Outfit code". Saved outfits can be shared with an 8-character code another player types in. Use it to sell clothes; it stocks no garments of its own.
+
+| | |
+|---|---|
+| Side | both |
+| Requires | `character`, `appearance` (hard) |
+| Optional | `target` (the shop row), `menu` (looks and outfit lists), `form` (outfit name and code entry) |
+| Contract | none |
+| Config | `config/shops.lua` (shared) |
+| Data | `opx77_saved_outfits` |
+
+## How a bill works [#billing]
+
+The server cannot see the clothing catalogue (it is client-only), so it prices **slots**, not garments.
+
+- The client reports which of the nine slots changed between entering and leaving the room: `Head`, `Face`, `InnerChest`, `OuterChest`, `Legs`, `Feet`, `Outfit`, `UnderwearTop`, `UnderwearBottom`. Taking a garment off counts as a change.
+- The server adds up the shop's price for each changed slot and takes it from [`CURRENCY`](#config-shops-currency). The client never sends a price.
+- A slot without a price is free. Underwear is free by default.
+- If the bill cannot be paid, the server sends back the player's stored look and the client puts it back on.
+- The server re-checks reach, bucket and the job gate before opening the room, billing, or dressing.
+
+<Callout type="warn">
+
+Payment and the clothing save are not one transaction. The clothing is saved by `appearance`; the bill is taken after the room closes. If the bill fails, the old look is restored afterwards.
+
+</Callout>
+
+## Ready-made looks [#looks]
+
+A look from [`LOOKS`](#config-shops-looks) is a partial outfit with its own `COST`. It sets the slots it names and leaves the others as they are; `false` empties a slot. Looks are filtered by job before the list is sent, so a player only sees what they may take.
+
+## Saved outfits and share codes [#outfits]
+
+- "Save outfit" stores the clothing currently saved for the character (not the unsaved preview) under a name. If the room is open, the save happens when the room closes.
+- A character keeps up to `OUTFITS.MAX_PER_CHARACTER` outfits.
+- "Get a share code" gives the outfit a code made from `23456789ABCDEFGHJKLMNPQRSTUVWXYZ` (no `I`, `O`, `0`, `1`). Typing is case-insensitive and ignores dashes and spaces. A code is not a secret.
+- Wearing a saved or shared outfit is free.
+- Deleting a character deletes its saved outfits.
+
+## Configuration
+
+`config/shops.lua` sets `OPX.Config.MODULES.shops`.
+
+| Key | Default | Effect |
+|---|---|---|
+| <a id="config-shops-enabled" />`enabled` | `true` | `false` switches the module off. |
+| <a id="config-shops-prices" />`PRICES` | `Head 250, Face 250, InnerChest 400, OuterChest 600, Legs 450, Feet 300, Outfit 900` | Price per changed slot. A slot not listed is free. Unknown slot names are dropped with a boot warning. |
+| <a id="config-shops-charge" />`CHARGE` | `true` | `false` makes every shop free (prices and look costs). |
+| <a id="config-shops-currency" />`CURRENCY` | `'EDDIES'` | Money type a bill is taken from. |
+| <a id="config-shops-reach" />`REACH` | `3.0` | Metres from the shop. Re-measured on the server. Also the target sphere radius. |
+| <a id="config-shops-shops" />`SHOPS` | `jinguji`, `thrift_watson` | The shops, keyed by slug. See below. |
+| <a id="config-shops-outfits" />`OUTFITS` | `{ MAX_PER_CHARACTER = 24, MAX_NAME_BYTES = 48, SHARING = true, CODE_LENGTH = 8 }` | Saved outfits. `SHARING = false` stops minting and redeeming codes. `CODE_LENGTH` 4–16. |
+| <a id="config-shops-looks" />`LOOKS` | `ncpd_patrol`, `corpo_black` | Ready-made looks. See below. |
+
+```lua title="config/shops.lua — one SHOPS entry"
+thrift_watson = {
+  LABEL = 'Second-hand, Watson',
+  X = -1180.0, Y = 1550.0, Z = 25.0,
+  PRICES = { Head = 80, Face = 80, InnerChest = 120, OuterChest = 180,
+    Legs = 140, Feet = 100, Outfit = 300 },
+},
+```
+
+- `LABEL`: name used in bills and audit. Defaults to the key.
+- `X`, `Y`, `Z`: position. Required.
+- `BUCKET`: routing bucket, `0` when omitted. A shop serves its own bucket only (there is no "every bucket").
+- `PRICES`: override merged over the default `PRICES`; it can only add or change slots, never remove one. `{}` changes nothing; a slot set to `0` is free at that shop. A free shop is `0` for every slot (or `CHARGE = false` frees every shop).
+- `JOBS`: `{ job = minimumGrade }`. `nil` = anybody.
+- `ON_DUTY`: `true` = the job must be on duty.
+
+```lua title="config/shops.lua — one LOOKS entry"
+corpo_black = {
+  LABEL = 'Corporate black',
+  COST = 2500,
+  WEAR = { InnerChest = 'Items.Formal_Shirt_01', OuterChest = 'Items.Formal_Jacket_01',
+    Legs = 'Items.Formal_Pants_01', Feet = 'Items.Formal_Shoes_01', Head = false, Face = false },
+},
+```
+
+- `LABEL`: shown in the list.
+- `COST`: one price for the whole look. `0` is free.
+- `JOBS`, `ON_DUTY`: same as a shop.
+- `AT`: list of shop keys that offer it. `nil` = every shop.
+- `WEAR`: `{ Slot = 'Items.Record' | false }`. Slots not named are left unchanged.
+
+## Refusal codes [#codes]
+
+Every refusal is a toast with locale key `shops.<code>`. The bill and look purchase can also show the `character` module's money key (for example `money.insufficient`).
+
+| Code | Meaning |
+|---|---|
+| `no_such_shop` | No shop with that key. |
+| `too_far` | Out of reach, or another bucket. |
+| `position_unknown` | The server cannot read the player's position. |
+| `not_for_you` | The shop's job gate refused. |
+| `unavailable` | `appearance` cannot open the room or dress the player. |
+| `cannotPay` | The bill or look cost could not be taken. |
+| `noSuchLook` | No look with that key. |
+| `notForYou` | The look's job gate refused. |
+| `notHere` | This shop does not carry that look. |
+| `noCharacter` | No character loaded. |
+| `nameNeeded` | Empty outfit name. |
+| `tooMany` | Outfit limit reached. |
+| `nothingWorn` | No stored clothing to save. |
+| `saveFailed` | Database write failed. |
+| `listFailed` | Database read failed. |
+| `noSuchOutfit` | Not one of this character's outfits. |
+| `outfitUnreadable` | The stored outfit could not be decoded. |
+| `sharingOff` | `OUTFITS.SHARING` is off. |
+| `badCode` | Not a valid code. |
+| `noSuchCode` | No outfit has that code. |
+| `codeFailed` | No unique code after five tries. |

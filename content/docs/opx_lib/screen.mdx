@@ -1,0 +1,184 @@
+---
+title: Lib.Screen
+description: Screen fades with a safety deadline, and helpers that always restore the image.
+---
+
+Permission `screen.effects`. The client gives the image back when `timeoutMs` expires, whatever your code does.
+
+Spec bounds: durations 0..10000 ms, hold 0..30000 ms, `timeoutMs` 1000..60000 and at least 500 ms past the planned sequence (else `screen_timeout_too_short`), colour integer channels with alpha 255 only. Defaults: `durationMs` 500, `holdMs` 250, `fadeInMs` 500.
+
+## Lib.Screen.FadeOut [#lib-screen-fadeout]
+
+Starts a fade to black. The call returns before the screen is black; wait on `.covered`.
+
+```lua
+Lib.Screen.FadeOut(spec)
+```
+
+**Parameters**
+- spec?: `table` — `durationMs`, `color`, `timeoutMs`
+
+**Returns**
+- `Result` — the transition id; `.covered` promise; errors `invalid_screen_options`, `invalid_screen_color`, `screen_timeout_too_short`
+
+## Lib.Screen.FadeIn [#lib-screen-fadein]
+
+Brings the image back.
+
+```lua
+Lib.Screen.FadeIn(id, spec)
+```
+
+**Parameters**
+- id: `string` — from `FadeOut` or `Transition`; do not convert it
+- spec?: `{ durationMs }`
+
+**Returns**
+- `Result` — `.restored` promise; error `invalid_transition_id`
+
+## Lib.Screen.Transition [#lib-screen-transition]
+
+Fade, hold and return in one call.
+
+```lua
+Lib.Screen.Transition(preset, spec)
+```
+
+**Parameters**
+- preset: `'fade'`
+- spec?: `table` — `durationMs`, `holdMs`, `fadeInMs`, `timeoutMs`, `color`
+
+**Returns**
+- `Result` — the id; `.finished` promise; error `unsupported_screen_preset`, and the spec codes
+
+```lua title="Example"
+local t = Lib.Screen.Transition('fade', { holdMs = 1000 })
+```
+
+## Lib.Screen.Cancel [#lib-screen-cancel]
+
+Restores the image now.
+
+```lua
+Lib.Screen.Cancel(id)
+```
+
+**Parameters**
+- id: `string`
+
+**Returns**
+- `Result` — error `invalid_transition_id`
+
+## Lib.Screen.Await [#lib-screen-await]
+
+Waits on `.covered`, `.restored` or `.finished`. **Yields.** A rejection's reason becomes the error code, with [`Why`](#lib-screen-why) as the detail.
+
+```lua
+Lib.Screen.Await(promise)
+```
+
+**Parameters**
+- promise?: `table` — `nil` answers `ok` at once
+
+**Returns**
+- `Result` — the state table
+
+## Lib.Screen.Why [#lib-screen-why]
+
+A rejection reason as a sentence. Unknown tokens pass through.
+
+```lua
+Lib.Screen.Why(reason)
+```
+
+**Parameters**
+- reason: `string`
+  - `requested`, `timeout`, `native_interrupted` (a vanilla fade took priority), `world_unavailable`, `restore_failed`, `resource_error`, `resource_stopped`, `never_covered` (returned without ever reaching black)
+
+**Returns**
+- `string`
+
+## Lib.Screen.Black [#lib-screen-black]
+
+Covers the screen, runs `body`, always restores. **Yields.** `spec` may be left out: `Black(body)`.
+
+```lua
+Lib.Screen.Black(spec, body)
+```
+
+**Parameters**
+- spec?: `table` — `durationMs`, `color`, `timeoutMs`, `fadeInMs`
+- body: `function`
+
+**Returns**
+- `Result` — `body`'s answer; `.restored`
+  - `screen_busy`: another fade holds the slot.
+  - `screen_body_raised`: `body` raised.
+  - also `invalid_body`, `invalid_screen_options`
+
+```lua title="Example"
+CreateThread(function()
+  Lib.Screen.Black({ timeoutMs = 10000 }, function() teleportPlayer() end)
+end)
+```
+
+## Lib.Screen.IsFaded [#lib-screen-isfaded]
+
+Whether any fade, from anyone, covers the screen. Answers `true` when it cannot tell.
+
+```lua
+Lib.Screen.IsFaded()
+```
+
+**Returns**
+- `boolean`
+
+## Lib.Screen.NativeState [#lib-screen-nativestate]
+
+The engine's fade state.
+
+```lua
+Lib.Screen.NativeState()
+```
+
+**Returns**
+- `Result` — `{ faded, fading, out, busy, ready, remainingMs }`
+
+## Lib.Screen.State [#lib-screen-state]
+
+A snapshot of one of your transitions, with `over` added. Phases: `fading_out`, `covered`, `fading_in`, `finished`, `cancelled`, `failed`.
+
+```lua
+Lib.Screen.State(id)
+```
+
+**Parameters**
+- id: `string`
+
+**Returns**
+- `Result` — the snapshot; error `invalid_transition_id`
+
+## Lib.Screen.Over [#lib-screen-over]
+
+Whether a snapshot is in a terminal phase (`finished`, `cancelled`, `failed`), so the id can be dropped.
+
+```lua
+Lib.Screen.Over(snap)
+```
+
+**Parameters**
+- snap: `table`
+
+**Returns**
+- `boolean`
+
+## Lib.Screen.Catalog [#lib-screen-catalog]
+
+The presets this build supports.
+
+```lua
+Lib.Screen.Catalog()
+```
+
+**Returns**
+- `Result`

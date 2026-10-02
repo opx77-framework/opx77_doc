@@ -1,0 +1,51 @@
+---
+title: The WebUI page
+description: Every screen in opx_infinity is drawn by one CEF page built from Vue sources; Lua talks to it on named channels through OPX.UI, and modules keep their rules apart from the view.
+---
+
+Everything a player sees from `opx_infinity` — HUD, menus, inventory, toasts, name tags — is drawn by **one CEF page**, `web/index.html`, built from the Vue sources in `ui/src/` with `npm run build` (only `web/` ships). Lua talks to it through [`OPX.UI`](/docs/opx_infinity/core/client#opx-ui-send).
+
+## Two layers in one page [#layers]
+
+| Layer | What goes there | Focus |
+|---|---|---|
+| `overlay` | HUD, toasts, prompts, name tags | never takes the keyboard or the pointer |
+| `modal` | anything the player drives: menu, form, panel, inventory | takes focus while open |
+
+The client boot creates the page once (`OPX.UI.Surface()`), before the modules start, with [`OPX.Config.CLIENT.SURFACE`](/docs/opx_infinity/core/config#config-client-surface).
+
+## Channels [#channels]
+
+Lua and the page exchange messages on **channels** named `<module>:<verb>` (e.g. `menu:open`, `menu:choose`). The surface adds an `opx:` prefix: the page sees `opx:menu:open`.
+
+| Call | Direction | Use |
+|---|---|---|
+| [`OPX.UI.Send(target, channel, payload)`](/docs/opx_infinity/core/client#opx-ui-send) | Lua → page | push state or open a view |
+| [`OPX.UI.On(target, channel, handler)`](/docs/opx_infinity/core/client#opx-ui-on) | page → Lua | receive an action; the handler only gets table payloads |
+| [`OPX.UI.Serve(target, channel, handler)`](/docs/opx_infinity/core/client#opx-ui-serve) | page → Lua → page | answer a request; the return value goes back with the request's `ref` |
+
+- Each view emits `<module>:ready` when it mounts. A send made before the page is ready is dropped, not queued.
+- Each module's events page lists its channels under **Page channels**; the core's own are in [Runtime events](/docs/opx_infinity/core/events#page-channels).
+- The page reports its JavaScript errors on the `diag` channel; the diagnostics module forwards them to the server journal. The CEF console is visible nowhere else.
+
+## Focus [#focus]
+
+Several views may want the keyboard at once, so the client keeps a **focus stack**:
+
+| Call | Effect |
+|---|---|
+| [`OPX.UI.AcquireFocus(owner, { keyboard, cursor })`](/docs/opx_infinity/core/client#opx-ui-acquirefocus) | puts `owner` on top; `keyboard` defaults to `true`, `cursor` to `false` |
+| [`OPX.UI.ReleaseFocus(owner)`](/docs/opx_infinity/core/client#opx-ui-releasefocus) | removes `owner`; focus falls to the next one |
+| [`OPX.UI.FocusOwner()`](/docs/opx_infinity/core/client#opx-ui-focusowner) | who holds it now |
+
+The Escape key belongs to the platform's `open77_pause`; never bind it.
+
+## Keep rules and drawing apart [#view-seam]
+
+- A module owns its state and rules but does not draw. It raises its `VIEW` event (on the `opx:on:` channel) with what should be shown, and takes the player's actions back through one function, `M.FromView(action, payload)`.
+- One file, usually `client/view.lua`, is the only one that knows the other end is a CEF page. Reference: `modules/chat/client/view.lua`.
+- Before writing a new Vue view, check whether [menu](/docs/opx_infinity/menu), [form](/docs/opx_infinity/form) or [panel](/docs/opx_infinity/panel) can draw it — they are services any module can use through their contracts.
+
+## Colours come from the theme [#theme]
+
+Never hard-code a colour in a view. The [theme module](/docs/opx_infinity/theme) sends the server's palette (`config/theme.lua`) to the page, which writes it as CSS custom properties on `:root`. `ui/README.md` in the framework is the binding style guide for views.

@@ -1,0 +1,30 @@
+---
+title: Events
+description: Network events and the page channel of the diagnostics module.
+---
+
+## opx:net:diagnostics:page [#opx-net-diagnostics-page]
+
+Client → server. One interface error, cut to 400 characters. Written to the server log as `[page] player <id>: <text>`. At most 20 per client session, and 20 per player per minute on the server.
+
+```lua
+TriggerServerEvent('opx:net:diagnostics:page', text)
+```
+
+- text: `string`
+
+## opx:net:diagnostics:lines [#opx-net-diagnostics-lines]
+
+Server → client. The answer to `/opx.modules` or `/opx.version`, one string per line.
+
+```lua
+RegisterNetEvent('opx:net:diagnostics:lines', function(lines) end)
+```
+
+- lines: `string[]`
+
+## Page channels
+
+| Channel | Direction | Payload | Meaning |
+|---|---|---|---|
+| <a id="page-diag" />`diag` | page → Lua | `{ text }` | A view threw and was removed from the page. Forwarded on `opx:net:diagnostics:page`. Listened on the `overlay` surface. |

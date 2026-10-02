@@ -1,0 +1,32 @@
+---
+title: CountItem
+description: How many units of an item a bag holds.
+---
+
+<a id="export-server-countitem" />
+
+```lua
+local res = exports.opx_infinity:CountItem(target, item, metadata)
+```
+
+Scope `read` · sync for a player id; must be awaited when `target` is a citizen id.
+
+**Parameters**
+- target: `number | string`
+- item: `string`
+- metadata?: `table`
+
+- `target`: a connected player id, or a citizen id (reaches an offline bag; then the call must be awaited).
+- `item`: a catalogue item name, 1–64 characters.
+- With a `metadata` table, only stacks with exactly that metadata match.
+- Errors other than those listed come from the [inventory](/docs/opx_infinity/inventory#codes) (for example `no_room`, `too_heavy`, `not_enough`).
+
+**Returns**
+- `integer`
+
+**Errors**
+- `export.badArgument`, inventory codes
+
+```lua title="Example"
+local res = exports.opx_infinity:CountItem(source, 'water')
+```

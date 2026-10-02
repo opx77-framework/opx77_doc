@@ -62,9 +62,9 @@ export async function generateMetadata(props: PageProps<"/docs/[[...slug]]">): P
   const page = source.getPage(params.slug);
   if (!page) notFound();
 
-  const section = page.slugs[0];
-  const title =
-    section && section !== page.slugs.at(-1) ? `${page.data.title} - ${section}` : page.data.title;
+  // "Server - weather", "AddMoney - server": the folder a page sits in names it.
+  const section = page.slugs.at(-2);
+  const title = section ? `${page.data.title} - ${section}` : page.data.title;
 
   return {
     title: title === appName ? undefined : title,

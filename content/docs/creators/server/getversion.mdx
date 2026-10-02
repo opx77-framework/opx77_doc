@@ -1,0 +1,22 @@
+---
+title: GetVersion
+description: The opx_infinity version and the version of the export surface.
+---
+
+<a id="export-server-getversion" />
+
+```lua
+local res = exports.opx_infinity:GetVersion()
+```
+
+Scope `read` · sync.
+
+**Returns**
+- `{ version, exports }`
+  - version: `string` — the resource version
+  - exports: `integer` — the export surface version, `1`; bumped on a breaking change
+
+```lua title="Example"
+local res = exports.opx_infinity:GetVersion()
+if res.ok and res.value.exports ~= 1 then print('opx_infinity export surface changed') end
+```

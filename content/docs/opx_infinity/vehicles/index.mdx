@@ -1,0 +1,53 @@
+---
+title: vehicles
+description: Owned vehicles — the plate registry, bringing a car out, putting it away and keeping its condition across restarts.
+---
+
+The registry of what each character owns. It draws plates, writes the rows, creates a car in the world, puts it away and saves its health, damage and paint every few minutes. Players never talk to it directly: they use a [garage](/docs/opx_infinity/garages) marker or a [dealer](/docs/opx_infinity/dealership), and those modules call this one. Use its contract when your own code needs to give a character a car, list their cars or bring one out.
+
+| | |
+|---|---|
+| Side | server only (the client half does not exist) |
+| Requires | `character` (hard) |
+| Contract | `vehicles` v1 — [server](/docs/opx_infinity/vehicles/server) |
+| Config | `config/vehicles.lua` (**server** script — never sent to a client) |
+| Data | `opx77_vehicles` |
+
+- **The plate is the identity.** A runtime vehicle id belongs to one spawn and is recycled; the plate is the row. Only vehicles this module spawned have a plate: `PlateOf` answers nothing for a car created by anything else.
+- **Every out vehicle is stored again** when its owner disconnects, when the owner is no longer loaded at the next save pass, when the host removes it, and when the resource stops.
+- A character that is deleted loses all its rows (the character delete is soft, so this module deletes them itself).
+
+## Configuration
+
+`config/vehicles.lua` sets `OPX.Config.MODULES.vehicles`. Server script: no client reads it.
+
+| Key | Default | Effect |
+|---|---|---|
+| <a id="config-vehicles-enabled" />`enabled` | `true` | `false` switches the module off. Garages and dealers then refuse everything. |
+| <a id="config-vehicles-per-character" />`PER_CHARACTER` | `8` | Most vehicles one character may own. `0` = no limit. |
+| <a id="config-vehicles-plate-format" />`PLATE_FORMAT` | `'11AAA111'` | `1` draws a digit, `A` a letter, `.` either; anything else is copied. ASCII capitals only (the column is `ascii_bin`, 12 characters wide). |
+| <a id="config-vehicles-default-garage" />`DEFAULT_GARAGE` | `'impound'` | The garage key a vehicle registered with no garage is filed under. |
+| <a id="config-vehicles-spawn-offset" />`SPAWN_OFFSET` | `3.0` | Metres beside the player a car appears when no place is named. |
+| <a id="config-vehicles-save-seconds" />`SAVE_SECONDS` | `120` | How often the condition of every out vehicle is written. Minimum 1 s. |
+
+## Refusal codes [#codes]
+
+Each code is also a locale key (English and French) used for the toast.
+
+| Code | Meaning |
+|---|---|
+| `vehicle.notFound` | No such plate, or it is not yours. |
+| `vehicle.limit` | The character already owns `PER_CHARACTER` vehicles (detail: the limit). |
+| `vehicle.badRecord` | The record is longer than 256 characters. |
+| `vehicle.plateExhausted` | Five plate draws all collided. |
+| `vehicle.impounded` | The vehicle is impounded; `Spawn` refuses it until `SetState(plate, 'stored')`. |
+| `vehicle.busy` | Another spawn or state change of this plate is in progress. |
+| `vehicle.badState` | `SetState` got a state other than `stored` or `impounded`. |
+| `vehicle.notLoggedIn` | No character loaded on that connection, or it changed during the spawn (the new car is removed). |
+| `vehicle.noPosition` | The host would not say where the player is. |
+| `vehicle.spawnRefused` | `Open77.vehicles.create` refused; detail carries its reason. |
+| `vehicle.notSpawned` | `Store` on a plate that is not out. |
+| `vehicle.storeRefused` | The host would not remove the car; it stays out and the row stays `out`. |
+| `vehicle.occupied` | A recall or state change was asked but somebody sits in the car. |
+| `error.badRequest` | Missing or wrong-typed argument. |
+| `error.tooFast` | The 3 s request cooldown (net events only). |

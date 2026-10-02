@@ -1,0 +1,26 @@
+---
+title: UpdateMenu
+description: Patches a menu your resource opened.
+---
+
+<a id="export-client-updatemenu" />
+
+```lua
+local res = exports.opx_infinity:UpdateMenu(handle, spec)
+```
+
+Sync.
+
+**Parameters**
+- handle: `string` — from `OpenMenu`
+- spec: `table` — fields as the menu's `Update`
+
+**Returns**
+- `true`
+
+**Errors**
+- `stale_handle` (not one of yours), `export.callerDenied`, `export.badArgument`, `error.unavailable` (module not running), and the menu's codes
+
+```lua title="Example"
+exports.opx_infinity:UpdateMenu(handle, { title = 'NIGHT MARKET — SOLD OUT' })
+```

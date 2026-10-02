@@ -1,0 +1,110 @@
+---
+title: Events
+description: Network and local events of the animations module.
+---
+
+The `opx:on:` events reach only code inside opx_infinity's client VM. The module also reads the platform's own `open77:animations:*` wire.
+
+## opx:net:animations:play [#opx-net-animations-play]
+
+Client → server. Play request.
+
+```lua
+TriggerServerEvent('opx:net:animations:play', requestId, name, variant, opts)
+```
+
+- requestId: `number`
+- name: `string`
+- variant: `number` — `0` for none
+- opts: `table`
+  - `loop`: `'default' | 'loop' | 'once'`
+  - `durationMs`: `number` — `0` for none
+  - `cancelable`, `override`
+
+## opx:net:animations:stop [#opx-net-animations-stop]
+
+Client → server. Stop request.
+
+```lua
+TriggerServerEvent('opx:net:animations:stop', requestId, override)
+```
+
+## opx:net:animations:hello [#opx-net-animations-hello]
+
+Client → server. Asks which animations this server offers. Answered at most once a second.
+
+```lua
+TriggerServerEvent('opx:net:animations:hello')
+```
+
+## opx:net:animations:offer [#opx-net-animations-offer]
+
+Server → client. The offered catalogue, after `DISABLED` and the platform's own list.
+
+```lua
+RegisterNetEvent('opx:net:animations:offer', function(offer) end)
+```
+
+- offer: `table` — `{ { name, variants }, … }`
+
+## opx:net:animations:answer [#opx-net-animations-answer]
+
+Server → client. Verdict on a play or stop.
+
+```lua
+RegisterNetEvent('opx:net:animations:answer', function(requestId, action, ok, code, info) end)
+```
+
+- requestId: `number` — `0` for one started by a command
+- action: `string`
+- ok: `boolean`
+- code: `string?`
+- info: `{ animation, variant, playbackId, cancelable, durationMs }`
+
+## opx:net:animations:cancel [#opx-net-animations-cancel]
+
+Server → client. `/opx.anim.stop` ran: release the local playback too.
+
+```lua
+RegisterNetEvent('opx:net:animations:cancel', function() end)
+```
+
+## opx:net:animations:picker [#opx-net-animations-picker]
+
+Server → client. A command asked for the picker.
+
+```lua
+RegisterNetEvent('opx:net:animations:picker', function(category) end)
+```
+
+- category: `string` — `''` for none
+
+## opx:on:animations:result [#opx-on-animations-result]
+
+Client, local. Every verdict, including `request_timeout` after 15 s with no answer.
+
+```lua
+AddEventHandler('opx:on:animations:result', function(result) end)
+```
+
+- result: `{ requestId, action, ok, error?, animation?, variant?, playbackId?, source, owner? }`
+
+## opx:on:animations:changed [#opx-on-animations-changed]
+
+Client, local. A player in the bucket started, changed or stopped an animation.
+
+```lua
+AddEventHandler('opx:on:animations:changed', function(state) end)
+```
+
+- state: `{ playerId, active, playbackId?, animation?, clip?, variant?, known?, step?, steps?, cycle? }`
+
+## opx:on:animations:failed [#opx-on-animations-failed]
+
+Client, local. A playback could not be posed on this client.
+
+```lua
+AddEventHandler('opx:on:animations:failed', function(info) end)
+```
+
+- info: `{ playerId, playbackId, reason }`

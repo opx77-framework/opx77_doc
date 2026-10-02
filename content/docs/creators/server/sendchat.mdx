@@ -1,0 +1,35 @@
+---
+title: SendChat
+description: Sends a chat line to one player.
+---
+
+<a id="export-server-sendchat" />
+
+```lua
+local res = exports.opx_infinity:SendChat(source, message)
+```
+
+Scope `write` · await it. It answers from memory today, but it is a write: use the promise form.
+
+**Parameters**
+- source: `number`
+- message: `string | table`
+
+- `message` is a string, or `{ text, author?, kind? }`. `kind` is `chat`, `system` (default), `info`, `warning` or `error`.
+- The line is not attributed to a player.
+
+**Returns**
+- `true`
+
+**Errors**
+- `chat.noPlayer`, `chat.invalidMessage`, `chat.invalidKind`
+
+```lua title="Example"
+CreateThread(function()
+  local pending, why = Open77.exports.call('opx_infinity', 'SendChat', playerId, { text = 'Delivery ready', author = 'Dispatch', kind = 'info' })
+  if not pending then return print('not sent: ' .. tostring(why)) end
+  local res = pending:await()
+  if not (res and res.ok) then return print('refused: ' .. tostring(res and res.error)) end
+  print('sent')
+end)
+```

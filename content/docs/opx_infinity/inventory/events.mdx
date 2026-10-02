@@ -1,0 +1,224 @@
+---
+title: Events
+description: Local, network and host-wide events of the inventory module, and its page channels.
+---
+
+The server also listens to `opx:in:character:loaded`, `:unloaded` and `:deleted` (private).
+
+## opx:on:inventory:changed [#opx-on-inventory-changed]
+
+Client, local. The server pushed this player's bag. Raised after the mirror is updated.
+
+```lua
+AddEventHandler('opx:on:inventory:changed', function(change) end)
+```
+
+- change: `table` — `{ inventory, changes = { { name, delta } } }`
+
+Server, host-wide: also raised when a container is written, for every server resource. See [public server events](/docs/creators/events#inventory).
+
+```lua
+AddEventHandler('opx:on:inventory:changed', function(playerId, info) end)
+```
+
+- playerId?: `number`
+- info: `table` — `{ kind, owner, container, citizenId }`
+
+## opx:on:inventory:used [#opx-on-inventory-used]
+
+Client, local. A use went through.
+
+```lua
+AddEventHandler('opx:on:inventory:used', function(use) end)
+```
+
+- use: `table` — `{ name, slot, label, close, status?, animation? }`
+
+Server, host-wide: also raised when an item is used, for every server resource.
+
+```lua
+AddEventHandler('opx:on:inventory:used', function(playerId, info) end)
+```
+
+- playerId: `number`
+- info: `table` — `{ citizenId, name, slot, consumed, metadata }`
+
+## opx:on:inventory:armed [#opx-on-inventory-armed]
+
+Client, local. A bag weapon was drawn or put away.
+
+```lua
+AddEventHandler('opx:on:inventory:armed', function(weapon) end)
+```
+
+- weapon: `table?` — `{ name, serial, slot }`, or nil when put away
+
+## opx:on:inventory:opened [#opx-on-inventory-opened]
+
+Client, local. The screen opened.
+
+```lua
+AddEventHandler('opx:on:inventory:opened', function() end)
+```
+
+## opx:on:inventory:closed [#opx-on-inventory-closed]
+
+Client, local. The screen closed.
+
+```lua
+AddEventHandler('opx:on:inventory:closed', function() end)
+```
+
+## opx:on:character:loaded [#opx-on-character-loaded]
+
+Client, local; raised by `character`, listened to here. Sends `hello` to reload the bag.
+
+## opx:on:character:unloaded [#opx-on-character-unloaded]
+
+Client, local; raised by `character`, listened to here. Closes the screen and clears the mirror.
+
+## opx:net:inventory:request [#opx-net-inventory-request]
+
+Client → server. One screen request. Rate limited ([`RATE_LIMIT`](/docs/opx_infinity/inventory#config-inventory-rate-limit)).
+
+```lua
+TriggerServerEvent('opx:net:inventory:request', requestId, action, payload)
+```
+
+- requestId: `number`
+- action: `string` — `open`, `close`, `closeSecondary`, `move`, `split`, `sort`, `use`, `drop`, `give`, `takeDrop`, `openStash`, `openTrunk`, `openGlovebox`, `nearby`
+- payload: `table`
+
+## opx:net:inventory:hello [#opx-net-inventory-hello]
+
+Client → server. Client is ready: send piles, bag and held weapon. At most once per 2 s.
+
+```lua
+TriggerServerEvent('opx:net:inventory:hello')
+```
+
+## opx:net:inventory:answer [#opx-net-inventory-answer]
+
+Server → client. Answer to one request.
+
+```lua
+RegisterNetEvent('opx:net:inventory:answer', function(requestId, ok, code, data) end)
+```
+
+- requestId: `number`
+- ok: `boolean`
+- code?: `string`
+- data?: `any`
+
+## opx:net:inventory:own [#opx-net-inventory-own]
+
+Server → client. The player's bag changed.
+
+```lua
+RegisterNetEvent('opx:net:inventory:own', function(bag) end)
+```
+
+- bag: `table`
+
+## opx:net:inventory:container [#opx-net-inventory-container]
+
+Server → client. A container the player is viewing changed.
+
+```lua
+RegisterNetEvent('opx:net:inventory:container', function(container) end)
+```
+
+- container: `table`
+
+## opx:net:inventory:secondary [#opx-net-inventory-secondary]
+
+Server → client. A second container was opened, or closed.
+
+```lua
+RegisterNetEvent('opx:net:inventory:secondary', function(container) end)
+```
+
+- container: `table|false`
+
+## opx:net:inventory:nearby [#opx-net-inventory-nearby]
+
+Server → client. Players in reach, for "give to".
+
+```lua
+RegisterNetEvent('opx:net:inventory:nearby', function(players) end)
+```
+
+- players: `{ id, distance }[]`
+
+## opx:net:inventory:open [#opx-net-inventory-open]
+
+Server → client. Raise the screen (after `OpenStash` or a staff search).
+
+```lua
+RegisterNetEvent('opx:net:inventory:open', function() end)
+```
+
+## opx:net:inventory:reset [#opx-net-inventory-reset]
+
+Server → client. Close the screen and clear the mirror.
+
+```lua
+RegisterNetEvent('opx:net:inventory:reset', function() end)
+```
+
+## opx:net:inventory:used [#opx-net-inventory-used]
+
+Server → client. A use went through: play it.
+
+```lua
+RegisterNetEvent('opx:net:inventory:used', function(use) end)
+```
+
+- use: `table` — `{ name, slot, label, close, status?, animation? }`
+
+## opx:net:inventory:armed [#opx-net-inventory-armed]
+
+Server → client. Held weapon changed.
+
+```lua
+RegisterNetEvent('opx:net:inventory:armed', function(weapon) end)
+```
+
+- weapon: `table|false` — `{ name, serial, slot }`
+
+## opx:net:inventory:drops [#opx-net-inventory-drops]
+
+Server → client. Every pile, in parts.
+
+```lua
+RegisterNetEvent('opx:net:inventory:drops', function(part) end)
+```
+
+- part: `table` — `{ first, done, drops = { { id, x, y, z, bucket } } }`
+
+## opx:net:inventory:drop [#opx-net-inventory-drop]
+
+Server → all clients. A pile appeared or went.
+
+```lua
+RegisterNetEvent('opx:net:inventory:drop', function(op, value) end)
+```
+
+- op: `string` — `'add'` or `'remove'`
+- value: `table|number` — the pile on `add`, its id on `remove`
+
+## Page channels
+
+| Channel | Direction | Payload | Meaning |
+|---|---|---|---|
+| <a id="page-inventory-ready" />`inventory:ready` | page → Lua | — | The page mounted. Lua sends the config and the catalogue. |
+| <a id="page-inventory-request" />`inventory:request` | page → Lua | `{ handle, action, payload, ref }` | Forwarded to the server as a request; the answer comes back under `ref`. |
+| <a id="page-inventory-dismiss" />`inventory:dismiss` | page → Lua | `{ handle }` | The player closed the screen. |
+| `inventory:open` | Lua → page | `{ handle, config, primary, secondary }` | Draw the screen. |
+| `inventory:close` | Lua → page | `{ handle }` | Close it. |
+| `inventory:update` | Lua → page | `{ handle, container }` | A container changed. |
+| `inventory:secondary` | Lua → page | `{ handle, container \| false }` | Second container opened or closed. |
+| `inventory:nearby` | Lua → page | `{ handle, players }` | Players in reach. |
+| `inventory:config` | Lua → page | `{ labels, hotbar, openKey, drops, defaultWeight }` | Words, tabs and keys. |
+| `inventory:catalog` | Lua → page | `{ entries, first, done }` | The catalogue, in parts. |
+| `inventory:slotbar` | Lua → overlay | `{ slots, holdMs }` | The hotbar row on the overlay page. |

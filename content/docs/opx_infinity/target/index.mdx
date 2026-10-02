@@ -1,0 +1,62 @@
+---
+title: target
+description: The target eye — hold a key, right-click something in the world, and pick from the rows other modules registered for it.
+---
+
+The player holds the target key (`ALT` by default), the cursor appears, and a right-click on a person, vehicle, door, prop, surface or empty sky lists the actions that apply to it. Modules register those actions as **rows**: each row says what it applies to (kinds, records, specific entities, spheres, distance) and can ask its owner at pick time whether it applies (`canInteract`). Choosing a row calls its `onSelect`. Use it to give your module world interactions without a key of its own.
+
+| | |
+|---|---|
+| Side | client |
+| Requires | none |
+| Optional | `downed` |
+| Contract | `target` v1 — [client](/docs/opx_infinity/target/client) |
+| Config | `config/target.lua` (shared) |
+| Data | none |
+
+- The module ships one row of its own, **Identifiers**, which shows and copies another player's server id and character id (see [`IDENTIFY`](#config-target-identify)).
+- The eye closes and will not open while the player is down.
+- Limits: 48 rows per owner, 128 in total.
+- Bands for `order` used by the shipped modules (from `config/target.lua`): 0–9 the thing itself, 10–19 its state, 20–39 what it holds, 40–59 work, 60–89 leaving, 100–999 staff.
+
+## Configuration
+
+`config/target.lua` sets `OPX.Config.MODULES.target`. Numbers are clamped to the ranges shown.
+
+| Key | Default | Effect |
+|---|---|---|
+| <a id="config-target-enabled" />`enabled` | `true` | `false` switches the module off. |
+| <a id="config-target-key" />`KEY` | `'ALT'` | Default key of the mapping `opx.target.activate` ("Target (hold)"). Players can rebind it in the pause menu. |
+| <a id="config-target-block-weapon-wheel" />`BLOCK_WEAPON_WHEEL` | `true` | Blocks the game's weapon wheel while the module runs (it shares the key). |
+| <a id="config-target-ray-distance" />`RAY_DISTANCE` | `12.0` | Metres the screen ray reaches (1–100). Each row also checks its own `distance`. |
+| <a id="config-target-max-options" />`MAX_OPTIONS` | `32` | Rows listed at once (1–128). |
+| <a id="config-target-hover-ms" />`HOVER_MS` | `90` | Milliseconds between two hover looks (30–1000). |
+| <a id="config-target-watch-ms" />`WATCH_MS` | `50` | Milliseconds between two checks of key, focus and target (10–1000). |
+| <a id="config-target-resolve-ms" />`RESOLVE_MS` | `25` | Milliseconds between two slices of a pick (1–1000). |
+| <a id="config-target-sweep-ms" />`SWEEP_MS` | `2000` | Milliseconds between two sweeps of stopped owners' rows (250–60000). |
+| <a id="config-target-revalidate-ms" />`REVALIDATE_MS` | `200` | Milliseconds between two checks that the picked target is still there (50–5000). |
+| <a id="config-target-lookup-budget-ms" />`LOOKUP_BUDGET_MS` | `1500` | Total time all `canInteract`/`checked` calls of one pick may take (100–10000). |
+| <a id="config-target-batch" />`BATCH` | `5` | Rows resolved per slice (1–16). Keep it small. |
+| <a id="config-target-identify" />`IDENTIFY` | `{ ENABLED = true, DISTANCE = 12.0 }` | The built-in **Identifiers** row on other players: shows and copies `server id / citizen id`. `DISTANCE` is clamped to 1–50 m. |
+
+Scheduler intervals below about 100 ms run at roughly 100 ms unless another job keeps the loop busy.
+
+## Refusal codes [#codes]
+
+| Code | Meaning |
+|---|---|
+| `invalid_caller` | `owner` is missing or empty. |
+| `invalid_owner` | `owner` is not a running module or resource, or not a valid name. |
+| `invalid_options` | `definitions` is not a table or not a list of 1–32. |
+| `invalid_or_duplicate_id` | A batch has a missing or repeated `id`. |
+| `invalid_option` | Bad `id`, `label` or `onSelect`. |
+| `invalid_predicate` / `invalid_checked` | Bad `canInteract` / `checked`. |
+| `invalid_description`, `invalid_group`, `invalid_icon`, `invalid_distance`, `invalid_order`, `invalid_types`, `invalid_records`, `invalid_entities`, `invalid_spheres`, `invalid_data` | That field breaks its rule. |
+| `invalid_enabled`, `invalid_networked`, `invalid_allowSelf`, `invalid_selfOnly`, `invalid_danger` | That field is not a boolean. |
+| `invalid_self_filter` | `selfOnly` without `allowSelf`, or with `types` lacking `player`. |
+| `option_limit` | 48 rows for this owner, or 128 in total. |
+| `not_owner` | The token is unknown or belongs to another owner. |
+| `option_not_found` | `Unregister` on an unknown token. |
+| `invalid_patch` | `patch` is not a table, or changes `id`. |
+| `invalid_tokens` | `tokens` is not a list of 1–32. |
+| `expected_boolean` | `SetEnabled` / `SetTargetingEnabled` value is not a boolean. |

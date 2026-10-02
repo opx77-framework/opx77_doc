@@ -1,0 +1,14 @@
+{
+  "title": "Concepts",
+  "pages": [
+    "modules-and-contracts",
+    "events",
+    "scheduler",
+    "server-authority",
+    "two-runtimes",
+    "webui",
+    "storage",
+    "locales",
+    "permissions"
+  ]
+}

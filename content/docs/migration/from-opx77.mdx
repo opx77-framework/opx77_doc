@@ -1,0 +1,804 @@
+---
+title: From opx77_* to opx_infinity
+description: Where every old opx77_* resource, export, event, command and config key went when the framework became the single opx_infinity resource, and what has no replacement.
+---
+
+
+In September 2026 the separate `opx77_*` resources were replaced by **one resource, `opx_infinity`**; each old resource is now a **module** inside it. General changes first, then one folded table set per old resource.
+
+## What changed for everyone [#general]
+
+| Before | Now |
+|---|---|
+| Sixteen documented `opx77_*` resources (twenty-one in all) | One resource, `opx_infinity`, plus the client library `opx_lib` |
+| Each resource published exports (`Open77.exports.call('opx77_core', ...)`) | Modules call each other's [contracts](/docs/opx_infinity/concepts/modules-and-contracts#contracts) with `OPX.Api.Get('<module>')`, inside `opx_infinity` only. |
+| Answers `{ ok = true, ... }` with fields at the top level | Contracts mostly answer `Result`: `{ ok = true, value = ... }` / `{ ok = false, error, detail }`. Money mutators still answer `ok, code`. Each module page gives the exact shape. |
+| A service found its caller with `GetInvokingResource()` | The caller passes its own `owner` name (menus, prompts, effects, animations). |
+| Events `opx77:client:*`, `opx77:server:*`, `<resource>:*` | [`opx:net:<module>:<verb>`, `opx:on:...`, `opx:in:...`](/docs/opx_infinity/concepts/events) |
+| Client events heard by other resources | Client `opx:on:` events stay inside `opx_infinity`. |
+| Commands `opx77.*`, rights `command.opx77.*` | Commands `opx.*`, rights `command.opx.*`; optional [short aliases](/docs/opx_infinity/core/config#config-server-command-aliases). |
+| One config global per resource (`OPX_HUD_CONFIG`) | `config/<module>.lua` setting `OPX.Config.MODULES.<module>`. `LOCALE` keys are gone from module configs; the language is [`SHARED.LOCALE`](/docs/opx_infinity/core/config#config-shared-locale). |
+| One CEF page per resource | One [WebUI page](/docs/opx_infinity/concepts/webui) for every screen. |
+| `OPX.*` helpers in lowerCamel (`OPX.Result.ok`) | PascalCase (`OPX.Result.Ok`). See the [API reference](/docs/opx_infinity/core). |
+| Database tables `opx77_*` | **Same names**, kept. Several modules still read old tables and adopt their rows at boot. No migrations run. |
+
+## For a separate resource that used the old exports [#separate]
+
+No drop-in replacement, but a curated set: call `opx_infinity` instead of `opx77_core`, with new names and the operator's allowlist in front. See [For creators](/docs/creators).
+
+| Old call | New call |
+|---|---|
+| `opx77_core` client `GetPlayerData`, `HasJob`, `HasGang` | server exports `GetPlayerData`, `HasJob`, `HasGang` (or read the player state bag on the client) |
+| `opx77_core` server `GetIdentity` | server exports `GetPlayerData`, `GetPlayerByCitizenId` |
+| `opx77_core` server `GetVersion` | server export `GetVersion` |
+| `opx77_inventory` `AddItem`, `RemoveItem`, `HasItem`, `GetItemCount` | server exports `AddItem`, `RemoveItem`, `HasItem`, `CountItem` |
+| `opx77_menu` `open`, `update`, `close` | client exports `OpenMenu`, `UpdateMenu`, `CloseMenu` (answers through your `OnOpxEvent` export) |
+| `opx77_input` `open`, `close` | client exports `OpenForm`, `CloseForm` |
+| `opx77_notify` `show`, `dismiss` | client exports `ShowToast`, `DismissToast` |
+| `opx77_animations` `play`, `stop` | client exports `PlayAnimation`, `StopAnimation` |
+| `opx77_chat` server `chat:addMessage` | server exports `SendChat`, `BroadcastChat` |
+| server events `opx77:player:loaded`, `moneyChange`, `jobUpdate`… | public server events `opx:on:character:loaded`, `money`, `job`… |
+| `opx77_core` `OPX.SetJob`, `SetGang`, `RemovePlayerFromJob`, `SetJobDuty` (in-VM) | server exports `SetJob`, `SetGang`, `RemoveJob`, `RemoveGang`, `SetDuty` |
+| `opx77_core` `OPX.SetMetadata`/`GetMetadata` | server exports `SetMetadata`/`GetMetadata`, in your resource's own `ext.<resource>.*` space |
+| client events `opx77:client:onMoneyChange`, `onJobUpdate`, `opx77:status:needs`… | client export `Subscribe('opx:on:character:money')` and the other [subscribable events](/docs/creators/client#subscribe) |
+
+- Anything not in that set must move into a [module](/docs/guides/writing-a-module).
+- In the folded tables below, "no exports" describes the first `opx_infinity` release; the creator exports above were added afterwards.
+
+## Old resource → new module [#map]
+
+| Old resource | New module(s) | Notes |
+|---|---|---|
+| `opx77_core` | [character](/docs/opx_infinity/character), [vehicles](/docs/opx_infinity/vehicles), [inventory](/docs/opx_infinity/inventory) storage, core runtime ([API reference](/docs/opx_infinity/core)) | Split by concern. |
+| `opx77_charselector` | removed — [character](/docs/opx_infinity/character) commands `/opx.characters`, `/opx.select` | No selection screen. |
+| `opx77_charcreator` | [entry](/docs/opx_infinity/entry) + [appearance](/docs/opx_infinity/appearance) | Name form only; body and face from the game's creator. |
+| `opx77_appearance` | [appearance](/docs/opx_infinity/appearance) (+ new [clothing](/docs/opx_infinity/clothing)) | |
+| `opx77_menu` | [menu](/docs/opx_infinity/menu) | |
+| `opx77_input` | [form](/docs/opx_infinity/form) | |
+| `opx77_notify` | core [`OPX.Toast`, `OPX.Notify`](/docs/opx_infinity/core) | |
+| `opx77_hud` | [hud](/docs/opx_infinity/hud) | `/hud` and the F8 toggle are gone. |
+| `opx77_status` | [needs](/docs/opx_infinity/needs) | Same database table. |
+| `opx77_prompts` | [prompts](/docs/opx_infinity/prompts) | |
+| `opx77_chat` | [chat](/docs/opx_infinity/chat) | |
+| `opx77_weather` | [weather](/docs/opx_infinity/weather) | Time commands are now `/opx.time*`. |
+| `opx77_elevators` | [elevators](/docs/opx_infinity/elevators) | |
+| `opx77_animations` | [animations](/docs/opx_infinity/animations) | |
+| `opx77_admin` | [admin](/docs/opx_infinity/admin) | |
+| `opx77_inventory` | [inventory](/docs/opx_infinity/inventory) | |
+
+## Old URLs [#urls]
+
+Every page of the old site (`reference/opx77_<name>/...`) redirects to the module page that replaced it.
+
+## Detailed mappings [#details]
+
+Old name → new name. "Removed" means there is no equivalent.
+
+<Accordions type="multiple">
+<Accordion title="opx77_core (character part), opx77_charselector, opx77_charcreator">
+
+Modules: `character` replaces the character half of `opx77_core` (roster, money, groups, metadata, placement, commands, hooks, data/ files). `entry` replaces `opx77_charcreator` (the name form; face via appearance). `opx77_charselector` is removed: there is no selection screen, the account is locked on one character and commands move the lock. `spawn`, `theme`, `diagnostics` are new (no old resource); `/opx77` status maps to `diagnostics`.
+
+Key change for every old caller: opx_infinity publishes NO Open77 exports. Everything below is a contract function (`OPX.Api.Get('character')`) reachable only from code inside opx_infinity. From another resource, only the state bag (`Open77.state.player(id)`: citizenId, name, charInfo, job, gang, username, life) and host-wide server events remain.
+
+**opx77_core server exports (exports/server.md)**
+
+| Old | New |
+|---|---|
+| `GetVersion` | none as export; `OPX.VERSION` / `/opx.version` |
+| `GetIdentity(source\|citizenId)` | none as export; in-resource `character.GetPlayer` / `GetPlayerByCitizenId` / `GetCharacter`; cross-resource: state bag `citizenId` |
+| `GetChanges` | removed, no equivalent |
+| `GetVehiclePlate` | vehicles module (not character) |
+| `InventoryEnsure/Read/Stage/Commit/Resize/Delete/Holders` | inventory module (not character) |
+
+**opx77_core client exports (exports/client.md)**
+
+| Old | New |
+|---|---|
+| `GetPlayerData` | client `character.GetPlayerData` (in-resource); other resources: state bag (public half only) |
+| `IsLoggedIn` | client `character.IsLoggedIn` |
+| `HasJob` / `HasGang` | client `character.HasJob` / `HasGang` |
+| `GetAppearance` / `GetClothing` | appearance module |
+| `GetCharacters` / `RequestCharacters` | removed; `/opx.characters` (server `ListCharacters`) |
+| `SelectCharacter` | `/opx.select <citizenId>` (server `SwitchTo` / `SelectCharacter`) |
+| `CreateCharacter(registration)` | `/opx.create` (server `NewCharacter`, disconnects); name via client `SetName`; body via game creator (`SetBodyFamily`). No birth date, no origin, no gender field. |
+| `DeleteCharacter` | `/opx.delete <citizenId>` (server `DeleteCharacter`) |
+| `GetSharedConfig` | `OPX.Config.SHARED` (core) |
+| `Locale` | `locale()` (core) |
+| `GetJobs` / `GetGangs` | `OPX.Config.MODULES.character.JOBS` / `GANGS` (shared config); server `character.GetJob` / `GetGang` |
+| `GetOrigins` | `OPX.Config.MODULES.character.ORIGINS` (unused by runtime) |
+| `GetVersion` | `OPX.VERSION` |
+| `OPX.PlayerData`, `OPX.IsLoggedIn` | client `GetPlayerData`, `IsLoggedIn` |
+| `OPX.GetPlayerData/GetCitizenId/GetJobData/GetGangData/HasJob/HasGang/GetJobGrade/GetMoney/GetMetadata/GetPosition` | client contract, same names |
+| `OPX.GetAppearance/GetClothing` | appearance module |
+| `OPX.Announce` | automatic (`opx:net:character:announce`), not exposed |
+| `OPX.Characters`, `OPX.RequestCharacters/SelectCharacter/CreateCharacter/DeleteCharacter` | removed; commands above |
+
+**opx77_core server API (server-api.md, player.md)**
+
+| Old | New |
+|---|---|
+| `OPX.GetPlayer/GetPlayerByCitizenId/GetPlayerByUserId/GetPlayers/GetPlayerCount/GetCharacter/ResolvePlayer` | server `character.<same>` |
+| `OPX.Players`, `OPX.PlayerRegistry` | not exposed; use `GetPlayers` |
+| `OPX.Sessions`, `OPX.EnsureSession`, `OPX.ForgetSession`, `OPX.UserIdOf` | core, same names |
+| `OPX.RegisterPlayer/UnregisterPlayer/CreatePlayer/NormaliseEntity/Login/LogoutAndWait/SamplePosition` | internal, not exposed |
+| `OPX.Save` / `OPX.Logout` | `character.Save` / `Logout` |
+| `OPX.AddMoney/RemoveMoney/SetMoney/GetMoney` | `character.<same>` (still `ok, code`, still loaded-only) |
+| `OPX.SetMetadata/GetMetadata` | `character.SetMetadata/GetMetadata` |
+| `OPX.SaveAppearance/GetAppearance/SaveClothing/GetClothing`, `OPX.Appearance.*`, `OPX.Clothing.*` | appearance / clothing modules |
+| `OPX.SetJob/SetJobDuty/AddPlayerToJob/RemovePlayerFromJob/SetPlayerPrimaryJob/SetGang/AddPlayerToGang/RemovePlayerFromGang/SetPlayerPrimaryGang/GetGroupMembers/GetPlayersByJob/GetPlayersByGang/GetJob/GetGang` | `character.<same>` |
+| `OPX.Jobs/Gangs/Origins` | `OPX.Config.MODULES.character.JOBS/GANGS/ORIGINS` |
+| `OPX.ResolveJob/ResolveGang/TopGrade` | internal, not exposed |
+| `OPX.SendCharacters` | removed |
+| `OPX.CreateCharacter(source, registration)` | `character.CreateCharacter(source)` (no payload, empty row) |
+| `OPX.DeleteCharacter` | `character.DeleteCharacter(source, citizenId)`; staff: `RemoveCharacter(citizenId, source?)` |
+| `OPX.SelectCharacter` | `character.SelectCharacter` / `SwitchTo` |
+| `OPX.PlaceCharacter` | `character.PlaceCharacter(player, target?)` (new optional target) |
+| `OPX.CitizenId.parse/generate/build` | core `OPX.CitizenId.Parse/Generate/Build`; `isValid` -> `Parse(x).ok` |
+| `OPX.ValidateName`, `OPX.NAME_PATTERN` | module-internal; not on the contract |
+| `OPX.FormatMoney` / `OPX.IsMoneyType` | `character.FormatMoney` / `IsMoneyType` |
+| `OPX.Notify/NotifyLocale/RefusalKey/Refuse/CommandNotice/CommandResult`, `OPX.Cooling`, `OPX.Storage.*`, `OPX.Logger.*` (-> `OPX.Audit.*`), `OPX.Lifecycle.*` (-> `OPX.Gate.*`), `OPX.Buckets.*`, `OPX.Tune*`, `OPX.Locale.*`, `OPX.Result/Table/Math/String/Validate` | core runtime (documented elsewhere) |
+| `OPX.Storage.Players.*` | internal `M.Storage`, not exposed |
+| `OPX.Vehicles.*`, `OPX.Storage.Vehicles/Inventories.*` | vehicles / garages / inventory modules |
+| new | `ListCharacters`, `ListCharactersFor`, `FindCharacters`, `RenameCharacter`, `RemoveCharacter`, `EnterSession`, `SwitchTo`, `NewCharacter`, `SetName`, `SetBodyFamily` |
+| `Player.Functions.*` | unchanged names (`UpdatePlayerData`, `SetPlayerData`, `SetMetaData`, `GetMetaData`, `SetCharInfo`, money, `SetJob`, `SetGang`, `SetJobDuty`, `Save`, `Logout`) |
+
+**opx77_core hooks (hooks.md)**
+
+| Old | New |
+|---|---|
+| `OPX.Hooks.register/remove/trigger` | `OPX.Hooks.Register/Remove/Trigger` |
+| `OPX.Hooks.has` | removed |
+| `money:beforeAdd/beforeRemove/beforeSet`, `paycheck:before` | unchanged names and payloads |
+| new | `character:loading` `{ citizenId, entity, data }`, cannot veto |
+
+**opx77_core events (events.md)**
+
+| Old | New |
+|---|---|
+| `opx77:client:characters` | removed |
+| `opx77:client:playerLoaded` | `opx:net:character:loaded` |
+| `opx77:client:playerUnloaded` | `opx:net:character:unloaded` |
+| `opx77:client:setPlayerData` | `opx:net:character:data` |
+| `opx77:client:onMoneyChange` | `opx:net:character:money` |
+| `opx77:client:onJobUpdate` | `opx:net:character:job` |
+| `opx77:client:onGangUpdate` | `opx:net:character:gang` |
+| `opx77:client:onAppearanceUpdate/onClothingUpdate` | appearance / clothing modules |
+| `opx77:client:notify`, `opx77:client:refused` | core `opx:net:runtime:notify` (carries `operation`) |
+| `opx77:client:commandAnswer` | core (`OPX.CommandResult`) |
+| `opx77:client:charactersReady` | removed |
+| `opx77:client:onPlayerLoaded` | `opx:on:character:loaded` (client, in-resource only) |
+| `opx77:client:onPlayerUnloaded` | `opx:on:character:unloaded` |
+| `opx77:client:playerDataChanged` | `opx:on:character:changed` |
+| `opx77:client:moneyChanged` | `opx:on:character:money` |
+| `opx77:client:jobChanged` | `opx:on:character:job` |
+| `opx77:client:gangChanged` | `opx:on:character:gang` |
+| `opx77:client:appearanceSaved/clothingSaved` | appearance / clothing modules |
+| `opx77:server:ready` | `opx:net:character:announce` |
+| `opx77:server:selectCharacter/createCharacter/deleteCharacter` | removed (commands only; no client message moves the lock) |
+| `opx77:server:reportPosition` | `opx:net:character:heading` (heading only; position read server-side) |
+| `opx77:server:saveAppearance/saveClothing` | appearance / clothing modules |
+| `opx77:server:spawnVehicle/storeVehicle` | vehicles / garages modules |
+| `opx77:player:loaded/unloaded/moneyChange/jobUpdate/gangUpdate/paycheck/characterDeleted` | private `opx:in:character:loaded/unloaded/money/job/gang/paycheck/deleted` (server, no public equivalent) |
+| `opx77:player:appearanceChange/clothingChange` | appearance / clothing modules |
+| `onPlayerReady` (platform) | still handled: places the joining character |
+
+**opx77_core commands (commands.md)**
+
+| Old | New |
+|---|---|
+| `/opx77` | `/opx.version` + `/opx.modules` (diagnostics); admin `/opx.admin.read.status` is the nearest status screen (not verified equivalent) |
+| `/opx77.where` | `/opx.where` |
+| `/opx77.here` | `/opx.here` |
+| `/opx77.whois` | nearest: `/opx.where` (account, name, character) |
+| `/opx77.characters` | `/opx.characters` (alias `chars`) |
+| `/opx77.select` | `/opx.select` |
+| `/opx77.create` (with form fields) | `/opx.create` (no arguments, disconnects) |
+| `/opx77.delete` | `/opx.delete` |
+| `/opx77.duty` | `/opx.duty` (alias `duty`) |
+| `/opx77.money/job/gang/group/save` | `/opx.money/job/gang/group/save` |
+| new | `/opx.players`; staff character tools are in admin (`/opx.admin.character.*`) |
+| ACL `command.opx77.*` | `command.opx.<name>` |
+
+**opx77_core config / data / permissions**
+
+| Old | New |
+|---|---|
+| `data/jobs.lua`, `data/gangs.lua`, `data/origins.lua` | `config/character.lua` `JOBS`, `GANGS`, `ORIGINS` (same field names: label, type, defaultDuty, offDutyPay, grades[n].name/payment/isBoss/bankAuth; not re-verified field by field against the old files) |
+| `SHARED.CHARACTERS.NAME` | `character.CHARACTERS.NAME` + `entry.NAME` |
+| `SHARED.DEFAULT_SPAWN` | `character.DEFAULT_SPAWN` |
+| `AUTOSAVE_SECONDS` | `character.AUTOSAVE_SECONDS` |
+| `MONEY.PAYCHECK_MINUTES/REQUIRES_DUTY/TYPE` | `character.MONEY.*` |
+| `MONEY.TYPES/DEFAULT/ALLOW_NEGATIVE` | `config/shared.lua` `MONEY.*` |
+| `CHARACTERS.DEFAULT_SLOTS/SLOTS_BY_USER/ROW_CEILING/CASCADE_TABLES` | `character.CHARACTERS.*` (+ new `SWITCH`, `SELF_DELETE`) |
+| `PLAYER.STARTING_METADATA/DEFAULT_JOB/DEFAULT_GANG` | `character.PLAYER.*`; starting money now `character.MONEY.STARTING` |
+| `ENTRY.*`, `CONFLICTING_PLACERS` | `config/server.lua` (core) |
+| `EXPORTS.*` | removed |
+| `POSITION_REPORT_MS` | `character.HEADING_REPORT_MS` |
+| tables `opx77_users`, `opx77_characters`, `opx77_character_groups` | same names, still used; new `opx77_active_characters` (the lock). No migrations: `CREATE TABLE IF NOT EXISTS` only |
+
+**opx77_charselector**
+
+| Old | New |
+|---|---|
+| exports `open`, `close`, `isOpen`, `state`, `holdStage`, `releaseStage` | removed, no selection screen |
+| event `createRequested` | removed |
+| listens to `charactersReady` etc. | n/a |
+| config `LOCALE`, `EVENT`, `APPEARANCE_EVENT`, `ROSTER_RETRY_MS`, `STAGE.*`, `REQUEST_TIMEOUT_MS` | removed |
+| picking a character | `/opx.characters` + `/opx.select` |
+
+**opx77_charcreator**
+
+| Old | New |
+|---|---|
+| exports `open`, `close`, `isOpen` | removed; the name form opens by itself (`entry`); `entry.AskName()` re-opens it |
+| export `state` | `entry.State()` |
+| event `opx77:charcreator` (`opened/created/cancelled/handedOver`) | `opx:on:entry:state` `{ open, phase }` (not one-to-one) |
+| form fields `firstName`, `lastName` | entry name form -> `character.SetName` (once) |
+| form fields `birthDate`, `origin`, `gender` | removed; gender comes from the game creator (`SetBodyFamily`) |
+| `needsCreation` answer / `ANSWER_NEEDS_CREATION` | always answered by `entry` (calls `appearance.OpenCreator`) |
+| config `RETURN_TO_SELECTOR`, `HOLD_STAGE`, `SELECTOR_EVENT`, `REQUEST_TIMEOUT_MS` | removed |
+
+</Accordion>
+<Accordion title="opx77_core (runtime part) and opx77_notify">
+
+Covers `opx77_notify` (all of it) and the parts of `opx77_core` that became core or lib functions
+(hooks, notifications/refusals, cooldowns, lifecycle/gate, buckets, storage, logging, tunables,
+locale, utility). Character/money/jobs/vehicles/inventory parts of `opx77_core` belong to the
+character, vehicles and inventory module pages.
+
+General rule: `opx_infinity` publishes NO Open77 exports. Everything below is callable only by code
+running inside `opx_infinity`. Function names moved from lowerCamel to PascalCase.
+
+**opx77_notify → OPX.Toast / OPX.Notify**
+
+| Old | New | Notes |
+|---|---|---|
+| export `show(definition)` | `OPX.Toast.Show(definition)` (client, in-VM) | Returns `id, reason` instead of `{ ok, handle, id }`. No `replace` flag: pass the same `id`. Fields: message, kind, title, icon (OPX.Glyphs name, not a text badge), durationMs, id, stinger. No `progress`, `color`, `position`, `data`. Other resources: no equivalent (use `open77_notifications` or `Lib.Notify` from opx_lib). |
+| export `update(id, patch)` | `OPX.Toast.Update(id, patch)` | Returns `ok, reason`. |
+| export `dismiss(id)` | `OPX.Toast.Dismiss(id)` | |
+| export `clear()` | `OPX.Toast.Clear()` | Clears every toast, not per owner (there are no owners). |
+| export `list()` | removed | No equivalent. |
+| export `setEnabled(bool)` / `isEnabled()` | removed | `OPX.Toast.SetDown(down)` hides/shows the stacks globally (used by `downed`). |
+| listened `open77:notifications:show/update/dismiss/clear` | not listened | Server toasts now go through `OPX.Notify` → `Open77.notifications.send`, drawn by the platform's `open77_notifications` package if it is installed (not by opx_infinity's page). Refusals and command notices use `opx:net:runtime:notify` / `opx:net:runtime:commandAnswer` and ARE drawn by opx_infinity. |
+| raised `opx77:notify:removed` | removed | The page reports `notify:gone` internally; no public event. |
+| config `POSITION` | `OPX.Config.CLIENT.TOASTS.position` (`'top_right'`) | Same seven names. |
+| config `WIDTH` | `OPX.Config.CLIENT.TOASTS.width` (`340`) | |
+| config `DURATION_MS` | removed | Per toast `durationMs`, default 5000 in code. |
+| config `PROGRESS` | removed | |
+
+**opx77_core (server API parts) → core / lib**
+
+| Old | New |
+|---|---|
+| `OPX.Hooks.register / remove / trigger` | `OPX.Hooks.Register / Remove / Trigger` (both sides) |
+| `OPX.Hooks.has` | removed |
+| hook points `money:beforeAdd/Remove/Set`, `paycheck:before` | unchanged names, raised by the `character` module; new point `character:loading` |
+| `OPX.Notify`, `OPX.NotifyLocale`, `OPX.RefusalKey`, `OPX.Refuse`, `OPX.CommandNotice`, `OPX.CommandResult` | same names (server). `Refuse` and `CommandNotice` gained an optional `icon`. `Notify` and `NotifyLocale` answer `ok, reason`. |
+| `OPX.IsNotifyPosition` | removed |
+| `OPX.Cooling`, `OPX.ForgetCooldowns` | same names |
+| `OPX.Lifecycle.hold / release / watch / participate / isReady` | `OPX.Gate.Hold / Release / Watch / Participate / IsReady` (`Release` gained `expectedUserId`) |
+| `OPX.Lifecycle.beginEntry` | moved into the `character` module (internal) |
+| `OPX.Buckets.isSelection / placementOf / move / isolate / release` | `OPX.Buckets.IsSelection / PlacementOf / Move / Isolate / Release` (`Isolate`/`Release` gained `expectedUserId`) |
+| `OPX.Buckets.selectionOf / current` | removed (file-local) |
+| `OPX.EnsureSession`, `OPX.ForgetSession`, `OPX.UserIdOf`, `OPX.Sessions` | same names; new `OPX.DisplayNameOf`, `OPX.SessionHolds` |
+| `OPX.Storage.query / single / scalar / insert / update / execute / transaction / ready / applySchema` | `OPX.Storage.Query / Single / Scalar / Insert / Update / Execute / Transaction / Ready / ApplySchema` |
+| `OPX.Storage.Decode`, `OPX.Storage.Nullable` | same |
+| `OPX.Schema` (table of statements) | `OPX.Schema.Add(list)` / `OPX.Schema.Apply()`; new `OPX.Schema.AddIndexes(list)` and `OPX.Storage.EnsureIndex` for indexes on tables that predate them |
+| `OPX.Storage.Players.* / Vehicles.* / Inventories.*` | removed from core; module-internal (character, vehicles, inventory) |
+| (new) | `OPX.Carry.Load / Save` — namespaced reload state |
+| `OPX.Logger.log / player / security / safe / forget` | `OPX.Audit.Log / Player / Security / Safe / Forget` |
+| `OPX.Tune(key)` | `OPX.Tune.Get(key)` |
+| `OPX.TuneNumber(key, floor)` | `OPX.Tune.Number(key, floor)`; declare with `OPX.Tune.Declare` |
+| `locale(key, params)` | unchanged |
+| `OPX.Locale.register / set / current / exists / t` | `OPX.Locale.Register / Set / Current / Exists / Text`; new `Catalogue` |
+| `OPX.Result.ok / err` | `OPX.Result.Ok / Err` (shape unchanged: `{ok,value}` / `{ok=false,error,detail}`) |
+| `OPX.Now` | same |
+| `OPX.Table.deepCopy / count` | `OPX.Table.DeepCopy / Count` |
+| `OPX.Math.clamp / isFinite / distanceSquared / groupDigits` | `OPX.Math.Clamp / IsFinite / DistanceSquared / GroupDigits`; new `Finite` |
+| `OPX.String.length / trim / interpolate / random` | `OPX.String.Length / Trim / Interpolate / Random` |
+| `OPX.Validate.text / number` | `OPX.Validate.Text / Number` |
+| `OPX.Validate.oneOf` | removed |
+| `OPX.CitizenId.parse / generate / build` | `OPX.CitizenId.Parse / Generate / Build` |
+| `OPX.CitizenId.isValid` | removed (use `Parse(x).ok`) |
+| `OPX.FormatMoney`, `OPX.IsMoneyType`, `OPX.ValidateName` | `character` contract (`FormatMoney`, `IsMoneyType`) / character module (`ValidateName`) |
+| server exports `GetVersion`, `GetIdentity`, `GetChanges`, `GetVehiclePlate`, `Inventory*` | removed — no exports. In-VM: `OPX.VERSION`, `OPX.Api.Versions()`; identity via the `character` contract; other resources read the character state bag. |
+| client exports (`GetPlayerData`, `HasJob`, …, `GetVersion`, `Locale`) | removed — no exports. In-VM: `character` contract; other resources: player state bag. |
+| event `opx77:client:notify` | `opx:net:runtime:notify` (payload `{ kind, code, operation, icon? }`) |
+| event `opx77:client:commandAnswer` | `opx:net:runtime:commandAnswer` (`raw, kind, message, toasted, icon?`) |
+| (new) | `opx:net:runtime:commandResult` (`OPX.CommandResult` read-back `{ kind, author, text }`, `kind` = `'info'\|'error'`), `opx:net:runtime:note` / `OPX.Note` |
+| `opx77_core/permissions.md` (manifest permissions) | one manifest for all of opx_infinity (`open77.lua`); `players.damage.apply` replaced by `players.stats.apply`. |
+| command `opx.*` aliases | new: `OPX.Config.SERVER.COMMAND_ALIASES` (22 short names) |
+
+</Accordion>
+<Accordion title="opx77_core (vehicle part)">
+
+Old home: the vehicle half of `opx77_core` (`OPX.Vehicles`, `OPX.Storage.Vehicles`, the
+`GetVehiclePlate` export, two net events, `config/vehicles.lua`). There were no separate
+`opx77_garages` / `opx77_dealership` / hauling / blips / keys resources with reference pages.
+In opx_infinity: modules `vehicles` (server), `garages`, `dealership`, `hauling`, `blips`
+(client), `vehiclekeys`. No Open77 exports: everything is a contract inside opx_infinity.
+
+**opx77_core exports / API -> new**
+
+| Old | New | Notes |
+|---|---|---|
+| export `GetVehiclePlate(vehicleId)` -> `{ok, plate?, citizenId?}` | `OPX.Api.Get('vehicles').PlateOf(vehicleId)` -> `plate, citizenId` | Contract only; no export. Another resource cannot call it. |
+| `OPX.Vehicles.Give(citizenId, record, options)` | `vehicles.Register(citizenId, record, options)` | Renamed. Same options and codes. |
+| `OPX.Vehicles.List(citizenId)` | `vehicles.List(citizenId)` | Same. |
+| `OPX.Vehicles.Get(plate)` | `vehicles.Get(plate)` | Same (`spawned`, `id`). |
+| `OPX.Vehicles.PlateOf(vehicleId)` | `vehicles.PlateOf(vehicleId)` | Same. |
+| `OPX.Vehicles.Spawn(source, plate)` | `vehicles.Spawn(source, plate, at?)` | New `at` (named place, recall of a car already out); new codes `vehicle.occupied`, `vehicle.busy`; `error.notLoggedIn` -> `vehicle.notLoggedIn`. |
+| `OPX.Vehicles.Store(plate, garage?)` | `vehicles.Store(plate, garage?)` | New code `vehicle.storeRefused` (host would not remove). |
+| `OPX.Vehicles.StoreAll(citizenId)` | `vehicles.StoreAll(citizenId?)` | `nil` = everyone. |
+| — | `vehicles.LiveId(plate)`, `vehicles.Occupied(source)` | New. |
+| `OPX.Storage.Vehicles.*` (fetchByOwner, fetchOne, insert, save, setState, delete, countByOwner) | private `M.Storage` of the vehicles module | No longer public. `delete` has no contract equivalent. |
+| `OPX.Storage.Vehicles.STATE` | not exposed (values unchanged: OUT 0, STORED 1, IMPOUNDED 2) | |
+| `OPX.Storage.Inventories.vehicleExists(plate)` | removed / owned by inventory module | Not in this group. |
+
+**Old events -> new**
+
+| Old | New |
+|---|---|
+| `opx77:server:spawnVehicle` `{ plate }` | `opx:net:vehicles:spawn` `{ plate }` |
+| `opx77:server:storeVehicle` `{ plate }` | `opx:net:vehicles:store` `{ plate }` |
+| refusal operation `spawnVehicle` / `storeVehicle` | `vehicleSpawn` / `vehicleStore` |
+
+**Old config -> new**
+
+| Old | New |
+|---|---|
+| `OPX.Config.VEHICLES.PER_CHARACTER` | `OPX.Config.MODULES.vehicles.PER_CHARACTER` (same file `config/vehicles.lua`, still server-only) |
+| `.PLATE_FORMAT`, `.DEFAULT_GARAGE`, `.SPAWN_OFFSET`, `.SAVE_SECONDS` | same keys under `OPX.Config.MODULES.vehicles` |
+| — | `enabled` |
+
+**Old commands -> new**
+
+| Old | New |
+|---|---|
+| `/opx.garages.add`, `/opx.garages.remove` | removed. Write garages in `config/garages.lua` `GARAGES`; `opx77_garages` is adopted at boot and printed as config lines. |
+| `/opx.dealership.add`, `/opx.dealership.remove` | removed. `SPOTS` in `config/dealership.lua`; `opx77_dealerships` adopted and printed. |
+| contract `Place`/`Unplace` + net placement + ACL right `opx.dealership.place` | removed. `PREVIEW.POINTS`; `opx77_dealership_previews` adopted and printed. |
+| `/opx.garages.list`, `/opx.garages.bring` | unchanged names, ACL `command.opx.garages.*`. |
+| `/opx.dealership.list` (ACL), `/opx.dealership.stock`, `/opx.dealership.buy` (open) | unchanged. |
+| garages config `SPOTS` | no longer read (boot warning); replaced by `GARAGES` with `LOCATIONS`. |
+
+**Data**
+
+| Table | Status |
+|---|---|
+| `opx77_vehicles` | owned by `vehicles`, same schema; rows of a deleted character are now purged by the module (soft delete never fired the FK). |
+| `opx77_garages` | read-only legacy, adopted at boot. |
+| `opx77_dealerships`, `opx77_dealership_previews` | read-only legacy, adopted at boot. |
+| `opx77_company_accounts` | new, written by dealership sales. |
+| `opx77_company_pending` | new: a company deposit that failed, paid in by the dealership's sweep. |
+
+</Accordion>
+<Accordion title="opx77_inventory and the core inventory exports">
+
+**Replaced resources**
+
+| Old | New |
+|---|---|
+| `opx77_inventory` (whole resource) | `inventory` module |
+| `opx77_core` inventory storage exports (`Inventory*`) | internal to `inventory` (`modules/inventory/server/storage.lua`); no public equivalent except the contract functions below |
+| — (no old resource) | `shops`, `crafting`, `gunsmith` are new modules |
+
+Database: the module still owns `opx77_inventories` and `opx77_inventory_items` (same names the old core created; `CREATE TABLE IF NOT EXISTS`, so existing tables are kept). Column-for-column compatibility with the old core schema was not verified.
+
+Calling convention: old `Open77.exports.call('opx77_inventory', X, ...)` + promise → new `OPX.Api.Get('inventory').X(...)` from code inside opx_infinity only. No Open77 exports exist any more. The old `EXPORTS.READ` / `EXPORTS.WRITERS` caller gates are gone.
+
+**opx77_inventory server exports**
+
+| Old export | New equivalent | Shape change |
+|---|---|---|
+| `AddItem(target, name, count, metadata)` | contract `AddItem` (same args) | `{ok, added}` → Result `true` |
+| `RemoveItem` | contract `RemoveItem` | `{ok, removed}` → Result `true` |
+| `RemoveFromSlot` | contract `RemoveFromSlot` | `{ok, removed}` → Result `true` |
+| `SetMetadata` | contract `SetMetadata` | Result `true` |
+| `ClearInventory` | contract `ClearInventory` | Result `true` |
+| `GetItemCount` | contract `GetItemCount` | `{ok, count}` → Result integer |
+| `HasItem` | contract `HasItem` | `{ok, result, count}` → Result boolean (no count) |
+| `CanCarry` | contract `CanCarry` | `{ok, result, reason}` → Result boolean (no reason) |
+| `GetInventory(target, {offset, limit})` | contract `GetInventory(target)` | no paging; whole bag `{id, kind, title, slots, maxWeight, weight, items}` (old had `citizenId`, `total`, `nextOffset`) |
+| `GetSlot` | contract `GetSlot` | `{ok, item}` → Result `{slot,name,count,metadata}` or Result nil |
+| `GetItem(name)` | contract `GetItem(name)` | plain table or nil; `weapon`/`ammo` now booleans (old had `weapon = {record,class,ammo}`, `ammo = {max}`); `name` field not included |
+| `GetItems({offset})` | contract `GetItems()` | no paging; `{ [name] = item }` |
+| `GetHeldWeapon(playerId)` | contract `GetHeldWeapon(playerId)` | `{name, serial, slot}` or nil (old `{name, serial, record, drawn}`) |
+| `OpenStash(playerId, name, options)` | contract `OpenStash` (same args) | Result container id |
+| `CloseInventory(playerId)` | contract `CloseInventory` | Result `true` |
+| `RegisterUsable(name, exportName)` | contract `RegisterUsable(name, handlerFn, owner?)` | takes a Lua function, not an export name; answers `ok, code` |
+| `UnregisterUsable(name)` | contract `UnregisterUsable(name, owner?)` | boolean; must pass the same `owner` |
+| — | new: `CountWhere`, `AddToTrunk`, `RemoveFromTrunk`, `CountInTrunk`, `TrunkLocked`, `Holders`, `ResizeContainer`, `DeleteContainer`, `Withdraw`, `Deposit`, `CurrencyWired`, `HolsterWeapon` (Result `{ name, serial }`; errors `bad_argument`, `not_armed`) | |
+
+**opx77_inventory client exports**
+
+| Old export | New equivalent |
+|---|---|
+| `Open` | client contract `Open` (returns nothing) |
+| `Close` | client contract `Close` |
+| `IsOpen` | client contract `IsOpen` (boolean, not `{ok, open}`) |
+| `GetInventory` | client contract `GetInventory` (table or nil; no `not_loaded` code) |
+| `GetItemCount` | client contract `GetItemCount` (integer) |
+| `HasItem` | client contract `HasItem` (boolean) |
+| `GetItem` | client contract `GetItem` (table or nil) |
+| `GetHeldWeapon` | client contract `GetHeldWeapon` |
+| `OpenStash` | client contract `OpenStash` (returns nothing) |
+| `contextCanOpenTrunk`, `contextOpenTrunk`, `contextCanOpenGlovebox`, `contextOpenGlovebox` | removed; the module registers its own rows through the `target` contract (`inventory.trunk`, `inventory.glovebox`) |
+
+**opx77_inventory events**
+
+| Old | New |
+|---|---|
+| `opx77:inventory:changed` | `opx:on:inventory:changed` (client local, same payload) |
+| `opx77:inventory:used` | `opx:on:inventory:used` |
+| `opx77:inventory:armed` | `opx:on:inventory:armed` |
+| `opx77:inventory:opened` | `opx:on:inventory:opened` |
+| `opx77:inventory:closed` | `opx:on:inventory:closed` |
+| `opx77_inventory:hello`, `:request`, `:answer`, `:own`, `:container`, `:secondary`, `:nearby`, `:open`, `:reset`, `:used`, `:armed`, `:drops`, `:drop` | `opx:net:inventory:<same verb>` (still private wire) |
+| `opx77_inventory:close`, `:commandAnswer`, `:pilePrompt`, `:stashPrompt` | removed (commands answer through `OPX.CommandNotice`; prompts are `target` rows) |
+
+Note: new `opx:on:` client events are reachable only inside opx_infinity's client VM.
+
+**opx77_inventory commands**
+
+| Old | New |
+|---|---|
+| `opx77.inventory.give` | `/opx.inventory.give` (ACL `command.opx.inventory.give`) |
+| `opx77.inventory.remove` | `/opx.inventory.remove` |
+| `opx77.inventory.clear` | `/opx.inventory.clear` |
+| `opx77.inventory.open` | `/opx.inventory.open` |
+| `opx77.inventory.holders` | `/opx.inventory.holders` (answers in the command result, not `chat:addMessage`) |
+| — | new: `/opx.withdraw` (alias `/withdraw`), open to everyone |
+
+**opx77_inventory config keys**
+
+| Old | New |
+|---|---|
+| `LOCALE`, `CORE`, `EXPORTS` (`READ`, `WRITERS`), `TOAST_MS`, `COMMANDS` | removed (runtime locale, no cross-resource calls, ACL rights per command) |
+| `DROPS.PROMPT_KEY` | removed (piles use a `target` row) |
+| `STASH` + `STASHES` | `STASHES` only (same entry fields) |
+| `BAG`, `DEFAULT_ITEM_WEIGHT`, `MAX_STACK`, `MAX_METADATA_BYTES`, `REACH`, `HOTBAR`, `KEYS`, `USE_COOLDOWN_MS`, `USE_HANDLER_MS`, `RATE_LIMIT`, `SAVE`, `DROPS`, `TRUNK`, `GLOVEBOX`, `BIKES`, `WEAPONS`, `NEARBY`, `TABS`, `MAX_COMMAND_COUNT` | same names in `config/inventory.lua` |
+| — | new: `TRUNK_OWNER_ONLY`, `CURRENCY`, `KEYS.PEEK`, `HOTBAR.PEEK_MS` |
+
+**opx77_core inventory exports**
+
+| Old export | New equivalent |
+|---|---|
+| `InventoryEnsure` | removed; internal `Storage.Ensure` (`modules/inventory/server/storage.lua`) |
+| `InventoryRead` | removed; internal `Storage.Contents` |
+| `InventoryStage` / `InventoryCommit` | removed; one transaction in internal `Storage.Save` (no staging protocol) |
+| `InventoryResize` | contract `inventory.ResizeContainer(kind, owner, slots, maxWeight)` (by kind/owner, not id) |
+| `InventoryDelete` | contract `inventory.DeleteContainer(kind, owner)` |
+| `InventoryHolders` | contract `inventory.Holders(name, limit)` |
+| `GetIdentity` (used by inventory) | `character` contract `GetPlayer` / `GetPlayerByCitizenId` / `GetCharacter` |
+| `GetChanges` (used by inventory) | removed; `character` raises `opx:in:character:loaded/unloaded/deleted` |
+| `GetVehiclePlate` (used by inventory) | `vehicles` contract `PlateOf(vehicleId)` |
+| `INVENTORY` config in old `config/server.lua` (`LINKED_KINDS`, `PAGE_ROWS`, …) | removed; linked kinds are fixed in `modules/inventory/module.lua` (`M.LINKED`) |
+
+</Accordion>
+<Accordion title="opx77_appearance">
+
+`opx77_appearance` is replaced by the `appearance` module. The face/clothing save side that lived in `opx77_core` (events `opx77:server:saveAppearance`, `opx77:server:saveClothing`, `opx77:client:appearanceSaved/clothingSaved/refused`) is now the `appearance` module's own server half. The `clothing` module (stores) is new; no old resource had it.
+
+Big change: old exports were reachable from any resource through `Open77.exports.call`. The new contract `appearance` is reachable only from code inside opx_infinity (`OPX.Api.Get('appearance')`). The client decision event is also VM-local now.
+
+**Exports (all were client)**
+
+| Old (`opx77_appearance`) | New |
+|---|---|
+| `getSkin` | client contract `appearance.GetSkin` |
+| `captureSkin` | `appearance.CaptureSkin` |
+| `getFamily` | `appearance.GetFamily` |
+| `setSkin` | `appearance.SetSkin` |
+| `saveSkin` | `appearance.SaveSkin` |
+| `openEditor` | `appearance.OpenEditor` |
+| `openCreator` | `appearance.OpenCreator` |
+| `isOpen` | `appearance.IsOpen` (also reports `panel`, `wardrobe`) |
+| `openPanel` | `appearance.OpenPanel(owner)` (owner name now required) |
+| `closePanel` | `appearance.ClosePanel(owner)` |
+| `isSettled` | `appearance.IsSettled` |
+| `state` | `appearance.State` |
+| (none) | new client: `OpenWardrobe`, `CloseWardrobe`, `OfferWardrobeGroups`, `DressWardrobe`, `BeginClothingPreview`, `EndClothingPreview` |
+| (none; core held face/clothing) | new server: `GetAppearance`, `SaveAppearance`, `GetClothing`, `SaveClothing`, `OpenWardrobe`, `AllowClothingSave` |
+
+**Events**
+
+| Old | New |
+|---|---|
+| `opx77:server:saveAppearance` (to core) | `opx:net:appearance:saveFace` |
+| `opx77:server:saveClothing` (to core) | `opx:net:appearance:saveClothing` (now needs a fitting-room grant) |
+| `opx77:client:appearanceSaved` | `opx:net:appearance:faceSaved` |
+| `opx77:client:clothingSaved` | `opx:net:appearance:clothingSaved` |
+| `opx77:client:refused` | `opx:net:appearance:refused` (`code, operation`) |
+| `open77:session:gameplayReady` | unchanged (host event, still sent by this module) |
+| `opx77_appearance:present` / `presentAck` / `replay` / `replayed` / `look` / `absent` / `resend` | `opx:net:appearance:present` / `presentAck` / `replay` / `replayed` / `look` / `absent` / `resend` |
+| `opx77:appearance` (name from `EVENT` config) | `opx:on:appearance:decision` (fixed name; client-local, same-VM only). Adds `wardrobeWanted`, `wardrobeOpened`, `wardrobeClosed`, `wardrobeGroup` |
+| `opx77_appearance:panel` (from `opx77_menu`) | the view seam: `opx:on:appearance:view` out, `M.FromView` in (internal) |
+| `opx77:client:charactersReady` / `onPlayerLoaded` / `playerDataChanged` / `onPlayerUnloaded` (listened) | `opx:on:character:loaded` / `changed` / `unloaded` (listened) |
+| (none) | `opx:net:appearance:show`, `opx:net:appearance:openWardrobe`, `opx:net:appearance:openPanel` (no sender) |
+
+**Commands and keys**
+
+| Old | New |
+|---|---|
+| no command | `/opx.appearance` (everyone): toggles the panel |
+| key `opx77_appearance.panel`, F5 (`KEYS.PANEL`) | removed; no key. Use `/opx.appearance` |
+| (none) | `/opx.clothing.add`, `/opx.clothing.remove`, `/opx.clothing.list` (ACL), store key `opx.clothing.use` (E) |
+
+**Config (`OPX_APPEARANCE_CONFIG` -> `OPX.Config.MODULES.appearance`)**
+
+| Old key | New |
+|---|---|
+| `LOCALE` | removed from this config |
+| `EVENT` | removed (event name fixed) |
+| `NOTIFY` | removed from this config |
+| `KEYS.PANEL` | removed |
+| `PRESENT_BODIES`, `GAME_BUILDS`, `COMMIT_MS`, `SAVE_COOLDOWN_MS`, `CLOTHING.PERSIST`, `CLOTHING.SAVE_DEBOUNCE_MS`, `RESTORE_RETRIES`, `FAMILY_RETRIES`, `BODY_RELOAD_SETTLE_MS`, `CREATION_WAIT_MS`, `BOOTSTRAP.DEFAULT_FAMILY` | same names |
+| `BOOTSTRAP.ROSTER_WAIT_MS` | closest: `BOOTSTRAP.CHOICE_WAIT_MS` (+ new `CHOICE_CEILING_MS`) |
+| (none) | new: `enabled`, `MAX_JSON_BYTES`, `BODY_RELOAD_TIMEOUT_MS`, `WARDROBE.*` |
+
+**Data**
+
+Table names keep the `opx77_` prefix: face in `opx77_characters.appearance`, clothing in `opx77_character_clothing`, stores in `opx77_clothing` (new).
+
+</Accordion>
+<Accordion title="opx77_admin">
+
+`opx77_admin` is replaced by the `admin` module of opx_infinity. All command names lose the `77`
+(`opx77.admin.*` -> `opx.admin.*`), so ACL rights change from `command.opx77.admin[.*]` to
+`command.opx.admin` + `command.opx.admin.*`. Exports are gone (opx_infinity publishes none); the
+client open/close/state are now the in-VM `admin` client contract.
+
+**Commands**
+
+| Old (opx77_admin) | New |
+|---|---|
+| `opx77.admin` | `opx.admin` |
+| `opx77.admin.self.noclip` / `.speed` / `.maptravel` / `.god` / `.heal` / `.revive` / `.pos` | `opx.admin.self.noclip` / `.speed` / `.maptravel` / `.god` / `.heal` / `.revive` / `.pos` |
+| — | new: `opx.admin.self.invisible`, `opx.admin.self.tags`, `opx.admin.self.model` |
+| `opx77.admin.player.goto` / `.bring` / `.tp` / `.send` / `.observe` / `.heal` / `.revive` / `.god` / `.health` / `.armor` / `.kill` | `opx.admin.player.*` same verbs |
+| — | new: `opx.admin.player.freeze`, `.model`, `.wardrobe` |
+| — | new: `opx.admin.character.list`, `.find`, `.rename`, `.delete` |
+| `opx77.admin.moderate.kick` / `.ban` | `opx.admin.moderate.kick` / `.ban` |
+| `opx77.admin.vehicle.spawn` / `.give` / `.repair` / `.flag` / `.remove` / `.cleanup` | `opx.admin.vehicle.*` same verbs |
+| — | new: `opx.admin.vehicle.enter`, `opx.admin.vehicle.key` |
+| `opx77.admin.weapon.give` / `.giveammo` / `.ammo` / `.remove` / `.holster` / `.read` | `opx.admin.weapon.*` same verbs (`holster` goes through the inventory contract's `HolsterWeapon`, answers `admin.done.holstered`; refuses `not_armed` when the target is unarmed, `holster_unavailable` when the contract is missing or fails) |
+| `opx77.admin.inventory.view` / `.give` / `.remove` / `.clear` | `opx.admin.inventory.*` same verbs |
+| `opx77.admin.world.announce` / `.loc.add` / `.loc.remove` | `opx.admin.world.announce` / `.loc.add` / `.loc.remove` |
+| — | new: `opx.admin.world.pvp`, `opx.admin.world.door` |
+| `opx77.admin.read.status` / `.audit` | `opx.admin.read.status` / `.audit` |
+| `opx77.admin.read.players` | removed; use the menu's Players screen, `opx.players` (LINKS.PLAYERS), or server contract `admin.Roster()` |
+| `opx77.admin.read.locations` | removed; the menu's Locations screen |
+| Linked: `opx77.where`, `opx77.job`, `opx77.gang`, `opx77.money`, `opx77`, `opx77.save`, `opx77.inventory.open`, `opx77.inventory.holders`, `opx77.weather.set/.next/.freeze`, `opx77.weather.time`, `opx77.weather.time.freeze` | `LINKS`: `opx.where`, `opx.job`, `opx.gang`, `opx.money`, `opx.players`, `opx.save`, `opx.inventory.open`, `opx.inventory.holders`, `opx.weather.set/.next/.freeze`, `opx.time`, `opx.time.freeze` |
+| — | short aliases (config/server.lua COMMAND_ALIASES): noclip, god, invis, heal, revive, speed, pos, goto, bring, tp, freeze, spectate, addweapon, addammo, delweapon, car, fix, dv, announce |
+
+**Exports (were client-side, `Open77.exports.call("opx77_admin", ...)`)**
+
+| Old | New |
+|---|---|
+| `open` | client contract `OPX.Api.Get('admin').Open()` — only from code inside opx_infinity. No cross-resource equivalent. |
+| `close` | client contract `Close()` |
+| `state` | client contract `State()` -> `{ ok, value = { open, screen } }` |
+| — | new: client `OpenAt(screen, arg?, form?)`; server `IsStaff`, `Roster`, `RecentActions` |
+| error `export_call_required`, `menu_not_running` | removed (no exports); `not_sent` kept |
+
+**Events**
+
+| Old | New |
+|---|---|
+| `opx77_admin:open` | `opx:net:admin:open` |
+| `opx77_admin:roster` | `opx:net:admin:roster` |
+| `opx77_admin:locations` | `opx:net:admin:locations` |
+| `opx77_admin:items` | `opx:net:admin:items` |
+| `opx77_admin:bag` | `opx:net:admin:bag` |
+| `opx77_admin:access` | `opx:net:admin:access` |
+| `opx77_admin:travel` | `opx:net:admin:travel` |
+| `opx77_admin:answer` | `opx:net:admin:answer` |
+| `opx77_admin:refresh` | `opx:net:admin:refresh` (new topics `characters`, `found`) |
+| `opx77_admin:row`, `opx77_admin:form` (menu/input local bus) | removed; the menu and form modules are called through their contracts in-VM |
+| `chat:addSuggestions` / `chat:ready` handling | removed from admin; core `OPX.Command.Register` owns suggestions |
+| `chat:addMessage` for announcements | replaced by `opx:net:admin:announce` + `OPX.CommandResult` chat line |
+| `open77:weapons:completed` (holster relay) | removed from admin; the `inventory` module listens to it and reads the rounds back when `HolsterWeapon` puts the weapon away |
+| — | new: `opx:net:admin:characters`, `found`, `bodies`, `tagsState`, `tagRows`, `doors`, `door`, `pvp`, `announce`, `noclipBody`, `tagsRestore`, `doorsHello`, `pvpRequest`, `targetReport`; local `opx:on:admin:tags` |
+
+**Config**
+
+| Old key | New |
+|---|---|
+| `LOCALE` | removed (runtime locale) |
+| `INVENTORY.RESOURCE` | removed; the `inventory` contract is used |
+| `KEYS`, `RATE`, `AUDIT_ENTRIES`, `TOAST_MS`, `PLACEMENT`, `NOCLIP`, `ANNOUNCE`, `BAN_DURATIONS`, `VEHICLES`, `INVENTORY`, `LINKS`, `WEATHER_PRESETS`, `TIMES`, `LOCATIONS` | same names in `config/admin.lua` (several now tunables `ADMIN_*`) |
+| — | new: `enabled`, `TARGET`, `MODELS`, `COMBAT`, `TAGS`, `DOORS`, `ANNOUNCE.STINGER` |
+
+</Accordion>
+<Accordion title="opx77_status, opx77_hud, opx77_prompts">
+
+General: every old `Open77.exports.call("opx77_x", ...)` becomes an in-process contract call `OPX.Api.Get('<module>').<Fn>(...)`, reachable only from code inside opx_infinity. Callers that were identified by `GetInvokingResource()` / the export bus now pass their own name as the first `owner` argument. The `export_call_required`, `export_not_found` and `no_surface` failure modes are gone. Results are `{ ok, value }` / `{ ok = false, error, detail }` (values move under `value`).
+
+**opx77_status -> needs**
+
+| Old | New |
+|---|---|
+| export `addEffect(spec)` | client `needs.AddEffect(owner, spec)` -> `value.id` |
+| export `updateEffect(id, patch)` | client `needs.UpdateEffect(owner, id, patch)` |
+| export `removeEffect(id)` | client `needs.RemoveEffect(owner, id)` |
+| export `clearEffects()` | client `needs.ClearEffects(owner)` -> `value.removed` |
+| export `getNeeds()` | client `needs.GetNeeds()` -> `value = { values, citizenId, ready }` |
+| export `setNeeds(patch)` | client `needs.SetNeeds(patch)` |
+| export `addNeeds(patch)` | client `needs.AddNeeds(patch)` |
+| local event `opx77:status` | `opx:on:needs:effect` (same payload shape: status, owner, action, label, tone, data); `spec.event` still raised |
+| local event `opx77:status:effects` | `opx:on:needs:effects` |
+| local event `opx77:status:needs` | `opx:on:needs:changed` (adds source `unloaded`) |
+| net `opx77_status:pull` / `:values` / `:push` / `:pushed` | `opx:net:needs:pull` / `values` / `push` / `pushed` |
+| error `export_call_required` | removed |
+| new error | `invalid_owner` (owner name malformed) |
+| config `NEEDS_EVENT` | removed (event name fixed) |
+| config `ANCHOR`, `OFFSET`, `MAX_VISIBLE`, `NEEDS`, `DECAY_MS`, `PUSH_MS`, `PUSH_DELTA`, `AUTOSAVE_MS` | same keys in `config/needs.lua` |
+| table `opx77_character_status` | same table, same schema: existing rows load unchanged |
+
+**opx77_hud -> hud**
+
+| Old | New |
+|---|---|
+| command `/hud [on\|off\|show\|hide]` | removed, no equivalent |
+| key mapping `opx77_hud.toggle` (F8) | removed, no equivalent |
+| export `setVisible(value)` | client `hud.SetVisible(value)` |
+| export `isVisible()` | client `hud.IsVisible()` -> adds `covered` |
+| export `vanilla()` | client `hud.Vanilla()` |
+| (none) | new client `hud.ApplyVanilla()` |
+| net `opx77_hud:visibility` | removed (was internal to `/hud`) |
+| net `opx77_hud:notice` | removed |
+| (none) | new local event `opx:on:hud:visibility` |
+| listened `opx77:client:onPlayerLoaded` / `playerDataChanged` / `onPlayerUnloaded` | `opx:on:character:loaded` / `changed`, `money`, `job` / `unloaded` |
+| listened `opx77:status:needs`, `opx77:status:effects` | `opx:on:needs:changed`, `opx:on:needs:effects` |
+| page channels `hud:frame`, `hud:hide`, `hud:diag` | split into `hud:config`, `hud:vitals`, `hud:info`, `hud:status`, `hud:voice`, `hud:vehicle`, `hud:show`; `hud:ready` kept; no `hud:diag` |
+| config `ANCHOR`, `WIDTH`, `INFO_ANCHOR`, `VANILLA` | same names |
+| config `BLOCKS` | closest: `GAUGES`, `VOICE`, `VEHICLE`, `MONEY`, `SHOW_JOB`, `SHOW_CRED` (not a 1:1 mapping, not verified field by field) |
+| config `NEEDS_THRESHOLD` | closest: `TONE_WARN`, `TONE_BAD` |
+| config `LOCALE`, `COMMAND`, `NOTIFY`, `KEYS` | removed |
+| VANILLA default | now hides every component except `minimap` (crosshair, scanner, phone hidden too) and hides unnamed components |
+
+**opx77_prompts -> prompts**
+
+| Old | New |
+|---|---|
+| export `show(id, spec)` | client `prompts.Show(owner, id, spec)`; server `prompts.Show(source, owner, id, spec)` |
+| export `update(id, patch)` | client `prompts.Update(owner, id, patch)`; server `prompts.Update(source, owner, id, patch)` |
+| export `hide(id)` | client `prompts.Hide(owner, id)`; server `prompts.Hide(source, owner, id)` |
+| export `hideAll()` | client `prompts.HideAll(owner)`; server `prompts.HideAll(source, owner)` |
+| export `list()` | client `prompts.List(owner)` |
+| net `opx77_prompts:show` / `update` / `hide` / `hideAll` | `opx:net:prompts:show` / `update` / `hide` / `hideAll` (same envelopes; prefer the server contract) |
+| key entry `{ mapping = 'id' }` / `'resource\|id'` / `resource =` | `{ action = '<key mapping id>', fallback = 'E' }` |
+| codes `invalid_prompt_id`, `spec_must_be_a_table`, `invalid_title`, `invalid_priority`, `rows_required`, `too_many_rows`, `invalid_row`, `invalid_row_id`, `duplicate_row_id`, `invalid_label`, `invalid_value`, `invalid_hold/combo/dim`, `keys_required`, `too_many_keys`, `invalid_key`, `invalid_fallback`, `owner_limit`, `prompt_limit`, `prompt_not_found`, `patch_must_be_a_table`, `invalid_values`, `rows_and_values`, `row_not_found` | `prompts.invalidId`, `prompts.invalidSpec`, `prompts.invalidTitle`, `prompts.invalidPriority`, `prompts.rowsRequired`, `prompts.tooManyRows`, `prompts.invalidRow`, `prompts.invalidRowId`, `prompts.duplicateRowId`, `prompts.invalidLabel`, `prompts.invalidValue`, `prompts.invalidHold/Combo/Dim`, `prompts.keysRequired`, `prompts.tooManyKeys`, `prompts.invalidKey`, `prompts.invalidFallback`, `prompts.ownerLimit`, `prompts.limit`, `prompts.notFound`, `prompts.invalidPatch`, `prompts.invalidValues`, `prompts.rowsAndValues`, `prompts.rowNotFound` |
+| codes `invalid_mapping`, `export_call_required`, `no_surface` | removed |
+| new codes | `prompts.invalidOwner`, `prompts.invalidPlayer` (server) |
+| config `ANCHOR`, `OFFSET`, `MAX_WIDTH`, `MAX_ROWS`, `HIDE_WHEN_CAPTURED`, `FOLLOW_HUD` | same names; new `TICK_MS`, `OWNER_SWEEP_MS` |
+| config `LOCALE` | removed |
+| row `hold` tag | still accepted, no longer drawn by the page |
+
+**Modules with no old opx77_* page**
+
+`downed`, `progress`, `target`, `calls` have no counterpart among the 16 documented `opx77_*` resources. `downed`'s locale keys keep the `medic.` prefix; its `SUSPENDERS` default is `{ admin = true }` (keys are module ids passed to `Suspend`; `opx77_admin` is no longer listed).
+
+</Accordion>
+<Accordion title="opx77_menu, opx77_input, opx77_chat, opx77_weather, opx77_elevators, opx77_animations">
+
+General: every old `Open77.exports.call("opx77_x", ...)` is gone. opx_infinity publishes no exports; the replacements are contracts (`OPX.Api.Get('<id>')`) reachable only from code inside opx_infinity. `export_call_required` and every "owner from the host" rule are gone: the caller now names `owner` itself in the spec.
+
+**opx77_menu -> menu**
+
+| Old | New |
+|---|---|
+| export `open(spec)` | `menu.Open(spec)` (client contract). `spec.owner` and `spec.on` (callback) are now required. |
+| `spec.event` / item `event` (your own event name) | removed. Use `spec.on(payload)`; per-row `act(payload)`. |
+| export `update` | `menu.Update(handle?, patch)` |
+| export `close` | `menu.Close(handle, reason?)` |
+| export `state` | `menu.State()` (no "is it mine" flag; compare `owner`) |
+| export `setStatus` | `menu.SetStatus(handle?, text, bad?)` — now a toast, not a line under the list |
+| export `keys` | `menu.Keys()` |
+| event `opx77:menu` (local, every action) | `opx:on:menu:action` (client local, in-VM only) |
+| — | new: `opx:on:menu:state` `{ open }`, `focus` mode (`none`/`cursor`/`full`), `closable`, geometry per spec, row `icon`, row `submenu = true` |
+| codes `invalid_menu_event`, `invalid_item_event`, `export_call_required` | removed |
+| close reason `owner_reloaded` | removed; `superseded`, `dismissed`, `pause`, `player_down`, `stopped` exist |
+
+**opx77_input -> form**
+
+| Old | New |
+|---|---|
+| export `open(spec)` | `form.Open(spec)`; `owner`, `on` required |
+| `spec.event` | removed; use `spec.on(payload)` |
+| export `close` | `form.Close(handle)` |
+| export `state` | `form.State()` |
+| export `setStatus` | `form.SetStatus(handle?, text, bad?)` |
+| event `opx77:input` | `opx:on:form:answer` (client local) |
+| code `input_busy` | `form_busy` |
+| codes `keyboard_busy`, `no_keyboard`, `invalid_event`, `export_call_required` | removed |
+| cancel reason `escape` | `dismissed` |
+| cancel reason `owner_reloaded` | removed |
+| cancel reason `input_stopped` | `stopped` |
+| form-spec fields (`maxLength`, `charset`, `pattern`, `required`, `options`, `slider`, limits) | unchanged |
+
+**(no old resource) -> panel**
+
+New module. Nearest old surface was none; shops/clothing used their own UIs.
+
+**opx77_chat -> chat**
+
+| Old | New |
+|---|---|
+| export `addMessage` | `chat.AddMessage(message)` (client contract) |
+| export `clearMessages` | `chat.ClearMessages()` |
+| export `addSuggestion` | `chat.AddSuggestion(...)` |
+| export `removeSuggestion` | `chat.RemoveSuggestion(name)` |
+| export `setEnabled` / `isEnabled` | `chat.SetEnabled(v)` / `chat.IsEnabled()` (global, not per calling resource) |
+| net `chat:submit` (client -> server) | `opx:net:chat:say` for messages; commands go straight to `open77:command:execute` |
+| net `chat:ready` | `opx:net:chat:ready` (answered with `opx:net:chat:suggestions`) |
+| net server -> client `chat:addMessage` | removed. Nearest: `opx:net:chat:message` `{ kind, author, text }` (registered by opx_infinity's client; reachability from another server resource not verified) |
+| net `chat:addSuggestion`, `chat:addSuggestions`, `chat:removeSuggestion`, `chat:clearSuggestions` | removed; completions come from `OPX.Command.Register` automatically |
+| net `chat:clear`, `chat:setEnabled` | removed; no server-side equivalent |
+| local `chat:open` / `chat:close` | removed; open with `open77:chat:open` (key `T`), close with `open77:pauseKey` |
+| local `chat:commandSubmitted` | `opx:on:chat:submitted` `{ text, tokens }` |
+| `open77:command:result` handling | unchanged (refusals become toasts) |
+
+**opx77_weather -> weather**
+
+| Old | New |
+|---|---|
+| client export `state` | `weather.State()` client contract (same fields, flat table) |
+| — | new server contract: `Ready, Status, StatusText, Presets, SetTime, SetTimeFrozen, SetDayLength, SetWeather, SetWeatherFrozen, Roll` |
+| net `opx77:weather:request` | `opx:net:weather:request` |
+| net `opx77:weather:sync` | `opx:net:weather:sync` (same snapshot fields) |
+| net `opx77_weather:notice` | removed; answers are toasts (`OPX.CommandNotice`) or chat read-backs (`OPX.CommandResult`) through `OPX.Command.Register` |
+| local `opx77:weather:updated` | `opx:on:weather:updated` (client local) |
+| net `chat:ready` -> `chat:addSuggestions` | removed; completions come from `OPX.Command.Register` |
+| cmd `opx77.weather` | `/opx.weather` |
+| cmd `opx77.weather.presets` | `/opx.weather.presets` |
+| cmd `opx77.weather.set` | `/opx.weather.set` |
+| cmd `opx77.weather.next` | `/opx.weather.next` |
+| cmd `opx77.weather.freeze` | `/opx.weather.freeze` |
+| cmd `opx77.weather.time` | `/opx.time` |
+| cmd `opx77.weather.time.freeze` | `/opx.time.freeze` |
+| cmd `opx77.weather.daylength` | `/opx.time.length` |
+| ACL `command.opx77.weather.*` | `command.opx.weather.set/next/freeze`, `command.opx.time`, `command.opx.time.freeze`, `command.opx.time.length` |
+
+**opx77_elevators -> elevators**
+
+| Old | New |
+|---|---|
+| export `floors` | `elevators.Floors(key?)` client; also server `Floors(source, key)` |
+| export `isFloorAllowed` | `elevators.IsFloorAllowed(key?, index)` client; also server `IsFloorAllowed(source, key, index)` |
+| export `requestFloor` | `elevators.RequestFloor(key?, index, origin?)` |
+| export `openPanel` | `elevators.OpenPanel(key?)` |
+| export `nearestElevator` | `elevators.NearestElevator()` |
+| export `state` | `elevators.State()` client; new server `State()` |
+| net `opx77_elevators:sighted` / `:request` | `opx:net:elevators:sighted` / `opx:net:elevators:request` |
+| net `opx77_elevators:bound` / `:answer` / `:released` | `opx:net:elevators:bound` / `:answer` / `:released` |
+| local `opx77:elevators` (decision) | `opx:on:elevators:decision` |
+| local `opx77_elevators:floor` (menu row event) | removed (menu callback) |
+| `opx77:client:onPlayerLoaded`/`playerDataChanged`/`onPlayerUnloaded` listeners | removed; the client polls the character contract every `POLL_MS` |
+| `chat:addMessage` fallback | `chat.AddMessage` contract |
+| cmd `opx77.elevators.where` | `/opx.elevators.where` (ACL `command.opx.elevators.where`) |
+| config `config.lua` of the resource | `config/elevators.lua`, same keys; rate/travel now tunables `ELEV_*` |
+| — | new: key `opx.elevators.use` (E, `KEY`; `DEFAULT = false` leaves `OpenPanel` the only way in); `prompts` is optional |
+
+**(no old resource) -> teleports**
+
+New module. Job gate shared with elevators (`OPX.JobGate`).
+
+**opx77_animations -> animations**
+
+| Old | New |
+|---|---|
+| exports `play`, `stop`, `state`, `list`, `categories`, `get`, `openPicker`, `closePicker` | `animations.Play/Stop/State/List/Categories/Get/OpenPicker/ClosePicker` (client contract). `Play`/`Stop` take an extra `owner` (module id) instead of the host-named resource. |
+| local `opx77:animations:result` / `:changed` / `:failed` | `opx:on:animations:result` / `:changed` / `:failed` |
+| local `opx77_animations:row` (menu row event) | removed (menu callback) |
+| net `opx77_animations:play/stop/hello/offer/answer/picker/cancel` | `opx:net:animations:play/stop/hello/offer/answer/picker/cancel`; `play` options now carry `cancelable` and `override`; `answer` detail adds `cancelable`, `durationMs` |
+| net `opx77_animations:notice` | removed; command notices go through core's `OPX.CommandNotice` |
+| net `chat:ready` / `chat:addSuggestions` / `chat:addMessage` | removed; completions from `OPX.Command.Register`, list via `OPX.CommandResult` |
+| `onClientResourceStop` ending another resource's animation | owner sweep: the animation ends when the `owner` module stops |
+| cmd `opx77.anim` / `e` / `opx77.anim.stop` / `opx77.anim.list` | `/opx.anim` / `/e` / `/opx.anim.stop` / `/opx.anim.list` |
+| — | new: non-cancelable plays (`cancelable = false`), `WALK_PACES`, `PRESENTER` |
+
+</Accordion>
+</Accordions>

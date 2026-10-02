@@ -1,0 +1,70 @@
+---
+title: Client
+description: The progress contract on the client — put a bar up, take it down, read whether one is up.
+---
+
+```lua
+local progress = OPX.Api.Get('progress')
+```
+
+From client code inside opx_infinity. Each function answers a Result. None yields.
+
+## Start [#client-progress-start]
+
+Puts a bar up. Answers whether the bar is up, not whether the action happened: the outcome arrives on [`opx:on:progress:done`](/docs/opx_infinity/progress/events#opx-on-progress-done).
+
+```lua
+progress.Start(owner, spec)
+```
+
+**Parameters**
+- owner: `string`
+  - Your module name; needed for `Stop`.
+- spec: `table`
+  - label: `string`
+    - Required. Cut to 64 bytes. Your own text.
+  - durationMs: `number`
+    - Required. Between `MIN_MS` and `MAX_MS`.
+  - animation?: `table`
+    - `{ name, variant? }`. Played through `animations.Play` (looped, not cancellable) and stopped with the bar. Ignored if `animations` is not running or refuses it.
+  - cancelable?: `boolean`
+    - Default `false`. Lets the player cancel the bar with [`CANCEL_KEY`](/docs/opx_infinity/progress#config-progress-cancel-key).
+
+**Returns**
+- `Result` — `{ owner, durationMs }`; errors `invalid_caller`, `invalid_spec`, `progress_busy`, `invalid_duration`, `invalid_label`
+
+```lua title="Example"
+local r = progress.Start('mymodule', { label = 'Eating', durationMs = 4000 })
+AddEventHandler('opx:on:progress:done', function(done)
+  if done.owner == 'mymodule' and done.finished then --[[ apply the effect ]] end
+end)
+```
+
+## Stop [#client-progress-stop]
+
+Takes the owner's bar down early.
+
+```lua
+progress.Stop(owner, ending)
+```
+
+**Parameters**
+- owner: `string`
+- ending?: `string`
+  - `'cancelled'` reports `cancelled`; anything else reports `stopped`.
+
+**Returns**
+- `Result` — `true`; errors `progress_not_active`, `not_owner`
+
+## State [#client-progress-state]
+
+Whether a bar is up, and whose.
+
+```lua
+progress.State()
+```
+
+**Returns**
+- `Result`
+  - `{ open = false }`
+  - or `{ open = true, owner, label, remainingMs }`

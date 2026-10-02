@@ -1,0 +1,51 @@
+---
+title: menu
+description: The keyboard-driven list menu that other client modules open through the menu contract, and the spec format it accepts.
+---
+
+Draws one list menu at a time: a titled strip of rows the player moves through with the arrow keys and chooses with Enter. No content of its own: other client modules (admin, elevators, animations, garages, shops…) build a [spec](/docs/opx_infinity/menu/client#the-menu-spec), call [`Open`](/docs/opx_infinity/menu/client#client-menu-open) and get a callback for every choice. For picking from a short list, toggling a setting or stepping through submenus.
+
+| | |
+|---|---|
+| Side | client |
+| Requires | none |
+| Optional | `downed` (no menu opens over a downed player) |
+| Contract | `menu` v1 — [client](/docs/opx_infinity/menu/client) |
+| Config | `config/menu.lua` (shared) |
+| Data | none |
+
+## Configuration
+
+`config/menu.lua` sets `OPX.Config.MODULES.menu`. Shared script. Defaults a spec may override per menu.
+
+| Key | Default | Effect |
+|---|---|---|
+| <a id="config-menu-enabled" />`enabled` | `true` | `false` switches the module off; `OPX.Api.Get('menu')` then answers nil. |
+| <a id="config-menu-anchor" />`ANCHOR` | `'top-left'` | `top-left`, `top-right`, `left`, `right` or `center`. Anything else reads as `top-left`. |
+| <a id="config-menu-width" />`WIDTH` | `340` | Pixels, clamped 240..1200. |
+| <a id="config-menu-max-height-vh" />`MAX_HEIGHT_VH` | `56` | Maximum height in viewport %, clamped 20..100. |
+| <a id="config-menu-visible-rows" />`VISIBLE_ROWS` | `9` | Rows drawn at once, clamped 3..24. |
+| <a id="config-menu-while-down" />`WHILE_DOWN` | `{ admin = true }` | Owners whose menu may open, and stays open, while the player is down. |
+
+## Refusal codes [#codes]
+
+| Code | Meaning |
+|---|---|
+| `spec_must_be_a_table` | `spec` is not a table. |
+| `invalid_owner` | `owner` missing or not a valid name. |
+| `no_surface` | The interactive WebUI surface does not exist. |
+| `player_down` | The player is down and the owner is not in `WHILE_DOWN`. |
+| `menu_busy` | Another owner's menu is open and `steal` was not set. |
+| `callback_required` | `on` is not a function. |
+| `invalid_menu_id`, `invalid_status`, `invalid_focus`, `invalid_closable` | That spec field is malformed. |
+| `invalid_menu_data`, `menu_data_too_large` | `data` is not a table, or over 64 nodes / 4 levels. |
+| `items_must_be_a_table`, `empty_menu`, `only_separators`, `too_many_items` | A level is not a list, is empty, holds only separators, or has more than 200 rows. |
+| `menu_too_large`, `menu_too_deep` | More than 400 rows in the tree, or more than 8 levels. |
+| `item_must_be_a_table`, `invalid_item_id`, `invalid_item_label`, `invalid_item_description`, `invalid_item_icon` | A row field is malformed. |
+| `invalid_item_data`, `item_data_too_large` | A row's `data` is not a table, or too large. |
+| `invalid_slider`, `invalid_slider_range` | `slider` is not a table, or `max` is not above `min`. |
+| `invalid_choices`, `invalid_choice`, `empty_choices` | `choices` is malformed or empty. |
+| `handle_required` | `Close` was called without a handle. |
+| `no_menu_open`, `stale_handle` | Nothing is open, or the handle is not the open menu's. |
+
+Locale keys owned here: `menu.key.choose`, `menu.key.select`, `menu.key.change`, `menu.key.back` (the [`Keys`](/docs/opx_infinity/menu/client#client-menu-keys) labels).

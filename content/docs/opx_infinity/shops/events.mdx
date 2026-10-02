@@ -1,0 +1,141 @@
+---
+title: Events
+description: Network and local events of the shops module.
+---
+
+## opx:net:shops:open [#opx-net-shops-open]
+
+Client → server. Open the fitting room at this shop.
+
+```lua
+TriggerServerEvent('opx:net:shops:open', shopKey)
+```
+
+- shopKey: `string`
+
+## opx:net:shops:bill [#opx-net-shops-bill]
+
+Client → server. The room closed with these slots changed. Ignored when `CHARGE` is off.
+
+```lua
+TriggerServerEvent('opx:net:shops:bill', { shop = shopKey, slots = slots })
+```
+
+- shop: `string`
+- slots: `string[]` — changed slot names
+
+## opx:net:shops:wear [#opx-net-shops-wear]
+
+Client → server. Buy and put on a ready-made look.
+
+```lua
+TriggerServerEvent('opx:net:shops:wear', { shop = shopKey, look = lookKey })
+```
+
+## opx:net:shops:save [#opx-net-shops-save]
+
+Client → server. Save the current clothing as an outfit.
+
+```lua
+TriggerServerEvent('opx:net:shops:save', { name = name })
+```
+
+## opx:net:shops:list [#opx-net-shops-list]
+
+Client → server. Send my saved outfits.
+
+```lua
+TriggerServerEvent('opx:net:shops:list')
+```
+
+## opx:net:shops:load [#opx-net-shops-load]
+
+Client → server. Put on a saved outfit.
+
+```lua
+TriggerServerEvent('opx:net:shops:load', { id = outfitId })
+```
+
+## opx:net:shops:delete [#opx-net-shops-delete]
+
+Client → server. Delete a saved outfit.
+
+```lua
+TriggerServerEvent('opx:net:shops:delete', { id = outfitId })
+```
+
+## opx:net:shops:share [#opx-net-shops-share]
+
+Client → server. Get (or mint) the outfit's share code.
+
+```lua
+TriggerServerEvent('opx:net:shops:share', { id = outfitId })
+```
+
+## opx:net:shops:redeem [#opx-net-shops-redeem]
+
+Client → server. Put on the outfit behind a code.
+
+```lua
+TriggerServerEvent('opx:net:shops:redeem', { code = code })
+```
+
+## opx:net:shops:looks [#opx-net-shops-looks]
+
+Server → client. Looks this player may take here.
+
+```lua
+RegisterNetEvent('opx:net:shops:looks', function(data) end)
+```
+
+- data: `table` — `{ shop, looks = { { id, label, cost } } }`
+
+## opx:net:shops:putOn [#opx-net-shops-puton]
+
+Server → client. Dress in this (already paid and checked).
+
+```lua
+RegisterNetEvent('opx:net:shops:putOn', function(data) end)
+```
+
+- data: `table` — `{ look, wear }`
+
+## opx:net:shops:restore [#opx-net-shops-restore]
+
+Server → client. The bill failed: put this look back on.
+
+```lua
+RegisterNetEvent('opx:net:shops:restore', function(clothing) end)
+```
+
+- clothing: `table` — the stored clothing record
+
+## opx:net:shops:saved [#opx-net-shops-saved]
+
+Server → client. The saved outfit list.
+
+```lua
+RegisterNetEvent('opx:net:shops:saved', function(data) end)
+```
+
+- data: `table` — `{ outfits = { { id, name, code? } }, max }`
+
+## opx:net:shops:code [#opx-net-shops-code]
+
+Server → client. A share code.
+
+```lua
+RegisterNetEvent('opx:net:shops:code', function(data) end)
+```
+
+- data: `table` — `{ id, code }`
+
+## opx:on:shops:state [#opx-on-shops-state]
+
+Client, local. The outfit list arrived, or a code was minted.
+
+```lua
+AddEventHandler('opx:on:shops:state', function(state) end)
+```
+
+- state: `table` — `{ saved }` or `{ code, id }`

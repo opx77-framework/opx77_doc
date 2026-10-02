@@ -1,0 +1,4 @@
+{
+  "title": "character",
+  "pages": ["index", "server", "player", "client", "events"]
+}

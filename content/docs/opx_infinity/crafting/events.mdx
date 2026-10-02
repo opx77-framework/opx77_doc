@@ -1,0 +1,67 @@
+---
+title: Events
+description: Network and local events of the crafting module.
+---
+
+## opx:net:crafting:open [#opx-net-crafting-open]
+
+Client → server. Send me this bench's view. Rate limited.
+
+```lua
+TriggerServerEvent('opx:net:crafting:open', benchKey)
+```
+
+- benchKey: `string`
+
+## opx:net:crafting:order [#opx-net-crafting-order]
+
+Client → server. Place an order. Rate limited.
+
+```lua
+TriggerServerEvent('opx:net:crafting:order', benchKey, recipeKey)
+```
+
+- benchKey: `string`
+- recipeKey: `string`
+
+## opx:net:crafting:collect [#opx-net-crafting-collect]
+
+Client → server. Collect a ready order. Rate limited.
+
+```lua
+TriggerServerEvent('opx:net:crafting:collect', benchKey, orderId)
+```
+
+- benchKey: `string`
+- orderId: `integer`
+
+## opx:net:crafting:view [#opx-net-crafting-view]
+
+Server → client. The bench view, after every open, order or collect.
+
+```lua
+RegisterNetEvent('opx:net:crafting:view', function(view) end)
+```
+
+- view: `table` — as [`View`](/docs/opx_infinity/crafting/server#server-crafting-view) returns it.
+
+## opx:net:crafting:refused [#opx-net-crafting-refused]
+
+Server → client. A refusal. The client toasts `crafting.<code>`; `too_far`, `no_such_bench`, `no_character`, `not_for_you`, `no_position` also close the menu.
+
+```lua
+RegisterNetEvent('opx:net:crafting:refused', function(benchKey, code) end)
+```
+
+- benchKey: `string`
+- code: `string`
+
+## opx:on:crafting:state [#opx-on-crafting-state]
+
+Client, local. The menu opened or closed.
+
+```lua
+AddEventHandler('opx:on:crafting:state', function(state) end)
+```
+
+- state: `table` — `{ open = true, bench }` or `{ open = false, reason }`

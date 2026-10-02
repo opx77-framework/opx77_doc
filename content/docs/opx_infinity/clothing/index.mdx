@@ -1,0 +1,66 @@
+---
+title: clothing
+description: Clothing stores, a marker a player stands on to open the appearance module's fitting room.
+---
+
+A store is a marker: the player stands on it, presses **E**, and the `appearance` module's fitting room opens with the game's whole clothing catalogue for their body. This module owns the place and the door only: no catalogue, no money, creates nothing. The server checks the player is really at a store before the room's save is allowed. Ships with no stores; operators capture them in game with `/opx.clothing.add`.
+
+| | |
+|---|---|
+| Side | both |
+| Requires | none |
+| Optional | `appearance` (the fitting room), `prompts` (the key hint row) |
+| Contract | `clothing` v1 — [server](/docs/opx_infinity/clothing/server), [client](/docs/opx_infinity/clothing/client) |
+| Config | `config/clothing.lua` (shared) |
+| Data | `opx77_clothing` (captured stores) |
+
+- Without `appearance`: markers still draw and the key answers `clothing.noWardrobe`.
+- Without `prompts`: only the hint row is missing.
+
+## Commands
+
+| Command | Access | Arguments | Effect |
+|---|---|---|---|
+| <a id="opx-clothing-add" />`/opx.clothing.add` | ACL `command.opx.clothing.add` | `[key] [label]` | Captures a store where the caller stands (position and routing bucket read by the server). `key` 1–48 characters; without one a free `storeN` is chosen. `label` defaults to the key, cut at 64. The same key again moves the store. Prints the line to copy into `SPOTS`. |
+| <a id="opx-clothing-remove" />`/opx.clothing.remove` | ACL `command.opx.clothing.remove` | `<key>` | Deletes a captured store. A store from `SPOTS` is refused: edit the config instead. |
+| <a id="opx-clothing-list" />`/opx.clothing.list` | ACL `command.opx.clothing.list` | — | Every store: key, label, position, bucket, and `config` or `captured`. |
+
+Names come from [`COMMANDS`](#config-clothing-commands).
+
+## Configuration
+
+`config/clothing.lua` sets `OPX.Config.MODULES.clothing`. Shared.
+
+| Key | Default | Effect |
+|---|---|---|
+| <a id="config-clothing-enabled" />`enabled` | `true` | `false` switches the module off. |
+| <a id="config-clothing-use-radius" />`USE_RADIUS` | `4.0` | Flat metres from the store's X and Y within which it can be used. Checked on both sides. |
+| <a id="config-clothing-marker" />`MARKER` | `{ shape = 'cylinder', style = 'interaction', RADIUS = 2.5 }` | Shapes: `ring`, `cylinder`. Styles: `interaction`, `objective`, `spawn`, `danger`. `RADIUS` 0.1–50. |
+| <a id="config-clothing-max-distance" />`MAX_DISTANCE` | `150.0` | Metres beyond which a marker is not drawn (1–500). |
+| <a id="config-clothing-ground-offset" />`GROUND_OFFSET` | `0.06` | Metres the marker is lifted off Z (0–2). A ring at floor height does not draw. |
+| <a id="config-clothing-scan-ms" />`SCAN_MS` | `500` | Marker and position scan interval. |
+| <a id="config-clothing-poll-ms" />`POLL_MS` | `15000` | How often the client asks for the store list again, so a bucket change is picked up. |
+| <a id="config-clothing-key" />`KEY` | `{ ID = 'opx.clothing.use', NAME = 'clothing.key.use', DEFAULT = 'E' }` | Rebindable key. `ID` stores the player's rebind; `NAME` is the label's locale key. `DEFAULT = false` registers no key. |
+| <a id="config-clothing-commands" />`COMMANDS` | `{ add = 'opx.clothing.add', remove = 'opx.clothing.remove', list = 'opx.clothing.list' }` | Command names. All three restricted. |
+| <a id="config-clothing-spots" />`SPOTS` | `{}` | Stores from config: `key = { LABEL, X, Y, Z, BUCKET }`. Captured stores with the same key override them. |
+
+```lua title="config/clothing.lua — SPOTS, as /opx.clothing.add prints it"
+SPOTS = {
+  store_example = { LABEL = "JINGUJI", X = -1771.79, Y = -77.30, Z = 7.53, BUCKET = 0 },
+},
+```
+
+Bad values (non-positive `USE_RADIUS`, `SCAN_MS`, `POLL_MS`, an invalid marker, store or `KEY`) are logged as `[clothing] config:` warnings at start.
+
+## Refusal codes [#codes]
+
+Shown as a toast; the code is the locale key.
+
+| Code | Meaning |
+|---|---|
+| `clothing.noSuchStore` | The player is not on a store. |
+| `clothing.noWardrobe` | The `appearance` contract is not running. |
+| `clothing.wardrobeRefused` | The fitting room refused; `{reason}` is its code. |
+| `error.noPermission` | Another surface holds the keyboard. |
+| `clothing.noPosition` | `/opx.clothing.add`: the caller's position could not be read. |
+| `clothing.captureFailed` | `/opx.clothing.add`: the store was invalid or could not be saved. |

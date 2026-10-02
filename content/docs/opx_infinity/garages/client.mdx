@@ -1,0 +1,76 @@
+---
+title: Client
+description: The garages contract on the client — the points this client knows and the key's action.
+---
+
+```lua
+local garages = OPX.Api.Get('garages')
+```
+
+From client code inside opx_infinity.
+
+## Bring [#client-garages-bring]
+
+Same as pressing the key on the point underfoot: opens the list at a menu point, sends a request at an entry point. The real answer arrives later on [`opx:on:garages:decision`](/docs/opx_infinity/garages/events#opx-on-garages-decision).
+
+```lua
+garages.Bring(origin)
+```
+
+**Parameters**
+- origin?: `string`
+  - Copied into the verdict's `source`, to tell callers apart.
+
+**Returns**
+- `Result` — value: the local verdict
+
+```lua title="Example"
+AddEventHandler('opx:on:garages:decision', function(v)
+    if v.source == 'myjob' and v.ok then print(v.action, v.plate) end
+end)
+garages.Bring('myjob')
+```
+
+## Nearest [#client-garages-nearest]
+
+The point the player stands on.
+
+```lua
+garages.Nearest()
+```
+
+**Returns**
+- `Result` — value `{ key, label, kind }`; `garages.noSuchSpot` when not on a point
+
+## Spots [#client-garages-spots]
+
+Points this client was sent (its own bucket only).
+
+```lua
+garages.Spots()
+```
+
+**Returns**
+- `Result` — value `{ spots }`
+
+## Garages [#client-garages-garages]
+
+Garages derived from the points.
+
+```lua
+garages.Garages()
+```
+
+**Returns**
+- `Result` — value `{ garages }`, `garages[key] = { key, label, kind }`
+
+## State [#client-garages-state]
+
+Diagnostic: counts, nearest point, its role, whether the row is shown, open list, key label.
+
+```lua
+garages.State()
+```
+
+**Returns**
+- `Result`

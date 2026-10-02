@@ -1,0 +1,49 @@
+---
+title: form
+description: The modal that asks the player for typed text, a choice or a slider value, opened by other client modules through the form contract.
+---
+
+One modal box asking the player for values: up to eight fields of typed text, a choice list or a slider, answered together with Enter or cancelled with Escape. Other client modules open it through the `form` contract and get one callback with every answer. Lua holds the real text of each field and checks length, character set, pattern and required fields itself; the page only proposes keystrokes. Use it when a module needs the player to type an amount, a name or a code.
+
+| | |
+|---|---|
+| Side | client |
+| Requires | none |
+| Optional | `downed` (no form opens over a downed player) |
+| Contract | `form` v1 — [client](/docs/opx_infinity/form/client) |
+| Config | `config/form.lua` (shared) |
+| Data | none |
+
+Keys: Up/Down move between fields, Left/Right change a choice or slider, typing edits a text field, Enter submits, Escape cancels.
+
+## Configuration
+
+`config/form.lua` sets `OPX.Config.MODULES.form`. Shared.
+
+| Key | Default | Effect |
+|---|---|---|
+| <a id="config-form-enabled" />`enabled` | `true` | `false` switches the module off. |
+| <a id="config-form-anchor" />`ANCHOR` | `'center'` | `center`, `top-left`, `top-right`, `left` or `right`. |
+| <a id="config-form-width" />`WIDTH` | `420` | Box width in pixels. |
+| <a id="config-form-dim" />`DIM` | `true` | Dim the scene behind an open form. |
+| <a id="config-form-status-ms" />`STATUS_MS` | `6000` | Milliseconds the status line stays up. |
+| <a id="config-form-while-down" />`WHILE_DOWN` | `{ admin = true }` | Owners whose form may open, and stays open, while the player is down. |
+
+## Refusal codes [#codes]
+
+| Code | Meaning |
+|---|---|
+| `spec_must_be_a_table`, `invalid_owner`, `callback_required` | Bad spec basics. |
+| `no_surface` | The interactive WebUI surface does not exist. |
+| `player_down` | The player is down and the owner is not in `WHILE_DOWN`. |
+| `form_busy` | Another owner's form is open. |
+| `invalid_form_id`, `invalid_description`, `invalid_status` | Spec field malformed or too long. |
+| `invalid_form_data`, `form_data_too_large` | `data` not a table, or over 64 nodes / 4 levels. |
+| `fields_must_be_a_table`, `empty_form`, `too_many_fields`, `duplicate_field_id` | The field list is wrong. |
+| `field_must_be_a_table`, `invalid_field_id`, `invalid_field_label`, `invalid_field_description` | A field is malformed. |
+| `invalid_options`, `empty_options`, `too_many_options`, `invalid_option`, `invalid_option_value`, `invalid_selected` | A choice field is malformed. |
+| `invalid_slider`, `invalid_slider_range`, `invalid_slider_suffix` | A slider field is malformed. |
+| `invalid_max_length`, `invalid_placeholder`, `invalid_charset`, `unknown_charset`, `invalid_pattern`, `invalid_value` | A text field is malformed, or its initial `value` breaks its own rules. |
+| `handle_required`, `no_form_open`, `stale_handle` | `Close`/`SetStatus` on nothing or on an old handle. |
+
+Player-facing locale keys: `form.refuse.required`, `form.refuse.format`, `form.refuse.character`, `form.refuse.tooLong`, and the key caps `form.key.*`.

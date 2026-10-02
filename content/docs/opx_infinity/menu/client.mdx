@@ -1,0 +1,191 @@
+---
+title: Client
+description: The menu contract on the client — open, update and close a list menu, and the spec it accepts.
+---
+
+```lua
+local menu = OPX.Api.Get('menu')
+```
+
+From client code inside opx_infinity. Every function answers a `Result` (`{ ok = true, value }` or `{ ok = false, error }`). None yields. Codes: [Refusal codes](/docs/opx_infinity/menu#codes).
+
+## Open [#client-menu-open]
+
+Opens a menu from a [spec](#the-menu-spec). The spec is refused whole on the first bad field.
+
+```lua
+menu.Open(spec)
+```
+
+**Parameters**
+- spec: `table` — see [The menu spec](#the-menu-spec)
+
+**Returns**
+- `Result` — value `{ handle, id, nodes }`
+
+- Another owner's menu open: `menu_busy`, unless `spec.steal = true`.
+- The same owner opening again replaces its menu (`close` reason `reopened`).
+
+```lua title="Example"
+local menu = OPX.Api.Get('menu')
+local opened = menu.Open({
+  owner = 'mymodule',
+  title = 'GARAGE',
+  items = {
+    { id = 'out', label = 'Take out', icon = 'vehicle' },
+    { id = 'lights', label = 'Lights', toggle = false },
+    { label = 'Close', close = true },
+  },
+  on = function(p)
+    if p.action == 'select' and p.itemId == 'out' then --[[ ... ]] end
+  end,
+})
+if not opened.ok then print(opened.error) end
+```
+
+## Close [#client-menu-close]
+
+Closes the menu.
+
+```lua
+menu.Close(handle, reason)
+```
+
+**Parameters**
+- handle: `integer` — required (`handle_required`)
+- reason?: `string`
+  - Max 32 characters, passed to the `close` callback. Default `caller`.
+
+**Returns**
+- `Result` — value `true`
+
+## Update [#client-menu-update]
+
+Rebuilds the open menu and keeps the player's position (submenus stay open while a row with the same `id` still exists).
+
+```lua
+menu.Update(handle, patch)
+menu.Update(patch)
+```
+
+**Parameters**
+- handle?: `integer`
+- patch: `table`
+  - Patchable: `items`, `title`, `on`, `data`, `closeOnSelect`, `reportFocus`, `status`, `statusBad`, `cursor`.
+  - `items` is all or nothing. Geometry and `focus` are fixed at open.
+
+**Returns**
+- `Result` — value `true`
+
+```lua title="Example"
+menu.Update(opened.value.handle, { title = 'GARAGE (2)' })
+```
+
+## SetStatus [#client-menu-setstatus]
+
+Shows `text` as a toast. There is no status line under the list any more.
+
+```lua
+menu.SetStatus(handle, text, bad)
+```
+
+**Parameters**
+- handle?: `integer`
+- text: `string` — max 120 characters
+- bad?: `boolean` — red when true
+
+**Returns**
+- `Result` — value `true`
+
+## State [#client-menu-state]
+
+What is on screen now.
+
+```lua
+menu.State()
+```
+
+**Returns**
+- `Result` — value `{ open = false }` or `{ open, handle, owner, menu, title, depth, index, total, itemId, label, value }`
+
+## Keys [#client-menu-keys]
+
+For a caller printing its own key hint.
+
+```lua
+menu.Keys()
+```
+
+**Returns**
+- `Result` — value `{ backend, keys, labels }`
+  - `backend`: `page`, or `none` when no surface exists
+  - `keys`: maps `UP DOWN LEFT RIGHT SELECT BACK` to `ARROW UP` … `ENTER`, `BACKSPACE`
+  - `labels`: the locale words
+
+## The menu spec
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `owner` | string | required | Your module id. Letters, digits, `_ : - .`, max 64. If it names a module that stops, the menu closes (`owner_stopped`). |
+| `on` | function | required | `on(payload)` for every action. See [The action payload](#the-action-payload). |
+| `items` | list | required | The rows of the root level. See [Rows](#rows). |
+| `id` | string | `owner` | Menu id, echoed as `payload.menu`. |
+| `title` | string | `owner` upper-cased | Max 96 characters. |
+| `data` | table | — | Echoed as `payload.menuData`. Max 64 value nodes, 4 levels deep. |
+| `focus` | string | `none` | `none`: no input focus, the player keeps walking; Lua reads the six keys itself. `cursor`: the page gets the mouse. `full`: the page gets keyboard and mouse. `true`/`false` read as `none`. |
+| `closable` | boolean | `true` | `false`: Escape does not close it; the owner must call `Close`. |
+| `closeOnSelect` | boolean | `false` | Close after any `select`. |
+| `reportFocus` | boolean | `false` | Raise a `focus` action each time the cursor lands on a row. |
+| `cursor` | string or integer | first selectable row | Row `id` or index to start on. |
+| `steal` | boolean | `false` | Replace another owner's open menu. |
+| `status`, `statusBad` | string, boolean | — | Shown as a toast at open. |
+| `anchor` | string | `ANCHOR` | `top-left`, `top-right`, `left`, `right` or `center`. |
+| `width` | integer | `WIDTH` | Pixels, clamped 240..1200. |
+| `maxHeight` | integer | `MAX_HEIGHT_VH` | Viewport height %, clamped 20..100. |
+| `height` | integer | none | Fixed pixel height, clamped 120..1200. Absent: the rows decide. |
+| `rows` | integer | `VISIBLE_ROWS` | Rows drawn at once, clamped 3..24. |
+
+Limits: 200 rows per level, 400 rows across the whole tree, 8 levels deep. Only the visible window of rows is sent to the page.
+
+## Rows
+
+A row's kind comes from its shape. Tested in this order; the first match wins.
+
+| Kind | Shape | Behaviour |
+|---|---|---|
+| separator | `separator = true`, optional `label` | A divider. Cannot be selected. Other fields are ignored. |
+| submenu | `items = { … }`, optional `title`, `value`, `cursor` | Enter or Right opens the level (`open` action). |
+| toggle | `toggle = true/false`, optional `onLabel`, `offLabel` | Enter, Left or Right flips it (`change`). `value` is the boolean. |
+| choices | `choices = { 'a', 'b' }`, optional `selected` (index) | Left/Right cycles (`change`). `value` is the chosen string. |
+| slider | `slider = { min = 0, max = 100, step = 1, value, suffix }` | Left/Right steps and clamps (`change`). `value` is the number. `max` must be above `min`. |
+| back | `back = true` | Pops one level, or closes at the root. |
+| close | `close = true` and no `act` | Closes the menu (reason `item`). |
+| action | anything else | Enter raises `select`. `value` (max 48) is the right-hand text. |
+
+Fields every row may carry:
+
+| Field | Meaning |
+|---|---|
+| `id` | Row id, echoed as `itemId`. Default `item_<index>`. |
+| `label` (or `text`) | Required, max 96 characters. |
+| `icon` | A name from `OPX.Glyphs`; an unknown name refuses the spec (`invalid_item_icon`). |
+| `description` | Hint shown for the focused row, max 160. |
+| `data` | Echoed as `payload.data`. Max 64 nodes, 4 deep. |
+| `disabled` | Drawn greyed; the cursor skips it. |
+| `act` | `act(payload)`, called before `on` for this row only. |
+| `close` | On an action row with `act`: close after it fires. |
+| `submenu` | `true` draws the arrow on a row with no `items` of its own (for owners that open one flat screen at a time). It still raises `select`. |
+
+## The action payload
+
+`on(payload)` and the [`opx:on:menu:action`](/docs/opx_infinity/menu/events#opx-on-menu-action) event receive the same table.
+
+| Field | Meaning |
+|---|---|
+| `menu`, `handle`, `owner` | Which menu. |
+| `action` | `select`, `change`, `open`, `back`, `focus` or `close`. |
+| `itemId`, `label`, `value`, `data` | The row involved. Absent on `close` and on a `back` from Left/Backspace. |
+| `index`, `depth` | Cursor position on the current screen (1-based) and stack depth (1 at the root). |
+| `menuData` | The spec's `data`. |
+| `reason` | On `close`: `caller` (or your own reason), `select`, `item`, `back`, `dismissed`, `pause`, `reopened`, `superseded`, `owner_stopped`, `player_down`, `stopped`. |
+| `repeated` | On `focus`: true when the key is held down. |

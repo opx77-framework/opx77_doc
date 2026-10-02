@@ -1,0 +1,27 @@
+---
+title: Events
+description: Network events of the gunsmith module.
+---
+
+Bench refusals arrive through [`opx:net:crafting:refused`](/docs/opx_infinity/crafting/events#opx-net-crafting-refused).
+
+## opx:net:gunsmith:chest [#opx-net-gunsmith-chest]
+
+Client → server. Opens this armoury's chest.
+
+```lua
+TriggerServerEvent('opx:net:gunsmith:chest', armouryKey)
+```
+
+- armouryKey: `string`
+
+## opx:net:gunsmith:refused [#opx-net-gunsmith-refused]
+
+Server → client. The chest was refused. The client toasts `gunsmith.<code>`.
+
+```lua
+RegisterNetEvent('opx:net:gunsmith:refused', function(armouryKey, code) end)
+```
+
+- armouryKey: `string`
+- code: `string` — see [Refusal codes](/docs/opx_infinity/gunsmith#codes)

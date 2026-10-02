@@ -1,0 +1,208 @@
+---
+title: admin
+description: The staff tool — a menu, rows on the target eye and 56 restricted commands to move, heal, arm, equip, moderate and audit players.
+---
+
+Staff press **F9** (or type `/opx.admin`) to open a menu that finds a player, goes to them, heals or moves them, gives them a car, a weapon or an item, kicks or bans them, and reads the audit. The same actions are rows on the target eye and chat commands. Every action is a restricted command, so the server's ACL decides who may run what. Nothing is stored in the database.
+
+| | |
+|---|---|
+| Side | both |
+| Requires | [`character`](/docs/opx_infinity/character) (hard) |
+| Optional | [`menu`](/docs/opx_infinity/menu), [`form`](/docs/opx_infinity/form), [`target`](/docs/opx_infinity/target), [`inventory`](/docs/opx_infinity/inventory), [`vehicles`](/docs/opx_infinity/vehicles), [`downed`](/docs/opx_infinity/downed), [`prompts`](/docs/opx_infinity/prompts), [`diagnostics`](/docs/opx_infinity/diagnostics), [`vehiclekeys`](/docs/opx_infinity/vehiclekeys) — each adds one feature; `appearance` is read for the wardrobe command |
+| Contract | `admin` v1 — [server](/docs/opx_infinity/admin/server), [client](/docs/opx_infinity/admin/client) |
+| Config | `config/admin.lua` (shared) |
+| Data | none. Locations saved in game are kept with `OPX.Carry` |
+
+## Granting access [#granting]
+
+The module checks no permission itself: the host resolves `command.<name>` against `acl.jsonc` before any handler runs. The menu and the eye only grey out or hide what the ACL would refuse.
+
+- `command.opx.admin` opens the menu. Holding it is what makes someone "staff" for [`IsStaff`](/docs/opx_infinity/admin/server#server-admin-isstaff) and for the badge on name tags.
+- `command.opx.admin.*` covers every action. Only a rule ending in `.*` is a prefix, so it does **not** cover the opener: an operator role needs **both**.
+- Narrower families work too, e.g. `command.opx.admin.player.*`. The `character.*` commands are separate on purpose: `list` shows one account's characters, `find` searches everyone who ever played, `rename`/`delete` change rows that outlive a session.
+- The menu and eye also run other modules' commands, named in [`LINKS`](#config-admin-links): `opx.players`, `opx.where`, `opx.job`, `opx.gang`, `opx.money`, `opx.save`, `opx.inventory.open`, `opx.inventory.holders`, `opx.weather.set`, `opx.weather.next`, `opx.weather.freeze`, `opx.time`, `opx.time.freeze`. Grant those too (e.g. `command.opx.weather.*`, `command.opx.time`, `command.opx.time.*`).
+- **The eye hides what the menu greys.** The menu draws a refused row and marks it; the eye does not register it at all, so a missing grant looks like a missing feature. The client writes the dropped grants to the server journal, e.g. `[admin] target rows, player 3: … this ACL does not grant: opx.inventory.open opx.weather.set` — each name is a `command.<name>` to add.
+- A short alias is gated on the long command's right, never on its own name.
+
+## Commands
+
+56 restricted commands (the opener + 55 actions). The right is always `command.` + the full name.
+
+- *target* `playerId|me`: a server id, or `me`/`self` for the caller. *holder* `playerId|me|citizenId`: also a citizen id, online or offline.
+- Switches take `on`/`off` (also `true`/`false`, `1`/`0`, `yes`/`no`); left out, they toggle.
+- "In game": the console gets `in_game_only`.
+- Moving, reviving, healing, killing and spawning for a player need that player's readiness gate open (`not_incarnated`, `gate_closed`, `gate_unreadable`). A move is a kill + respawn at the new point, health set to `PLACEMENT.HEALTH`, with a grace window; if the respawn is refused, the player is revived where they stood.
+- Per-operator cooldown per command: 400 ms for actions, 1000 ms for reads (`RATE` + tunables); `too_fast` inside it. The console has none.
+- Every action writes an audit line; the target gets a toast unless they are the caller.
+
+### Menu
+
+| Command | Access | Arguments | Effect |
+|---|---|---|---|
+| <a id="opx-admin" />`/opx.admin` | ACL `command.opx.admin` | — | In game. Opens the menu and sends it the access map, roster, locations, bodies state and, if `inventory` runs, the item list. Also `KEYS.MENU` (F9). |
+
+### Self
+
+| Command | Access | Arguments | Effect |
+|---|---|---|---|
+| <a id="opx-admin-self-noclip" />`/opx.admin.self.noclip` | ACL `command.opx.admin.self.noclip` | `[on\|off]` | In game. Noclip; the body is hidden from others while flying. Turned off when the grant is revoked (checked every 2 s). Alias `noclip`. |
+| <a id="opx-admin-self-speed" />`/opx.admin.self.speed` | ACL `command.opx.admin.self.speed` | `<m/s>` (0.1–500) | In game. Noclip speed; the speed keys send this. Alias `speed`. |
+| <a id="opx-admin-self-maptravel" />`/opx.admin.self.maptravel` | ACL `command.opx.admin.self.maptravel` | `[on\|off]` or `<x> <y> <z>` | In game. Switch: arms map travel (a point double-clicked on the world map is sent back as `x y z`). Three numbers: moves the caller there. |
+| <a id="opx-admin-self-heal" />`/opx.admin.self.heal` | ACL `command.opx.admin.self.heal` | — | In game. Health to max. Alias `heal`. |
+| <a id="opx-admin-self-revive" />`/opx.admin.self.revive` | ACL `command.opx.admin.self.revive` | — | In game. Revives the caller, through `downed` when it runs. Alias `revive`. |
+| <a id="opx-admin-self-god" />`/opx.admin.self.god` | ACL `command.opx.admin.self.god` | `[on\|off]` | In game. God mode. Alias `god`. |
+| <a id="opx-admin-self-invisible" />`/opx.admin.self.invisible` | ACL `command.opx.admin.self.invisible` | `[on\|off]` | In game. Hides the body from others. Off during noclip takes effect when noclip ends. Alias `invis`. |
+| <a id="opx-admin-self-pos" />`/opx.admin.self.pos` | ACL `command.opx.admin.self.pos` | — | In game, read. Position, facing, bucket; copies `{ NAME = "here", LABEL = "Here", X = …, Y = …, Z = …, HEADING = … },` to the clipboard. Alias `pos`. |
+| <a id="opx-admin-self-tags" />`/opx.admin.self.tags` | ACL `command.opx.admin.self.tags` | `[on\|off]` | In game. Name tags above nearby players. Remembered on the client, restored next join if the grant still holds. |
+| <a id="opx-admin-self-model" />`/opx.admin.self.model` | ACL `command.opx.admin.self.model` | `[ped\|off]` | In game. Wears an NPC body from `data/peds.lua` (name or record) or takes it off (`off`, `none`, `reset`, `self`, `own`; no argument takes off a worn one). Needs `Open77.players.setModel`, else `models_unavailable`. |
+
+### Player
+
+| Command | Access | Arguments | Effect |
+|---|---|---|---|
+| <a id="opx-admin-player-goto" />`/opx.admin.player.goto` | ACL `command.opx.admin.player.goto` | `<playerId>` | In game. Caller beside the player (`PLACEMENT.BESIDE`), in their bucket. Alias `goto`. |
+| <a id="opx-admin-player-bring" />`/opx.admin.player.bring` | ACL `command.opx.admin.player.bring` | `<playerId>` | In game. Player beside the caller. Alias `bring`. |
+| <a id="opx-admin-player-tp" />`/opx.admin.player.tp` | ACL `command.opx.admin.player.tp` | `<playerId\|me> <x> <y> <z> [heading]` | To coordinates, each within ±1,000,000. Alias `tp`. |
+| <a id="opx-admin-player-send" />`/opx.admin.player.send` | ACL `command.opx.admin.player.send` | `<playerId\|me> <location>` | To a saved location (configured or added in game). |
+| <a id="opx-admin-player-observe" />`/opx.admin.player.observe` | ACL `command.opx.admin.player.observe` | `<playerId>` | In game. Caller `PLACEMENT.OBSERVE_HEIGHT` m above the player, noclip on. Alias `spectate`. |
+| <a id="opx-admin-player-heal" />`/opx.admin.player.heal` | ACL `command.opx.admin.player.heal` | `<playerId\|me>` | Health to max. |
+| <a id="opx-admin-player-revive" />`/opx.admin.player.revive` | ACL `command.opx.admin.player.revive` | `<playerId\|me>` | Through `downed`'s `Revive` when it runs (a player not down still succeeds), else the host's revive. |
+| <a id="opx-admin-player-god" />`/opx.admin.player.god` | ACL `command.opx.admin.player.god` | `<playerId\|me> [on\|off]` | God mode. |
+| <a id="opx-admin-player-freeze" />`/opx.admin.player.freeze` | ACL `command.opx.admin.player.freeze` | `<playerId> [on\|off]` | Holds a player still. Released when the module stops. Alias `freeze`. |
+| <a id="opx-admin-player-kill" />`/opx.admin.player.kill` | ACL `command.opx.admin.player.kill` | `<playerId>` | Kills; the caller is recorded as killer. |
+| <a id="opx-admin-player-health" />`/opx.admin.player.health` | ACL `command.opx.admin.player.health` | `<playerId\|me> <points>` | Sets health, capped at the player's max. |
+| <a id="opx-admin-player-armor" />`/opx.admin.player.armor` | ACL `command.opx.admin.player.armor` | `<playerId\|me> <points>` (0–10000) | Sets armour. |
+| <a id="opx-admin-player-model" />`/opx.admin.player.model` | ACL `command.opx.admin.player.model` | `<playerId> [ped\|off]` | `self.model` for another player. |
+| <a id="opx-admin-player-wardrobe" />`/opx.admin.player.wardrobe` | ACL `command.opx.admin.player.wardrobe` | `<playerId\|me>` | Opens the fitting room through `appearance`'s [`OpenWardrobe`](/docs/opx_infinity/appearance/server#server-appearance-openwardrobe); `appearance_unavailable` without that contract. |
+
+### Character
+
+| Command | Access | Arguments | Effect |
+|---|---|---|---|
+| <a id="opx-admin-character-list" />`/opx.admin.character.list` | ACL `command.opx.admin.character.list` | `<playerId\|me>` | In game, read. Every character of a connected player's account: citizen id, name, gender, created. `*` = being played, `>` = active. |
+| <a id="opx-admin-character-find" />`/opx.admin.character.find` | ACL `command.opx.admin.character.find` | `<name\|citizenId>` | In game, read. Searches every character through [`FindCharacters`](/docs/opx_infinity/character/server#server-character-findcharacters): citizen id, name, account, last logout. `*` = in play, `+` = account online. |
+| <a id="opx-admin-character-rename" />`/opx.admin.character.rename` | ACL `command.opx.admin.character.rename` | `<citizenId> <firstName> <lastName>` | In game. Through [`RenameCharacter`](/docs/opx_infinity/character/server#server-character-renamecharacter). |
+| <a id="opx-admin-character-delete" />`/opx.admin.character.delete` | ACL `command.opx.admin.character.delete` | `<citizenId>` | In game. Through [`RemoveCharacter`](/docs/opx_infinity/character/server#server-character-removecharacter). Warns the player holding it, if online. |
+
+<Callout type="error" title="Character delete and bag clear cannot be undone">
+
+`opx.admin.character.delete` removes the character row through `character`; `opx.admin.inventory.clear` empties the bag through `inventory`. Neither asks for confirmation when typed, and neither has an alias.
+
+</Callout>
+
+### Moderation
+
+| Command | Access | Arguments | Effect |
+|---|---|---|---|
+| <a id="opx-admin-moderate-kick" />`/opx.admin.moderate.kick` | ACL `command.opx.admin.moderate.kick` | `<playerId> [reason…]` | Kicks. Reason cut to 127 bytes; default text when none. |
+| <a id="opx-admin-moderate-ban" />`/opx.admin.moderate.ban` | ACL `command.opx.admin.moderate.ban` | `<playerId> [duration] [reason…]` | Bans the account through `Open77.access.ban` (the server's ban list, not the ACL). Duration `<n>s`/`m`/`h`/`d` (≤ 3650 days) or `perm`/`permanent`; none = permanent. Needs the `players.access` permission. |
+
+### Vehicle
+
+`vehicleId|near`: a live vehicle id, or `near` = the vehicle the caller sits in, else the nearest in the caller's bucket within `VEHICLES.NEAR_RADIUS`.
+
+| Command | Access | Arguments | Effect |
+|---|---|---|---|
+| <a id="opx-admin-vehicle-spawn" />`/opx.admin.vehicle.spawn` | ACL `command.opx.admin.vehicle.spawn` | `<vehicle>` | In game. Spawns from `data/vehicles.lua` (name or record) beside the caller. At most `VEHICLES.PER_OWNER` per player; an AV is lifted `AV_LIFT`. With `vehiclekeys`, the caller gets a key. Alias `car`. |
+| <a id="opx-admin-vehicle-give" />`/opx.admin.vehicle.give` | ACL `command.opx.admin.vehicle.give` | `<playerId\|me> <vehicle>` | Same, beside another player, who gets the key. |
+| <a id="opx-admin-vehicle-key" />`/opx.admin.vehicle.key` | ACL `command.opx.admin.vehicle.key` | `[vehicleId\|near]` | In game. A key in the caller's own bag through `vehiclekeys`' `GiveFor`. No plate argument. Without `vehiclekeys`: `keys_unavailable`. |
+| <a id="opx-admin-vehicle-remove" />`/opx.admin.vehicle.remove` | ACL `command.opx.admin.vehicle.remove` | `[vehicleId\|near\|mine]` | Removes one empty vehicle (default `near`), or `mine` = every vehicle this module spawned for the caller. Occupied ones kept (`occupied`); host refusal: `not_ours`. Alias `dv`. |
+| <a id="opx-admin-vehicle-cleanup" />`/opx.admin.vehicle.cleanup` | ACL `command.opx.admin.vehicle.cleanup` | — | Removes every empty vehicle this module spawned, for everybody. |
+| <a id="opx-admin-vehicle-repair" />`/opx.admin.vehicle.repair` | ACL `command.opx.admin.vehicle.repair` | `[vehicleId\|near] [scope]` | Scope `glass`, `body`, `lights`, `tires`, `visual`, `mechanical`, `full` (default). Occupied: only `VEHICLES.OCCUPIED_REPAIRS` scopes (`unsafe_repair`). Alias `fix`. |
+| <a id="opx-admin-vehicle-enter" />`/opx.admin.vehicle.enter` | ACL `command.opx.admin.vehicle.enter` | `[vehicleId\|near]` | In game. First free seat, driver first, even locked. |
+| <a id="opx-admin-vehicle-flag" />`/opx.admin.vehicle.flag` | ACL `command.opx.admin.vehicle.flag` | `<vehicleId\|near> <flag> [on\|off]` | Sets a flag listed in `VEHICLES.FLAGS`. |
+
+### Inventory
+
+Need the `inventory` contract (`inventory_unavailable`). Counts 1..`INVENTORY.MAX_COUNT`.
+
+| Command | Access | Arguments | Effect |
+|---|---|---|---|
+| <a id="opx-admin-inventory-view" />`/opx.admin.inventory.view` | ACL `command.opx.admin.inventory.view` | `<holder>` | Read. Slots, weight, each stack with rounds and serial. |
+| <a id="opx-admin-inventory-give" />`/opx.admin.inventory.give` | ACL `command.opx.admin.inventory.give` | `<holder> <item> [count]` | Adds a catalogue item (default 1). Slot and weight limits apply. |
+| <a id="opx-admin-inventory-remove" />`/opx.admin.inventory.remove` | ACL `command.opx.admin.inventory.remove` | `<holder> <item> [count]` | Removes (default 1). |
+| <a id="opx-admin-inventory-clear" />`/opx.admin.inventory.clear` | ACL `command.opx.admin.inventory.clear` | `<holder>` | Empties the bag through `inventory`'s `ClearInventory`. |
+
+### Weapon
+
+Weapons are inventory items, so these need `inventory` too. A weapon is named by its item, with or without `weapon_`; ammunition by its own item.
+
+| Command | Access | Arguments | Effect |
+|---|---|---|---|
+| <a id="opx-admin-weapon-give" />`/opx.admin.weapon.give` | ACL `command.opx.admin.weapon.give` | `<holder> <weapon> [ammo] [count]` | One weapon, unloaded; with an ammo item also `count` of it (default `INVENTORY.DEFAULT_AMMO`). Ammo refused → weapon taken back. Alias `addweapon`. |
+| <a id="opx-admin-weapon-giveammo" />`/opx.admin.weapon.giveammo` | ACL `command.opx.admin.weapon.giveammo` | `<holder> <ammo> [count]` | Ammunition (default `DEFAULT_AMMO`). Alias `addammo`. |
+| <a id="opx-admin-weapon-ammo" />`/opx.admin.weapon.ammo` | ACL `command.opx.admin.weapon.ammo` | `<holder> [ammo\|all] [count]` | `count` of one ammo item, or of every ammo type already in the bag (`all`, default). |
+| <a id="opx-admin-weapon-remove" />`/opx.admin.weapon.remove` | ACL `command.opx.admin.weapon.remove` | `<holder> <weapon\|all>` | Every unit of one weapon, or every weapon. Alias `delweapon`. |
+| <a id="opx-admin-weapon-holster" />`/opx.admin.weapon.holster` | ACL `command.opx.admin.weapon.holster` | `<playerId\|me>` | Puts the drawn weapon away through `inventory`'s [`HolsterWeapon`](/docs/opx_infinity/inventory/server#server-inventory-holsterweapon), which reads its rounds back into the bag. Answers `admin.done.holstered`. `not_armed`: no weapon drawn. `holster_unavailable`: contract missing or the call failed. |
+| <a id="opx-admin-weapon-read" />`/opx.admin.weapon.read` | ACL `command.opx.admin.weapon.read` | `<holder>` | Read. Weapons in the bag with slot, serial, rounds; marks the one drawn. |
+
+### World
+
+| Command | Access | Arguments | Effect |
+|---|---|---|---|
+| <a id="opx-admin-world-announce" />`/opx.admin.world.announce` | ACL `command.opx.admin.world.announce` | `<text…>` | Announcement toast to every player (≤ `ANNOUNCE.MAX_CHARACTERS`), plus a chat line when `ANNOUNCE.CHAT`. Answers how many received it. Alias `announce`. |
+| <a id="opx-admin-world-pvp" />`/opx.admin.world.pvp` | ACL `command.opx.admin.world.pvp` | `[on\|off]` | Damage between players, server-wide (`Open77.combat.setFriendlyFire`). Set from `COMBAT.PVP` at start. |
+| <a id="opx-admin-world-door" />`/opx.admin.world.door` | ACL `command.opx.admin.world.door` | `<doorId> <open\|close\|lock\|unlock\|seal\|unseal\|reset>` | In game. A door (`0x` + hex id) for everyone in the caller's bucket. ≤ `DOORS.MAX_PER_BUCKET` per bucket. `doors_networked` while `open77_doors` runs. Memory only. |
+| <a id="opx-admin-world-loc-add" />`/opx.admin.world.loc.add` | ACL `command.opx.admin.world.loc.add` | `<name> [label…]` | In game. Saves the caller's position (name: slug ≤ 32 chars). |
+| <a id="opx-admin-world-loc-remove" />`/opx.admin.world.loc.remove` | ACL `command.opx.admin.world.loc.remove` | `<name>` | Removes a location saved in game; a configured one is `seeded_location`. |
+
+### Read
+
+| Command | Access | Arguments | Effect |
+|---|---|---|---|
+| <a id="opx-admin-read-status" />`/opx.admin.read.status` | ACL `command.opx.admin.read.status` | — | Read. Players connected and in the world, staff-spawned vehicles, uptime, which optional contracts run, `open77_doors` state. |
+| <a id="opx-admin-read-audit" />`/opx.admin.read.audit` | ACL `command.opx.admin.read.audit` | `[count]` (1–40, default 15) | Read. Latest staff actions from the in-memory ring (`AUDIT_ENTRIES`), lost on restart. The platform audit log written with each entry is the lasting record. |
+
+## Configuration
+
+`config/admin.lua` sets `OPX.Config.MODULES.admin`. Shared script — every client downloads it, keep no secret in it. *Tunable* keys are defaults of a live panel entry (`ADMIN_*`), read when used; the rest are read at start.
+
+| Key | Default | Effect |
+|---|---|---|
+| <a id="config-admin-enabled" />`enabled` | `true` | `false` switches the module off. |
+| <a id="config-admin-keys" />`KEYS` | `{ MENU = 'F9', SPEED_UP = 'PAGEUP', SPEED_DOWN = 'PAGEDOWN' }` | Default key mappings, rebindable in the pause menu; `false` registers none. Speed keys change noclip speed. |
+| <a id="config-admin-rate" />`RATE` | `{ ACTION_MS = 400, READ_MS = 1000, REFRESH_MS = 750 }` | Per-operator cooldowns: actions, reads, menu list refreshes. Tunable `ADMIN_RATE_ACTION_MS`, `_READ_MS`, `_REFRESH_MS`. |
+| <a id="config-admin-audit-entries" />`AUDIT_ENTRIES` | `200` | In-memory audit ring size, 10–2000. Tunable. |
+| <a id="config-admin-toast-ms" />`TOAST_MS` | `6000` | How long a target's toast stays up. Tunable. |
+| <a id="config-admin-placement" />`PLACEMENT` | `{ HEALTH = 1.0, GRACE_MS = 5000, BESIDE = { X = 1.5, Y = 0.0, Z = 0.0 }, OBSERVE_HEIGHT = 2.0 }` | How a moved player lands: health fraction, respawn grace (tunable), goto/bring offset, observe height. |
+| <a id="config-admin-noclip" />`NOCLIP` | `{ SPEED = 40.0, MIN_SPEED = 1.0, MAX_SPEED = 500.0, STEP = 0.15, SEND_AFTER_MS = 500, PROMPTS = true, EFFECT = '', EFFECT_SECONDS = 1.5, SOUND = '', HIDE_BODY = true }` | Client. Speed range and step; delay before a key-chosen speed is sent (never < `RATE.ACTION_MS` + 100); on-screen prompts; VFX alias and sound on toggle (empty = none); whether the client reports noclip off so the body comes back. |
+| <a id="config-admin-target" />`TARGET` | `{ DISTANCE = 10.0 }` | Reach of the staff eye rows, 1–12 m. |
+| <a id="config-admin-models" />`MODELS` | `{ RESET_ON_DEATH = true, DURATION_MS = 0 }` | A worn ped: death gives the own body back; lifetime (0 = until removed, ≤ one day). |
+| <a id="config-admin-combat" />`COMBAT` | `{ PVP = true }` | PvP at server start. |
+| <a id="config-admin-tags" />`TAGS` | `DISTANCE = 25.0`, `FADE_START = 0.55`, `HEAD_LIFT = 0.35`, `HEAD_OFFSET_Z = 2.05`, `UPDATE_MS = 250`, `REFRESH_MS = 2000`, `MAX = 32`, `OWN = false`, `HIDE_IN_FIRST_PERSON = false`, `TECHNICAL = true`, `USERNAME = true`, `CITIZEN = true`, `BADGE = true`, `COLORS = { TEXT = '#F2F6F8', ACCENT = '#FCEE0A', STAFF = '#22D8E2', BACKGROUND = '#0A1220' }` | Name tags. `REFRESH_MS` = the server's list interval (tunable `ADMIN_TAGS_REFRESH_MS`). The rest is client drawing: reach, fade, height, cap, own tag, id square, account, citizen id, staff badge, colours. |
+| <a id="config-admin-announce" />`ANNOUNCE` | `{ DURATION_MS = 12000, CHAT = true, MAX_CHARACTERS = 240, STINGER = { OPEN = 'announce-open.mp3', CLOSE = 'announce-close.mp3', VOLUME = 0.8 } }` | Lifetime (tunable), chat copy, length cap, clips before/after. A clip is a bare file name in the resource's `audio/`; `''` turns it off, an invalid name is dropped. |
+| <a id="config-admin-ban-durations" />`BAN_DURATIONS` | `{ '1h', '1d', '7d', '30d', 'perm' }` | Offered by the ban form. A typed ban takes any valid duration. |
+| <a id="config-admin-vehicles" />`VEHICLES` | `{ SPAWN_OFFSET = { X = 3.0, Y = 0.0, Z = 0.25 }, AV_LIFT = 1.2, PER_OWNER = 8, NEAR_RADIUS = 30.0, OCCUPIED_REPAIRS = { glass = true, body = true, lights = true, tires = true, visual = true }, FLAGS = { 'locked', 'engineOn', 'lightsOn', 'invulnerable' } }` | Spawn offset, AV lift, cap per player (tunable), `near` radius (tunable), repairs allowed with people aboard, flags `vehicle.flag` accepts. AVs are recognised by `AV_PREFIXES` in `config/shared.lua`. |
+| <a id="config-admin-inventory" />`INVENTORY` | `{ MAX_COUNT = 10000, DEFAULT_AMMO = 60 }` | Largest give/removal count (tunable); ammo count when none typed. |
+| <a id="config-admin-doors" />`DOORS` | `{ MAX_PER_BUCKET = 256, SWEEP_MS = 2000, SCAN_MS = 1000, SCAN_RADIUS = 80 }` | Staff door states, only without `open77_doors`: per-bucket cap, server bucket sweep, client scan interval and radius (≤ 100 m). |
+| <a id="config-admin-links" />`LINKS` | `PLAYERS = 'opx.players'`, `WHERE = 'opx.where'`, `JOB = 'opx.job'`, `GANG = 'opx.gang'`, `MONEY = 'opx.money'`, `SAVE = 'opx.save'`, `INVENTORY_OPEN = 'opx.inventory.open'`, `INVENTORY_HOLDERS = 'opx.inventory.holders'`, `WEATHER_SET = 'opx.weather.set'`, `WEATHER_NEXT = 'opx.weather.next'`, `WEATHER_FREEZE = 'opx.weather.freeze'`, `TIME = 'opx.time'`, `TIME_FREEZE = 'opx.time.freeze'` | Other modules' commands the menu and eye run; `false` removes the row. In the access map, so greyed by the same ACL. |
+| <a id="config-admin-weather-presets" />`WEATHER_PRESETS` | `{ 'sunny', 'lightclouds', 'cloudy', 'rain', 'heavyclouds', 'fog', 'pollution', 'sandstorm' }` | Offered on the sky screen and the eye. Must be `NAME`s from the [`weather`](/docs/opx_infinity/weather#config-weather-weather) config. |
+| <a id="config-admin-times" />`TIMES` | `{ '06:00', '09:00', '12:00', '17:30', '20:30', '23:00', '03:00' }` | Offered on the time screen. |
+| <a id="config-admin-locations" />`LOCATIONS` | 11 rows (`watson`, `heights`, `coast`, `stoop`, `northside`, `junction`, `underpass`, `dealer`, `racegrid`, `lab`, `arena`) | Configured destinations `{ NAME, LABEL, X, Y, Z, HEADING }`; `NAME` must be a slug. `/opx.admin.self.pos` copies a row in this shape. |
+
+Spawn list: `modules/admin/data/vehicles.lua` (277 rows in classes, Air first). Ped list: `modules/admin/data/peds.lua` (250 ordinary human rigs). A malformed row is warned at boot and skipped.
+
+## Refusal codes [#codes]
+
+Locale key `admin.error.<camelCase>` (e.g. `bad_target` → `admin.error.badTarget`). Typed-input codes show as warnings, the rest as errors.
+
+| Code | Meaning |
+|---|---|
+| `in_game_only` | Needs a player, not the console. |
+| `too_fast` | Inside the operator's cooldown. |
+| `failed` | The handler raised; the log names it. |
+| `no_target`, `bad_target`, `not_connected`, `self_target`, `console_has_no_player` | Target missing, malformed, offline, the caller where not allowed, or `me` from the console. |
+| `not_incarnated`, `gate_closed`, `gate_unreadable` | The player's body cannot be acted on yet. |
+| `no_position` | The host has no position for the player. |
+| `kill_refused`, `respawn_refused`, `refused` | The host refused; its reason is shown. |
+| `bad_coordinates`, `bad_switch`, `bad_duration`, `empty_text` | Malformed argument. |
+| `unknown_vehicle`, `vehicle_cap`, `no_vehicle`, `occupied`, `unsafe_repair`, `bad_scope`, `unknown_flag`, `not_ours`, `vehicles_unavailable`, `keys_unavailable` | Vehicle commands. |
+| `unknown_weapon`, `unknown_ammo`, `not_armed`, `holster_unavailable`, `give_partial` | Weapon commands. `not_armed`: holster target has no weapon drawn. `holster_unavailable`: no `HolsterWeapon` on the inventory contract, or it failed. `give_partial`: weapon given, ammo refused, weapon could not be taken back. |
+| `inventory_unavailable`, `bad_holder`, `no_character`, `unknown_citizen`, `unknown_item`, `bad_count`, `not_enough`, `bag_no_room`, `bag_too_heavy`, `bad_amount`, `bad_type`, `vetoed` | Inventory or character contract refusals. |
+| `unknown_location`, `bad_location_name`, `seeded_location` | Locations. |
+| `bad_door`, `door_limit`, `doors_networked`, `doors_unavailable` | Doors. |
+| `combat_unavailable` | No `Open77.combat.setFriendlyFire` on the host. |
+| `unknown_ped`, `models_unavailable` | Ped models. `models_unavailable`: no `players.setModel` native. As of 2.31.13+op77.78 it is in **no** published server build, so `self.model` and `player.model` always answer this today (one server log line). |
+| `appearance_unavailable` | `player.wardrobe` without the `appearance` contract. |
+| `bad_name`, `characters_unavailable`, `search_short`, `bad_request` | Character commands. |

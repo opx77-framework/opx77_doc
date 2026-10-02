@@ -1,0 +1,37 @@
+---
+title: SetVehicleState
+description: Stores or impounds an owned vehicle.
+---
+
+<a id="export-server-setvehiclestate" />
+
+```lua
+local res = exports.opx_infinity:SetVehicleState(plate, state, garage)
+```
+
+Scope `write` · must be awaited — a synchronous call answers `export.mustAwait` before touching anything.
+
+**Parameters**
+- plate: `string`
+- state: `'stored' | 'impounded'`
+- garage?: `string` — 1–48 characters: letters, digits, `_`, `-`, `.`
+
+- A vehicle that is out is put away first; refused with `vehicle.occupied` while anyone sits in it.
+- An impounded vehicle cannot be brought out (`vehicle.impounded`) until it is set back to `'stored'`.
+- See [vehicles](/docs/opx_infinity/vehicles).
+
+**Returns**
+- `{ plate, state, garage }`
+
+**Errors**
+- `vehicle.badState`, `vehicle.notFound`, `vehicle.occupied`, `vehicle.busy`, `error.badRequest`, `export.badArgument`
+
+```lua title="Example"
+CreateThread(function()
+  local pending, why = Open77.exports.call('opx_infinity', 'SetVehicleState', 'OPX 123', 'impounded')
+  if not pending then return print('not sent: ' .. tostring(why)) end
+  local res = pending:await()
+  if not (res and res.ok) then return print('refused: ' .. tostring(res and res.error)) end
+  print('impounded')
+end)
+```

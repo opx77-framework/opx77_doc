@@ -1,0 +1,74 @@
+---
+title: Events
+description: Network and local events of the elevators module.
+---
+
+## opx:net:elevators:sighted [#opx-net-elevators-sighted]
+
+Client → server. A configured, unmanaged lift was seen. The server checks the player is within `SCAN_RADIUS` and in the right bucket, then adopts and locks it. Max 12 per second per player.
+
+```lua
+TriggerServerEvent('opx:net:elevators:sighted', engineEntity, x, y, z, floorCount, activeFloor)
+```
+
+- engineEntity: `number`
+- x, y, z: `number`
+- floorCount: `integer`
+- activeFloor: `integer`
+
+## opx:net:elevators:request [#opx-net-elevators-request]
+
+Client → server. Ride request. Rate-limited by `REQUESTS_PER_WINDOW`.
+
+```lua
+TriggerServerEvent('opx:net:elevators:request', elevatorKey, floorIndex)
+```
+
+- elevatorKey: `string`
+- floorIndex: `integer`
+
+## opx:net:elevators:bound [#opx-net-elevators-bound]
+
+Server → client. The lift is adopted under this id.
+
+```lua
+RegisterNetEvent('opx:net:elevators:bound', function(elevatorKey, id, floorCount) end)
+```
+
+- elevatorKey: `string`
+- id: `number`
+- floorCount: `integer`
+
+## opx:net:elevators:released [#opx-net-elevators-released]
+
+Server → client. The lift was given back (removed by the host, unused for 10 minutes, or the module stopped).
+
+```lua
+RegisterNetEvent('opx:net:elevators:released', function(elevatorKey) end)
+```
+
+- elevatorKey: `string`
+
+## opx:net:elevators:answer [#opx-net-elevators-answer]
+
+Server → client. The server's verdict on a request.
+
+```lua
+RegisterNetEvent('opx:net:elevators:answer', function(elevatorKey, floorIndex, ok, error) end)
+```
+
+- elevatorKey: `string`
+- floorIndex: `integer`
+- ok: `boolean`
+- error?: `string`
+
+## opx:on:elevators:decision [#opx-on-elevators-decision]
+
+Client, local. Every verdict, local refusals included. Only reaches code inside opx_infinity's client VM.
+
+```lua
+AddEventHandler('opx:on:elevators:decision', function(decision) end)
+```
+
+- decision: `table` — `{ elevator, floor, ok, error?, reason?, label?, source }`
+  - `source`: `server`, `panel` or `contract`.

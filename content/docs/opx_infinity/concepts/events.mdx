@@ -1,0 +1,75 @@
+---
+title: Events and channels
+description: The three event prefixes opx_infinity uses (opx:net, opx:on, opx:in), who can hear each one, and how to build a name with OPX.Event.
+---
+
+Every event name starts with one of three prefixes, which say who may raise it and who can hear it. Build names with [`OPX.Event(channel, module, verb)`](/docs/opx_infinity/core/shared#opx-event) instead of typing them, so a typo fails at load.
+
+## The three prefixes [#prefixes]
+
+| Prefix | `OPX.Channel` | Travels | Use it for |
+|---|---|---|---|
+| `opx:net:<module>:<verb>` | `NET` | across the network, client ↔ server | requests from a client, answers and pushes from the server |
+| `opx:on:<module>:<verb>` | `LOCAL` | inside one runtime, public | announcing something other modules may react to |
+| `opx:in:<module>:<verb>` | `INTERNAL` | inside one runtime, private | one module's own halves, or core to modules |
+
+```lua
+local SAY = OPX.Event(OPX.Channel.NET, 'chat', 'say')   -- 'opx:net:chat:say'
+```
+
+Each module lists its names in `module.lua` as `M.Event`; each module's **events** page lists its `opx:net:` and `opx:on:` names.
+
+### Why three prefixes [#why]
+
+The host matches handlers on the name only. A local `TriggerEvent` on a name that also has a `RegisterNetEvent` handler would run the network handler too. Separate network and local names make that impossible.
+
+## Who can hear what [#reach]
+
+| Raised with | On the server | On the client |
+|---|---|---|
+| `TriggerEvent` (`opx:on:`, `opx:in:`) | every running **server resource** that handles the name | **this resource only** |
+| `TriggerClientEvent` (`opx:net:`) | — | the `opx_infinity` client of that player |
+| `TriggerServerEvent` (`opx:net:`) | the server handler, `source` set by the platform | — |
+
+- A separate **client** resource cannot hear `opx_infinity`'s `opx:on:` events: on the client, `TriggerEvent` stays inside one resource.
+- A separate **server** resource hears server-side events. The public ones are raised with [`OPX.Publish`](/docs/opx_infinity/core/server#opx-publish) and listed on [Public server events](/docs/creators/events).
+
+<Callout type="warn" title="Server opx:in:* events are visible to every server resource">
+
+Server `TriggerEvent` is host-wide, so the private `opx:in:*` events also reach other resources, and another resource can raise them. Treat a server `opx:on:` or `opx:in:` handler as callable by any resource on the server, and never put a secret in an `opx:in:` payload. Outside code should use only the `opx:on:*` names.
+
+</Callout>
+
+On the server, raise a public event with `OPX.Publish(name, playerId, payload)`, never a bare `TriggerEvent`: it checks the `opx:on:` prefix and never raises.
+
+## Network events are requests [#net]
+
+- A `RegisterNetEvent` handler gets `source` from the authenticated connection. Everything else in the payload comes from a machine the player controls: re-check it ([Server authority](/docs/opx_infinity/concepts/server-authority)).
+- Platform limit: at most 32 arguments in a 48 KiB envelope.
+
+## Host events [#host]
+
+Platform-owned names are listed once in `OPX.Host` (`core/shared/channels.lua`). The two runtimes use different names for resource start and stop.
+
+| `OPX.Host` key | Name |
+|---|---|
+| `PLAYER_CONNECTED` | `onPlayerConnected` |
+| `PLAYER_DISCONNECTED` | `onPlayerDisconnected` |
+| `PLAYER_READY` | `onPlayerReady` |
+| `CLIENT_RESOURCE_START` / `CLIENT_RESOURCE_STOP` | `onClientResourceStart` / `onClientResourceStop` (client) |
+| `RESOURCE_START` / `RESOURCE_STOP` | `onResourceStart` / `onResourceStop` (server) |
+| `WORLD_READY` | `open77:worldReady` |
+| `GAMEPLAY_READY` | `open77:session:gameplayReady` |
+| `VEHICLE_REMOVED` | `onVehicleRemoved` |
+| `TUNABLE_CHANGED` | `onTunableChanged` |
+| `KEYBINDS_CHANGED` | `open77:keybinds:changed` (client: a key mapping was registered, rebound, reset or removed) |
+
+Who uses each one: [Runtime events](/docs/opx_infinity/core/events#host).
+
+## Hooks: events that can say no [#hooks]
+
+When another module must be able to **veto** something (for example money being added), use [`OPX.Hooks`](/docs/opx_infinity/core/lib#opx-hooks-register) instead of an event. A hook runs in the same VM, in priority order, and any handler may refuse. The hooks the framework triggers are on the [character](/docs/opx_infinity/character) page.
+
+## Page channels [#page]
+
+The WebUI page talks to Lua on a separate set of names, such as `menu:choose`. They are not events — see [The WebUI page](/docs/opx_infinity/concepts/webui#channels).

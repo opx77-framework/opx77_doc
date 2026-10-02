@@ -1,0 +1,99 @@
+---
+title: Server
+description: The garages contract on the server — bring out, put away and list a player's vehicles.
+---
+
+```lua
+local garages = OPX.Api.Get('garages')
+```
+
+From server code inside opx_infinity.
+
+## Bring [#server-garages-bring]
+
+Brings a vehicle out at a free exit of the location the player stands at. Yields.
+
+```lua
+garages.Bring(source, key, plate)
+```
+
+**Parameters**
+- source: `number`
+- key?: `string`
+  - A point key or a garage key. Nil = the nearest point.
+- plate?: `string`
+  - Without it, a car filed at this garage is preferred, then any eligible one; ties broken by plate.
+
+**Returns**
+- `Result` — value `{ spot, garage, label, exit, plate, id, recalled? }`
+
+Also cuts a key through `vehiclekeys.Ensure` on a separate thread.
+
+```lua title="Example"
+local out = garages.Bring(source, 'garage1')
+if not out.ok then print(out.error) end
+```
+
+## Use [#server-garages-use]
+
+What the marker key does: puts away the owned car the player sits in, filed under this garage; otherwise `Bring`. Yields.
+
+```lua
+garages.Use(source, key, plate)
+```
+
+**Parameters**
+- source: `number`
+- key?: `string`
+- plate?: `string`
+
+**Returns**
+- `Result` — value `{ spot, garage, label, plate, stored = true }` or the `Bring` value
+
+## List [#server-garages-list]
+
+Every eligible vehicle of the player at a menu point. Yields.
+
+```lua
+garages.List(source, key)
+```
+
+**Parameters**
+- source: `number`
+- key?: `string`
+
+**Returns**
+- `Result` — value `{ spot, garage, label, kind, vehicles }`
+  - `vehicles`: `{ plate, record, here }[]` — `here` is true when filed at this garage.
+
+## Spots [#server-garages-spots]
+
+Every drawn point by point key: `<garage>#<n>` for a menu, `<garage>#<n>.in` for an entry. Not a Result.
+
+```lua
+garages.Spots()
+```
+
+**Returns**
+- `table`
+
+## Garages [#server-garages-garages]
+
+Every garage by the key a vehicle's `garage` column holds. Not a Result.
+
+```lua
+garages.Garages()
+```
+
+**Returns**
+- `table` — `{ key, label, kind, locations = { index, bucket, menu, entry, exits }[] }` per key
+
+## State [#server-garages-state]
+
+```lua
+garages.State()
+```
+
+**Returns**
+- `Result` — value `{ garages }`
+  - `garages[key]`: `{ kind, label, locations, adopted }` — `locations` is a count; `adopted` true when the garage came from the legacy table.

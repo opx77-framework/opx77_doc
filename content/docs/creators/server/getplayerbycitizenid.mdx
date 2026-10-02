@@ -1,0 +1,26 @@
+---
+title: GetPlayerByCitizenId
+description: The public view of an online character, found by citizen id.
+---
+
+<a id="export-server-getplayerbycitizenid" />
+
+```lua
+local res = exports.opx_infinity:GetPlayerByCitizenId(citizenId)
+```
+
+Scope `read` · sync.
+
+**Parameters**
+- citizenId: `string`
+
+**Returns**
+- the same public view as [`GetPlayerData`](/docs/creators/server/getplayerdata#export-server-getplayerdata), for a character that is **online**
+
+**Errors**
+- `export.badArgument`, `error.notLoggedIn` (nobody is playing that character)
+
+```lua title="Example"
+local res = exports.opx_infinity:GetPlayerByCitizenId('AB12CD34')
+if res.ok then TriggerClientEvent('my_jobs:ping', res.value.source) end
+```

@@ -1,0 +1,21 @@
+---
+title: Unsubscribe
+description: Stops forwarding an OPX client event to your resource.
+---
+
+<a id="export-client-unsubscribe" />
+
+```lua
+local res = exports.opx_infinity:Unsubscribe(event)
+```
+
+Sync.
+
+**Parameters**
+- event: `string`
+
+**Returns**
+- `boolean` — `true` if you were subscribed
+
+**Errors**
+- `export.notSubscribable`, `export.badArgument`, `export.callerDenied`

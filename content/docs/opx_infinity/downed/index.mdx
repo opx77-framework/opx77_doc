@@ -1,0 +1,48 @@
+---
+title: downed
+description: Death and revive — who is down, the full-screen down view, waiting for help, giving up at a medical centre, and reviving through the contract.
+---
+
+A player whose life phase becomes `dead` (with a character loaded) is down. They see a full-screen view with two choices: **wait for help** (marks them as waiting, a distress signal other modules can list) or **give up** (unlocks after a delay, wakes them at the nearest configured medical centre). Staff or job modules stand a player up through [`Revive`](/docs/opx_infinity/downed/server#server-downed-revive); nothing else in the runtime respawns a dead player. Being down survives a disconnect: the player is put back down when they return with the same character.
+
+| | |
+|---|---|
+| Side | both |
+| Requires | `character` (hard) |
+| Contract | `downed` v1 — [server](/docs/opx_infinity/downed/server), [client](/docs/opx_infinity/downed/client) |
+| Config | `config/downed.lua` (shared) |
+| Data | `opx77_character_down` (one row per character: `citizen_id`, `down_for_ms`, `waiting`) |
+
+- Each request event is limited to one per second per player. The server also rescans every player's life state each second.
+- Audit entries: `downed.down`, `downed.up`, `downed.wait`, `downed.giveUp`, `downed.revive`, `downed.restore`, and the security entry `downed.revive.denied`.
+
+## Configuration
+
+`config/downed.lua` sets `OPX.Config.MODULES.downed`. Shared.
+
+| Key | Default | Effect |
+|---|---|---|
+| <a id="config-downed-enabled" />`enabled` | `true` | `false` switches the module off. |
+| <a id="config-downed-give-up-after-s" />`GIVE_UP_AFTER_S` | `120` | Seconds down before give up unlocks (0–3600). Enforced on the server. |
+| <a id="config-downed-give-up-hold-ms" />`GIVE_UP_HOLD_MS` | `1500` | How long the give-up button must be held (minimum 300). |
+| <a id="config-downed-respawn" />`RESPAWN` | `{ HEALTH = 0.5, GRACE_MS = 5000 }` | After give up: fraction of full health (0.01–1) and spawn protection in ms (0–60000). |
+| <a id="config-downed-hospitals" />`HOSPITALS` | one row: `Watson medical center` at `-667.14, -382.61, 9.16`, heading `0.0` | Respawn points `{ LABEL, X, Y, Z, HEADING }`. The nearest wins. No usable row: give up is refused `no_hospital`. |
+| <a id="config-downed-revive" />`REVIVE` | `{ HEALTH = 0.35, GRACE_MS = 3000 }` | What a contract `Revive` leaves the player with. |
+| <a id="config-downed-revivers" />`REVIVERS` | `'*'` | Callers allowed to `Revive`: `'*'` for all, or a set `{ name = true }`. The name is the caller's own claim: a switch, not a security boundary. |
+| <a id="config-downed-suspenders" />`SUSPENDERS` | `{ admin = true }` | Callers allowed to `Suspend` the screen; keys are the module ids passed to `Suspend`. |
+| <a id="config-downed-vanilla-hud" />`VANILLA_HUD` | all 13 components | Game HUD components hidden while down: `minimap`, `compass`, `clock`, `health`, `stamina`, `weapon`, `speedometer`, `questTracker`, `phone`, `scanner`, `vanillaNotifications`, `crosshair`, `hubMenu`. |
+
+## Refusal codes [#codes]
+
+| Code | Meaning | Player text |
+|---|---|---|
+| `too_soon` | Give up before `GIVE_UP_AFTER_S`. | `medic.refused.too_soon` |
+| `no_hospital` | No usable `HOSPITALS` row. | `medic.refused.no_hospital` |
+| `respawn_refused` | The host refused the respawn. | `medic.refused.respawn_refused` |
+| `not_incarnated` | The player has no body in the world. | `medic.refused.not_incarnated` |
+| `gate_closed` | The player is still joining. | `medic.refused.gate_closed` |
+| `gate_unreadable` | The readiness gate could not be read. | `medic.refused.gate_unreadable` |
+| `failed` | Any other code (generic). | `medic.refused.failed` |
+| `not_down` | `Revive` on a player who is not dead. | — |
+| `bad_player` | Not a whole positive player id. | — |
+| `invalid_caller` / `caller_denied` | Missing caller name, or not in `REVIVERS` / `SUSPENDERS`. | — |

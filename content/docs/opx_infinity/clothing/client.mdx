@@ -1,0 +1,64 @@
+---
+title: Client
+description: The clothing contract on the client — the store underfoot and the key's door.
+---
+
+```lua
+local clothing = OPX.Api.Get('clothing')
+```
+
+From client code inside opx_infinity. Every function answers a Result.
+
+## State [#client-clothing-state]
+
+```lua
+clothing.State()
+```
+
+**Returns**
+- `Result` `{ spots, markers, nearest, shown, key }`
+  - `spots`, `markers`: counts of stores and drawn markers.
+  - `nearest`: key of the store underfoot.
+  - `shown`: whether the hint row is up.
+  - `key`: the key label.
+
+## Nearest [#client-clothing-nearest]
+
+The store the player stands on.
+
+```lua
+clothing.Nearest()
+```
+
+**Returns**
+- `Result` `{ key, label }` — error `clothing.noSuchStore`
+
+## Spots [#client-clothing-spots]
+
+The stores this client was sent (its own routing bucket).
+
+```lua
+clothing.Spots()
+```
+
+**Returns**
+- `Result` `{ spots = { [key] = store } }`
+
+## Open [#client-clothing-open]
+
+Same as pressing the key: tells the server, then opens the fitting room.
+
+```lua
+clothing.Open(origin)
+```
+
+**Parameters**
+- origin?: `string` — echoed as `source` on [the decision](/docs/opx_infinity/clothing/events#opx-on-clothing-decision).
+
+**Returns**
+- `Result` — the verdict table; error is a locale key such as `clothing.noSuchStore`, `clothing.noWardrobe`, `clothing.wardrobeRefused`, `error.noPermission`
+
+```lua title="Example"
+local opened = clothing.Open('mymodule')
+if not opened.ok then print(opened.error) end
+```

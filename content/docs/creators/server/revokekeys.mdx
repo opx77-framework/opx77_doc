@@ -1,0 +1,34 @@
+---
+title: RevokeKeys
+description: Removes every key to a plate from one bag.
+---
+
+<a id="export-server-revokekeys" />
+
+```lua
+local res = exports.opx_infinity:RevokeKeys(target, plate)
+```
+
+Scope `write` · must be awaited — a synchronous call answers `export.mustAwait` before touching anything.
+
+**Parameters**
+- target: `number | string` — player id or citizen id
+- plate: `string`
+
+- Keys in stashes or trunks are not revoked; to re-key a car for good, change its plate. See [vehiclekeys](/docs/opx_infinity/vehiclekeys).
+
+**Returns**
+- `{ plate, removed }`
+
+**Errors**
+- `export.badArgument`, `error.badRequest`, `vehiclekeys.unavailable`
+
+```lua title="Example"
+CreateThread(function()
+  local pending, why = Open77.exports.call('opx_infinity', 'RevokeKeys', playerId, 'OPX 123')
+  if not pending then return print('not sent: ' .. tostring(why)) end
+  local res = pending:await()
+  if not (res and res.ok) then return print('refused: ' .. tostring(res and res.error)) end
+  print(res.value.removed .. ' key(s) removed')
+end)
+```

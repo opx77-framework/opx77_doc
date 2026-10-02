@@ -1,0 +1,106 @@
+---
+title: opx_lib
+description: A client-only Lua library any resource can require — how to load it, the permission each module needs, and the Result every wrapper answers.
+---
+
+`opx_lib` is a separate resource. Its wrappers call Open77 natives and answer a Result instead of raising (markers, blips, key bindings, cameras, screen fades, callbacks, raycasts). Its pure helpers cover text, numbers, tables, colours and translations. `opx_infinity` loads it once on its client and exposes it as [`OPX.Lib`](/docs/opx_infinity/core/lib#opx-lib). Version `0.4.0` ([`Lib.VERSION`](#lib-version)).
+
+## Using it [#using]
+
+```lua title="open77.lua"
+dependency "opx_lib"
+permissions { "world.markers", "input.actions" }  -- only what you use, see below
+```
+
+```lua title="client/main.lua"
+local Lib = require('@opx_lib')
+local name = Lib.Validate.Word(payload.name, 24)
+Lib.Notify.Show('Welcome, ' .. name)
+```
+
+| Fact | Detail |
+|---|---|
+| Client only | The server sandbox has no `require`, so no server script can load it. To use a `pure/` helper on the server, copy the file. |
+| Runs in your VM | The code runs inside the resource that calls `require`. Your permissions, your instruction budget, and every marker, blip, key mapping or callback it creates belongs to you. |
+| Permissions | `opx_lib` declares none: a permission is checked against the calling resource. You declare what you use. A missing one comes back as `error = 'permission_denied'` with a `detail` naming the line to add. |
+| Per resource | Each resource that requires it gets its own copy of every table. `Lib.Locale`'s catalogue is yours alone. |
+| Without `dependency "opx_lib"` | `require` answers `nil, 'module_dependency_not_declared'`. |
+| Server side | `opx_lib`'s own server script only logs that it is present. |
+
+## Manifest helpers [#manifest]
+
+### Lib.VERSION [#lib-version]
+
+The library version.
+
+```lua
+Lib.VERSION -- '0.4.0'
+```
+
+- `string`
+
+### Lib.NEEDS [#lib-needs]
+
+Each module's `NEEDS`, read off the modules ([`Lib.Permission.Of`](/docs/opx_lib/permission#lib-permission-of)).
+
+```lua
+Lib.NEEDS -- { Notify = 'ui.vanilla.hud', Input = 'input.actions', ... }
+```
+
+- `table<module, permission>`
+
+### Lib.Manifest [#lib-manifest]
+
+The `permissions { ... }` line that covers every module. Print it at start-up to check yours.
+
+```lua
+Lib.Manifest()
+```
+
+**Returns**
+- `string?` — `nil` when nothing is needed
+
+```lua title="Example"
+print(Lib.Manifest())
+```
+
+### Permission per module [#needs]
+
+| Module | Permission you declare |
+|---|---|
+| [`Notify`](/docs/opx_lib/notify) | `ui.vanilla.hud` |
+| [`Input`](/docs/opx_lib/input) | `input.actions` |
+| [`Marker`](/docs/opx_lib/marker) | `world.markers` (not for `Shapes`) |
+| [`Callback`](/docs/opx_lib/callback) | `network.events` |
+| [`World`](/docs/opx_lib/world) | `world.query` |
+| [`Blip`](/docs/opx_lib/blip) | `ui.vanilla.map` |
+| [`Camera`](/docs/opx_lib/camera) | `camera.script` (not for `Ray`, `Owner`) |
+| [`Screen`](/docs/opx_lib/screen) | `screen.effects` |
+| every other module | none |
+
+## Results [#results]
+
+Almost every wrapper answers a Result:
+
+```lua
+{ ok = true, value = v }
+{ ok = false, error = code, detail = text }
+```
+
+- Common codes from any wrapper: `open77_unavailable`, `native_not_found` (older build), `native_raised`, `permission_denied`, or the native's own refusal string.
+- Validation codes (`invalid_*`) are listed per function.
+- A function marked **Yields** must run inside `CreateThread`.
+
+## Modules
+
+### Pure modules [#pure]
+
+No natives and no permission. Same behaviour on any runtime.
+
+[`Result`](/docs/opx_lib/result) · [`Validate`](/docs/opx_lib/validate) · [`Table`](/docs/opx_lib/table) · [`String`](/docs/opx_lib/string) · [`Math`](/docs/opx_lib/math) · [`Class`](/docs/opx_lib/class) · [`Locale`](/docs/opx_lib/locale) · [`Text`](/docs/opx_lib/text) · [`Array`](/docs/opx_lib/array) · [`Colour`](/docs/opx_lib/colour) · [`Permission`](/docs/opx_lib/permission)
+
+### Client modules [#client]
+
+Wrappers over Open77 natives, client only.
+
+[`Native`](/docs/opx_lib/native) · [`Timer`](/docs/opx_lib/timer) · [`Character`](/docs/opx_lib/character) · [`Notify`](/docs/opx_lib/notify) · [`Anim`](/docs/opx_lib/anim) · [`Input`](/docs/opx_lib/input) · [`Marker`](/docs/opx_lib/marker) · [`Callback`](/docs/opx_lib/callback) · [`Zone`](/docs/opx_lib/zone) · [`Rpc`](/docs/opx_lib/rpc) · [`Async`](/docs/opx_lib/async) · [`World`](/docs/opx_lib/world) · [`Players`](/docs/opx_lib/players) · [`Blip`](/docs/opx_lib/blip) · [`Store`](/docs/opx_lib/store) · [`Camera`](/docs/opx_lib/camera) · [`Screen`](/docs/opx_lib/screen)

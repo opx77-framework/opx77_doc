@@ -1,0 +1,156 @@
+---
+title: Events
+description: Hooks, network events and local events of the character module.
+---
+
+## Hooks [#hooks]
+
+Server, inside opx_infinity. Lower priority runs first. A hook that returns exactly `false` vetoes; a hook that raises is logged and skipped.
+
+```lua
+OPX.Hooks.Register('money:beforeRemove', function(payload)
+  if payload.amount > 100000 then return false end
+end, priority)
+```
+
+| Hook | Payload | Can veto | When |
+|---|---|---|---|
+| `money:beforeAdd` | `{ player, moneyType, amount, reason }` | yes — `AddMoney` answers `false, 'money.vetoed'` | After type and amount checks, before the balance moves. `amount` is the positive delta. |
+| `money:beforeRemove` | `{ player, moneyType, amount, reason }` | yes — `money.vetoed` | After the sufficiency check, before the balance moves. |
+| `money:beforeSet` | `{ player, moneyType, amount, reason }` | yes — `money.vetoed` | `amount` is the new balance. |
+| `paycheck:before` | `{ player, amount }` | yes — that character is not paid this cycle | Before each paycheck. The payment then goes through `AddMoney` and `money:beforeAdd`. |
+| `money:beforeAddOffline` | `{ citizenId, moneyType, amount, reason }` | yes — `AddMoneyOffline` answers `money.vetoed` | Before an offline character's balance is written. (Online goes through `money:beforeAdd`.) |
+| `job:beforeSet` | `{ player, citizenId, offline, name, grade, previous }` | yes — `SetJob` answers `job.vetoed`, nothing is written | Before the primary job changes. `player` may be an offline Player (`offline = true`); `previous` is the current job. |
+| `gang:beforeSet` | `{ player, citizenId, offline, name, grade, previous }` | yes — `gang.vetoed` | The same for `SetGang`. |
+| `character:loading` | `{ citizenId, entity, data = {} }` | no — the verdict is ignored | During login, before the Player is built. May yield and fill `data`; every key in `data` is copied onto `PlayerData`. |
+
+## opx:net:character:loaded [#opx-net-character-loaded]
+
+Server → client. A character is loaded on this client. Also re-sent when a reloaded client announces.
+
+```lua
+RegisterNetEvent('opx:net:character:loaded', function(playerData) end)
+```
+
+## opx:net:character:unloaded [#opx-net-character-unloaded]
+
+Server → client. The character was unloaded.
+
+```lua
+RegisterNetEvent('opx:net:character:unloaded', function() end)
+```
+
+## opx:net:character:data [#opx-net-character-data]
+
+Server → client. The whole PlayerData after any change.
+
+```lua
+RegisterNetEvent('opx:net:character:data', function(playerData) end)
+```
+
+## opx:net:character:money [#opx-net-character-money]
+
+Server → client. A balance changed.
+
+```lua
+RegisterNetEvent('opx:net:character:money', function(moneyType, amount, action, balance) end)
+```
+
+- moneyType: `string`
+- amount: `integer`
+- action: `'add' | 'remove' | 'set'`
+- balance: `integer`
+
+## opx:net:character:job [#opx-net-character-job]
+
+Server → client. Primary job or duty changed.
+
+```lua
+RegisterNetEvent('opx:net:character:job', function(job) end)
+```
+
+## opx:net:character:gang [#opx-net-character-gang]
+
+Server → client. Primary gang changed.
+
+```lua
+RegisterNetEvent('opx:net:character:gang', function(gang) end)
+```
+
+## opx:net:character:announce [#opx-net-character-announce]
+
+Client → server. "I am here." Sent at start and on world ready; the server loads or re-sends the character. 2 s cooldown.
+
+```lua
+TriggerServerEvent('opx:net:character:announce')
+```
+
+## opx:net:character:name [#opx-net-character-name]
+
+Client → server. The typed name. Accepted once per character. 1 s cooldown.
+
+```lua
+TriggerServerEvent('opx:net:character:name', { firstName = 'V', lastName = 'Silverhand' })
+```
+
+## opx:net:character:heading [#opx-net-character-heading]
+
+Client → server. Heading hint, sent every `HEADING_REPORT_MS` when it moved 2° or more. Position is read by the server.
+
+```lua
+TriggerServerEvent('opx:net:character:heading', { heading = heading })
+```
+
+## opx:on:character:loaded [#opx-on-character-loaded]
+
+Client, local. Raised after the mirror is updated.
+
+```lua
+AddEventHandler('opx:on:character:loaded', function(playerData) end)
+```
+
+## opx:on:character:unloaded [#opx-on-character-unloaded]
+
+Client, local.
+
+```lua
+AddEventHandler('opx:on:character:unloaded', function() end)
+```
+
+## opx:on:character:changed [#opx-on-character-changed]
+
+Client, local. After every `data` update.
+
+```lua
+AddEventHandler('opx:on:character:changed', function(playerData) end)
+```
+
+## opx:on:character:money [#opx-on-character-money]
+
+Client, local.
+
+```lua
+AddEventHandler('opx:on:character:money', function(moneyType, amount, action, balance) end)
+```
+
+## opx:on:character:job [#opx-on-character-job]
+
+Client, local.
+
+```lua
+AddEventHandler('opx:on:character:job', function(job) end)
+```
+
+## opx:on:character:gang [#opx-on-character-gang]
+
+Client, local.
+
+```lua
+AddEventHandler('opx:on:character:gang', function(gang) end)
+```
+
+## Server side
+
+- The `opx:on:character:*` events above are client events: only client code inside opx_infinity hears them.
+- The **server** also raises `opx:on:character:loaded`, `unloaded`, `money`, `job` and `gang` for every server resource, with `(playerId, payload)` — see [Public server events](/docs/creators/events#character).
+- Server-side, the module also raises private `opx:in:character:` events (`loaded`, `unloaded`, `money`, `job`, `gang`, `paycheck`, `deleted`) for other runtime modules. `job` and `gang` are raised on removal too, not only on a set. Server `TriggerEvent` is host-wide, so they are visible to every server resource; do not depend on them.

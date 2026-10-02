@@ -1,0 +1,30 @@
+---
+title: Events
+description: The local event and page channels of the form module.
+---
+
+## opx:on:form:answer [#opx-on-form-answer]
+
+Client, local. Raised after the owner's callback for every submit and cancel. Reaches only code inside opx_infinity's client VM.
+
+```lua
+AddEventHandler('opx:on:form:answer', function(payload) end)
+```
+
+- payload: `table` — the [answer payload](/docs/opx_infinity/form/client#the-answer)
+
+## Page channels
+
+All on the `interactive` surface; every payload carries the form `handle`.
+
+| Channel | Direction | Payload | Meaning |
+|---|---|---|---|
+| <a id="page-form-edit" />`form:edit` | page → Lua | `{ handle, id, seq, text }` | Candidate text for a field. Lua answers with the accepted text in the next frame. |
+| <a id="page-form-key" />`form:key` | page → Lua | `{ handle, key, repeat }` | `up`, `down`, `left`, `right` or `enter`. |
+| <a id="page-form-step" />`form:step` | page → Lua | `{ handle, id, direction }` | Click on a choice/slider arrow; `direction` is `1` or `-1`. |
+| <a id="page-form-focus" />`form:focus` | page → Lua | `{ handle, id }` | The player clicked into a field. |
+| <a id="page-form-dismiss" />`form:dismiss` | page → Lua | `{ handle }` | Escape; cancels with reason `dismissed`. |
+| `focus:set` | page → Lua | `{ owner, focus }` | Shared ([`page-focus-set`](/docs/opx_infinity/downed/events#page-focus-set)); the form answers for owner `form` (keyboard only). |
+| `form:open` | Lua → page | first frame plus `anchor, width, dim` | Re-sent until the page is ready. |
+| `form:frame` | Lua → page | `{ handle, title, note, rows, hint, keys, status, statusBad }` | Every field, with `ack` (last `seq` ruled on) on text rows. |
+| `form:close` | Lua → page | `{ handle }` | Take the form down. |

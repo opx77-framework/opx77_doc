@@ -1,0 +1,18 @@
+---
+title: StopProgress
+description: Stops the progress bar your resource started.
+---
+
+<a id="export-client-stopprogress" />
+
+```lua
+local res = exports.opx_infinity:StopProgress()
+```
+
+Sync. You get `opx:on:progress:done` with `ending = 'stopped'`.
+
+**Returns**
+- as the progress module's [`Stop`](/docs/opx_infinity/progress/client#client-progress-stop)
+
+**Errors**
+- `export.callerDenied`, `error.unavailable`, the module's codes

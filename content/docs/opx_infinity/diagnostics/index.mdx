@@ -1,0 +1,25 @@
+---
+title: diagnostics
+description: Commands that report which modules started, the runtime version and contracts, and that carry interface errors to the server log.
+---
+
+Answers "is it running?": which modules started (or are disabled, failed…), the repeating jobs, the runtime version and every published contract, for the server and for the player's own client. Also forwards in-game interface errors, and client modules that failed to start, to the **server** log, so an operator sees them without asking for the player's log file.
+
+| | |
+|---|---|
+| Side | both |
+| Requires | none |
+| Config | none |
+| Data | none |
+
+## Commands
+
+| Command | Access | Arguments | Effect |
+|---|---|---|---|
+| <a id="opx-modules" />`/opx.modules` | ACL `command.opx.modules` | — | Lists modules (`module`, `state`, `reason`) and scheduler jobs (`job`, `every`, `state`). |
+| <a id="opx-version" />`/opx.version` | ACL `command.opx.version` | — | Prints `opx_infinity <version>`, `degraded: <reason>` if boot failed, and `contract <name> v<n>` for each contract. |
+| <a id="opx-client" />`/opx.client` | everyone (client command) | — | Prints the client's version, module states and jobs. |
+
+- From the server console, answers are printed there.
+- From a player, every line goes to that player's **client log**, not to chat. `/opx.client` also writes to the client log only.
+- Two seconds after start, the client reports each client module that is not `started` (or `absent`) to the server log through `OPX.Note`, under `modules`.

@@ -1,0 +1,31 @@
+---
+title: ShowToast
+description: Shows an OPX toast on the local player's screen.
+---
+
+<a id="export-client-showtoast" />
+
+```lua
+local res = exports.opx_infinity:ShowToast(definition)
+```
+
+Sync.
+
+**Parameters**
+- definition: `table`
+  - message: `string` — cut to 240 characters
+  - kind?: `string` — e.g. `'success'`
+  - title?: `string` — cut to 64 characters
+  - icon?: `string` — a [glyph name](/docs/opx_infinity/core/client#opx-toast-show)
+  - durationMs?: `integer`
+  - id?: `string` — letters, digits, `_ - .`, max 48. Kept in your own namespace: showing the same `id` again replaces your toast.
+
+**Returns**
+- the toast id
+
+**Errors**
+- `export.badArgument`, `export.callerDenied`, or the toast's own refusal
+
+```lua title="Example"
+exports.opx_infinity:ShowToast({ id = 'order', message = 'Order ready', kind = 'success' })
+```

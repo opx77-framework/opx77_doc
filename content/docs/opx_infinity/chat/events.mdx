@@ -1,0 +1,96 @@
+---
+title: Events
+description: Network and local events, host events and page channels of the chat module.
+---
+
+## opx:net:chat:say [#opx-net-chat-say]
+
+Client → server. A chat line. Dropped if within `RATE_MS` of the sender's last one or blank; cut to `MAX_LENGTH`; broadcast to **every** player.
+
+```lua
+TriggerServerEvent('opx:net:chat:say', text)
+```
+
+- text: `string`
+
+## opx:net:chat:ready [#opx-net-chat-ready]
+
+Client → server. The input line is up; asks for command completions. Answered at most once per `READY_MS`.
+
+```lua
+TriggerServerEvent('opx:net:chat:ready')
+```
+
+## opx:net:chat:message [#opx-net-chat-message]
+
+Server → client. A line to add to the log.
+
+```lua
+RegisterNetEvent('opx:net:chat:message', function(line) end)
+```
+
+- line: `table` — `{ kind = 'chat', author, text }`
+  - `author`: the character's first and last name, else the account name, else `player <id>`.
+
+## opx:net:chat:suggestions [#opx-net-chat-suggestions]
+
+Server → client. Every command registered through `OPX.Command.Register` that this player may run.
+
+```lua
+RegisterNetEvent('opx:net:chat:suggestions', function(payload) end)
+```
+
+- payload: `table` — `{ suggestions = { { name, help, params }, … } }`
+
+## opx:net:runtime:commandResult [#opx-net-runtime-commandresult]
+
+Server → client. Core's command read-back ([`OPX.CommandResult`](/docs/opx_infinity/core/server#opx-commandresult), used by `/opx.anim.list`, `/opx.elevators.where` and others). Chat draws it in the log.
+
+```lua
+RegisterNetEvent('opx:net:runtime:commandResult', function(line) end)
+```
+
+- line: `table`
+  - `kind`: `'info' | 'error'` (was `type` before)
+  - `author`: `string` — the server name
+  - `text`: `string`
+
+## opx:on:chat:submitted [#opx-on-chat-submitted]
+
+Client, local. A slash command was typed, just before it is sent to the dispatcher.
+
+```lua
+AddEventHandler('opx:on:chat:submitted', function(payload) end)
+```
+
+- payload: `table` — `{ text, tokens }`
+
+## opx:on:chat:view [#opx-on-chat-view]
+
+Client, local. The seam between the state and the view; every update to the page passes here.
+
+```lua
+AddEventHandler('opx:on:chat:view', function(payload) end)
+```
+
+- payload: `table` — `{ kind, surface, … }`
+
+## Host events
+
+The client half uses:
+- `open77:command:execute` — sends a command.
+- `open77:command:result` — refusals become toasts.
+- `open77:chat:open` — open the box; raised by the `T` mapping and by the platform's `open77_chat` if loaded.
+- `open77:pauseKey` — closes the box.
+
+## Page channels
+
+The log lives on the `overlay` surface, the input line on the `interactive` surface.
+
+| Channel | Direction | Payload | Meaning |
+|---|---|---|---|
+| <a id="page-chat-ready" />`chat:ready` | page → Lua | `{ surface }` | That half of the page is up; Lua sends its config (and completions for the input line). |
+| <a id="page-chat-submit" />`chat:submit` | page → Lua | `{ text }` | The player pressed Enter. |
+| <a id="page-chat-close" />`chat:close` | page → Lua | `{}` | Escape in the input line. |
+| <a id="page-chat-diag" />`chat:diag` | page → Lua | `{ text }` | Written to the client log. |
+| `chat:view` | Lua → page | `{ kind, surface, … }` | `kind`: `config`, `line`, `clear`, `visible`, `open`, `close`, `focus`, `suggest`, `unsuggest` or `suggestions`. |

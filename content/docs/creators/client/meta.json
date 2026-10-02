@@ -1,0 +1,19 @@
+{
+  "title": "Client exports",
+  "pages": [
+    "index",
+    "openmenu",
+    "updatemenu",
+    "closemenu",
+    "openform",
+    "closeform",
+    "showtoast",
+    "dismisstoast",
+    "startprogress",
+    "stopprogress",
+    "playanimation",
+    "stopanimation",
+    "subscribe",
+    "unsubscribe"
+  ]
+}

@@ -1,0 +1,109 @@
+---
+title: Lib.Math
+description: Clamp, round, interpolate and measure distances between points.
+---
+
+Pure. No permission. A point is `{ x, y, z }`.
+
+## Lib.Math.Clamp [#lib-math-clamp]
+
+Holds a number inside a range.
+
+```lua
+Lib.Math.Clamp(value, low, high)
+```
+
+**Parameters**
+- value: `number`
+- low: `number`
+- high: `number`
+
+**Returns**
+- `number`
+
+## Lib.Math.Round [#lib-math-round]
+
+Rounds half away from zero.
+
+```lua
+Lib.Math.Round(value, places)
+```
+
+**Parameters**
+- value: `number`
+- places?: `integer`
+  - Default: `0`.
+
+**Returns**
+- `number`
+
+```lua title="Example"
+Lib.Math.Round(2.345, 2) -- 2.35
+```
+
+## Lib.Math.Lerp [#lib-math-lerp]
+
+Linear interpolation.
+
+```lua
+Lib.Math.Lerp(from, to, amount)
+```
+
+**Parameters**
+- from: `number`
+- to: `number`
+- amount: `number`
+  - 0..1.
+
+**Returns**
+- `number`
+
+## Lib.Math.Distance [#lib-math-distance]
+
+The distance between two points.
+
+```lua
+Lib.Math.Distance(left, right)
+```
+
+**Parameters**
+- left: `table`
+- right: `table`
+
+**Returns**
+- `number?` — `nil` when a point is not readable
+
+## Lib.Math.Distance2D [#lib-math-distance2d]
+
+The distance between two points, ignoring height.
+
+```lua
+Lib.Math.Distance2D(left, right)
+```
+
+**Parameters**
+- left: `table`
+- right: `table`
+
+**Returns**
+- `number?`
+
+## Lib.Math.Near [#lib-math-near]
+
+Whether two points are within `radius`, ignoring height.
+
+```lua
+Lib.Math.Near(left, right, radius)
+```
+
+**Parameters**
+- left: `table`
+- right: `table`
+- radius: `number`
+
+**Returns**
+- `boolean`
+
+```lua title="Example"
+if Lib.Math.Near(here, shop, 3.0) then showPrompt() end
+```

@@ -1,0 +1,57 @@
+---
+title: Events
+description: Network events and page channels of the prompts module.
+---
+
+A malformed server envelope is dropped on the client in silence. The module also listens to `opx:on:downed:changed` and the host event `OPX.Host.KEYBINDS_CHANGED` (`open77:keybinds:changed`; redraws caps after a rebind).
+
+## opx:net:prompts:show [#opx-net-prompts-show]
+
+Server → client. Server [`Show`](/docs/opx_infinity/prompts/server#server-prompts-show).
+
+```lua
+RegisterNetEvent('opx:net:prompts:show', function(envelope) end)
+```
+
+- envelope: `table` — `{ owner, id, spec }`
+
+## opx:net:prompts:update [#opx-net-prompts-update]
+
+Server → client. Server [`Update`](/docs/opx_infinity/prompts/server#server-prompts-update).
+
+```lua
+RegisterNetEvent('opx:net:prompts:update', function(envelope) end)
+```
+
+- envelope: `table` — `{ owner, id, patch }`
+
+## opx:net:prompts:hide [#opx-net-prompts-hide]
+
+Server → client. Server [`Hide`](/docs/opx_infinity/prompts/server#server-prompts-hide).
+
+```lua
+RegisterNetEvent('opx:net:prompts:hide', function(envelope) end)
+```
+
+- envelope: `table` — `{ owner, id }`
+
+## opx:net:prompts:hideAll [#opx-net-prompts-hideall]
+
+Server → client. Server [`HideAll`](/docs/opx_infinity/prompts/server#server-prompts-hideall).
+
+```lua
+RegisterNetEvent('opx:net:prompts:hideAll', function(owner) end)
+```
+
+- owner: `string`
+
+## Page channels
+
+On the `overlay` surface.
+
+| Channel | Direction | Payload | Meaning |
+|---|---|---|---|
+| <a id="page-prompts-ready" />`prompts:ready` | page → Lua | `{}` | The page mounted. Lua sends the config and the frame. |
+| `prompts:config` | Lua → page | `{ anchor, offset, maxWidth, hold = 'prompts.hold' }` | Layout. The page no longer reads `hold`. |
+| `prompts:frame` | Lua → page | `{ groups = { { key, title, rows = { { key, caps, combo, label, value, hold, dim } } } } }` | The whole strip, ordered, cut and with caps already named. |
+| `prompts:hide` | Lua → page | `{}` | Take the strip off screen. |

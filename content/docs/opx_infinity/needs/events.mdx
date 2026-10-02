@@ -1,0 +1,82 @@
+---
+title: Events
+description: Network and local events of the needs module.
+---
+
+Client `opx:on:` events reach only handlers inside opx_infinity.
+
+## opx:net:needs:pull [#opx-net-needs-pull]
+
+Client → server. Asks for the stored needs of the loaded character. Refused (audit `needs.pull.refused`) if the id is not the player's loaded character. Limited to 4 per 10 s.
+
+```lua
+TriggerServerEvent('opx:net:needs:pull', citizenId)
+```
+
+- citizenId: `string`
+
+## opx:net:needs:values [#opx-net-needs-values]
+
+Server → client. Answer to a pull.
+
+```lua
+RegisterNetEvent('opx:net:needs:values', function(citizenId, values) end)
+```
+
+- citizenId: `string`
+- values: `table` — `{ [needName] = number }`
+
+## opx:net:needs:push [#opx-net-needs-push]
+
+Client → server. The client's current values. Clamped, held in memory and written on autosave or disconnect. Limited to 12 per 10 s.
+
+```lua
+TriggerServerEvent('opx:net:needs:push', citizenId, values)
+```
+
+- citizenId: `string`
+- values: `table`
+
+## opx:net:needs:pushed [#opx-net-needs-pushed]
+
+Server → client. Acknowledges one push.
+
+```lua
+RegisterNetEvent('opx:net:needs:pushed', function(citizenId) end)
+```
+
+- citizenId: `string`
+
+## opx:on:needs:changed [#opx-on-needs-changed]
+
+Client, local. A need moved.
+
+```lua
+AddEventHandler('opx:on:needs:changed', function(change) end)
+```
+
+- change: `table` — `{ values, changed, source, citizenId, ready }`
+  - `source`: `loaded`, `decay`, `set`, `add` or `unloaded`
+
+## opx:on:needs:effects [#opx-on-needs-effects]
+
+Client, local. The chip strip changed.
+
+```lua
+AddEventHandler('opx:on:needs:effects', function(strip) end)
+```
+
+- strip: `table` — `{ anchor, offset, chips, hidden }`
+  - each chip: `{ id = 'owner:id', label, icon, tone, progress, remainingMs, totalMs }`
+
+## opx:on:needs:effect [#opx-on-needs-effect]
+
+Client, local. One chip was `removed` or `expired`. Also raised on the chip's own `event` name, if it set one.
+
+```lua
+AddEventHandler('opx:on:needs:effect', function(info) end)
+```
+
+- info: `table` — `{ status, owner, action, label, tone, data }`
+  - `status`: the chip id
+  - `action`: `removed` or `expired`

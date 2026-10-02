@@ -1,0 +1,39 @@
+---
+title: Events
+description: Network and local events of the weather module.
+---
+
+## opx:net:weather:request [#opx-net-weather-request]
+
+Client → server. Asks for a fresh snapshot. Sent at start and every 15 s; at most one per player per second is answered.
+
+```lua
+TriggerServerEvent('opx:net:weather:request', requestId)
+```
+
+- requestId: `number`
+
+## opx:net:weather:sync [#opx-net-weather-sync]
+
+Server → client. The authority's state. Sent on every change, on join, on request and as a 5 s heartbeat.
+
+```lua
+RegisterNetEvent('opx:net:weather:sync', function(snapshot, requestId) end)
+```
+
+- snapshot: `table`
+  - `protocol`, `authorityEpoch`, `revision`, `weatherRevision`
+  - `secondsOfDay`, `rate`, `timeFrozen`
+  - `weather`, `weatherPreset`, `weatherPriority`, `weatherFrozen`
+  - `transitionSeconds`, `weatherTransitionRemainingMs`, `nextRollInMs`, `reason`
+- requestId?: `number`
+
+## opx:on:weather:updated [#opx-on-weather-updated]
+
+Client, local. A snapshot was applied. Only reaches code inside opx_infinity's client VM.
+
+```lua
+AddEventHandler('opx:on:weather:updated', function(projection) end)
+```
+
+- projection: `table` — the accepted projection, as [`State`](/docs/opx_infinity/weather/client#client-weather-state) returns it.

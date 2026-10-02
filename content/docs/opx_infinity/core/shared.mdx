@@ -1,0 +1,368 @@
+---
+title: Shared
+description: The OPX.* runtime on both sides — module registry and lifecycle, contracts, event names, time, the scheduler, runtime values and the boot order.
+---
+
+The core is `opx_infinity/core/`. It loads before every module and gives them one shared `OPX` table. Everything on this page exists in both VMs. Server-only functions are on [Server](/docs/opx_infinity/core/server), client-only ones on [Client](/docs/opx_infinity/core/client); the `lib/` helpers (`OPX.Result`, `OPX.Storage`, `OPX.Hooks`, `OPX.Locale`…) on [Shared library](/docs/opx_infinity/core/lib).
+
+# Values [#values]
+
+| Name | Side | Type | Notes |
+|---|---|---|---|
+| <a id="opx-version" />`OPX.VERSION` | both | `string` | The manifest version, read from the host (`Open77.resource.version()` on the client, the manifest metadata on the server). Falls back to the literal in `core/shared/main.lua`. |
+| <a id="opx-isserver" />`OPX.IsServer` | both | `boolean` | `true` in the server VM (`TriggerClientEvent` exists). |
+| <a id="opx-isclient" />`OPX.IsClient` | both | `boolean` | `true` in the client VM (`TriggerServerEvent` exists). |
+| <a id="opx-config" />`OPX.Config` | both | `table` | `SHARED`, `MODULES`, and `SERVER` (server only) or `CLIENT` (client only). See [Configuration](/docs/opx_infinity/core/config). |
+| <a id="opx-channel" />`OPX.Channel` | both | `table` | `{ NET = 'net', LOCAL = 'on', INTERNAL = 'in' }`. Pass one to [`OPX.Event`](#opx-event). |
+| <a id="opx-host" />`OPX.Host` | both | `table` | Host event names. See [Host events](/docs/opx_infinity/core/events#host). |
+| <a id="opx-glyphs" />`OPX.Glyphs` | both | `table<string, true>` | The closed set of icon names the page can draw (`interact`, `person`, `vehicle`, `lock`, `money`, `warning`, …). Toasts, refusals and command notices only accept these. |
+
+Server-only values (`OPX.Booted`, `OPX.BootError`, `OPX.Sessions`): [Server](/docs/opx_infinity/core/server#server-values). Client-only `OPX.Lib`: [Client](/docs/opx_infinity/core/client#client-values).
+
+# Modules [#modules]
+
+A module declares itself in `modules/<id>/module.lua` and hangs `Init`, `Api`, `Start` and `Stop` on the table it gets back ([Modules and contracts](/docs/opx_infinity/concepts/modules-and-contracts)).
+
+Module states: `declared`, `started`, `failed`, `disabled`, `absent`, `unavailable`, `stopped`.
+
+## OPX.Modules.Declare [#opx-modules-declare]
+
+Declares a module and returns its namespace.
+
+```lua
+OPX.Modules.Declare(spec)
+```
+
+**Parameters**
+- spec: `table`
+  - id: `string`
+  - side?: `'server' | 'client' | 'both'` — default `'both'`
+  - requires?: `string[]`
+  - optional?: `string[]`
+  - fatal?: `boolean`
+
+**Returns**
+- `table` — the module namespace (`M`)
+
+- Raises on a missing id, a duplicate id, an unknown side, or a call after the modules were resolved.
+- A module with `enabled = false` in its config is marked `disabled`; one for the other side is `absent`.
+
+```lua title="Example"
+local M = OPX.Modules.Declare{ id = 'thing', side = 'server', requires = { 'character' } }
+```
+
+## OPX.Modules.Get [#opx-modules-get]
+
+The module's namespace (what its files write into).
+
+```lua
+OPX.Modules.Get(id)
+```
+
+**Parameters**
+- id: `string`
+
+**Returns**
+- `table?`
+
+## OPX.Modules.Record [#opx-modules-record]
+
+The runtime's record of a module, separate from its namespace.
+
+```lua
+OPX.Modules.Record(id)
+```
+
+**Parameters**
+- id: `string`
+
+**Returns**
+- `table?` — `Id`, `Side`, `Requires`, `Optional`, `Fatal`, `Provides`, `Module`, `State`, `Reason`
+
+## OPX.Modules.All [#opx-modules-all]
+
+Every record, in declaration order.
+
+```lua
+OPX.Modules.All()
+```
+
+**Returns**
+- `table[]`
+
+## OPX.Modules.IsRunning [#opx-modules-isrunning]
+
+`true` only when the module's state is `started` in this VM.
+
+```lua
+OPX.Modules.IsRunning(id)
+```
+
+**Parameters**
+- id: `string`
+
+**Returns**
+- `boolean`
+
+## OPX.Modules.Settings [#opx-modules-settings]
+
+`OPX.Config.MODULES[id]`, read now.
+
+```lua
+OPX.Modules.Settings(id)
+```
+
+**Parameters**
+- id: `string`
+
+**Returns**
+- `table` — never `nil` (`{}` when the module has no config)
+
+## OPX.Modules.Rebind [#opx-modules-rebind]
+
+Points every module's `Settings` field at its live config. Called once by `Resolve`.
+
+```lua
+OPX.Modules.Rebind()
+```
+
+## OPX.Modules.Resolve [#opx-modules-resolve]
+
+Orders the modules by dependency. Memoised. Raises on a dependency cycle. Marks `disabled` and `unavailable` modules.
+
+```lua
+OPX.Modules.Resolve()
+```
+
+**Returns**
+- `table[]` — records in dependency order
+
+## OPX.Modules.Resolved [#opx-modules-resolved]
+
+Whether `Resolve` has run.
+
+```lua
+OPX.Modules.Resolved()
+```
+
+**Returns**
+- `boolean`
+
+## OPX.Modules.Run [#opx-modules-run]
+
+Runs `Init`, `Api`, `Start` over every runnable module. Yields between modules: call it from a thread. Boot calls it; a module never does.
+
+```lua
+OPX.Modules.Run(between)
+```
+
+**Parameters**
+- between?: `function` — runs after `Api` and before `Start`; if it raises, `Run` answers `false, <error>`.
+
+**Returns**
+- ok: `boolean`
+- failure?: `string` — `'already ran'` on a second call, or the id of a fatal module that failed
+
+## OPX.Modules.Stop [#opx-modules-stop]
+
+Calls `Stop` on every `started` or `failed` module, newest dependency first, and marks it `stopped`. A `Stop` that raises is logged.
+
+```lua
+OPX.Modules.Stop()
+```
+
+## OPX.Modules.Report [#opx-modules-report]
+
+One line per module: id, state, reason.
+
+```lua
+OPX.Modules.Report()
+```
+
+**Returns**
+- `string[]`
+
+# Contracts [#contracts]
+
+## OPX.Api.Provide [#opx-api-provide]
+
+Publishes a contract. Call from a module's `Api` phase.
+
+```lua
+OPX.Api.Provide(name, version, implementation)
+```
+
+**Parameters**
+- name: `string`
+- version: `integer`
+- implementation: `table`
+
+Raises on bad arguments, or if two modules provide the same name.
+
+```lua title="Example"
+function M.Api()
+	OPX.Api.Provide('thing', 1, { DoIt = function(source) end })
+end
+```
+
+## OPX.Api.Get [#opx-api-get]
+
+Reads a contract. Use it for an optional dependency.
+
+```lua
+OPX.Api.Get(name, minimum)
+```
+
+**Parameters**
+- name: `string`
+- minimum?: `integer`
+
+**Returns**
+- `table?` — `nil` when nobody provides it, or the version is below `minimum`
+- version?: `integer`
+
+```lua title="Example"
+local downed = OPX.Api.Get('downed')
+if downed then ... end
+```
+
+## OPX.Api.Require [#opx-api-require]
+
+Like `Get` but raises when absent. For a module that lists the provider in `requires`.
+
+```lua
+OPX.Api.Require(name, minimum)
+```
+
+**Parameters**
+- name: `string`
+- minimum?: `integer`
+
+**Returns**
+- `table`
+
+## OPX.Api.Versions [#opx-api-versions]
+
+Every published contract.
+
+```lua
+OPX.Api.Versions()
+```
+
+**Returns**
+- `table<string, integer>` — name → version
+
+## OPX.Api.Withdraw [#opx-api-withdraw]
+
+Withdraws every contract a module published. Called by the lifecycle when a module fails.
+
+```lua
+OPX.Api.Withdraw(owner)
+```
+
+**Parameters**
+- owner: `string` — module id
+
+**Returns**
+- `string[]` — names withdrawn
+
+# Events [#events]
+
+## OPX.Event [#opx-event]
+
+Builds `opx:<channel>:<module>:<verb>` ([Events and channels](/docs/opx_infinity/concepts/events)).
+
+```lua
+OPX.Event(channel, module, verb)
+```
+
+**Parameters**
+- channel: `'net' | 'on' | 'in'` — use `OPX.Channel`; anything else raises
+- module: `string`
+- verb: `string`
+
+**Returns**
+- `string`
+
+```lua title="Example"
+local SAY = OPX.Event(OPX.Channel.NET, 'chat', 'say') -- 'opx:net:chat:say'
+```
+
+`OPX.Publish` (server) raises public events: [Server](/docs/opx_infinity/core/server#opx-publish).
+
+# Time [#time]
+
+## OPX.Now [#opx-now]
+
+Monotonic milliseconds: `GetGameTimer()` when present, else `Open77.time.monotonic() * 1000`. Not wall-clock time.
+
+```lua
+OPX.Now()
+```
+
+**Returns**
+- `integer` — ms
+
+# Scheduler [#scheduler]
+
+Same names on both sides, different behaviour ([The scheduler](/docs/opx_infinity/concepts/scheduler)). `OPX.Scheduler.Start` is client only: [Client](/docs/opx_infinity/core/client#opx-scheduler-start).
+
+## OPX.Scheduler.Every [#opx-scheduler-every]
+
+Runs `step` repeatedly.
+
+```lua
+OPX.Scheduler.Every(name, intervalMs, step)
+```
+
+**Parameters**
+- name: `string` — for log lines, `<module>.<purpose>`
+- intervalMs: `number | function`
+- step: `function`
+
+**Returns**
+- `integer` — handle
+
+- **Server:** one thread per job; `intervalMs` is a number or a function re-read every pass; floor 50 ms; first pass one interval after registration; a raising job is logged once per run of failures and never suspended.
+- **Client:** one shared loop, at most 4 due jobs per pass; `intervalMs` must be a number `>= 0` (a function or bad value raises; `0` = every pass); a job that raises 3 times in a row is suspended.
+
+```lua title="Example"
+M.sweep = OPX.Scheduler.Every('thing.sweep', 1000, function() ... end)
+```
+
+## OPX.Scheduler.Cancel [#opx-scheduler-cancel]
+
+Stops a job. Safe on a handle already cancelled.
+
+```lua
+OPX.Scheduler.Cancel(handle)
+```
+
+**Parameters**
+- handle: `integer`
+
+## OPX.Scheduler.Report [#opx-scheduler-report]
+
+One line per job: name, interval, state.
+
+```lua
+OPX.Scheduler.Report()
+```
+
+**Returns**
+- `string[]`
+
+## OPX.Scheduler.Stop [#opx-scheduler-stop]
+
+Stops every job and drops the list. Boot calls it on resource stop.
+
+```lua
+OPX.Scheduler.Stop()
+```
+
+# Boot order [#boot]
+
+| Side | Sequence |
+|---|---|
+| server | Placement-conflict warning → database probe (`OPX.Storage.Ready`) → `Init` → `Api` → `OPX.Tune.Publish` and `OPX.Schema.Apply` (skipped with no database) → `Start` → `OPX.Booted = true` → module report in the log. On resource stop: `OPX.Scheduler.Stop`, `OPX.Modules.Stop`, then every player is released from a selection bucket. |
+| client | On `onClientResourceStart`: `OPX.UI.Surface`, `OPX.Toast.Attach` → `OPX.Modules.Run` → `OPX.Scheduler.Start` → module report. On stop: `OPX.Scheduler.Stop`, `OPX.Modules.Stop`, `OPX.UI.Teardown`. |

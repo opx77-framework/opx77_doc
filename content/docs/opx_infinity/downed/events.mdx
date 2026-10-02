@@ -1,0 +1,98 @@
+---
+title: Events
+description: Network, local and host-wide events and page channels of the downed module.
+---
+
+## opx:net:downed:state [#opx-net-downed-state]
+
+Server → client. The player's down state. All times are relative.
+
+```lua
+RegisterNetEvent('opx:net:downed:state', function(state) end)
+```
+
+- state: `table` — `{ down, waiting?, downForMs?, giveUpInMs?, waitingForMs? }`
+
+## opx:net:downed:refused [#opx-net-downed-refused]
+
+Server → client. A give-up was refused. Shown as `medic.refused.<code>`.
+
+```lua
+RegisterNetEvent('opx:net:downed:refused', function(code) end)
+```
+
+- code: `string` — see [Refusal codes](/docs/opx_infinity/downed#codes)
+
+## opx:net:downed:ready [#opx-net-downed-ready]
+
+Client → server. Ask for the state again (on start and world entry).
+
+```lua
+TriggerServerEvent('opx:net:downed:ready')
+```
+
+## opx:net:downed:wait [#opx-net-downed-wait]
+
+Client → server. Wait for help. Marks the player as waiting.
+
+```lua
+TriggerServerEvent('opx:net:downed:wait')
+```
+
+## opx:net:downed:giveup [#opx-net-downed-giveup]
+
+Client → server. Give up. The server checks the delay, that the player is still dead and the readiness gate, then respawns at the nearest hospital in the same bucket.
+
+```lua
+TriggerServerEvent('opx:net:downed:giveup')
+```
+
+## opx:on:downed:changed [#opx-on-downed-changed]
+
+Client, local, and server, host-wide. Down or waiting changed. On the client, `hud`, `prompts`, `target`, `progress` and `appearance` react to it. On the server every server resource hears it; see [Public server events](/docs/creators/events#downed).
+
+```lua
+-- client
+AddEventHandler('opx:on:downed:changed', function(state) end)
+-- server
+AddEventHandler('opx:on:downed:changed', function(playerId, payload) end)
+```
+
+- Client — state: `table` `{ down, waiting }`
+- Server — playerId: `integer`; payload: `table`
+  - `{ citizenId, down = true, waiting, restored }`
+  - or `{ citizenId, down = false, reason, kept }`
+
+## opx:on:downed:view [#opx-on-downed-view]
+
+Client, local. The state half talking to the view.
+
+```lua
+AddEventHandler('opx:on:downed:view', function(message) end)
+```
+
+- message: `table` — `{ kind, ... }`; `kind`: `config`, `show`, `hide`, `notice` or `focus`
+
+## opx:on:downed:key [#opx-on-downed-key]
+
+Client, local. A key pressed while the down screen holds the keyboard. Key mappings do not fire then, so this is how another module hears one.
+
+```lua
+AddEventHandler('opx:on:downed:key', function(key) end)
+```
+
+- key: `string` — `F1`–`F12`, `A`–`Z`, `0`–`9`
+
+## Page channels
+
+On the `interactive` surface.
+
+| Channel | Direction | Payload | Meaning |
+|---|---|---|---|
+| <a id="page-downed-ready" />`downed:ready` | page → Lua | `{}` | The view mounted. Lua answers with `config` (all `medic.*` texts) and the current state. |
+| <a id="page-downed-wait" />`downed:wait` | page → Lua | `{}` | Wait-for-help button. |
+| <a id="page-downed-giveup" />`downed:giveUp` | page → Lua | `{ holding }` | Give-up button state. The page repeats `holding = true` while pressed; Lua times the hold (`GIVE_UP_HOLD_MS`) on its own clock. A gap over 1 s ends the press. |
+| <a id="page-downed-key" />`downed:key` | page → Lua | `{ key }` | A key heard while the keyboard is held. |
+| <a id="page-downed-diag" />`downed:diag` | page → Lua | `{ text }` | A view-side message for the client log. |
+| <a id="page-focus-set" />`focus:set` | page → Lua | `{ focus, owner }` | Page focus broadcast. This module acquires keyboard and cursor for owner `downed` and releases them otherwise. |
+| `downed:view` | Lua → page | `{ kind, ... }` | `config` `{ text }`, `show` `{ suspended, waiting, giveUpInMs, downForMs, holdMs }`, `hide`, `notice` `{ text }`, `focus` `{ hold }`. |

@@ -1,0 +1,72 @@
+---
+title: Configure
+description: Where opx_infinity's settings live — one file per module, the runtime-wide files, what is sent to players, turning a module off, and what changes while the server runs.
+---
+
+All settings live in `opx_infinity/config/`: **one file per module** (`config/<module>.lua`) and three runtime-wide files. Edit a file, then restart the resource. Each module page has a **Configuration** table with every key and its default.
+
+## The runtime-wide files [#runtime-files]
+
+| File | Table | Sent to players? | Holds |
+|---|---|---|---|
+| `config/shared.lua` | `OPX.Config.SHARED` | **yes** | language, server name, money accounts, health pool, AV record prefixes |
+| `config/server.lua` | `OPX.Config.SERVER` | no | command aliases, entry gate timings and buckets, conflicting resources |
+| `config/client.lua` | `OPX.Config.CLIENT` | yes | the WebUI surface and toast placement |
+
+Every key: [Core configuration](/docs/opx_infinity/core/config).
+
+## Module files [#module-files]
+
+Each `config/<id>.lua` sets `OPX.Config.MODULES.<id>`. Most are **shared scripts**: every connecting player downloads them. Server only: `config/vehicles.lua` and `config/theme.lua` (the client is sent its colours over the network).
+
+<Callout type="warn" title="Never put a secret in a shared config file">
+
+A shared config ships to every client. Credentials, webhooks and anything a player must not read belong in a server-only file. Granting rights belongs in `acl.jsonc`, not in a config file.
+
+</Callout>
+
+### Turning a module off [#disable]
+
+```lua title="config/calls.lua"
+OPX.Config.MODULES.calls = {
+	enabled = false,
+	-- ...
+}
+```
+
+- The module is reported `disabled`; every module that **requires** it is reported `unavailable`.
+- Check the [module list](/docs/opx_infinity) for dependencies first.
+
+## Language [#language]
+
+`LOCALE` in `config/shared.lua`: `'en'` or `'fr'`. See [Text and locales](/docs/opx_infinity/concepts/locales).
+
+## Short command names [#aliases]
+
+`COMMAND_ALIASES` in `config/server.lua` gives long commands a short name (`noclip` for `opx.admin.self.noclip`).
+
+- An alias is checked against the long command's ACL right.
+- An alias the host cannot register (another resource already uses the name) is skipped with a warning.
+- Empty the table to remove all aliases.
+
+## Colours [#theme]
+
+`config/theme.lua` sets the accent colours of every screen. See the [theme module](/docs/opx_infinity/theme).
+
+## Values you can change while the server runs [#tunables]
+
+**Tunables** are numbers an operator changes from the platform's Warden panel without a restart. The value in the config file (or module code) is the default.
+
+| Module | Tunables |
+|---|---|
+| [animations](/docs/opx_infinity/animations) | `ANIM_RATE_WINDOW_MS`, `ANIM_RATE_REQUESTS`, `ANIM_ONE_SHOT_MS`, `ANIM_MAX_DURATION_MS` |
+| [elevators](/docs/opx_infinity/elevators) | `ELEV_TRAVEL_MS`, `ELEV_REQUEST_WINDOW_MS`, `ELEV_REQUESTS_PER_WINDOW` |
+| [hauling](/docs/opx_infinity/hauling) | `HAUL_REFILL_MS`, `HAUL_PAY_PER_CRATE` |
+| [teleports](/docs/opx_infinity/teleports) | `TP_REQUEST_WINDOW_MS`, `TP_REQUESTS_PER_WINDOW`, `TP_FADE_MS`, `TP_SETTLE_MS` |
+| [admin](/docs/opx_infinity/admin), [inventory](/docs/opx_infinity/inventory) | see their pages |
+
+With no tunables panel on the host, the defaults are used and the log says `[tune] no tunables panel on this host; configured defaults are used`.
+
+## Places in the world [#places]
+
+Garages, dealers, clothing stores, teleports, elevators, shops, crafting benches, armouries and hauling sites are **written in their config file**, with coordinates. To capture a position, stand on the spot and run `/opx.admin.self.pos` (alias `pos`): it copies the position and your facing to the clipboard. Each module page gives the format.

@@ -1,0 +1,325 @@
+---
+title: Lib.Camera
+description: Scripted cameras — create, aim, take and release the view, follow, shake and unproject.
+---
+
+Permission `camera.script` (`Ray` and `Owner` need none). Up to 16 camera definitions per resource and 64 per client (`Camera.LIMIT`, `Camera.CLIENT_LIMIT`). Only one camera can hold the view; a camera is taken only within 250 m of the player (`Camera.RANGE`), because the world streams around the body. Field of view 5..170°, or `0` for the engine's own. Blends 0..60000 ms.
+
+## Lib.Camera.Owner [#lib-camera-owner]
+
+This resource's name.
+
+```lua
+Lib.Camera.Owner()
+```
+
+**Returns**
+- `string?`
+
+## Lib.Camera.State [#lib-camera-state]
+
+Who holds the view, from a `Cameras` snapshot.
+
+```lua
+Lib.Camera.State(snap)
+```
+
+**Parameters**
+- snap: `table`
+
+**Returns**
+- `'mine' | 'theirs' | 'held' | 'free' | 'unknown'`
+  - `held`: held by someone this build will not name.
+
+## Lib.Camera.Cameras [#lib-camera-cameras]
+
+Your cameras and the current holder, with `state` added. Phases: `idle`, `blending_in`, `holding`, `blending_out`.
+
+```lua
+Lib.Camera.Cameras()
+```
+
+**Returns**
+- `Result` — the snapshot
+
+## Lib.Camera.Holder [#lib-camera-holder]
+
+The resource holding the view.
+
+```lua
+Lib.Camera.Holder()
+```
+
+**Returns**
+- `Result` — resource name or `nil`; error `invalid_camera_snapshot`
+
+## Lib.Camera.Create [#lib-camera-create]
+
+Creates a camera definition. Nothing renders until [`Take`](#lib-camera-take).
+
+```lua
+Lib.Camera.Create(options)
+```
+
+**Parameters**
+- options: `table` — only these fields
+  - position?: `{ x, y, z }` — required unless `attachTo`
+  - attachTo?: `number` — entity id; `0` is the local player's body
+  - offset?: `{ x, y, z }` — in the parent's frame (X right, Y forward, Z up)
+  - lookAt?: `{ x, y, z }` or an entity id
+  - rotation?: `{ x, y, z, w }` quaternion or `{ pitch, yaw, roll }` degrees — not with `lookAt`
+  - fov?: `number`
+
+**Returns**
+- `Result` — the camera id; errors `invalid_camera_options`, `invalid_camera_position`, `invalid_entity_id`, `invalid_camera_offset`, `invalid_camera_look_at`, `invalid_camera_rotation`, `invalid_camera_fov`, `camera_budget_exhausted`
+
+```lua title="Example"
+local cam = Lib.Camera.Create({ position = { x = 10.0, y = 20.0, z = 8.0 }, lookAt = 0, fov = 50 })
+```
+
+## Lib.Camera.Move [#lib-camera-move]
+
+Patches a camera. A patch may not carry both a rotation and a look-at.
+
+```lua
+Lib.Camera.Move(camId, patch)
+```
+
+**Parameters**
+- camId: `integer`
+- patch: `table` — `position`, `rotation`, `fov`
+
+**Returns**
+- `Result` — errors `invalid_camera_id`, `empty_camera_transform`, and the `Create` field codes
+
+## Lib.Camera.LookAt [#lib-camera-lookat]
+
+Aims at a point or an entity.
+
+```lua
+Lib.Camera.LookAt(camId, target)
+```
+
+**Parameters**
+- camId: `integer`
+- target: `{ x, y, z }` or `number` — an entity id; `0` is the player
+
+**Returns**
+- `Result` — errors `invalid_camera_id`, `invalid_entity_id`, `invalid_camera_look_at`
+
+## Lib.Camera.Attach [#lib-camera-attach]
+
+Attaches a camera to an entity. Both `camId` and `entity` are required.
+
+```lua
+Lib.Camera.Attach(camId, entity, offset)
+```
+
+**Parameters**
+- camId: `integer`
+- entity: `number` — `0` is the local player's body
+- offset?: `{ x, y, z }`
+
+**Returns**
+- `Result` — errors `invalid_camera_id`, `invalid_entity_id`, `invalid_camera_offset`
+
+## Lib.Camera.DetachFrom [#lib-camera-detachfrom]
+
+Detaches a camera.
+
+```lua
+Lib.Camera.DetachFrom(camId)
+```
+
+**Parameters**
+- camId: `integer`
+
+**Returns**
+- `Result` — error `invalid_camera_id`
+
+## Lib.Camera.Destroy [#lib-camera-destroy]
+
+Destroys a camera. Destroying the live camera gives the view back.
+
+```lua
+Lib.Camera.Destroy(camId)
+```
+
+**Parameters**
+- camId: `integer`
+
+**Returns**
+- `Result` — error `invalid_camera_id`
+
+## Lib.Camera.Take [#lib-camera-take]
+
+Puts the view through a camera.
+
+```lua
+Lib.Camera.Take(camId, options)
+```
+
+**Parameters**
+- camId: `integer`
+- options?: `{ blendMs = 0..60000 }`
+
+**Returns**
+- `Result` — `.blend` is the promise (nil for a cut)
+  - `camera_held_by` (with `.holder`): another resource has the view; it is refused, not stolen.
+  - `camera_unavailable`: player dead or a transition running; retry next frame.
+  - `invalid_argument`: the camera is over 250 m from the player.
+  - also `invalid_camera_id`, `invalid_camera_options`, `invalid_blend_ms`
+
+```lua title="Example"
+local took = Lib.Camera.Take(cam.value, { blendMs = 800 })
+if not took.ok then print(took.error, took.holder) end
+```
+
+## Lib.Camera.Release [#lib-camera-release]
+
+Gives the view back. Only the holder may.
+
+```lua
+Lib.Camera.Release(options)
+```
+
+**Parameters**
+- options?: `{ blendMs = 0..60000 }`
+
+**Returns**
+- `Result` — `.blend` is the promise
+
+## Lib.Camera.Await [#lib-camera-await]
+
+Waits on a `.blend` promise from `Take`, `Release`, `Follow` or `Unfollow`. **Yields.** A rejection's release reason becomes the error code, with [`Why`](#lib-camera-why) as the detail.
+
+```lua
+Lib.Camera.Await(promise)
+```
+
+**Parameters**
+- promise?: `table` — `nil` answers `ok` at once
+
+**Returns**
+- `Result`
+
+## Lib.Camera.Why [#lib-camera-why]
+
+A release reason as a sentence. Unknown tokens pass through.
+
+```lua
+Lib.Camera.Why(reason)
+```
+
+**Parameters**
+- reason: `string`
+  - `resource_stopped`, `resource_error` (your definitions are gone: re-create them), `player_died` (definition survives), `player_unavailable`, `world_exit`, `client_shutdown`, `camera_destroyed`, `camera_superseded`, `camera_deactivated`
+
+**Returns**
+- `string`
+
+## Lib.Camera.Shot [#lib-camera-shot]
+
+Takes the view, runs `body`, always gives the view back. **Yields.** `options` may be left out: `Shot(camId, body)`.
+
+```lua
+Lib.Camera.Shot(camId, options, body)
+```
+
+**Parameters**
+- camId: `integer`
+- options?: `table`
+  - blendMs?: `integer` — take blend
+  - releaseMs?: `integer` — release blend; default `blendMs`
+- body: `function`
+
+**Returns**
+- `Result` — `body`'s answer; `.released` says the view was given back; errors `invalid_body`, `invalid_camera_options`, `shot_raised` (a raise in `body`), or the `Take` codes
+
+```lua title="Example"
+CreateThread(function()
+  Lib.Camera.Shot(cam.value, { blendMs = 600 }, function() Wait(3000) end)
+end)
+```
+
+## Lib.Camera.Follow [#lib-camera-follow]
+
+A chase camera on an entity. One reused camera per resource.
+
+```lua
+Lib.Camera.Follow(entity, options)
+```
+
+**Parameters**
+- entity: `number` — `0` is the local player
+- options?: `table`
+  - distance?: `number` — 0..100 m
+  - height?: `number` — -50..50 m
+  - side?: `number` — -50..50 m
+  - fov?: `number`
+  - blendMs?: `integer`
+
+**Returns**
+- `Result` — the camera id; `.blend`; errors `invalid_entity`, `invalid_camera_options`, `invalid_follow_distance`, `invalid_follow_height`, `invalid_follow_side`, `invalid_camera_fov`, `invalid_blend_ms`
+
+## Lib.Camera.Unfollow [#lib-camera-unfollow]
+
+Gives the view back and destroys the follow camera.
+
+```lua
+Lib.Camera.Unfollow(options)
+```
+
+**Parameters**
+- options?: `{ blendMs = 0..60000 }`
+
+**Returns**
+- `Result` — `.blend`; `not_following` on a second call
+
+## Lib.Camera.Shake [#lib-camera-shake]
+
+Shakes a camera.
+
+```lua
+Lib.Camera.Shake(camId, preset, amplitude, ms)
+```
+
+**Parameters**
+- camId?: `integer` — `nil` for the camera you hold
+- preset: `'hand' | 'drunk' | 'explosion' | 'earthquake'`
+- amplitude?: `number`
+  - 0–4. Platform default `1.0`.
+- ms?: `integer`
+  - 0..60000. Platform default `500`.
+
+**Returns**
+- `Result` — errors `invalid_camera_id`, `invalid_shake_preset`, `invalid_shake_argument`
+
+## Lib.Camera.StopShake [#lib-camera-stopshake]
+
+Stops a shake.
+
+```lua
+Lib.Camera.StopShake(camId)
+```
+
+**Parameters**
+- camId: `integer`
+
+**Returns**
+- `Result` — error `invalid_camera_id`
+
+## Lib.Camera.Ray [#lib-camera-ray]
+
+Unprojects a screen point into a world ray. No permission.
+
+```lua
+Lib.Camera.Ray(x, y)
+```
+
+**Parameters**
+- x: `number` — 0..1 from the left
+- y: `number` — 0..1 from the top
+
+**Returns**
+- `Result` — `{ origin, direction }`; error `invalid_screen_point`

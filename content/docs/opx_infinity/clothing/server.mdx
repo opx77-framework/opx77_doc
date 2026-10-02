@@ -1,0 +1,31 @@
+---
+title: Server
+description: The clothing contract on the server — the store list.
+---
+
+```lua
+local clothing = OPX.Api.Get('clothing')
+```
+
+From server code inside opx_infinity.
+
+## Spots [#server-clothing-spots]
+
+The live merged store list (config and captured). Read only: the module's own table, not a copy.
+
+```lua
+clothing.Spots()
+```
+
+**Returns**
+- `table` — `key → { key, label, x, y, z, bucket }`
+
+## State [#server-clothing-state]
+
+```lua
+clothing.State()
+```
+
+**Returns**
+- `Result` `{ stores = { [key] = { label, bucket, captured } } }`
+  - `captured`: `true` for a store from the database.

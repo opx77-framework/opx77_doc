@@ -1,0 +1,33 @@
+---
+title: OpenMenu
+description: Opens an OPX menu owned by your resource on the local player's screen.
+---
+
+<a id="export-client-openmenu" />
+
+```lua
+local res = exports.opx_infinity:OpenMenu(spec)
+```
+
+Sync. Every action on the menu reaches your [reply export](/docs/creators/client#replies) as `opx:on:menu:action` with the menu's [action payload](/docs/opx_infinity/menu/client#the-action-payload).
+
+**Parameters**
+- spec: `table` — the [menu spec](/docs/opx_infinity/menu/client#the-menu-spec) without functions
+  - `owner`, `on` and `steal` are set by OPX; any you pass are ignored.
+  - Rows carry an `id` you read back as `itemId`.
+  - reply?: `string` — the export your answers go to; default [`CLIENT.EXPORTS.REPLY`](/docs/opx_infinity/core/config#config-client-exports) (`OnOpxEvent`)
+
+**Returns**
+- `{ handle, id, nodes }`
+
+**Errors**
+- `menu_busy` (another owner's menu is open), spec errors such as `invalid_items`, `export.callerDenied`, `export.badArgument`, `error.unavailable` (module not running)
+
+```lua title="Example"
+local res = exports.opx_infinity:OpenMenu({
+	title = 'NIGHT MARKET',
+	closeOnSelect = true,
+	items = { { id = 'water', label = 'Water', value = '5 €$' } },
+})
+if not res.ok then print('menu refused: ' .. res.error) end
+```

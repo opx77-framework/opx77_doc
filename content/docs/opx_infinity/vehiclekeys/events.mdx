@@ -1,0 +1,14 @@
+---
+title: Events
+description: Network events of the vehiclekeys module.
+---
+
+## opx:net:vehiclekeys:toggle [#opx-net-vehiclekeys-toggle]
+
+Client → server. Lock or unlock the vehicle the eye landed on. Every other field is ignored. 1 s cooldown per player. Answered with a toast.
+
+```lua
+TriggerServerEvent('opx:net:vehiclekeys:toggle', { vehicleId = vehicleId })
+```
+
+- vehicleId: `string` — a decimal string

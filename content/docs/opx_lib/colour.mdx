@@ -1,0 +1,154 @@
+---
+title: Lib.Colour
+description: Parse #RRGGBB colours and derive shades, mixes and readable contrasts.
+---
+
+Pure. No permission. A colour is `{ r, g, b }` (integers 0–255); HSL is `{ h, s, l }` (degrees, 0..1, 0..1).
+
+## Lib.Colour.Parse [#lib-colour-parse]
+
+Parses `'#RRGGBB'`.
+
+```lua
+Lib.Colour.Parse(value)
+```
+
+**Parameters**
+- value: `any`
+
+**Returns**
+- `{ r, g, b }?`
+
+```lua title="Example"
+local accent = Lib.Colour.Parse(config.ACCENT) or { r = 0, g = 255, b = 255 }
+```
+
+## Lib.Colour.Hex [#lib-colour-hex]
+
+Back to `'#RRGGBB'`.
+
+```lua
+Lib.Colour.Hex(colour)
+```
+
+**Parameters**
+- colour: `{ r, g, b }`
+
+**Returns**
+- `string`
+
+## Lib.Colour.ToHsl [#lib-colour-tohsl]
+
+RGB to HSL.
+
+```lua
+Lib.Colour.ToHsl(colour)
+```
+
+**Parameters**
+- colour: `{ r, g, b }`
+
+**Returns**
+- `{ h, s, l }`
+
+## Lib.Colour.FromHsl [#lib-colour-fromhsl]
+
+HSL to RGB.
+
+```lua
+Lib.Colour.FromHsl(hsl)
+```
+
+**Parameters**
+- hsl: `{ h, s, l }`
+
+**Returns**
+- `{ r, g, b }`
+
+## Lib.Colour.Shade [#lib-colour-shade]
+
+The same colour, lighter or darker by a lightness offset.
+
+```lua
+Lib.Colour.Shade(colour, by)
+```
+
+**Parameters**
+- colour: `{ r, g, b }`
+- by: `number`
+  - -1..1.
+
+**Returns**
+- `{ r, g, b }`
+
+```lua title="Example"
+local hover = Lib.Colour.Shade(accent, 0.15)
+```
+
+## Lib.Colour.Saturate [#lib-colour-saturate]
+
+More or less saturated, by a fraction of its own saturation.
+
+```lua
+Lib.Colour.Saturate(colour, fraction)
+```
+
+**Parameters**
+- colour: `{ r, g, b }`
+- fraction: `number`
+
+**Returns**
+- `{ r, g, b }`
+
+## Lib.Colour.Mix [#lib-colour-mix]
+
+A blend of two colours, in RGB.
+
+```lua
+Lib.Colour.Mix(from, to, amount)
+```
+
+**Parameters**
+- from: `{ r, g, b }`
+- to: `{ r, g, b }`
+- amount: `number`
+  - 0..1.
+
+**Returns**
+- `{ r, g, b }`
+
+## Lib.Colour.Luminance [#lib-colour-luminance]
+
+Perceived brightness.
+
+```lua
+Lib.Colour.Luminance(colour)
+```
+
+**Parameters**
+- colour: `{ r, g, b }`
+
+**Returns**
+- `number` — 0..1
+
+## Lib.Colour.Contrast [#lib-colour-contrast]
+
+Whichever of two colours reads better on `background`.
+
+```lua
+Lib.Colour.Contrast(background, onLight, onDark)
+```
+
+**Parameters**
+- background: `{ r, g, b }`
+- onLight?: `{ r, g, b }`
+  - Default: black.
+- onDark?: `{ r, g, b }`
+  - Default: white.
+
+**Returns**
+- `{ r, g, b }`
+
+```lua title="Example"
+local text = Lib.Colour.Hex(Lib.Colour.Contrast(accent))
+```

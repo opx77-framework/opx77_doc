@@ -1,0 +1,88 @@
+---
+title: Lib.World
+description: Raycasts, nearby objects and ground height.
+---
+
+Permission `world.query`.
+
+## Lib.World.Ray [#lib-world-ray]
+
+Traces a ray and answers the nearest blocking surface.
+
+```lua
+Lib.World.Ray(from, to, options)
+```
+
+**Parameters**
+- from: `{ x, y, z }`
+- to: `{ x, y, z }`
+- options?: `{ static, dynamic, entities }`
+
+**Returns**
+- `Result` — `{ hit, position, normal, material, distance, entity? }`; errors `invalid_from`, `invalid_to`, `invalid_options`
+
+```lua title="Example"
+local ray = Lib.World.Ray(eye, target, { static = true })
+if ray.ok and ray.value.hit then print(ray.value.distance) end
+```
+
+## Lib.World.Blocked [#lib-world-blocked]
+
+Whether the line between two points is blocked.
+
+```lua
+Lib.World.Blocked(from, to)
+```
+
+**Parameters**
+- from: `{ x, y, z }`
+- to: `{ x, y, z }`
+
+**Returns**
+- `boolean`
+
+## Lib.World.Nearby [#lib-world-nearby]
+
+Every object around the local player, nearest first.
+
+```lua
+Lib.World.Nearby(radius, filter)
+```
+
+**Parameters**
+- radius: `number`
+  - Metres, over 0 up to 1000 (`World.MAX_RADIUS`).
+- filter?: `string | table | number`
+
+**Returns**
+- `Result` — rows; error `invalid_radius`
+
+## Lib.World.Nearest [#lib-world-nearest]
+
+The closest object within a radius of the local player.
+
+```lua
+Lib.World.Nearest(radius, filter)
+```
+
+**Parameters**
+- radius: `number`
+- filter?: `string | table | number`
+
+**Returns**
+- `Result` — one row; errors `invalid_radius`, `not_found`
+
+## Lib.World.GroundZ [#lib-world-groundz]
+
+The height of the static ground below a point.
+
+```lua
+Lib.World.GroundZ(position, options)
+```
+
+**Parameters**
+- position: `{ x, y, z }`
+- options?: `table`
+
+**Returns**
+- `Result` — `number`; error `invalid_position`

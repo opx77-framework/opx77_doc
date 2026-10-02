@@ -1,0 +1,34 @@
+---
+title: HasItem
+description: Whether a bag holds at least a count of an item.
+---
+
+<a id="export-server-hasitem" />
+
+```lua
+local res = exports.opx_infinity:HasItem(target, item, count, metadata)
+```
+
+Scope `read` · sync for a player id; must be awaited when `target` is a citizen id.
+
+**Parameters**
+- target: `number | string`
+- item: `string`
+- count?: `integer` — 1–1 000 000, default 1
+- metadata?: `table`
+
+- `target`: a connected player id, or a citizen id (reaches an offline bag; then the call must be awaited).
+- `item`: a catalogue item name, 1–64 characters.
+- With a `metadata` table, only stacks with exactly that metadata match.
+- Errors other than those listed come from the [inventory](/docs/opx_infinity/inventory#codes) (for example `no_room`, `too_heavy`, `not_enough`).
+
+**Returns**
+- `boolean`
+
+**Errors**
+- `export.badArgument`, inventory codes
+
+```lua title="Example"
+local res = exports.opx_infinity:HasItem(source, 'lockpick')
+if res.ok and res.value then startLockpick(source) end
+```

@@ -1,0 +1,128 @@
+---
+title: Events
+description: Network, local and host-wide events of the dealership module.
+---
+
+## opx:net:dealership:ask [#opx-net-dealership-ask]
+
+Client → server. Ask for the dealers of the caller's bucket and the stock. Sent at start and every `POLL_MS`.
+
+```lua
+TriggerServerEvent('opx:net:dealership:ask')
+```
+
+## opx:net:dealership:sync [#opx-net-dealership-sync]
+
+Server → client. Dealers of the bucket.
+
+```lua
+RegisterNetEvent('opx:net:dealership:sync', function(payload) end)
+```
+
+- payload: `table` — `{ spots }`, each `key, label, kind, x, y, z, heading, bucket`
+
+## opx:net:dealership:stock [#opx-net-dealership-stock]
+
+Server → client. Stock per kind.
+
+```lua
+RegisterNetEvent('opx:net:dealership:stock', function(payload) end)
+```
+
+- payload: `table` — `{ kinds = { garage = rows, avpad = rows } }`
+  - each row `key, label, class, price, text` (`text`: the formatted price)
+
+## opx:net:dealership:buy [#opx-net-dealership-buy]
+
+Client → server. Buy. Cooldown `COOLDOWN_MS` plus the request window.
+
+```lua
+TriggerServerEvent('opx:net:dealership:buy', dealerKey, entryKey, garageKey)
+```
+
+- dealerKey: `string`
+- entryKey: `string`
+- garageKey?: `string`
+
+## opx:net:dealership:answer [#opx-net-dealership-answer]
+
+Server → client. Verdict of a buy or an accepted offer.
+
+```lua
+RegisterNetEvent('opx:net:dealership:answer', function(ok, error, entryKey, value) end)
+```
+
+- ok: `boolean`
+- error?: `string`
+- entryKey?: `string`
+- value?: `table` — the [`Buy`](/docs/opx_infinity/dealership/server#server-dealership-buy) value
+
+## opx:net:dealership:offer [#opx-net-dealership-offer]
+
+Client → server. A salesperson offers a car to a player.
+
+```lua
+TriggerServerEvent('opx:net:dealership:offer', buyerId, entryKey)
+```
+
+- buyerId: `integer`
+- entryKey: `string`
+
+## opx:net:dealership:offered [#opx-net-dealership-offered]
+
+Server → client. Sent to the buyer: the offer to answer.
+
+```lua
+RegisterNetEvent('opx:net:dealership:offered', function(offer) end)
+```
+
+- offer: `table` — `{ token, entry, model, price, text, seller, dealer, label, kind, timeoutMs }`
+  - `kind`: the dealer's kind, so the buyer's screen lists only garages a vehicle of that kind may be filed under.
+
+## opx:net:dealership:decide [#opx-net-dealership-decide]
+
+Client → server. The buyer's answer.
+
+```lua
+TriggerServerEvent('opx:net:dealership:decide', token, yes, destKey)
+```
+
+- token: `number`
+- yes: `boolean`
+- destKey?: `string` — the buyer's garage; only sent with a yes.
+
+## opx:net:dealership:settled [#opx-net-dealership-settled]
+
+Server → client. Sent to the seller (or the buyer if the seller left): what became of the offer.
+
+```lua
+RegisterNetEvent('opx:net:dealership:settled', function(result) end)
+```
+
+- result: `table` — `{ ok, error?, entry, model?, cut?, company?, banked? }`
+
+## opx:on:dealership:sold [#opx-on-dealership-sold]
+
+Server, host-wide. A sale went through. Every server resource hears it; see [Public server events](/docs/creators/events#vehicles).
+
+```lua
+AddEventHandler('opx:on:dealership:sold', function(playerId, payload) end)
+```
+
+- playerId: `integer`
+- payload: `table`
+  - Counter sale: `{ kind = 'counter', citizenId, plate, entry, record, dealer, garage, price, currency }`
+  - Player-to-player: `{ kind = 'offer', citizenId, plate, entry, record, dealer, garage, price, currency, seller, sellerCitizenId, company, commission, banked, pending }`
+    - `garage`: the buyer's chosen garage, nil for the default.
+    - `pending`: `true` when the company share went to the `opx77_company_pending` ledger instead of the account.
+
+## opx:on:dealership:decision [#opx-on-dealership-decision]
+
+Client, local. Every verdict, local refusals included. Only handlers inside opx_infinity's client hear it.
+
+```lua
+AddEventHandler('opx:on:dealership:decision', function(decision) end)
+```
+
+- decision: `table` — `{ ok, error?, entry?, plate?, model?, dealer?, garage?, price?, queued?, commission?, banked?, source }`
+  - `source`: `key`, `server`, `client`, `target`, `offer`, `sale` or the caller's `origin`.

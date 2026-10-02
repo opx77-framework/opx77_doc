@@ -1,0 +1,106 @@
+---
+title: Install
+description: Install opx_lib and opx_infinity on an Open77 dedicated server, connect the database, grant staff rights and check the boot log.
+---
+
+OPX//77 is two resources: `opx_lib` (a client library) and `opx_infinity` (the framework).
+
+## What you need [#needs]
+
+| Need | Why |
+|---|---|
+| An Open77 dedicated server | `opx_infinity` declares `open77_version ">=0.0.1"`. |
+| A MySQL database | Characters, inventories, vehicles… Without it the server boots but nobody can load a character. |
+| `opx_lib` | `opx_infinity` declares `dependency "opx_lib"`; the platform will not start it without `opx_lib` running. |
+| The platform's `open77_notifications` (recommended) | Server toasts sent with `OPX.Notify` go through `Open77.notifications.send`, drawn by that package on the client (shipped load lists start it). Without it those toasts are not shown. Refusals and command answers are drawn by `opx_infinity` itself. |
+
+## Installation
+
+### Copy the two resources [step] [#copy]
+
+One folder per repository under the server's resource root. The folder name **must** equal the resource name.
+
+```text
+resources/
+  opx_lib/          open77.lua, init.lua, pure/, client/, boot/
+  opx_infinity/     open77.lua, config/, core/, lib/, locales/, modules/, web/
+```
+
+- The server only needs `open77.lua config core lib locales modules web` of `opx_infinity`; the built page is `web/index.html`.
+- `ui/`, `tests/` and `tools/` are for development.
+
+To deploy a commit rather than a working tree:
+
+```bash
+git archive --format=tar HEAD open77.lua config core lib locales modules web \
+  | gzip | ssh root@<host> 'cd /opt/open77-server/resources/opx_infinity && tar xzf -'
+```
+
+### Load them in order [step] [#load]
+
+`opx_lib` **before** `opx_infinity` in `resources.load`.
+
+```jsonc title="server.jsonc"
+"resources": {
+  "load": [
+    // ... the platform's own resources ...
+    "opx_lib",
+    "opx_infinity"
+  ]
+}
+```
+
+### Connect the database [step] [#database]
+
+```jsonc title="server.jsonc"
+"database": { "enabled": true, "connectionString": "Server=...;Database=...;User ID=...;Password=..." }
+```
+
+- Or put the string in the environment variable named by `database.connectionStringEnvironmentVariable` (`OP77_DATABASE_CONNECTION` by default). See the platform's *Configure a SQL database* guide.
+- The tables are created at the first boot; there is nothing to import.
+
+### Grant staff rights [step] [#acl]
+
+Staff commands are restricted. Add rights to the ACL file named by `accessControl.file` in `server.jsonc` (usually `acl.jsonc`). A staff role typically needs:
+
+```text
+command.opx.admin          open the staff menu (F9)
+command.opx.admin.*        use the rows inside it
+command.opx.garages.*      garage staff commands
+command.opx.dealership.*   dealer staff commands
+command.opx.clothing.*     wardrobe store commands
+command.opx.weather.*      weather controls
+command.opx.time           the clock
+command.opx.time.*
+```
+
+<Callout type="info">
+
+Both `command.opx.admin` and `command.opx.admin.*` are needed: see [Permissions](/docs/opx_infinity/concepts/permissions#acl). Each [module page](/docs/opx_infinity) lists its commands.
+
+</Callout>
+
+### Start and read the log [step] [#check]
+
+Restart the server and read the journal. A healthy boot ends with one line per module and a version line:
+
+```text
+[storage] schema ready: N table(s)
+[module] character     started
+[module] inventory     started
+...
+opx_infinity 0.1.2 up
+```
+
+| If you see | It means | Fix |
+|---|---|---|
+| `no database: nobody will be able to connect until this is fixed.` | The database is not reachable. | Check the connection string, restart. |
+| `opx_infinity ... up -- degraded: <reason>` | Boot finished with a problem. | Read the reason; see [Troubleshooting](/docs/getting-started/troubleshooting). |
+| `[module] <id> unavailable requires "<other>", ...` | A required module is off or failed. | Fix or enable `<other>`. |
+| `[boot] <name> is running and also places players` | Another resource also places players. | Remove it, or accept the conflict (see [`CONFLICTING_PLACERS`](/docs/opx_infinity/core/config#config-server-conflicting-placers)). |
+
+Later: `/opx.modules` (staff) or `/opx.version` for the same report, `/opx.client` in a game client's console for the client side.
+
+## Next [#next]
+
+[Configure the server](/docs/getting-started/configure).

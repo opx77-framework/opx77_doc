@@ -1,0 +1,21 @@
+---
+title: CloseMenu
+description: Closes a menu your resource opened.
+---
+
+<a id="export-client-closemenu" />
+
+```lua
+local res = exports.opx_infinity:CloseMenu(handle)
+```
+
+Sync. The close reaches your reply export with `reason = 'caller'`.
+
+**Parameters**
+- handle: `string`
+
+**Returns**
+- `true`
+
+**Errors**
+- `stale_handle` (not one of yours), `export.callerDenied`, `export.badArgument`, `error.unavailable` (module not running)

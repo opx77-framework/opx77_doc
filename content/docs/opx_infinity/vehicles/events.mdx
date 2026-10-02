@@ -1,0 +1,52 @@
+---
+title: Events
+description: Network events and public server events of the vehicles module.
+---
+
+A plate that is not the caller's is answered `vehicle.notFound`, the same as a plate that does not exist.
+
+## opx:net:vehicles:spawn [#opx-net-vehicles-spawn]
+
+Client → server. Spawn one of the caller's own vehicles beside them. 3 s cooldown per player. Answers with a toast (`vehicle.spawned` or the refusal) and an `OPX.Refuse` under operation `vehicleSpawn`.
+
+```lua
+TriggerServerEvent('opx:net:vehicles:spawn', { plate = plate })
+```
+
+- plate: `string`
+
+## opx:net:vehicles:store [#opx-net-vehicles-store]
+
+Client → server. Put away one of the caller's own vehicles that is out. 3 s cooldown. Operation `vehicleStore`.
+
+```lua
+TriggerServerEvent('opx:net:vehicles:store', { plate = plate })
+```
+
+- plate: `string`
+
+## opx:on:vehicles:spawned [#opx-on-vehicles-spawned]
+
+Server, host-wide. An owned car was brought out. Public to every server resource (see [Public server events](/docs/creators/events#vehicles)).
+
+```lua
+AddEventHandler('opx:on:vehicles:spawned', function(playerId, data) end)
+```
+
+- playerId: `number`
+- data: `table`
+  - `citizenId`, `plate`, `record`: `string`
+  - `vehicleId`: the runtime id
+  - `vehicleKey`: `string` — the engine id as text
+  - `recalled`: `boolean`
+
+## opx:on:vehicles:stored [#opx-on-vehicles-stored]
+
+Server, host-wide. It was put away, or the host removed it.
+
+```lua
+AddEventHandler('opx:on:vehicles:stored', function(playerId, data) end)
+```
+
+- playerId?: `number`
+- data: `table` — `{ citizenId, plate, garage }`, or `{ citizenId, plate, removed }` (`removed` says why)
