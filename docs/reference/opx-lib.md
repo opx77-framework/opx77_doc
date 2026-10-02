@@ -299,7 +299,7 @@ No permission. A zone definition is what `Open77.zones.contains` takes, for exam
 
 ### Rpc {#rpc}
 
-No permission. Calls a **client export** of another resource through `Open77.exports.call`. `opx_infinity` publishes no exports, so this cannot reach it.
+No permission. Calls a **client export** of another resource through `Open77.exports.call`. It can reach `opx_infinity`'s [client exports](../creators/client-exports.md), but those answer `{ ok, value | error }`, which this helper reads as a Result.
 
 | Function | Parameters | Returns | Notes |
 |---|---|---|---|

@@ -23,7 +23,7 @@ client library, `opx_lib`.
 | Fix a problem on a running server | [Troubleshooting](getting-started/troubleshooting.md) |
 | Look up a module: its commands, events, settings | [Modules](modules/index.md) |
 | Add a feature to the framework | [Write a module](guides/writing-a-module.md) |
-| Build your own resource next to it | [Write a separate resource](guides/writing-a-resource.md) |
+| Build your own resource next to it | [For creators](creators/index.md), then [Write a separate resource](guides/writing-a-resource.md) |
 | Port code from the old `opx77_*` resources or from FiveM | [From opx77_* to opx_infinity](migration/from-opx77.md), [Convert from FiveM](guides/converting.md) |
 | Understand how it works inside | [How it works](how-it-works/overview.md) |
 | Look up a core or library function | [API reference](reference/index.md) |
@@ -33,7 +33,8 @@ client library, `opx_lib`.
 The sixteen documented `opx77_*` resources (and five more) were replaced by one
 resource, `opx_infinity`. Each old resource is now a **module** inside it, and
 modules talk to each other through in-process **contracts** instead of exports.
-`opx_infinity` publishes no exports. See the
+Other resources use a smaller, curated set of exports and public server
+events; see [For creators](creators/index.md) and the
 [migration page](migration/from-opx77.md).
 
 ## Licence {#license}

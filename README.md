@@ -20,6 +20,7 @@ page is invisible until it is listed in `nav:`.
 docs/
 ├── index.md            the router: "you want to… read…"
 ├── getting-started/    install, configure, troubleshoot
+├── creators/           for other resources: server exports, client exports, public server events
 ├── guides/             write a module, write a separate resource, convert, contribute
 ├── how-it-works/       the runtime explained, one short page per idea
 ├── modules/            one page per module of opx_infinity (index.md lists them)
@@ -78,8 +79,8 @@ OPX_INFINITY=/path/to/opx_infinity OPX_LIB_PATH=/path/to/opx_lib ./scripts/check
 
 It does not grep the framework. `scripts/dump-surface.lua` boots the real
 manifest on the framework's own stub host (`opx_infinity/tests/host.lua`) and
-prints every module, contract member, command, alias, network event, module
-event, page channel, config key and `OPX.*` function that is actually
+prints every module, contract member, command, alias, Open77 export, network
+event, module event, page channel, config key and `OPX.*` function that is actually
 registered; `opx_lib`'s functions are read from its source. The check then fails
 on any name without its anchor in the right place. With no framework checkout in
 reach it prints a note and exits 0, which is what happens on the CI runner.

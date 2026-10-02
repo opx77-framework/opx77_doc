@@ -86,7 +86,7 @@ local function send(source, target, amount)
 	-- ... take from `source`, give to `target` through the character contract,
 	-- refunding if the second half fails. See the character module page for
 	-- the exact functions and their answers.
-	TriggerEvent(M.Event.SENT, source, target, amount)
+	OPX.Publish(M.Event.SENT, source, { target = target, amount = amount })
 	OPX.NotifyLocale(source, 'tips.sent', { amount = amount }, 'success')
 end
 
@@ -115,6 +115,14 @@ end
 
 Points to keep:
 
+- `OPX.Publish` raises `opx:on:tips:sent` for **every resource on the server**
+  (server `TriggerEvent` is host-wide). Give it a plain payload, never a live
+  record, and list the event on [Public server events](../creators/server-events.md).
+  For wiring between your own halves or other modules only, use an `opx:in:`
+  name; it is still visible to other server resources, but not a promise.
+- To let other resources **call** your module, add a wrapper to
+  `core/server/exports.lua` (or `core/client/exports.lua`) and document it under
+  [For creators](../creators/index.md).
 - `source` comes from the connection. Re-check every value in the payload.
 - [`OPX.Command.Register`](../reference/core.md#opx-command-register) instead of
   `RegisterCommand`, so the chat box knows the command. Use

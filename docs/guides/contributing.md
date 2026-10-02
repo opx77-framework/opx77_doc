@@ -110,6 +110,7 @@ with every run of other characters replaced by `-`:
 | config key `SELLER_CUT_PERCENT` of `dealership` | `config-dealership-seller-cut-percent` |
 | function `OPX.Scheduler.Every` | `opx-scheduler-every` |
 | opx_lib function `Lib.Rpc.Call` | `lib-rpc-call` |
+| server export `AddMoney` (in `docs/creators/`) | `export-server-addmoney` |
 
 ### Checks {#docs-checks}
 

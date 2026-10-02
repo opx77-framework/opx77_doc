@@ -73,10 +73,10 @@ Both sides stop modules in reverse order when the resource stops.
 
 ## What the framework does not offer {#limits}
 
-- **No Open77 exports.** `opx_infinity` calls `exports(...)` nowhere. A module
-  inside the resource uses [contracts](modules-and-contracts.md#contracts); a
-  separate resource has a smaller surface — see
-  [Write a separate resource](../guides/writing-a-resource.md).
+- **Only a curated export set.** A module inside the resource uses
+  [contracts](modules-and-contracts.md#contracts). A separate resource gets the
+  server and client exports and the public server events described in
+  [For creators](../creators/index.md), and nothing else.
 - **No server library.** The server sandbox has no `require`, so `opx_lib` is
   client only. Server and shared code use the helpers in
   [`lib/`](../reference/lib.md).
