@@ -37,6 +37,7 @@
 #   a chat command              <command>                             modules/<owner>.md (core: anywhere)
 #   a command alias             the alias in backticks                reference/
 #   a module event (net, on)    <event>                               any page under modules/
+#   an Open77 export            export-<side>-<name>                  creators/
 #   a net event listened on     <event>                               anywhere
 #   a page -> Lua channel       page-<channel>                        anywhere
 #   a module config key         config-<module>-<KEY>                 modules/<module>.md
@@ -125,6 +126,7 @@ awk '
   $1 == "command"    { d = ($4 == "core") ? "" : "modules/" $4 ".md"
                        print "need\tcommand " $2 "\t" d "\t" slug($2); next }
   $1 == "alias"      { print "alias\t" $2 "\t" $3; next }
+  $1 == "export"     { print "need	export " $2 " " $3 "	creators/	" slug("export-" $2 "-" $3); next }
   $1 == "net"        { print "need\tnet event " $3 "\t\t" slug($3); next }
   $1 == "event"      { if ($3 ~ /^opx:(net|on):/) print "need\tevent " $3 "\tmodules/\t" slug($3); next }
   $1 == "channel"    { print "need\tpage channel " $2 "\t\tpage-" slug($2); next }
