@@ -84,6 +84,7 @@ resource start and stop events.
 | `GAMEPLAY_READY` | `open77:session:gameplayReady` |
 | `VEHICLE_REMOVED` | `onVehicleRemoved` |
 | `TUNABLE_CHANGED` | `onTunableChanged` |
+| `KEYBINDS_CHANGED` | `open77:keybinds:changed` (client: a key mapping was registered, rebound, reset or removed) |
 
 ## Hooks: events that can say no {#hooks}
 

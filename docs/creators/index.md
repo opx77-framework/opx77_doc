@@ -11,8 +11,8 @@ nothing else:
 
 | Door | Side | Use it to | Page |
 |---|---|---|---|
-| Server exports | server | read a player (money, job, items), change money, items, stashes, chat, keys, a vehicle's state | [Server exports](server-exports.md) |
-| Client exports | client | open a menu or form, show a toast, run a progress bar, play an animation on the local player | [Client exports](client-exports.md) |
+| Server exports | server | read a player (money, job, items, down state); change money, jobs, gangs, duty, your own metadata, items, stashes, chat, keys, a vehicle's state; revive | [Server exports](server-exports.md) |
+| Client exports | client | open a menu or form, show a toast, run a progress bar, play an animation on the local player; subscribe to OPX client events | [Client exports](client-exports.md) |
 | Public server events | server | react when a character loads, money moves, an item is used… | [Server events](server-events.md) |
 
 The modules' own contracts (`OPX.Api.Get`) stay inside `opx_infinity`. If you
@@ -33,6 +33,9 @@ An export never raises. Always test `answer.ok == true`.
 | `export.callerDenied` | Your resource is not allowed to make this call (see [Who may call](#allowlist)). |
 | `export.badArgument` | An argument could not be read (wrong type, bad player id, bad citizen id, name too long…). |
 | `export.booting` | The server has not finished starting. Try again later. |
+| `export.badValue` | `SetMetadata`: the value is not plain data. |
+| `export.tooLarge` | `SetMetadata`: over a size or key-count limit. |
+| `export.notSubscribable` | `Subscribe`: that event is not on the list. |
 | `export.mustAwait` | This call can reach the database. Call it with `Open77.exports.call(...)` and `:await()` (see below). |
 | `error.unavailable` | The module behind the export is not running, or the call failed. |
 | `error.notLoggedIn` | That player has no character loaded. |
@@ -83,7 +86,7 @@ local answer = pending and pending:await()
 
 | Use the sync form for | Use `Open77.exports.call(...):await()` for |
 |---|---|
-| `GetVersion`, `GetPlayerData`, `GetPlayerByCitizenId`, `IsStaff`, `GetMoney`, `HasJob`, `HasGang`, `GetJob`, `GetGang` — they answer from memory | **every write**, and every call that may reach the database: `AddMoneyOffline`, the stash exports, `RevokeKeys`, `RevokeAllKeys`, `SetVehicleState`, and the item exports when `target` is a citizen id |
+| `GetVersion`, `GetPlayerData`, `GetPlayerByCitizenId`, `IsStaff`, `GetMoney`, `HasJob`, `HasGang`, `GetJob`, `GetGang`, `GetMetadata`, `IsDown`, and the memory-only writes `SetDuty`, `SetMetadata`, `Revive` — they answer at once | every call that may reach the database: `AddMoneyOffline`, `SetJob`, `SetGang`, `RemoveJob`, `RemoveGang`, the stash exports, `RevokeKeys`, `RevokeAllKeys`, `SetVehicleState`, and the item exports when `target` is a citizen id. Using the promise form for every other write is a safe habit. |
 
 A call that may reach the database, made synchronously, answers
 `export.mustAwait` **before** touching anything, so it is safe to retry with the

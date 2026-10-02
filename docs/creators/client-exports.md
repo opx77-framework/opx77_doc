@@ -72,6 +72,51 @@ module is not running), `stale_handle`, and the codes of the module behind the
 export (for example `menu_busy`, `form_busy`, `progress_busy`, or a spec error
 such as `invalid_items`).
 
+## Subscribing to OPX client events {#subscribe}
+
+A client `TriggerEvent` stays inside `opx_infinity`, so your resource cannot hear
+its client events directly. `Subscribe` forwards one event to your
+[reply export](#replies) every time it is raised, until you unsubscribe or your
+resource stops.
+
+| Export | Arguments | `value` on success | Notes |
+|---|---|---|---|
+| <a id="export-client-subscribe"></a>`Subscribe` | `event, reply?` | `true` | Starts forwarding `event` to your reply export (`reply`, or `CLIENT.EXPORTS.REPLY`). Subscribing again just changes the reply export. Errors `export.notSubscribable`, `export.badArgument`, `export.callerDenied`. |
+| <a id="export-client-unsubscribe"></a>`Unsubscribe` | `event` | `true` if you were subscribed, else `false` | Errors `export.notSubscribable`, `export.badArgument`. |
+
+Each event arrives as `(event, payload)` with **one table**:
+
+| Event | Payload |
+|---|---|
+| `opx:on:character:loaded` | the character's PlayerData **without `metadata`** |
+| `opx:on:character:unloaded` | `{}` |
+| `opx:on:character:changed` | PlayerData without `metadata` |
+| `opx:on:character:money` | `{ moneyType, amount, action, balance }` (one table, not four arguments) |
+| `opx:on:character:job` | the primary job table |
+| `opx:on:character:gang` | the primary gang table |
+| `opx:on:downed:changed` | `{ down, waiting }` |
+| `opx:on:inventory:changed` | `{ inventory, changes }` (see [inventory](../modules/inventory.md#events)) |
+| `opx:on:inventory:used` | `{ name, slot, label, close, status?, animation? }` |
+| `opx:on:inventory:opened` | `{}` |
+| `opx:on:inventory:closed` | `{}` |
+| `opx:on:needs:changed` | `{ values, changed, source, citizenId, ready }` |
+| `opx:on:progress:state` | `{ open, owner?, label? }`. `owner` is your own resource name for your bar; a bar drawn by **another** resource comes with no `owner`. |
+
+No other event can be subscribed to (`export.notSubscribable`).
+
+```lua
+-- my_hud/client.lua
+exports('OnOpxEvent', function(event, payload) TriggerEvent(event, payload) end)
+
+CreateThread(function()
+	exports.opx_infinity:Subscribe('opx:on:character:money')
+end)
+
+AddEventHandler('opx:on:character:money', function(p)
+	print(('balance %s is now %d'):format(p.moneyType, p.balance))
+end)
+```
+
 ## Ownership {#ownership}
 
 - Your screens are kept under the owner `ext:<your resource>`. You can update,

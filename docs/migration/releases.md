@@ -7,6 +7,15 @@ description: What changed in opx_infinity and opx_lib, newest first, starting wi
 
 Newest first. The version is the one in each resource's `open77.lua`.
 
+## opx_infinity — creator API round 2, keybinds, short paths (PRs #53–#56) {#infinity-53-56}
+
+| Change | Pages |
+|---|---|
+| New server exports `SetJob`, `SetGang`, `RemoveJob`, `RemoveGang`, `SetDuty`, `GetMetadata`, `SetMetadata` (per-resource `ext.<resource>.<key>`, limits in `SERVER.EXPORTS.METADATA`), `IsDown`, `Revive`. New client exports `Subscribe`/`Unsubscribe` for a fixed list of client events. New codes `export.badValue`, `export.tooLarge`, `export.notSubscribable`. | [Server exports](../creators/server-exports.md), [Client exports](../creators/client-exports.md#subscribe) |
+| One host constant `OPX.Host.KEYBINDS_CHANGED = 'open77:keybinds:changed'` for every module. Four modules used to listen on `onKeybindsChanged`, which nothing raises, so they never redrew a key after a rebind. | [Runtime events](../reference/runtime-events.md#host) |
+| Clothing pictures are named by a 10-digit hash of their slug; every shipped path stays at 47 characters or less (a test enforces it), because one over-long path fails the whole resource on a client. The calls view registers its state handler before wiring the page. | [appearance](../modules/appearance.md#garments) |
+| Notes on `open77_validate` false positives; the admin model commands answer `models_unavailable` because `players.setModel` is in no published build. | [Troubleshooting](../getting-started/troubleshooting.md#validate) |
+
 ## opx_infinity — creator API, wardrobe pictures, calls (PRs #50–#52) {#infinity-creator-api}
 
 Merged into `main` after the 2026-10-02 changes below; the manifest version is still `0.1.2`.

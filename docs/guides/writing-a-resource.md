@@ -14,8 +14,8 @@ of `character`, `inventory`…), write a [module](writing-a-module.md) instead.
 
 | Surface | Side | Use it for | Read |
 |---|---|---|---|
-| Server exports | server | read a player's data, money, job, items; change money, items, stashes, chat, keys, vehicle state | [Server exports](../creators/server-exports.md) |
-| Client exports | client | open a menu or form, show a toast, run a progress bar, play an animation on the local player | [Client exports](../creators/client-exports.md) |
+| Server exports | server | read a player's data, money, job, items, down state; change money, jobs, gangs, duty, your own metadata, items, stashes, chat, keys, vehicle state; revive | [Server exports](../creators/server-exports.md) |
+| Client exports | client | open a menu or form, show a toast, run a progress bar, play an animation on the local player; subscribe to OPX client events | [Client exports](../creators/client-exports.md) |
 | Public server events | server | react when a character loads, money moves, an item is used, a car is bought… | [Server events](../creators/server-events.md) |
 | [Player state bag](#state-bag) | client and server, read | name, job, gang, citizen id of any player in the same bucket, with no call at all | below |
 | [opx_lib](#opx-lib) | client | input, markers, zones, RPC helpers… | [opx_lib](../reference/opx-lib.md) |
@@ -131,11 +131,11 @@ commands are refused, and the answer goes to the server log.
 
 | You want to | Status |
 |---|---|
-| Set a job or gang | No export. Use the staff commands or a module. |
-| Read or change metadata | No export. |
 | Veto an action (hooks) | `OPX.Hooks` runs inside `opx_infinity` only. |
 | Open a panel, prompts or the target eye from your resource | No client export for them. |
-| Hear an OPX client event | Client events stay in one resource; answers to your own calls come through the [reply export](../creators/client-exports.md#replies). |
+| Hear any OPX client event | Only the events on the [Subscribe list](../creators/client-exports.md#subscribe). |
+| Start a progress bar from the server and learn how it ended | No export: `StartProgress` is client-only, and its outcome reaches only the client that started it. |
+| Read or write an offline character's metadata | `GetMetadata`/`SetMetadata` work on online characters only. |
 
 Code written for the old `opx77_*` exports does not work as is; see
 [From opx77_* to opx_infinity](../migration/from-opx77.md).

@@ -82,7 +82,7 @@ Errors: `prompts.invalidPlayer` (source is not a number), `prompts.invalidOwner`
 | <a id="opx-net-prompts-hide"></a>`opx:net:prompts:hide` | server → client | `{ owner, id }` | Server `Hide`. |
 | <a id="opx-net-prompts-hideall"></a>`opx:net:prompts:hideAll` | server → client | `owner` (a string) | Server `HideAll`. |
 
-A malformed server envelope is dropped on the client in silence. The module also listens to `opx:on:downed:changed` and the host event `open77:keybinds:changed` (redraws caps after a rebind).
+A malformed server envelope is dropped on the client in silence. The module also listens to `opx:on:downed:changed` and the host event `OPX.Host.KEYBINDS_CHANGED` (`open77:keybinds:changed`; redraws caps after a rebind).
 
 ## Page channels {#page-channels}
 

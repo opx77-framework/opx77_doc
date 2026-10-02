@@ -60,7 +60,58 @@ the promise form. Money moved by an export runs the same
 | <a id="export-server-getjob"></a>`GetJob` | read | no | `source` | a copy of the primary job `{ name, label, type, payment, onDuty, isBoss, bankAuth, grade = { name, level } }` | `export.badArgument`, `error.notLoggedIn` |
 | <a id="export-server-getgang"></a>`GetGang` | read | no | `source` | a copy of the primary gang | `export.badArgument`, `error.notLoggedIn` |
 
-There is no export to set a job or gang; use the staff commands or a module.
+| <a id="export-server-setjob"></a>`SetJob` | write | **yes** | `target, name, grade?` | the new primary job table | `job.notFound`, `job.gradeNotFound`, `job.vetoed`, `character.notFound`, `export.badArgument`, `error.unavailable` |
+| <a id="export-server-setgang"></a>`SetGang` | write | **yes** | `target, name, grade?` | the new primary gang table | `gang.notFound`, `gang.gradeNotFound`, `gang.vetoed`, `character.notFound`, `export.badArgument`, `error.unavailable` |
+| <a id="export-server-removejob"></a>`RemoveJob` | write | **yes** | `target, name` | `true` | `job.notMember`, `character.notFound`, `export.badArgument`, `error.unavailable` |
+| <a id="export-server-removegang"></a>`RemoveGang` | write | **yes** | `target, name` | `true` | `gang.notMember`, `character.notFound`, `export.badArgument`, `error.unavailable` |
+| <a id="export-server-setduty"></a>`SetDuty` | write | no | `source, onDuty` | the new duty (`true`/`false`) | `job.noDuty` (a job that is always on duty), `error.notLoggedIn`, `export.badArgument` |
+
+`target` is a connected player id or a citizen id (a character nobody is
+playing). `grade` is 0–255 and defaults to 0. `SetJob`/`SetGang` join the job
+(or regrade) and make it primary; duty resets to the job's `defaultDuty`.
+Removing the primary job falls back to the server's default job. These go
+through the same functions as the staff commands, so the
+[`job:beforeSet` / `gang:beforeSet` hooks](../modules/character.md#hooks) can
+veto them, and a change raises
+[`opx:on:character:job` / `gang`](server-events.md#character).
+
+## Metadata {#metadata}
+
+Each resource has its **own** metadata space on a character. A key you name is
+stored as `ext.<your resource>.<key>`, so you cannot read or change OPX's keys
+or another resource's.
+
+| Export | Scope | Await | Arguments | `value` on success | Errors |
+|---|---|---|---|---|---|
+| <a id="export-server-getmetadata"></a>`GetMetadata` | read | no | `source, key?` | the value of your key, or with no `key` every key you stored as `{ [key] = value }` | `export.badArgument`, `error.notLoggedIn` |
+| <a id="export-server-setmetadata"></a>`SetMetadata` | write | no | `source, key, value` | `true` | `export.badArgument`, `export.badValue`, `export.tooLarge`, `error.notLoggedIn` |
+
+- **Online characters only.** It is saved with the character.
+- `key`: one segment, 1–48 characters, letters, digits, `_` and `-` (no dot).
+- `value`: plain data only — booleans, finite numbers, text, and tables of those
+  keyed by text or position, at most 8 levels deep. Anything else is
+  `export.badValue`. `nil` deletes the key.
+- Limits from [`SERVER.EXPORTS.METADATA`](../reference/core-config.md#server-exports):
+  4096 bytes per value (encoded), 32 keys and 16384 bytes in total per resource
+  per character. Over a limit: `export.tooLarge`.
+
+!!! warning "No secrets in metadata"
+
+    Metadata travels with the character's data to the **player's own client**.
+    The player can read anything you store there.
+
+## Down and revive {#downed}
+
+| Export | Scope | Await | Arguments | `value` on success | Errors |
+|---|---|---|---|---|---|
+| <a id="export-server-isdown"></a>`IsDown` | read | no | `source` | `{ down, waiting, downForMs? }`; `downForMs` only when down | `export.badArgument`, `error.unavailable` |
+| <a id="export-server-revive"></a>`Revive` | write | no | `source, reason?` | `true` | `not_down`, `not_incarnated`, `gate_closed`, `caller_denied`, `export.badArgument`, `error.unavailable` |
+
+`Revive` goes through the [downed module](../modules/downed.md)'s own revive:
+the player gets up where the body lies. Your resource name must be allowed by
+the module's `REVIVERS` (everyone by default), or it answers `caller_denied`.
+The audit line names your resource and `reason` (up to 256 characters, cut to 64
+in the log).
 
 ## Items {#items}
 

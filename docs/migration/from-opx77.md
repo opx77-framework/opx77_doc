@@ -44,6 +44,9 @@ allowlist in front. See [For creators](../creators/index.md).
 | `opx77_animations` `play`, `stop` | client exports `PlayAnimation`, `StopAnimation` |
 | `opx77_chat` server `chat:addMessage` | server exports `SendChat`, `BroadcastChat` |
 | server events `opx77:player:loaded`, `moneyChange`, `jobUpdate`… | public server events `opx:on:character:loaded`, `money`, `job`… |
+| `opx77_core` `OPX.SetJob`, `SetGang`, `RemovePlayerFromJob`, `SetJobDuty` (in-VM) | server exports `SetJob`, `SetGang`, `RemoveJob`, `RemoveGang`, `SetDuty` |
+| `opx77_core` `OPX.SetMetadata`/`GetMetadata` | server exports `SetMetadata`/`GetMetadata`, in your resource's own `ext.<resource>.*` space |
+| client events `opx77:client:onMoneyChange`, `onJobUpdate`, `opx77:status:needs`… | client export `Subscribe('opx:on:character:money')` and the other [subscribable events](../creators/client-exports.md#subscribe) |
 
 Anything not in that set must move into a [module](../guides/writing-a-module.md).
 
