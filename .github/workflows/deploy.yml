@@ -36,11 +36,11 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v6.0.0
 
-      # The framework lives in a different repository, so there is no resources
-      # tree here and this step reports a skip. It is wired in so that a
-      # workflow_dispatch run in a checkout that does have one — or the same
-      # script run locally — fails on a public name the reference does not
-      # document. See scripts/check-api-coverage.sh for how to run it locally.
+      # The framework (opx_infinity, opx_lib) lives in other repositories, so
+      # there is no checkout here and this step reports a skip. Run the same
+      # script locally, next to the framework, with Lua 5.4 installed: it boots
+      # opx_infinity on its stub host and fails on any published name the docs
+      # do not document. See scripts/check-api-coverage.sh.
       - name: Check API coverage
         run: ./scripts/check-api-coverage.sh
 
