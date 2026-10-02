@@ -23,7 +23,7 @@ The `downed` module decides who is down and how they get back up. A player whose
 |---|---|---|---|
 | <a id="server-downed-isdown"></a>`IsDown` | `playerId` | `{ down, waiting, downForMs? }` | `downForMs` only when down. Error `bad_player`. |
 | <a id="server-downed-list"></a>`List` | — | `{ players = { { id, name, waiting, downForMs, position } } }` | Every downed player, those waiting for help first, then longest down. `position` is `{ x, y, z, bucket }`. For a dispatch screen. |
-| <a id="server-downed-revive"></a>`Revive` | `playerId, caller` | `true` | Revives where the body lies, at `REVIVE.HEALTH`. `caller` is your module name (audited, checked against `REVIVERS`). Errors: `invalid_caller`, `caller_denied`, `bad_player`, `not_down`, `not_incarnated`, `gate_unreadable`, `gate_closed`, or the host's refusal reason. |
+| <a id="server-downed-revive"></a>`Revive` | `playerId, caller, why?` | `true` | Revives where the body lies, at `REVIVE.HEALTH`. `caller` is your module name (audited, checked against `REVIVERS`); `why` is an optional reason, audited after the caller (cut to 64 characters). The `Revive` [server export](../creators/server-exports.md#downed) calls this with the calling resource's name. Errors: `invalid_caller`, `caller_denied`, `bad_player`, `not_down`, `not_incarnated`, `gate_unreadable`, `gate_closed`, or the host's refusal reason. |
 
 ## Client contract {#client-contract}
 

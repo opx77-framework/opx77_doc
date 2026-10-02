@@ -375,6 +375,8 @@ The code is also the locale key shown to the player.
 | `money.vetoed` | A hook refused it. |
 | `money.offline` | The character is not loaded. Use `AddMoneyOffline` to credit an offline character. |
 | `job.vetoed` / `gang.vetoed` | A `job:beforeSet` / `gang:beforeSet` hook refused the change. |
+
+Other resources reach `SetJob`, `SetGang`, `RemovePlayerFromJob`, `RemovePlayerFromGang` and `SetJobDuty` through the `SetJob`, `SetGang`, `RemoveJob`, `RemoveGang` and `SetDuty` [server exports](../creators/server-exports.md#jobs), and their own metadata keys (`ext.<resource>.<key>`) through `GetMetadata`/`SetMetadata`.
 | `job.notFound` / `job.gradeNotFound` | Unknown job or grade. |
 | `job.noDuty` | The job has `defaultDuty = true`. |
 | `job.notMember` | Not a member of that job. |

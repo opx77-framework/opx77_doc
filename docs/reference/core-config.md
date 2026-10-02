@@ -65,8 +65,11 @@ Who may call the creator exports in `core/server/exports.lua`. The caller is the
 | Key | Default | What it does |
 |---|---|---|
 | `READ` | `'*'` | Who may call the read exports (`GetPlayerData`, `GetMoney`, `HasJob`, `HasItem`, `IsStaff`…). |
-| `WRITERS` | `{}` | Who may call the write exports (money, items, stashes, chat, keys, vehicle state). **Empty**: nobody until the operator adds a resource. A refused caller is answered `export.callerDenied`, audited, and the journal prints the line to add. `'*'` admits every resource (development only). |
+| `WRITERS` | `{}` | Who may call the write exports (money, jobs, gangs, duty, metadata, revive, items, stashes, chat, keys, vehicle state). **Empty**: nobody until the operator adds a resource. A refused caller is answered `export.callerDenied`, audited, and the journal prints the line to add. `'*'` admits every resource (development only). |
 | `STAFF_PERMISSION` | `'command.opx.admin'` | The ACL right the `IsStaff` export checks. |
+| `METADATA.MAX_BYTES` | `4096` | `SetMetadata`: largest encoded size of one value. |
+| `METADATA.MAX_KEYS` | `32` | `SetMetadata`: most keys one resource may keep on one character. |
+| `METADATA.MAX_TOTAL_BYTES` | `16384` | `SetMetadata`: largest encoded size of all of one resource's keys on one character. |
 | `STASHES.CREATE_CAP` | `25` | How many stashes one resource may create with `AddToStash`, named `<resource>.<name>`. Counted in the database. |
 | `STASHES.IDLE_MS` | `60000` | A stash loaded by an export and not opened by a player is saved and put away this long after its last use. |
 
@@ -120,5 +123,5 @@ No alias is shipped for `opx.admin`, for irreversible commands (ban, kick, kill,
 | Key | Default | What it does |
 |---|---|---|
 | <a id="config-client-surface"></a>`SURFACE` | `{ layer = 'hud', zIndex = 700, fps = 60 }` | The one WebUI page. `layer`: `hud`, `menu`, `modal`, `system` or `debug` (`system` needs the `webui.system` permission; an unknown value becomes `hud`). `fps` is fixed when the page is created. |
-| <a id="config-client-exports"></a>`EXPORTS` | `{ CALLERS = '*', REPLY = 'OnOpxEvent' }` | The [client exports](../creators/client-exports.md). `CALLERS`: who may call them (`'*'`, a set or an array). `REPLY`: the export of the caller that receives answers when a call names no `reply`. A client config is advice, not a lock: the server re-checks anything that matters. |
+| <a id="config-client-exports"></a>`EXPORTS` | `{ CALLERS = '*', REPLY = 'OnOpxEvent' }` | The [client exports](../creators/client-exports.md). `CALLERS`: who may call them, including `Subscribe` (`'*'`, a set or an array). `REPLY`: the export of the caller that receives answers when a call names no `reply`. A client config is advice, not a lock: the server re-checks anything that matters. |
 | <a id="config-client-toasts"></a>`TOASTS` | `{ position = 'top_right', width = 340 }` | Where the runtime's own toasts stack, and their width in px. `position`: `top_left`, `top_center`, `top_right`, `middle_left`, `bottom_left`, `bottom_center` or `bottom_right`. The page refuses an unknown name and keeps its default. |
