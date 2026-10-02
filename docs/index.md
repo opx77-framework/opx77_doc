@@ -1,63 +1,43 @@
 ---
-title: OPX//77 — a roleplay framework for OPEN//77
-description: OPX//77 is a roleplay framework for the OPEN//77 multiplayer platform for Cyberpunk 2077; this page points you at the guide, concept or reference page that answers what you came here to ask.
+title: OPX//77 — a roleplay framework for Open77
+description: OPX//77 is a roleplay framework for Open77, the multiplayer platform for Cyberpunk 2077, shipped as one resource, opx_infinity, plus the opx_lib client library.
 ---
 
 # OPX//77
 
-OPX//77 is a roleplay framework for [OPEN//77](https://open2077.net), the
-multiplayer platform for Cyberpunk 2077. It gives a server the systems a
-roleplay game mode needs — characters, money, jobs, gangs, appearance,
-persistence, entry gating — plus a set of shared client services that other
-resources build on.
+OPX//77 is a roleplay framework for [Open77](https://open2077.net), the
+multiplayer platform for Cyberpunk 2077. It gives a server characters, money,
+jobs and gangs, appearance, an inventory, vehicles and garages, a HUD, chat,
+staff tools and more. It ships as **one resource, `opx_infinity`**, plus a small
+client library, `opx_lib`.
 
 !!! warning "Early development"
 
-    OPX//77 is not production-ready. The API, architecture, features and
-    internal systems are subject to change at any time without notice, and
-    breaking changes will be introduced as development progresses. Do not rely
-    on the current API for production resources yet.
+    OPX//77 is not production-ready. The API and features change without notice.
 
-## Start where your question is {#start-here}
+## Where to start {#start-here}
 
-**Coming from ESX or Qbox?**
-The habits transfer; the call shapes do not. Every export answers a promise,
-and the character lives in one resource that no other resource writes. Read
-[Converting from ESX or Qbox](guides/converting.md).
+| You want to… | Read |
+|---|---|
+| Install it on a server | [Install a server](getting-started/install.md), then [Configure it](getting-started/configure.md) |
+| Fix a problem on a running server | [Troubleshooting](getting-started/troubleshooting.md) |
+| Look up a module: its commands, events, settings | [Modules](modules/index.md) |
+| Add a feature to the framework | [Write a module](guides/writing-a-module.md) |
+| Build your own resource next to it | [Write a separate resource](guides/writing-a-resource.md) |
+| Port code from the old `opx77_*` resources or from FiveM | [From opx77_* to opx_infinity](migration/from-opx77.md), [Convert from FiveM](guides/converting.md) |
+| Understand how it works inside | [How it works](how-it-works/overview.md) |
+| Look up a core or library function | [API reference](reference/index.md) |
 
-**Installing a server?**
-Sixteen resources, one load order and one `server.jsonc` block, in the order
-that works. Read [Getting started](guides/getting-started.md).
+## What changed in September 2026 {#infinity}
 
-**Players stuck on the loading screen, or never offered a character?**
-The world loads before anybody is chosen, and the character is chosen in it.
-Read [The entry gate](concepts/entry-gate.md#world-first), then
-[Troubleshooting](guides/troubleshooting.md#stuck-loading-screen).
+The sixteen documented `opx77_*` resources (and five more) were replaced by one
+resource, `opx_infinity`. Each old resource is now a **module** inside it, and
+modules talk to each other through in-process **contracts** instead of exports.
+`opx_infinity` publishes no exports. See the
+[migration page](migration/from-opx77.md).
 
-**Writing a resource?**
-Everything OPX//77 exposes to you is a *client* export answering a promise, and
-the failure model has three levels rather than one. Read
-[Writing a resource](guides/writing-a-resource.md), then
-[The export contract](concepts/export-contract.md) for the shape every call
-takes.
+## Licence {#license}
 
-**Want to know why the character lives in one resource?**
-Because every call between resources crosses an isolated Lua VM and answers a
-promise, so the state everything reads has one owner: `opx77_core`, which other
-server resources reach only through a handful of server exports it admits by
-caller. Read [Architecture](concepts/architecture.md), and
-[Integration channels](concepts/integration-channels.md) for the channels a
-resource of your own can use.
-
-## The three registers {#registers}
-
-[**Guides**](guides/getting-started.md) read top to bottom.
-[**Concepts**](concepts/architecture.md) say why the framework is shaped the way
-it is, because nearly every surprising decision in it is a consequence of a
-platform constraint. [**Reference**](reference/index.md) is the lookup: one
-section per resource, every export, event, command, config key and type, with
-its error codes and the side it can be called from.
-
-## License {#license}
-
-Every resource is MIT licensed. Copyright © 2026 Luis MOUTA.
+`opx_infinity` and `opx_lib` are MIT licensed. Copyright © 2026 Luís MOUTA.
+OPX//77 is an independent community project, not affiliated with or endorsed by
+CD PROJEKT RED.
