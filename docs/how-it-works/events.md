@@ -43,10 +43,20 @@ Two consequences:
 
 - A separate **client** resource cannot hear `opx_infinity`'s `opx:on:` events.
   On the client, `TriggerEvent` stays inside one resource.
-- A separate **server** resource can hear server-side `opx:on:` events, and it
-  can also raise them. Treat a server `opx:on:` or `opx:in:` handler as callable
-  by any resource on the server. See
-  [Write a separate resource](../guides/writing-a-resource.md).
+- A separate **server** resource hears server-side events. The public ones are
+  raised with [`OPX.Publish`](../reference/core.md#opx-publish) and listed on
+  [Public server events](../creators/server-events.md).
+
+!!! warning "Server `opx:in:*` events are visible to every server resource"
+
+    Server `TriggerEvent` is host-wide, so the private `opx:in:*` events also
+    reach other resources, and another resource can raise them. Treat a server
+    `opx:on:` or `opx:in:` handler as callable by any resource on the server, and
+    never put a secret in an `opx:in:` payload. Outside code should use only the
+    `opx:on:*` names.
+
+On the server, raise a public event with `OPX.Publish(name, playerId, payload)`,
+never a bare `TriggerEvent`: it checks the `opx:on:` prefix and never raises.
 
 ## Network events are requests {#net}
 

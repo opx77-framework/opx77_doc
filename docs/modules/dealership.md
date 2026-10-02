@@ -95,6 +95,7 @@ Each row of `PREVIEW.POINTS` stands one stock model, created **locked** and **pe
 | <a id="opx-net-dealership-offered"></a>`opx:net:dealership:offered` | server → client | `{ token, entry, model, price, text, seller, dealer, label, timeoutMs }` | Sent to the buyer: the offer to answer. |
 | <a id="opx-net-dealership-decide"></a>`opx:net:dealership:decide` | client → server | `token, yes` | The buyer's answer. |
 | <a id="opx-net-dealership-settled"></a>`opx:net:dealership:settled` | server → client | `{ ok, error?, entry, model?, cut?, company?, banked? }` | Sent to the seller (or the buyer if the seller left): what became of the offer. |
+| <a id="opx-on-dealership-sold"></a>`opx:on:dealership:sold` | server, host-wide | `playerId, payload` | A sale went through. Counter sale: `{ kind = 'counter', citizenId, plate, entry, record, dealer, garage, price, currency }`. Player-to-player: `{ kind = 'offer', citizenId, plate, entry, record, dealer, price, currency, seller, sellerCitizenId, company, commission, banked }`. Every server resource hears it; see [Public server events](../creators/server-events.md#vehicles). |
 | <a id="opx-on-dealership-decision"></a>`opx:on:dealership:decision` | client local | `{ ok, error?, entry?, plate?, model?, dealer?, garage?, price?, queued?, commission?, banked?, source }` | Every verdict, local refusals included. `source` is `key`, `server`, `client`, `target`, `offer`, `sale` or the caller's `origin`. Only handlers inside opx_infinity's client hear it. |
 
 ## Configuration {#configuration}

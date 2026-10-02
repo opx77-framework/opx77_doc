@@ -31,6 +31,19 @@ Registered in `locales/en.lua` and `locales/fr.lua`.
 | <a id="error-toofast"></a>`error.tooFast` | Slow down. | Doucement. | A command's `cooldownMs` window, or an `OPX.Cooling` check, was still open. |
 | <a id="error-nopermission"></a>`error.noPermission` | You may not do that. | Vous ne pouvez pas faire cela. | An access check failed, for example a command alias whose full command the player may not run. |
 
+### Export codes {#export-codes}
+
+Answered by the [creator exports](../creators/index.md#answer) in `{ ok = false, error = <code> }`.
+
+| Code | English | French | When |
+|---|---|---|---|
+| <a id="export-callerdenied"></a>`export.callerDenied` | That resource may not make this call. | Cette ressource n'est pas autorisée à faire cet appel. | The calling resource is not in the allowlist (`SERVER.EXPORTS.READ`/`WRITERS`, `CLIENT.EXPORTS.CALLERS`), or the host named no caller. |
+| <a id="export-badargument"></a>`export.badArgument` | An argument of that call could not be read. | Un argument de cet appel n'a pas pu être lu. | Wrong type, unknown player id, bad citizen id, name or count out of bounds. |
+| <a id="export-booting"></a>`export.booting` | The server is still starting. Try again in a moment. | Le serveur démarre encore. Réessayez dans un instant. | The server boot has not finished. |
+| <a id="export-mustawait"></a>`export.mustAwait` | That call reaches the database: make it with Open77.exports.call and await it. | Cet appel atteint la base de données : faites-le avec Open77.exports.call et attendez-le. | A call that may wait was made synchronously. Nothing was done. |
+
+The inventory adds `stash_namespace` and `stash_cap` (text `inventory.error.stash_namespace` / `inventory.error.stash_cap`) for stashes created through `AddToStash`; see [inventory](../modules/inventory.md#codes).
+
 The `character` module adds `error.notLoggedIn` ("You are not in the world yet."): the action needs a loaded character. The `weather.*` keys in the same core files belong to the [weather](../modules/weather.md) module.
 
 ## The Result convention {#result}

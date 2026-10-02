@@ -15,7 +15,7 @@ the per-resource tables are folded below.
 | Before | Now |
 |---|---|
 | Sixteen documented `opx77_*` resources (twenty-one in all) | One resource, `opx_infinity`, plus the client library `opx_lib` |
-| Each resource published exports (`Open77.exports.call('opx77_core', ...)`) | **No exports at all.** Modules call each other's [contracts](../how-it-works/modules-and-contracts.md#contracts) with `OPX.Api.Get('<module>')`, inside `opx_infinity` only. |
+| Each resource published exports (`Open77.exports.call('opx77_core', ...)`) | Modules call each other's [contracts](../how-it-works/modules-and-contracts.md#contracts) with `OPX.Api.Get('<module>')`, inside `opx_infinity` only. |
 | Answers `{ ok = true, ... }` with fields at the top level | Contracts mostly answer `Result`: `{ ok = true, value = ... }` / `{ ok = false, error, detail }`. Money mutators still answer `ok, code`. Each module page gives the exact shape. |
 | A service found its caller with `GetInvokingResource()` | The caller passes its own `owner` name (menus, prompts, effects, animations). |
 | Events `opx77:client:*`, `opx77:server:*`, `<resource>:*` | [`opx:net:<module>:<verb>`, `opx:on:...`, `opx:in:...`](../how-it-works/events.md) |
@@ -28,10 +28,27 @@ the per-resource tables are folded below.
 
 ## For a separate resource that used the old exports {#separate}
 
-There is no drop-in replacement. What a separate resource can still use is on
-[Write a separate resource](../guides/writing-a-resource.md): the player state
-bag, server internal events, ordinary commands, `opx_lib` and read-only database
-access. Anything else must move into a [module](../guides/writing-a-module.md).
+There is no drop-in replacement, but there is a curated set: call
+`opx_infinity` instead of `opx77_core`, with new names and the operator's
+allowlist in front. See [For creators](../creators/index.md).
+
+| Old call | New call |
+|---|---|
+| `opx77_core` client `GetPlayerData`, `HasJob`, `HasGang` | server exports `GetPlayerData`, `HasJob`, `HasGang` (or read the player state bag on the client) |
+| `opx77_core` server `GetIdentity` | server exports `GetPlayerData`, `GetPlayerByCitizenId` |
+| `opx77_core` server `GetVersion` | server export `GetVersion` |
+| `opx77_inventory` `AddItem`, `RemoveItem`, `HasItem`, `GetItemCount` | server exports `AddItem`, `RemoveItem`, `HasItem`, `CountItem` |
+| `opx77_menu` `open`, `update`, `close` | client exports `OpenMenu`, `UpdateMenu`, `CloseMenu` (answers through your `OnOpxEvent` export) |
+| `opx77_input` `open`, `close` | client exports `OpenForm`, `CloseForm` |
+| `opx77_notify` `show`, `dismiss` | client exports `ShowToast`, `DismissToast` |
+| `opx77_animations` `play`, `stop` | client exports `PlayAnimation`, `StopAnimation` |
+| `opx77_chat` server `chat:addMessage` | server exports `SendChat`, `BroadcastChat` |
+| server events `opx77:player:loaded`, `moneyChange`, `jobUpdate`… | public server events `opx:on:character:loaded`, `money`, `job`… |
+
+Anything not in that set must move into a [module](../guides/writing-a-module.md).
+
+In the folded tables below, "no exports" describes the first `opx_infinity`
+release; the creator exports above were added afterwards.
 
 ## Old resource → new module {#map}
 

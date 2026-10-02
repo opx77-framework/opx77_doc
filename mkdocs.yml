@@ -199,6 +199,12 @@ nav:
       - Configure it: getting-started/configure.md
       - Troubleshooting: getting-started/troubleshooting.md
 
+  - For creators:
+      - Overview: creators/index.md
+      - Server exports: creators/server-exports.md
+      - Client exports: creators/client-exports.md
+      - Public server events: creators/server-events.md
+
   - Guides:
       - Write a module: guides/writing-a-module.md
       - Write a separate resource: guides/writing-a-resource.md

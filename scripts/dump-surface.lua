@@ -14,6 +14,7 @@
 --   api       <side> <contract> <Member> <lua type>
 --   command   <name> <restricted|open> <owner module|core>
 --   alias     <alias> <command>
+--   export    <side> <name>                an Open77 export another resource may call
 --   net       <side> <event> <owner module|core>
 --   event     <module> <event>             a name in a module's M.Event table
 --   channel   <channel> <owner module|core> a page -> Lua channel the client listens on
@@ -135,6 +136,8 @@ for _, side in ipairs({ 'server', 'client' }) do
 		commands[name] = (entry.restricted and 'restricted' or 'open') .. ' '
 			.. (commandOwner[name] or 'core')
 	end
+
+	for _, name in ipairs(sorted(control.exports or {})) do emit('export', side, name) end
 
 	for _, name in ipairs(sorted(control.netEvents)) do
 		emit('net', side, name, netOwner[side .. ' ' .. name] or 'core')

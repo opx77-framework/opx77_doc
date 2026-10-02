@@ -19,7 +19,7 @@ For the old `opx77_*` resources, read
 | Your code | Put it in |
 |---|---|
 | Gameplay that needs money, jobs, items, vehicles | a [module](writing-a-module.md) inside `opx_infinity` — the only place the contracts are reachable |
-| Something independent that only needs to know who a player is | a [separate resource](writing-a-resource.md) reading the state bag |
+| Something independent: a job, a shop, a log tool | a [separate resource](writing-a-resource.md) using the [creator exports](../creators/index.md) |
 
 ## Runtime habits {#runtime}
 

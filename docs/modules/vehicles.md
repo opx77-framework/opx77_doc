@@ -33,6 +33,7 @@ description: Owned vehicles — the plate registry, bringing a car out, putting 
 | <a id="server-vehicles-occupied"></a>`Occupied` | `source` | Result `{ok, value = {plate, id}}` or `{ok, value = nil}` | No yield. The owned vehicle the player sits in, read from the host's seat assignment. `nil` on foot or in a car they do not own. |
 | <a id="server-vehicles-spawn"></a>`Spawn` | `source, plate, at?` | Result `{ok, value = {plate, id, recalled?, alreadyOut?}}` | Yields. Ownership is proved from the loaded character. Without `at` the car appears `SPAWN_OFFSET` m beside the player; if it is already out the answer is `alreadyOut = true` and nothing moves. With `at = {x, y, z, yaw?, bucket?}` it is created exactly there; a car already out is stored first and created again at `at` (`recalled = true`), or refused `vehicle.occupied` if anyone sits in it. Stored damage and flags are re-applied. |
 | <a id="server-vehicles-store"></a>`Store` | `plate, garage?` | Result `{ok, value = {plate}}` | Yields. Writes condition back and removes the car. `garage` re-files it. No ownership check: the caller must prove it. |
+| <a id="server-vehicles-setstate"></a>`SetState` | `plate, state, garage?` | Result `{ plate, state, garage }` | **Yields.** `state` is `'stored'` or `'impounded'` (`out` cannot be set: only `Spawn` creates a car). A car that is out is put away first; refused with `vehicle.occupied` while anyone sits in it. `garage` (optional) refiles it. Takes the same per-plate claim as `Spawn` (`vehicle.busy` while one runs). Audited `vehicle.state`. |
 | <a id="server-vehicles-storeall"></a>`StoreAll` | `citizenId?` | integer | Yields. Stores every out vehicle of one character, or of everyone when `nil`. Answers how many. |
 
 A **vehicle** table has `plate`, `citizenId`, `record`, `appearance`, `garage`, `state` (`0` out, `1` stored, `2` impounded), `health`, `damage`, `paint`, `metadata`.
@@ -48,6 +49,13 @@ A **vehicle** table has `plate`, `citizenId`, `record`, `appearance`, `garage`, 
 | <a id="opx-net-vehicles-store"></a>`opx:net:vehicles:store` | client → server | `{ plate }` | Put away one of the caller's own vehicles that is out. 3 s cooldown. Operation `vehicleStore`. |
 
 A plate that is not the caller's is answered `vehicle.notFound`, the same as a plate that does not exist.
+
+On the **server** the module also raises two public events for every server resource (see [Public server events](../creators/server-events.md#vehicles)):
+
+| Event | Direction | Arguments | Meaning |
+|---|---|---|---|
+| <a id="opx-on-vehicles-spawned"></a>`opx:on:vehicles:spawned` | server, host-wide | `playerId, { citizenId, plate, record, vehicleId, vehicleKey, recalled }` | An owned car was brought out. `vehicleKey` is the engine id as text. |
+| <a id="opx-on-vehicles-stored"></a>`opx:on:vehicles:stored` | server, host-wide | `playerId?, { citizenId, plate, garage }` or `{ citizenId, plate, removed }` | It was put away, or the host removed it (`removed` says why). |
 
 ## Configuration {#configuration}
 
@@ -70,6 +78,9 @@ A plate that is not the caller's is answered `vehicle.notFound`, the same as a p
 | `vehicle.limit` | The character already owns `PER_CHARACTER` vehicles (detail: the limit). |
 | `vehicle.badRecord` | The record is longer than 256 characters. |
 | `vehicle.plateExhausted` | Five plate draws all collided. |
+| `vehicle.impounded` | The vehicle is impounded; `Spawn` refuses it until `SetState(plate, 'stored')`. |
+| `vehicle.busy` | Another spawn or state change of this plate is in progress. |
+| `vehicle.badState` | `SetState` got a state other than `stored` or `impounded`. |
 | `vehicle.notLoggedIn` | No character loaded on that connection, or it changed during the spawn (the new car is removed). |
 | `vehicle.noPosition` | The host would not say where the player is. |
 | `vehicle.spawnRefused` | `Open77.vehicles.create` refused; detail carries its reason. |

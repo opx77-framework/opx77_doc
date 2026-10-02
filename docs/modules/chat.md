@@ -13,8 +13,21 @@ The chat module draws the chat box: a log of recent lines at the top of the scre
 | Requires | none |
 | Optional | `character` (author names), `downed` (box hides and refuses to open while down) |
 | Configuration | `config/chat.lua` (shared script) |
-| Contract | `chat` v1 — client |
+| Contract | `chat` v1 — server, client |
 | Data | none |
+
+## Server contract {#server-contract}
+
+`local chat = OPX.Api.Get('chat')` on the server, from code inside opx_infinity. Both answer a Result and never yield. The line is the **server's** voice: it is not attributed to a player and skips the per-player rate limit. Text is cleaned and bounded like a player's.
+
+A `message` is a string, or `{ text, author?, kind? }`: `kind` is `chat`, `system` (default), `info`, `warning` or `error`; `author` is cut to 64 characters.
+
+| Function | Parameters | Returns | Notes |
+|---|---|---|---|
+| <a id="server-chat-send"></a>`Send` | `target, message` | `Result` `true` | One line to one connected player. Errors `chat.noPlayer`, `chat.invalidMessage`, `chat.invalidKind`. |
+| <a id="server-chat-broadcast"></a>`Broadcast` | `message, options?` | `Result` integer (players reached) | `options`: `bucket` (routing bucket), `radius` (metres, up to 10 000) with `origin` (a player id or `{ x, y, z }`). A player origin also limits to that player's bucket unless `bucket` is given. No options: every player. Distance uses the server's own positions. Errors `chat.invalidMessage`, `chat.invalidKind`, `chat.invalidScope`. |
+
+Other resources reach these through the `SendChat` and `BroadcastChat` [server exports](../creators/server-exports.md#chat).
 
 ## Client contract {#client-contract}
 
@@ -77,7 +90,10 @@ The log lives on the `overlay` surface and the input line on the `interactive` s
 
 | Code | Meaning |
 |---|---|
-| `chat.invalidMessage` | `AddMessage` got neither a string nor a table. |
+| `chat.invalidMessage` | `AddMessage` (or the server `Send`/`Broadcast`) got no usable text. |
+| `chat.invalidKind` | Server `Send`/`Broadcast`: `kind` is not a line kind. |
+| `chat.noPlayer` | Server `Send`: nobody is connected under that id. |
+| `chat.invalidScope` | Server `Broadcast`: a bad `bucket`, `radius` or `origin`. |
 | `chat.noView` | That half of the page has not reported ready yet. |
 | `chat.invalidCommand` | A suggestion with no command name. |
 

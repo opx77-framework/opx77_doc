@@ -62,6 +62,7 @@ Module states: `declared`, `started`, `failed`, `disabled`, `absent`, `unavailab
 
 | Function | Side | Parameters | Returns | Notes |
 |---|---|---|---|---|
+| <a id="opx-publish"></a>`OPX.Publish` | server | `name, source, payload` | `boolean` | Raises a **public** server event for every resource on the host: `TriggerEvent(name, source, payload)`. `name` must start with `opx:on:` (anything else raises). `source` is the player id or `nil`; `payload` a plain table built for the event, never a live record. A refusal by the host is logged once per name and answered `false`; it never raises. See [Public server events](../creators/server-events.md). |
 | <a id="opx-event"></a>`OPX.Event` | both | `channel, module, verb` | `string` | Builds `opx:<channel>:<module>:<verb>`. `channel` must be `'net'`, `'on'` or `'in'` (use `OPX.Channel`); anything else raises. See [Events and channels](../how-it-works/events.md). |
 
 ## Time {#time}

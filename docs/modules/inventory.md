@@ -134,6 +134,10 @@ A **target** is a player id (their loaded character's bag) or a citizen id (also
 | <a id="server-inventory-cancarry"></a>`CanCarry` | `target, name, count?, metadata?` | Result boolean | Yields. Checks slots and weight. Gives no reason when false. |
 | <a id="server-inventory-getinventory"></a>`GetInventory` | `target` | Result `{ id, kind, title, slots, maxWeight, weight, items }` | Yields. `items` is a list of `{ slot, name, count, metadata }`. For a very large container, metadata other than `serial`, `ammo`, `durability`, `label`, `description` may be trimmed. |
 | <a id="server-inventory-getslot"></a>`GetSlot` | `target, slot` | Result `{ slot, name, count, metadata }` or Result `nil` | Yields. A copy. |
+| <a id="server-inventory-addtostash"></a>`AddToStash` | `name, item, count?, metadata?, options?` | `Result` `true` | **Yields.** Adds to a stash by its storage key, loading it without opening it. A missing stash is created at the configured size (or 50 slots / 100 000 g). `options = { creator, cap }` (what the export passes) limits creation: configured stashes, or names `<creator>.<name>` while the creator holds fewer than `cap` (default 25, counted in the database); else `stash_namespace` / `stash_cap`. Audited `inventory.stashAdd`. |
+| <a id="server-inventory-removefromstash"></a>`RemoveFromStash` | `name, item, count?, metadata?` | `Result` `true` | **Yields.** Never creates a stash: a missing one answers `not_enough`. `nil` metadata matches any stack. Audited `inventory.stashRemove`. |
+| <a id="server-inventory-countinstash"></a>`CountInStash` | `name, item, metadata?` | `Result` integer | **Yields.** `0` for a stash that does not exist (none is created). |
+| <a id="server-inventory-removewhere"></a>`RemoveWhere` | `target, name, match` | `Result` integer (units taken) | **Yields** for an offline bag. Takes **every** unit of `name` whose metadata carries all fields of `match` (plain values only), whatever its other fields. Used to revoke keys. Audited `inventory.removeWhere`. |
 | <a id="server-inventory-addtotrunk"></a>`AddToTrunk` | `vehicleId, name, count?, metadata?, source?` | Result `true` | Yields. `vehicleId` is the host id (number or decimal string). Refused `locked` when the vehicle is locked. With `source`, an owned trunk answers to its owner only while `TRUNK_OWNER_ONLY` is on (`not_yours`). No reach check. |
 | <a id="server-inventory-removefromtrunk"></a>`RemoveFromTrunk` | `vehicleId, name, count?, metadata?, source?` | Result `true` | Yields. Same rules as `AddToTrunk`. |
 | <a id="server-inventory-countintrunk"></a>`CountInTrunk` | `vehicleId, name, metadata?, source?` | Result integer | Yields. Same rules as `AddToTrunk`. |
@@ -201,7 +205,11 @@ end)
 | <a id="opx-net-inventory-drops"></a>`opx:net:inventory:drops` | server → client | `{ first, done, drops = { { id, x, y, z, bucket } } }` | Every pile, in parts. |
 | <a id="opx-net-inventory-drop"></a>`opx:net:inventory:drop` | server → all clients | `'add', pile` or `'remove', id` | A pile appeared or went. |
 
-The server also listens to `opx:in:character:loaded`, `:unloaded` and `:deleted` (private). The module raises no server-side `opx:on:` events.
+The server also listens to `opx:in:character:loaded`, `:unloaded` and `:deleted` (private).
+
+On the **server**, the module raises `opx:on:inventory:changed` `(playerId?, { kind, owner, container, citizenId })` when a container is written and `opx:on:inventory:used` `(playerId, { citizenId, name, slot, consumed, metadata })` when an item is used, for every server resource. See [Public server events](../creators/server-events.md#inventory).
+
+A stash loaded by name (by the stash functions above) and not opened by a player is saved and put away after `SERVER.EXPORTS.STASHES.IDLE_MS` (60 s) without use; a sweep runs every 15 s.
 
 ## Page channels {#page-channels}
 
@@ -289,6 +297,8 @@ Codes are toasted to the player as locale `inventory.error.<code>` (commands use
 | `handler_failed` | The use handler did not return a table. |
 | `handler_timeout` | The use handler raised or took longer than `USE_HANDLER_MS`. |
 | `too_fast` | Rate limit or use cooldown. |
+| `stash_namespace` | A resource tried to create a stash outside its own `<resource>.<name>` namespace. |
+| `stash_cap` | That resource already created `CREATE_CAP` stashes. |
 | `hands_full` | The player is carrying a `hauling` crate; no use or draw. |
 | `too_far` | Out of reach. |
 | `target_unavailable` | The player to hand to cannot receive. |

@@ -59,7 +59,7 @@ Patchable fields (allowed in `Open` and `Update`):
 | `tools` | list of buttons, max 8 | Buttons that adjust the view. |
 | `groups` | list of buttons, max 8 | Other screens reachable from this one. |
 | `sliders` | list of `{ id, label, count, index, value?, disabled? }`, max 12 | Ranges the caller owns. `index` is 0..`count`; 0 means "none". Replaces the item column with the rail. |
-| `tiles` | `{ slot, from, entries }` | A window of up to 60 names for the picture grid of slider `slot`, starting at position `from`. |
+| `tiles` | `{ slot, from, entries, labels?, images? }` | A window of up to 60 names for the picture grid of slider `slot`, starting at position `from`. `entries` are the keys of the boxes (record names). `labels` (optional) is the caption under each box, `images` (optional) the picture in it: a bare file name under the page's `images/clothing/` (letters, digits, `_`, `-`, `.`; at most 64 characters), never a path. Both are parallel to `entries` and must have the same length, or the whole `tiles` is refused (`invalid_tiles`). `''` means no caption or no picture; with no caption the box shows the entry name. |
 | `selected` | `{ [tabId] = itemId or false }` | The selected item per tab. |
 | `status` | string, or `{ text, kind = 'info'/'error' }` | Status line, max 160. |
 | `busy` | boolean | While true, select, slide and button clicks are ignored. |
