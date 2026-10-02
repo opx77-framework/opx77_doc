@@ -260,5 +260,5 @@ The operator reads the locale key `admin.error.<camelCase>` (for example `bad_ta
 | `unknown_location`, `bad_location_name`, `seeded_location` | Locations. |
 | `bad_door`, `door_limit`, `doors_networked`, `doors_unavailable` | Doors. |
 | `combat_unavailable` | The host has no `Open77.combat.setFriendlyFire`. |
-| `unknown_ped`, `models_unavailable` | Ped models. |
+| `unknown_ped`, `models_unavailable` | Ped models. `models_unavailable`: the server build has no `players.setModel` native. As of 2.31.13+op77.78 it is in **no** published server build, so `self.model` and `player.model` always answer this today, and the server logs one line about it. |
 | `bad_name`, `characters_unavailable`, `search_short`, `bad_request` | Character commands. |

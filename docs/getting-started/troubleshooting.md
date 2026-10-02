@@ -57,6 +57,27 @@ example:
 Add `command.<name>` for each listed name to `acl.jsonc`. See
 [Permissions](../how-it-works/permissions.md#acl).
 
+## `/opx.admin.self.model` answers `models_unavailable` {#models}
+
+The model commands need the host's `players.setModel` native, which is not in
+any published server build as of 2.31.13+op77.78. The admin module checks for it
+before every call, answers `models_unavailable` and logs
+`[admin] this build has no players.setModel native: ...`. Nothing is broken; the
+commands start working on a build that has the native.
+
+## `open77_validate` reports errors {#validate}
+
+The devkit validator reports some errors on `opx_infinity` that are **not** real
+problems (checked against 2.31.13+op77.78). Ignore these; treat anything else as
+real.
+
+| Validator says | Why it is wrong here |
+|---|---|
+| `loadscreen`, `web_ui_page`, `web_ui_auto_create`: unknown directive | Its manifest schema is incomplete. All three work in production. |
+| `require` in `lib/client/lib.lua` is nil in the sandbox | That rule is for the server sandbox. The file is a `client_script`, and the client has `require`. |
+| `players.damage.apply` / `players.damage.read` required but not declared | An older spelling the runtime still accepts. The manifest declares the current names, `players.stats.apply` and `players.stats.read`. Do not add the old ones. |
+| `Open77.players.setModel` is in no published server build | True, and handled: see [above](#models). |
+
 ## Useful commands {#commands}
 
 | Command | Where | Prints |

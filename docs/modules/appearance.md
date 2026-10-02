@@ -138,13 +138,22 @@ The fitting room shows each piece of clothing with its real name and a picture o
 |---|---|
 | `modules/appearance/data/garments-1.lua` … `garments-5.lua` | Generated tables: `["Items.<record>"] = { NAME, FEMALE, MALE }`, the item's name and the picture file for each body family. Either picture may be missing. Do not edit by hand. |
 | `modules/appearance/client/garments.lua` | Loaded before the parts; reads them. Exposes `M.Garments.Describe` (client, inside the module). |
-| `web/images/clothing/*.webp` | The pictures (160 px WebP), shipped to every client. Built from `ui/public/images/clothing/` by `npm run build`. |
+| `web/images/clothing/*.webp` | The pictures (160 px WebP), shipped to every client. Built from `ui/public/images/clothing/` by `npm run build`. Each file is named `<first 10 hex digits of sha256(slug)>.webp` (for example `0ff29bbf8d.webp`), so a path is 35 characters. |
 | `web/images/clothing/ATTRIBUTION.md` | Where they come from: pictures © CD PROJEKT RED (in-game renders, collected from the Cyberpunk Wiki, not covered by this repository's licence); names from the Cyberpunk Wiki, CC BY-SA. |
-| `tools/generate-garments.mjs` | Rebuilds pictures, attribution and the `garments-*.lua` parts from a staged clothing collection: `npm i --no-save sharp`, then `node tools/generate-garments.mjs <collection-dir>`. Only records the server's items table knows (with a wardrobe slot) are kept. If it writes a different number of parts, update the `garments-*.lua` lines in `open77.lua`. |
+| `tools/generate-garments.mjs` | Rebuilds pictures, attribution and the `garments-*.lua` parts from a staged clothing collection: `npm i --no-save sharp`, then `node tools/generate-garments.mjs <collection-dir>`. Only records the server's items table knows (with a wardrobe slot) are kept. It names each picture by a hash of its slug and stops on a name collision or a path that is too long. If it writes a different number of parts, update the `garments-*.lua` lines in `open77.lua`. |
 
 | Function | Parameters | Returns | Notes |
 |---|---|---|---|
 | `M.Garments.Describe` | `record, family` | `name, picture` (each may be nil) | `record` is an `Items.*` name, `family` is `'female'` or `'male'`. The picture is the family's own, else the other body's, else nil. A malformed row is reported once with `OPX.Note` and treated as missing. Not on the contract. |
+
+!!! warning "Shipped paths must be 47 characters or less"
+
+    A client installs a server's resources deep under the game folder. On a Steam
+    install in Program Files that leaves 59 characters of Windows `MAX_PATH` for a
+    path inside the resource, and **one** file past that makes the whole resource
+    fail on that client. Every shipped path is held to 47 characters (59 less a
+    12-character margin); `tests/run.lua` checks every file under `web/`. This is
+    why clothing pictures have hashed names. Keep any new file under `web/` short.
 
 Each box in the room is drawn through the [panel](panel.md) `tiles` spec with `labels` (the garment name, or a name made from the record when there is none) and `images` (the picture, or `''`, which draws a monogram).
 

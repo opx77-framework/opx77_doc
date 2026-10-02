@@ -37,6 +37,7 @@ Any client can raise `opx:net:runtime:note`. Do not act on what it says.
 | `GAMEPLAY_READY` | `open77:session:gameplayReady` | — the platform's own gate hold clears only after a client sends it |
 | `VEHICLE_REMOVED` | `onVehicleRemoved` | — |
 | `TUNABLE_CHANGED` | `onTunableChanged` | server — re-raised as `opx:in:tune:changed` |
+| `KEYBINDS_CHANGED` | `open77:keybinds:changed` | client, no payload — raised after any key mapping is registered, rebound, reset or removed. Every module that shows a key name (admin, animations, clothing, dealership, garages, inventory, prompts, teleports) listens to this one constant to redraw. |
 
 The server and client pairs are different names. Using `CLIENT_RESOURCE_START` on the server registers a handler nothing raises.
 
