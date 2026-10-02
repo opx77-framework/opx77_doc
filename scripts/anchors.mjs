@@ -15,6 +15,8 @@ import { join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import GithubSlugger from "github-slugger";
 
+// The repository root. Scripts run from anywhere, so it is found from this
+// file; code bundled by Next passes its own `content` directory instead.
 const ROOT = resolve(fileURLToPath(import.meta.url), "../..");
 export const CONTENT = join(ROOT, "content", "docs");
 
@@ -28,8 +30,8 @@ export function listPages(dir = CONTENT) {
   return out.sort();
 }
 
-export function pageUrl(file) {
-  const rel = relative(CONTENT, file).split(sep).join("/").replace(/\.mdx$/, "");
+export function pageUrl(file, content = CONTENT) {
+  const rel = relative(content, file).split(sep).join("/").replace(/\.mdx$/, "");
   const path = rel === "index" ? "" : rel.replace(/\/index$/, "");
   return path ? `/docs/${path}` : "/docs";
 }
@@ -79,7 +81,7 @@ export function anchorsOf(text) {
   return anchors;
 }
 
-export function collect(pages = listPages()) {
+export function collect(pages = listPages(), content = CONTENT) {
   const index = new Map();
   for (const file of pages) {
     const anchors = anchorsOf(readFileSync(file, "utf8"));
@@ -89,7 +91,7 @@ export function collect(pages = listPages()) {
       if (seen.has(anchor)) dupes.push(anchor);
       seen.add(anchor);
     }
-    index.set(pageUrl(file), { file, anchors: seen, dupes });
+    index.set(pageUrl(file, content), { file, anchors: seen, dupes });
   }
   return index;
 }

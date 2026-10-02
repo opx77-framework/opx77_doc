@@ -9,41 +9,47 @@
 #
 #   $1                       an explicit path, if one is given
 #   $OPX_INFINITY            an environment variable
-#   ../opx_infinity  ../../opx_infinity   (relative to this repository)
+#   ../opx_infinity  ../../opx_infinity  ../../../opx_infinity
+#                            (relative to this repository)
 #
 # and for opx_lib at $OPX_LIB_PATH, then next to opx_infinity. With no
 # opx_infinity checkout in reach it prints a note and exits 0: the docs
 # repository must stay buildable on its own, and the docs CI runner has no
 # framework checkout. Run it locally before you push:
 #
-#   ./scripts/check-api-coverage.sh
+#   npm run check:api
 #   ./scripts/check-api-coverage.sh /path/to/opx_infinity
 #
-# It needs desktop Lua 5.4 (`lua5.4` or `lua` on the PATH). The published
-# surface is not grepped, it is DUMPED: scripts/dump-surface.lua boots the real
-# manifest against the framework's own stub host (opx_infinity/tests/host.lua)
-# and prints every name the runtime registers. Most commands are registered
-# under a name held in a variable or a config table, which a regular
-# expression over the source cannot see.
+# It needs desktop Lua 5.4 (`lua5.4` or `lua` on the PATH) and Node. The
+# published surface is not grepped, it is DUMPED: scripts/dump-surface.lua boots
+# the real manifest against the framework's own stub host
+# (opx_infinity/tests/host.lua) and prints every name the runtime registers.
+# Most commands are registered under a name held in a variable or a config
+# table, which a regular expression over the source cannot see.
 #
-# An entry is documented by an ANCHOR: either `{#anchor}` on a heading, or
-# `<a id="anchor"></a>` inside a table cell. The anchor is the SLUG of the
-# name: lower case, every run of characters outside [a-z0-9] replaced by one
-# `-`, leading and trailing `-` dropped.
+# An entry is documented by an ANCHOR on a page of content/docs. An anchor is
+# what scripts/anchors.mjs reads (and what Fumadocs renders as an id):
 #
-#   what                        anchor                                where (under docs/)
-#   a module                    (the page itself)                     modules/<id>.md
-#   a contract member           <side>-<contract>-<member>            modules/<contract>.md
-#   a chat command              <command>                             modules/<owner>.md (core: anywhere)
-#   a command alias             the alias in backticks                reference/
-#   a module event (net, on)    <event>                               any page under modules/
+#   ## SetTime [#server-weather-settime]     a heading's explicit id
+#   ## Commands                              a heading's generated id (#commands)
+#   <a id="config-weather-enabled" />        an id attribute, e.g. in a table cell
+#
+# The anchor is the SLUG of the name: lower case, every run of characters
+# outside [a-z0-9] replaced by one `-`, leading and trailing `-` dropped.
+#
+#   what                        anchor                                where (under content/docs/)
+#   a module                    (the page itself)                     opx_infinity/<id>/index.mdx
+#   a contract member           <side>-<contract>-<member>            opx_infinity/<contract>/
+#   a chat command              <command>                             opx_infinity/<owner>/ (core: anywhere)
+#   a command alias             the alias in backticks                opx_infinity/core/
+#   a module event (net, on)    <event>                               opx_infinity/
 #   an Open77 export            export-<side>-<name>                  creators/
 #   a net event listened on     <event>                               anywhere
 #   a page -> Lua channel       page-<channel>                        anywhere
-#   a module config key         config-<module>-<KEY>                 modules/<module>.md
-#   a runtime config key        config-<shared|server|client>-<KEY>   reference/
+#   a module config key         config-<module>-<KEY>                 opx_infinity/<module>/
+#   a runtime config key        config-<shared|server|client>-<KEY>   opx_infinity/core/
 #   a function on OPX           <OPX.Path>                            anywhere
-#   an opx_lib function         lib-<Module>-<function>               reference/
+#   an opx_lib function         lib-<Module>-<function>               opx_lib/
 #
 # Examples: `server-character-addmoney`, `opx-admin-player-goto`,
 # `opx-net-chat-say`, `page-menu-choose`, `config-hud-anchor`,
@@ -56,11 +62,11 @@
 set -euo pipefail
 
 DOCS_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DOCS="$DOCS_ROOT/docs"
+CONTENT="$DOCS_ROOT/content/docs"
 
 INFINITY="${1:-${OPX_INFINITY:-}}"
 if [ -z "$INFINITY" ]; then
-  for candidate in "$DOCS_ROOT/../opx_infinity" "$DOCS_ROOT/../../opx_infinity"; do
+  for candidate in "$DOCS_ROOT/../opx_infinity" "$DOCS_ROOT/../../opx_infinity" "$DOCS_ROOT/../../../opx_infinity"; do
     if [ -f "$candidate/open77.lua" ]; then INFINITY="$candidate"; break; fi
   done
 fi
@@ -87,6 +93,10 @@ if [ -z "$LUA" ]; then
   echo "check-api-coverage: no Lua 5.4 interpreter on the PATH." >&2
   exit 1
 fi
+if ! command -v node >/dev/null 2>&1; then
+  echo "check-api-coverage: no node on the PATH." >&2
+  exit 1
+fi
 
 echo "check-api-coverage: opx_infinity at $INFINITY"
 echo "check-api-coverage: opx_lib at $LIB"
@@ -104,36 +114,33 @@ trap 'rm -rf "$work"' EXIT
 grep -oE "^Lib\.[A-Za-z]+ = require\('@opx_lib/(pure|client)\.[a-z_]+'\)" "$LIB/init.lua" \
   | sed -E "s/^Lib\.([A-Za-z]+) = require\('@opx_lib\/(pure|client)\.([a-z_]+)'\)/\1 \2\/\3.lua/" \
   | while read -r name file; do
-      { grep -hoE '^function [A-Za-z_]+[.:][A-Za-z_]+' "$LIB/$file" || true; } \
+      { grep -hoE '^function [A-Za-z_]+[.:][A-Za-z_][A-Za-z0-9_]*' "$LIB/$file" || true; } \
         | sed -E "s/^function [A-Za-z_]+[.:]//; s/^/lib $name /"
     done >> "$work/surface.txt"
 
-# 2. Every anchor, as "<file relative to docs/>\t<anchor>".
-( cd "$DOCS" && grep -roE '\{#[A-Za-z0-9_-]+\}|<a id="[A-Za-z0-9_-]+"' --include='*.md' . || true ) \
-  | tr -d '\r' \
-  | sed -E 's#^\./##; s#:\{\#([A-Za-z0-9_-]+)\}$#\t\1#; s#:<a id="([A-Za-z0-9_-]+)"$#\t\1#' \
-  > "$work/anchors.tsv"
+# 2. Every anchor, as "<file relative to content/docs>\t<anchor>".
+node "$DOCS_ROOT/scripts/anchors.mjs" | tr -d '\r' > "$work/anchors.tsv"
 
-# 3. Backticked words under reference/, for the aliases.
-( grep -rhoE '`[a-z0-9_.:-]+`' --include='*.md' "$DOCS/reference" 2>/dev/null || true ) \
-  | tr -d '`\r' | sort -u > "$work/reference-words.txt"
+# 3. Backticked words under opx_infinity/core/, for the aliases.
+( grep -rhoE '`[a-z0-9_.:-]+`' --include='*.mdx' "$CONTENT/opx_infinity/core" 2>/dev/null || true ) \
+  | tr -d '`\r' | sort -u > "$work/core-words.txt"
 
 # 4. Requirements: kind, label, required location prefix ('' = anywhere), anchor.
 awk '
   function slug(s) { s = tolower(s); gsub(/[^a-z0-9]+/, "-", s); gsub(/^-+|-+$/, "", s); return s }
   $1 == "module"     { print "module\t" $3 "\t" $4; next }
-  $1 == "api"        { print "need\tcontract member " $2 " " $3 "." $4 "\tmodules/" $3 ".md\t" slug($2 "-" $3 "-" $4); next }
-  $1 == "command"    { d = ($4 == "core") ? "" : "modules/" $4 ".md"
+  $1 == "api"        { print "need\tcontract member " $2 " " $3 "." $4 "\topx_infinity/" $3 "/\t" slug($2 "-" $3 "-" $4); next }
+  $1 == "command"    { d = ($4 == "core") ? "" : "opx_infinity/" $4 "/"
                        print "need\tcommand " $2 "\t" d "\t" slug($2); next }
   $1 == "alias"      { print "alias\t" $2 "\t" $3; next }
-  $1 == "export"     { print "need	export " $2 " " $3 "	creators/	" slug("export-" $2 "-" $3); next }
+  $1 == "export"     { print "need\texport " $2 " " $3 "\tcreators/\t" slug("export-" $2 "-" $3); next }
   $1 == "net"        { print "need\tnet event " $3 "\t\t" slug($3); next }
-  $1 == "event"      { if ($3 ~ /^opx:(net|on):/) print "need\tevent " $3 "\tmodules/\t" slug($3); next }
+  $1 == "event"      { if ($3 ~ /^opx:(net|on):/) print "need\tevent " $3 "\topx_infinity/\t" slug($3); next }
   $1 == "channel"    { print "need\tpage channel " $2 "\t\tpage-" slug($2); next }
-  $1 == "config"     { print "need\tconfig " $2 "." $3 "\tmodules/" $2 ".md\t" slug("config-" $2 "-" $3); next }
-  $1 == "coreconfig" { print "need\tconfig " toupper($2) "." $3 "\treference/\t" slug("config-" $2 "-" $3); next }
+  $1 == "config"     { print "need\tconfig " $2 "." $3 "\topx_infinity/" $2 "/\t" slug("config-" $2 "-" $3); next }
+  $1 == "coreconfig" { print "need\tconfig " toupper($2) "." $3 "\topx_infinity/core/\t" slug("config-" $2 "-" $3); next }
   $1 == "core"       { print "need\t" $2 "\t\t" slug($2); next }
-  $1 == "lib"        { print "need\topx_lib Lib." $2 "." $3 "\treference/\t" slug("lib-" $2 "-" $3); next }
+  $1 == "lib"        { print "need\topx_lib Lib." $2 "." $3 "\topx_lib/\t" slug("lib-" $2 "-" $3); next }
 ' "$work/surface.txt" | sort -u > "$work/requirements.tsv"
 
 # 5. Check.
@@ -144,8 +151,8 @@ while IFS=$'\t' read -r kind a b c; do
   case "$kind" in
     module)
       total=$((total + 1))
-      if [ ! -f "$DOCS/modules/$a.md" ]; then
-        echo "FAIL module $a has no page at docs/modules/$a.md" >&2
+      if [ ! -f "$CONTENT/opx_infinity/$a/index.mdx" ]; then
+        echo "FAIL module $a has no page at content/docs/opx_infinity/$a/index.mdx" >&2
         failures=$((failures + 1))
       fi
       case "$b" in
@@ -156,8 +163,8 @@ while IFS=$'\t' read -r kind a b c; do
       ;;
     alias)
       total=$((total + 1))
-      if ! grep -qxF "$a" "$work/reference-words.txt"; then
-        echo "FAIL alias \`$a\` (for $b) is not named under docs/reference/" >&2
+      if ! grep -qxF "$a" "$work/core-words.txt"; then
+        echo "FAIL alias \`$a\` (for $b) is not named under content/docs/opx_infinity/core/" >&2
         failures=$((failures + 1))
       fi
       ;;
