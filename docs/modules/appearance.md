@@ -130,6 +130,26 @@ Every item must match `^Items%.[%w_%.%-]+$` and be at most 160 bytes. Outfits ar
 | `clothingRestored` | | Stored clothing read back on the puppet, or did not (`clothing_not_restored`, `clothing_gate_shut`). |
 | `clothingSaved` | | A clothing save was stored, or refused (`error` is the server code). |
 
+## Garment names and pictures {#garments}
+
+The fitting room shows each piece of clothing with its real name and a picture of it on the player's body family. The data is generated; nothing here is a setting.
+
+| Piece | What it is |
+|---|---|
+| `modules/appearance/data/garments-1.lua` … `garments-5.lua` | Generated tables: `["Items.<record>"] = { NAME, FEMALE, MALE }`, the item's name and the picture file for each body family. Either picture may be missing. Do not edit by hand. |
+| `modules/appearance/client/garments.lua` | Loaded before the parts; reads them. Exposes `M.Garments.Describe` (client, inside the module). |
+| `web/images/clothing/*.webp` | The pictures (160 px WebP), shipped to every client. Built from `ui/public/images/clothing/` by `npm run build`. |
+| `web/images/clothing/ATTRIBUTION.md` | Where they come from: pictures © CD PROJEKT RED (in-game renders, collected from the Cyberpunk Wiki, not covered by this repository's licence); names from the Cyberpunk Wiki, CC BY-SA. |
+| `tools/generate-garments.mjs` | Rebuilds pictures, attribution and the `garments-*.lua` parts from a staged clothing collection: `npm i --no-save sharp`, then `node tools/generate-garments.mjs <collection-dir>`. Only records the server's items table knows (with a wardrobe slot) are kept. If it writes a different number of parts, update the `garments-*.lua` lines in `open77.lua`. |
+
+| Function | Parameters | Returns | Notes |
+|---|---|---|---|
+| `M.Garments.Describe` | `record, family` | `name, picture` (each may be nil) | `record` is an `Items.*` name, `family` is `'female'` or `'male'`. The picture is the family's own, else the other body's, else nil. A malformed row is reported once with `OPX.Note` and treated as missing. Not on the contract. |
+
+Each box in the room is drawn through the [panel](panel.md) `tiles` spec with `labels` (the garment name, or a name made from the record when there is none) and `images` (the picture, or `''`, which draws a monogram).
+
+The category names are the `wardrobe.slot.*` locale keys: *Head*, *Face*, *Top* (`InnerChest`), *Jacket* (`OuterChest`), *Pants* (`Legs`), *Shoes* (`Feet`), *Outfit*; in French *Tête*, *Visage*, *Haut*, *Veste*, *Pantalon*, *Chaussures*, *Tenue*.
+
 ## Configuration {#configuration}
 
 `config/appearance.lua` sets `OPX.Config.MODULES.appearance`. Shared script. `enabled = false` switches the module off. Nothing else in opx_infinity sends the join announcement, so only do this when another resource does (see the warning above).
