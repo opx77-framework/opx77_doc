@@ -1,0 +1,223 @@
+---
+title: doorlock
+description: Locked world doors opened by job, gang, grade, key item, character or code — a port of ox_doorlock, with a staff panel.
+---
+
+A port of [ox_doorlock](https://github.com/overextended/ox_doorlock) to Open77's world doors: a door has ox's fields under ox's names, is filed under ox's integer **id**, opens by ox's rules and is edited in a panel built like ox's. The native door keeps its own animation and sound; this module only moves its lock. The server decides every turn: it reads the player's position, bucket, job and bag itself.
+
+| | |
+|---|---|
+| Side | both |
+| Requires | none |
+| Optional | `character` (groups, characters), `inventory` (keys, lockpicks), `target` (eye rows), `prompts` (key row), `form` (code), `progress` (lockpick), `downed` |
+| Contract | `doorlock` v1 — [server](/docs/opx_infinity/doorlock/server), [client](/docs/opx_infinity/doorlock/client) |
+| Exports | [Doors](/docs/creators/server#doors) — `GetDoor`, `SetDoorState`, `CreateDoor`… |
+| Config | `config/doorlock.lua` (shared) |
+| Data | `opx77_doorlocks` (one row per door, the door as JSON) |
+
+- Without `character` only staff, key items and codes open a door with groups or characters (a group check closes on every doubt).
+- Without `inventory` no key or lockpick works.
+
+## At a door [#player]
+
+| What | How |
+|---|---|
+| Turn a door | Stand within reach and press **E** ([`KEY`](#config-doorlock-key)) — the prompt strip reads `Lock {door}` / `Unlock {door}` — or use the eye row *Lock door* / *Unlock door*. Away from a managed door E does nothing and says nothing (it is shared with garages, stores, lifts and teleports). |
+| A door with a code | A form asks for the code, then the request is sent again with it. A wrong guess costs 3 s. |
+| A key | A `door_key` item whose metadata `type` matches the door's item row. Staff cut one with [`/opx.doorlock.key`](#opx-doorlock-key). |
+| Pick a lock | Eye row *Pick lock* on a pickable door, with a [`LOCKPICK.ITEMS`](#config-doorlock-lockpick) item in the bag. One progress bar per step; the server times them and rolls each step. A pick can break. |
+| Autolock | A door with `autolock` locks itself that many seconds after it was unlocked. |
+| Sounds | The door's lock / unlock sound plays for everyone within 20 m. |
+
+`hideUi` hides the prompt row, not the lock. A refusal is a toast naming why (see [codes](#codes)).
+
+### Who may turn a door [#access]
+
+ox's `isAuthorised`, in this order:
+
+1. Staff holding the plain right `opx.doorlock.bypass`, **only when [`STAFF_BYPASS`](#config-doorlock-staff-bypass) is on** — or the ACL entry `doorlock.<id>`. No code asked.
+2. A listed **character** (citizen id). No code asked.
+3. The **groups**: any one job or gang at its minimum grade. Then the code, if the door has one.
+4. Else the **items**: any one held. Then the code.
+5. A door with only a code opens for whoever knows it.
+
+A door with none of these opens for staff only. `opx.doorlock.bypass` is not a `command.` grant, so an admin role's `command.*` does not carry it: by default an admin is asked for a key or a code like anyone.
+
+```lua title="A door, as the panel and CreateDoor write it"
+{
+  name = 'NCPD front desk',
+  native = '0xFC85EAE29622BAC2',        -- or doors = { { native, coords }, { native, coords } }
+  coords = { x = -1234.5, y = 456.7, z = 12.0 }, bucket = 0,
+  state = 1,                            -- 1 locked, 0 unlocked
+  groups = { ncpd = 0 },                -- job or gang -> minimum grade
+  items = { { name = 'door_key', metadata = 'ncpd_front', remove = false } },
+  characters = { 'ABC12345' },
+  passcode = '1234',
+  autolock = 10, maxDistance = 2.0,
+  lockpick = true, lockpickDifficulty = { 'easy', 'hard' },
+  auto = false, hideUi = false, holdOpen = false, onDuty = false,
+  lockSound = '', unlockSound = '',
+}
+```
+
+- `native`: the door's opaque id, `0x` + 16 hex digits (the panel's *Pick in world* reads it). Two leaves make a double door; its `coords` default to the middle.
+- `items[].metadata`: matches the item's metadata **type**. `remove = true` spends one on use.
+- `maxDistance`: metres, default [`USE_RADIUS`](#config-doorlock-use-radius), clamped to [`MAX_REACH`](#config-doorlock-max-reach).
+- `lockpickDifficulty`: steps, each `'easy' | 'medium' | 'hard'` or `{ areaSize, speedMultiplier }`. None: `LOCKPICK.DEFAULT`.
+- `auto`: an automatic door (garage, shutter). `holdOpen`: stays open while unlocked. `onDuty`: a job group only counts on duty.
+- Limits: name 64 characters, 16 groups, 8 items, 32 characters, code 32 characters, autolock 0..3600 s, 512 doors.
+
+## Commands
+
+All restricted: the host checks `command.<name>`.
+
+| Command | Access | Arguments | Effect |
+|---|---|---|---|
+| <a id="opx-doorlock" />`/opx.doorlock` | ACL `command.opx.doorlock` | `[closest]` | Opens the [staff panel](#staff-panel); `closest` opens the closest door's settings. From the console: prints the list. |
+| <a id="opx-doorlock-list" />`/opx.doorlock.list` | ACL `command.opx.doorlock.list` | `[door]` | Every door (id, name, leaves, bucket, position, state, origin, backend refusals), or one door as JSON without its code. |
+| <a id="opx-doorlock-lock" />`/opx.doorlock.lock` | ACL `command.opx.doorlock.lock` | `<door> [on\|off]` | Locks or unlocks from anywhere; flips when omitted. |
+| <a id="opx-doorlock-key" />`/opx.doorlock.key` | ACL `command.opx.doorlock.key` | `<door> [player]` | Cuts a key: the door's first item row with `metadata`, given with `{ type = <metadata>, label = <door name> }`. Default: yourself. |
+| <a id="opx-doorlock-remove" />`/opx.doorlock.remove` | ACL `command.opx.doorlock.remove` | `<door>` | Deletes a door. |
+
+`<door>` is the id `/opx.doorlock.list` prints, or the key a seeded or carried-over door had. There is no save command: `command.opx.doorlock.save` gates the panel's *Confirm door*.
+
+| ACL entry | Opens |
+|---|---|
+| `command.opx.doorlock` | the panel, the eye's *Manage door*, the F9 *World → Door locks* row |
+| `command.opx.doorlock.save` | create and edit; also sends the door's code to the panel |
+| `command.opx.doorlock.remove`, `.lock`, `.key`, `.list` | delete, lock from anywhere, cut a key, list — in the panel and as commands |
+| `opx.doorlock.bypass` | turning any door without key or code, only with `STAFF_BYPASS = true` |
+| `doorlock.<id>` | turning that one door without key or code |
+| `command.opx.admin.player.tp` | the panel's *Teleport to door* |
+
+Audit events: `doorlock.create`, `.edit`, `.remove`, `.lock`, `.unlock`, `.key`; security lines `doorlock.staffDenied`, `doorlock.passcode`, `doorlock.pickEarly`.
+
+## Staff panel [#staff-panel]
+
+Opened by `/opx.doorlock`, the F9 *World → Door locks* row or the eye's *Manage door* (the door's settings when it is managed, a new door with that leaf taken when it is not).
+
+1. **The table.** Id, name, state, distance. Search, sortable columns, pages. Per row: *Settings*, *Copy settings*, *Lock now* / *Unlock now*, *Teleport to door*, *Delete door* (with a confirm). **+** starts a new door. Seeded doors are tagged `config`.
+2. **Settings, General.** Name, passcode, autolock, interact distance, the switches *Locked*, *Double*, *Automatic*, *Lockpick*, *Hide UI*, *Hold open*, *On duty only*, and the door itself with **Pick in world**.
+3. **Characters, Groups, Items.** Rows of citizen ids; group + grade; item + metadata type + *Remove on use*.
+4. **Lockpick.** One difficulty per row, or *Custom* with area size and speed multiplier. No row: `LOCKPICK.DEFAULT`.
+5. **Sound.** Lock and unlock sounds from [`SOUNDS.LIST`](#config-doorlock-sounds).
+6. **Pick in world.** The panel hides; aim at the door and press **E** (twice for a double door), Escape cancels. A leaf another door manages and a lift door are refused. *Confirm door* on a door with no leaf starts this step and saves when it ends.
+7. **Confirm door** saves. *Give me a key*, copy / apply copied settings and delete sit on the same bar.
+
+- **The code.** Staff holding `command.opx.doorlock.save` see it in plain text in the settings; anyone else sees only that one is set. Left empty on save, it is kept; *Clear the code* removes it.
+- A button the ACL refuses is greyed, not hidden.
+- The server re-checks every save: an unknown group or grade, an unknown item, a leaf another door holds, or a new or moved door more than 60 m from the staff member is refused.
+
+## Backends [#backends]
+
+| `BACKEND` | Who holds the lock | Strength |
+|---|---|---|
+| `networked` | The platform's `open77_doors`: each leaf is registered to this resource and its lock is the platform's server state. A sweep every 30 s re-adopts doors the service forgot after a restart. | Strong: a locked door refuses every player. |
+| `local` | The server broadcasts the state per bucket; each client locks its streamed doors with `Open77.doors.setLocked` and refuses vanilla interaction on a locked one. | **Weak**: a modified client can open its own copy of a door. |
+| `auto` (default) | `networked` when `open77_doors` is running, else `local`. | |
+
+`open77_doors` depends on `open77_elevators`, which takes the cabins away from the [elevators](/docs/opx_infinity/elevators) module; servers that need job-gated lifts run `local`. `BACKEND = 'networked'` without the service falls back to `local` and logs an error. `/opx.doorlock.list` and the panel name the running backend.
+
+## Migration from the first table [#migration]
+
+The first version of this module (PR #70) stored doors in `opx77_doorlock` (no s). On every boot each of its rows is inserted once into `opx77_doorlocks` under `legacy:<key>`; nothing is lost and nothing is written back. Drop the old table by hand once the doors are checked.
+
+- Groups `{ kind, name, grade }` become ox's map `{ [name] = grade }`; `locked` becomes `state`.
+- A `BOUND` key item becomes a `metadata` match on the old key. Keys already cut (`door = <old key>`) keep opening their door.
+- A row whose key a config door also used is skipped, as before.
+- The old key still works in every command and export.
+
+`DOORS` blocks changed shape too:
+
+| First version | Now |
+|---|---|
+| `X`, `Y`, `Z` | `COORDS = { x, y, z }` |
+| `LOCKED = true` | `STATE = 1` |
+| `GROUPS = { { JOB = 'ncpd', GRADE = 0 } }` | `GROUPS = { ncpd = 0 }` |
+| `ITEMS = { { NAME = 'door_key', BOUND = true } }` | `ITEMS = { { NAME = 'door_key', METADATA = '<tag>' } }` |
+| `DIFFICULTY = 'hard'` | `LOCKPICK_DIFFICULTY = { 'hard' }` |
+| `LOCKPICK.ITEM` | `LOCKPICK.ITEMS` (a list) |
+| `LOCKPICK.DEFAULT_DIFFICULTY` | `LOCKPICK.DEFAULT` (a sequence) |
+| `LOCKPICK.BREAK_CHANCE = 0.35` | `LOCKPICK.BREAK_CHANCE = { SUCCESS, FAIL }` |
+| `SOUNDS = { LOCK, UNLOCK }` | `SOUNDS = { LIST, DEFAULT = { LOCK, UNLOCK } }` |
+| `STAFF_BYPASS = true`, grant `command.opx.doorlock.bypass` | `STAFF_BYPASS = false`, plain right `opx.doorlock.bypass` |
+
+## Configuration
+
+`config/doorlock.lua` sets `OPX.Config.MODULES.doorlock`. Shared script.
+
+| Key | Default | Effect |
+|---|---|---|
+| <a id="config-doorlock-enabled" />`enabled` | `true` | `false` switches the module off. |
+| <a id="config-doorlock-backend" />`BACKEND` | `'auto'` | `'auto'`, `'networked'` or `'local'`. See [Backends](#backends). |
+| <a id="config-doorlock-use-radius" />`USE_RADIUS` | `2.0` | Reach in metres for a door with no `maxDistance`. |
+| <a id="config-doorlock-max-reach" />`MAX_REACH` | `8.0` | Ceiling on a door's own `maxDistance` (1..12). |
+| <a id="config-doorlock-slack" />`SLACK` | `1.0` | Metres added on the server for latency. |
+| <a id="config-doorlock-scan-ms" />`SCAN_MS` | `500` | How often the client looks for the nearest door and, on `local`, re-applies locks. |
+| <a id="config-doorlock-scan-radius" />`SCAN_RADIUS` | `40.0` | Metres around the player streamed doors are read on `local`. |
+| <a id="config-doorlock-request-ms" />`REQUEST_MS` | `600` | Floor between two door requests from one player. |
+| <a id="config-doorlock-membership" />`MEMBERSHIP` | `'any'` | `'any'` counts every job and gang membership; `'primary'` only the worked job and primary gang. |
+| <a id="config-doorlock-staff-bypass" />`STAFF_BYPASS` | `false` | `true` lets holders of `opx.doorlock.bypass` turn any door without key or code. |
+| <a id="config-doorlock-notify" />`NOTIFY` | `true` | Toast after a success. Refusals are always shown. |
+| <a id="config-doorlock-key" />`KEY` | `{ ID = 'opx.doorlock.use', NAME = 'doorlock.key.use', DEFAULT = 'E' }` | The use key, rebindable. `DEFAULT = false` declares none (the eye row stays). Also confirms *Pick in world*. |
+| <a id="config-doorlock-key-item" />`KEY_ITEM` | `'door_key'` | The key item name. |
+| <a id="config-doorlock-lockpick" />`LOCKPICK` | see below | Lockpick items, steps and break odds. |
+| <a id="config-doorlock-sounds" />`SOUNDS` | `{ LIST = {}, DEFAULT = { LOCK = '', UNLOCK = '' } }` | Wwise events the panel offers, and what a door with none plays (`''` = nothing). |
+| <a id="config-doorlock-doors" />`DOORS` | `{}` | Doors inserted once under `config:<key>`, then owned by the panel. Deleting one leaves a tombstone so it is not seeded again. |
+
+```lua title="config/doorlock.lua — LOCKPICK"
+LOCKPICK = {
+  ITEMS = { 'lockpick' },            -- one is needed; a break takes one
+  CAN_PICK_UNLOCKED = false,         -- may a pick also lock?
+  DEFAULT = { 'easy', 'easy', 'medium' },
+  DIFFICULTY = {                     -- one progress bar per step, rolled by the server
+    easy   = { DURATION_MS = 2000, CHANCE = 0.85 },
+    medium = { DURATION_MS = 2500, CHANCE = 0.6 },
+    hard   = { DURATION_MS = 3000, CHANCE = 0.4 },
+  },
+  BREAK_CHANCE = { SUCCESS = 0.01, FAIL = 0.2 },
+},
+```
+
+- Every step must pass. A custom step `{ areaSize, speedMultiplier }` reads as `CHANCE = areaSize / 60 / speedMultiplier` (0.05..0.95) and `DURATION_MS = 2500 / speedMultiplier`.
+
+```lua title="config/doorlock.lua — one DOORS block"
+DOORS = {
+  ncpd_front = {
+    NAME = 'NCPD front desk',
+    DOORS = { '0xFC85EAE29622BAC2' },
+    COORDS = { x = -1234.5, y = 456.7, z = 12.0 }, BUCKET = 0,
+    STATE = 1,
+    GROUPS = { ncpd = 0 },
+    ITEMS = { { NAME = 'door_key', METADATA = 'ncpd_front' } },
+    PASSCODE = '1234', AUTOLOCK = 10, MAX_DISTANCE = 2.0,
+    LOCKPICK = true, LOCKPICK_DIFFICULTY = { 'easy', 'hard' },
+  },
+},
+```
+
+The fields are the door's, upper-cased (`CHARACTERS`, `AUTO`, `HIDE_UI`, `HOLD_OPEN`, `ON_DUTY`, `LOCK_SOUND`, `UNLOCK_SOUND` too). A block that fails validation is logged as `[doorlock] config: DOORS.<key> refused: <code>`.
+
+## Refusal codes [#codes]
+
+Shown as toasts, locale key `doorlock.error.<code>`.
+
+| Code | Meaning |
+|---|---|
+| `too_fast` | Under `REQUEST_MS` since the last request, or a code guess within 3 s. |
+| `unknown_door` | No such door. |
+| `no_position`, `wrong_bucket`, `too_far` | The server could not read you, or you are not at the door. |
+| `player_down` | You are down. |
+| `not_allowed` | Not listed, or vetoed by the `doorlock:authorise` hook. |
+| `no_key` | No matching item (or it could not be spent). |
+| `job_required`, `grade_too_low`, `off_duty`, `job_stale`, `no_character` | The group check failed. |
+| `passcode_required`, `wrong_passcode` | The door needs its code. |
+| `not_pickable`, `no_lockpick`, `pick_failed`, `pick_broke`, `already_unlocked` | Lockpick. |
+| `not_permitted` | Staff: the ACL refuses that action. |
+| `not_loaded`, `save_failed`, `too_many_doors` | Staff save: doors still loading, database error, 512 doors. |
+| `unknown_group`, `unknown_item`, `door_taken` | Staff save: a group, grade or item nobody defined, or a leaf another door holds. |
+| `bad_door`, `bad_doors`, `bad_door_id`, `duplicate_door_id`, `bad_position`, `bad_bucket`, `bad_groups`, `bad_group`, `bad_items`, `bad_item`, `bad_characters`, `bad_character`, `bad_passcode`, `bad_autolock`, `bad_difficulty`, `bad_distance`, `bad_sound`, `bad_id` | Staff save: a malformed field. |
+| `no_key_item`, `no_inventory`, `key_refused`, `no_player` | `/opx.doorlock.key`. |
+| `lift_door` | *Pick in world* on a lift's door. |
+
+Successes: `locked`, `unlocked`, `picked`, `already_locked`, `already_unlocked` (`doorlock.answer.<code>`).

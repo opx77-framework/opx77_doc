@@ -1,0 +1,29 @@
+---
+title: GetDoor
+description: One managed door by id, ox_doorlock's getDoor.
+---
+
+<a id="export-server-getdoor" />
+
+```lua
+local res = exports.opx_infinity:GetDoor(ref)
+```
+
+Scope `read` · sync.
+
+**Parameters**
+- ref: `integer | string` — the door id `/opx.doorlock.list` prints, or the key a seeded (`DOORS`) or carried-over door had
+
+**Returns**
+- `{ id, name, state, coords, bucket, groups?, items?, characters?, maxDistance }`
+  - `state`: `0 | 1` — 1 locked
+  - `coords`: `{ x, y, z }`
+  - Never the door's code. See [doorlock](/docs/opx_infinity/doorlock).
+
+**Errors**
+- `doorlock.unknownDoor`, `export.badArgument`, `error.unavailable`
+
+```lua title="Example"
+local res = exports.opx_infinity:GetDoor(12)
+if res.ok then print(res.value.name, res.value.state == 1 and 'locked' or 'open') end
+```

@@ -78,6 +78,13 @@ Loaded, never opened in front of a player. A new stash must be configured or nam
 
 - [`RevokeKeys`](/docs/creators/server/revokekeys), [`RevokeAllKeys`](/docs/creators/server/revokeallkeys), [`SetVehicleState`](/docs/creators/server/setvehiclestate) — write · must be awaited
 
+## Doors [#doors]
+
+ox_doorlock's server exports under their ox meaning (see [doorlock](/docs/opx_infinity/doorlock)). A door is its integer id, or the key a seeded or carried-over door had. No answer ever carries a door's code.
+
+- [`GetDoor`](/docs/creators/server/getdoor), [`GetDoorFromName`](/docs/creators/server/getdoorfromname), [`GetAllDoors`](/docs/creators/server/getalldoors) — read · sync
+- [`SetDoorState`](/docs/creators/server/setdoorstate), [`SetDoorLocked`](/docs/creators/server/setdoorlocked), [`CreateDoor`](/docs/creators/server/createdoor), [`EditDoor`](/docs/creators/server/editdoor), [`RemoveDoor`](/docs/creators/server/removedoor) — write · must be awaited
+
 ## Examples [#examples]
 
 ### Pay a player for a job step [#example-pay]

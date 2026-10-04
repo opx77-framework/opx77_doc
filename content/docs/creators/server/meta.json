@@ -43,6 +43,15 @@
     "---Vehicles and keys---",
     "revokekeys",
     "revokeallkeys",
-    "setvehiclestate"
+    "setvehiclestate",
+    "---Doors---",
+    "getdoor",
+    "getdoorfromname",
+    "getalldoors",
+    "setdoorstate",
+    "setdoorlocked",
+    "createdoor",
+    "editdoor",
+    "removedoor"
   ]
 }
