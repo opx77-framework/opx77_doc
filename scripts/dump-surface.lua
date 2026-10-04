@@ -55,11 +55,15 @@ local function boot(side)
 			wrapped = true
 			for _, verb in ipairs({ 'On', 'Serve' }) do
 				local original = env.OPX.UI[verb]
-				env.OPX.UI[verb] = function(target, channel, ...)
-					if type(channel) == 'string' and channelOwner[channel] == nil then
-						channelOwner[channel] = ownerOf(env)
+				-- `Serve` was removed from the runtime (PR #71): wrapping a missing
+				-- verb would publish a function the framework does not have.
+				if type(original) == 'function' then
+					env.OPX.UI[verb] = function(target, channel, ...)
+						if type(channel) == 'string' and channelOwner[channel] == nil then
+							channelOwner[channel] = ownerOf(env)
+						end
+						return original(target, channel, ...)
 					end
-					return original(target, channel, ...)
 				end
 			end
 		end
