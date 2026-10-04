@@ -1,0 +1,28 @@
+---
+title: GetItem
+description: Reads one catalogue entry.
+---
+
+<a id="export-server-getitem" />
+
+```lua
+local res = exports.opx_infinity:GetItem(name)
+```
+
+Scope `read` · sync.
+
+**Parameters**
+- name: `string` — 1–64 characters
+
+- Answers the entry as the inventory screen reads it, including items [registered at runtime](/docs/creators/server/registeritem).
+
+**Returns**
+- `table?` — `{ label, description?, weight, image?, usable, stackable, droppable, category, weapon, ammo }`, or `nil` for a name the catalogue does not carry
+
+**Errors**
+- `export.badArgument`, `error.unavailable`
+
+```lua title="Example"
+local res = exports.opx_infinity:GetItem('water')
+if res.ok and res.value then print(res.value.label, res.value.weight .. ' g') end
+```

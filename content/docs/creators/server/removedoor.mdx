@@ -1,0 +1,33 @@
+---
+title: RemoveDoor
+description: Removes a door, as ox_doorlock's removeDoor does.
+---
+
+<a id="export-server-removedoor" />
+
+```lua
+local res = exports.opx_infinity:RemoveDoor(id)
+```
+
+Scope `write` · must be awaited.
+
+**Parameters**
+- id: `integer | string` — ox's door id, or a seeded / carried-over door's old key
+
+- A seeded door leaves a tombstone, so the next boot does not put it back.
+
+**Returns**
+- `true`
+
+**Errors**
+- `export.badArgument`, `export.callerDenied`, `doorlock.unknownDoor`, `doorlock.badState`
+
+```lua title="Example"
+CreateThread(function()
+  local pending, why = Open77.exports.call('opx_infinity', 'RemoveDoor', 12)
+  if not pending then return print('not sent: ' .. tostring(why)) end
+  local res = pending:await()
+  if not (res and res.ok) then return print('refused: ' .. tostring(res and res.error)) end
+  print('removed')
+end)
+```

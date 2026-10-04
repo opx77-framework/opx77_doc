@@ -1,0 +1,27 @@
+---
+title: ClosePanel
+description: Closes your panel.
+---
+
+<a id="export-client-closepanel" />
+
+```lua
+local res = exports.opx_infinity:ClosePanel(handle)
+```
+
+Sync.
+
+**Parameters**
+- handle: `integer`
+
+- Your reply export hears `opx:on:panel:action` with `action = 'close'`.
+
+**Returns**
+- `true`
+
+**Errors**
+- `stale_handle`
+
+```lua title="Example"
+exports.opx_infinity:ClosePanel(handle)
+```

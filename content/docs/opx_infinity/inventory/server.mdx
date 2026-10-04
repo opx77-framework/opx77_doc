@@ -490,6 +490,45 @@ inventory.UnregisterUsable(name, owner)
 **Returns**
 - `boolean`
 
+## UsableOwner [#server-inventory-usableowner]
+
+Who handles the use of an item.
+
+```lua
+inventory.UsableOwner(name)
+```
+
+**Returns**
+- `string?` — the `owner` given at registration
+
+## UnregisterUsables [#server-inventory-unregisterusables]
+
+Removes every use handler one owner registered. The creator surface calls it when a resource stops.
+
+```lua
+inventory.UnregisterUsables(owner)
+```
+
+**Returns**
+- `integer` — how many went
+
+## RegisterItem [#server-inventory-registeritem]
+
+Adds an item to the catalogue at runtime, on the server and every client, or replaces one its own owner registered. Validated whole by `Catalog.Register`, which both halves run; sent to a client that joins later on its hello. Never a weapon or ammunition, never a name config or another owner holds. Not persisted. The [`RegisterItem`](/docs/creators/server/registeritem) export is the door for another resource.
+
+```lua
+inventory.RegisterItem(name, definition, owner, cap)
+```
+
+**Parameters**
+- name: `string`
+- definition: `table` — `{ label?, description?, weight?, stack?, drop?, category?, image?, model?, use? }` (lower case)
+- owner: `string`
+- cap?: `integer` — most items this owner may hold registered (default 64)
+
+**Returns**
+- `Result` — the item as `GetItem` reads it; errors `bad_name`, `bad_owner`, `item_taken`, `item_cap`, `bad_definition:<field>`
+
 ## Withdraw [#server-inventory-withdraw]
 
 Balance → `eddies` items. Yields. See [Eddies as an item](/docs/opx_infinity/inventory#currency).

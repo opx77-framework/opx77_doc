@@ -77,6 +77,14 @@ Client, local; raised by `character`, listened to here. Sends `hello` to reload 
 
 Client, local; raised by `character`, listened to here. Closes the screen and clears the mirror.
 
+## opx:on:inventory:items [#opx-on-inventory-items]
+
+Server, host-wide. What a player's bag gained and lost, by item name: `(playerId, { citizenId, changes = { { name, delta, count } } })`. Computed against the bag's tally of its last change, so a drag inside the bag raises nothing. See [Public server events](/docs/creators/events#opx-on-inventory-items).
+
+## opx:net:inventory:catalog [#opx-net-inventory-catalog]
+
+Server → client. Items registered at runtime, eight at a time: `{ { name, owner, definition } }`. Sent to every client on a registration and to one client on its hello. The client validates each one with the same `Catalog.Register` and rewrites the page's catalogue; a part longer than 16 is refused whole.
+
 ## opx:net:inventory:request [#opx-net-inventory-request]
 
 Client → server. One screen request. Rate limited ([`RATE_LIMIT`](/docs/opx_infinity/inventory#config-inventory-rate-limit)).

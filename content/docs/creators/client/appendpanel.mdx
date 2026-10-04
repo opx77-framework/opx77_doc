@@ -1,0 +1,29 @@
+---
+title: AppendPanel
+description: Adds items to your open panel.
+---
+
+<a id="export-client-appendpanel" />
+
+```lua
+local res = exports.opx_infinity:AppendPanel(handle, items, done)
+```
+
+Sync.
+
+**Parameters**
+- handle: `integer`
+- items: `table[]` — panel items
+- done?: `boolean` — the last batch
+
+- The panel splits a batch to fit the page; up to 200 items per call.
+
+**Returns**
+- `true`
+
+**Errors**
+- `stale_handle`, panel item codes, `export.badArgument`
+
+```lua title="Example"
+exports.opx_infinity:AppendPanel(handle, { { id = 'water', label = 'Water' } }, true)
+```

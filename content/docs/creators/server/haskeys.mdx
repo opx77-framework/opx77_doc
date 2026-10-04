@@ -1,0 +1,29 @@
+---
+title: HasKeys
+description: Whether a bag holds a key to a plate.
+---
+
+<a id="export-server-haskeys" />
+
+```lua
+local res = exports.opx_infinity:HasKeys(target, plate)
+```
+
+Scope `read` · sync for a loaded player · must be awaited when `target` is a citizen id.
+
+**Parameters**
+- target: `number | string`
+- plate: `string`
+
+- Only the bag counts: a key in a stash or a trunk is a key nobody is carrying.
+
+**Returns**
+- `boolean`
+
+**Errors**
+- `export.badArgument`, `error.unavailable`
+
+```lua title="Example"
+local res = exports.opx_infinity:HasKeys(playerId, '12ABC345')
+if res.ok and res.value then print('they can drive it') end
+```

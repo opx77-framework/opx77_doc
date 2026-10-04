@@ -6,18 +6,18 @@ description: Writes or deletes a key in your resource's own metadata on a charac
 <a id="export-server-setmetadata" />
 
 ```lua
-local res = exports.opx_infinity:SetMetadata(source, key, value)
+local res = exports.opx_infinity:SetMetadata(target, key, value)
 ```
 
-Scope `write` · sync — memory only, it answers at once.
+Scope `write` · sync for a loaded player (memory only) · must be awaited when `target` is a citizen id.
 
 **Parameters**
-- source: `number`
+- target: `number | string` — a connected player id, or a citizen id (a character nobody is playing)
 - key: `string`
 - value: `any` — plain data; `nil` deletes the key
 
 - Each resource has its **own** space: your `key` is stored as `ext.<your resource>.<key>`, so you cannot reach OPX's keys or another resource's.
-- **Online characters only.** Saved with the character.
+- A citizen id of a character nobody is playing writes **one key** of the stored row (`JSON_SET` / `JSON_REMOVE`), held in the offline ledger so a login racing it reads it back rather than saving the old metadata over it; the limits are checked against the row as it stands at the write. A character online is written in memory.
 - `key`: one segment, 1–48 characters, letters, digits, `_` and `-` (no dot).
 - `value`: booleans, finite numbers, text, and tables of those keyed by text (up to 64 bytes) or position, at most 8 levels deep and 512 entries. Anything else is `export.badValue`.
 - Limits from [`SERVER.EXPORTS.METADATA`](/docs/opx_infinity/core/config#config-server-exports): 4096 bytes per value (encoded), 32 keys and 16384 bytes in total per resource per character. Over a limit: `export.tooLarge`.
@@ -32,7 +32,7 @@ Metadata travels with the character's data to the **player's own client**. The p
 - `true`
 
 **Errors**
-- `export.badArgument`, `export.badValue`, `export.tooLarge`, `error.notLoggedIn`
+- `export.badArgument`, `export.badValue`, `export.tooLarge`, `error.notLoggedIn`, `character.notFound`, `error.unavailable` (the row stayed busy), `export.mustAwait`
 
 ```lua title="Example"
 exports.opx_infinity:SetMetadata(source, 'deliveries', done + 1)

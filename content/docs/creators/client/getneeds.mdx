@@ -1,0 +1,23 @@
+---
+title: GetNeeds
+description: Reads the local player's needs.
+---
+
+<a id="export-client-getneeds" />
+
+```lua
+local res = exports.opx_infinity:GetNeeds()
+```
+
+Sync.
+
+**Returns**
+- `{ values, citizenId, ready }`
+
+**Errors**
+- `no_character`, `not_loaded`
+
+```lua title="Example"
+local res = exports.opx_infinity:GetNeeds()
+if res.ok then print(res.value.values.hunger) end
+```

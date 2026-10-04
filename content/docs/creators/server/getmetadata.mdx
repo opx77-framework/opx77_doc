@@ -6,24 +6,24 @@ description: Reads your resource's own metadata on a character.
 <a id="export-server-getmetadata" />
 
 ```lua
-local res = exports.opx_infinity:GetMetadata(source, key)
+local res = exports.opx_infinity:GetMetadata(target, key)
 ```
 
-Scope `read` · sync.
+Scope `read` · sync for a loaded player · must be awaited when `target` is a citizen id.
 
 **Parameters**
-- source: `number`
+- target: `number | string` — a connected player id, or a citizen id (a character nobody is playing)
 - key?: `string`
 
 - Each resource has its **own** space: your `key` is stored as `ext.<your resource>.<key>`, so you cannot reach OPX's keys or another resource's.
-- **Online characters only.** Saved with the character.
+- A citizen id reads the stored row when the character is not online (and memory when it is).
 - `key`: one segment, 1–48 characters, letters, digits, `_` and `-` (no dot).
 
 **Returns**
 - `any` — the value of your key, or with no `key` every key you stored as `{ [key] = value }`
 
 **Errors**
-- `export.badArgument`, `error.notLoggedIn`
+- `export.badArgument`, `error.notLoggedIn`, `character.notFound`, `export.mustAwait`
 
 ```lua title="Example"
 local res = exports.opx_infinity:GetMetadata(source, 'deliveries')

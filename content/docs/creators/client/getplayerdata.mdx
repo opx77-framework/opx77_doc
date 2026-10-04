@@ -1,0 +1,25 @@
+---
+title: GetPlayerData
+description: Reads the local player's character.
+---
+
+<a id="export-client-getplayerdata" />
+
+```lua
+local res = exports.opx_infinity:GetPlayerData()
+```
+
+Sync.
+
+- PlayerData **without** its free-form `metadata`. Advice for a screen: the server decides.
+
+**Returns**
+- `table` — `{ citizenId, charInfo, money, job, gang, ... }`
+
+**Errors**
+- `error.notLoggedIn`
+
+```lua title="Example"
+local res = exports.opx_infinity:GetPlayerData()
+if res.ok then print(res.value.job.name) end
+```

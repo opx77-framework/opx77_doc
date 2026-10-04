@@ -9,8 +9,8 @@ For a resource that is **not** part of `opx_infinity` (your own `my_jobs`, for e
 
 | Surface | Side | Use it for | Read |
 |---|---|---|---|
-| Server exports | server | read a player's data, money, job, items, down state; change money, jobs, gangs, duty, your own metadata, items, stashes, chat, keys, vehicle state; revive | [Server exports](/docs/creators/server) |
-| Client exports | client | open a menu or form, show a toast, run a progress bar, play an animation on the local player; subscribe to OPX client events | [Client exports](/docs/creators/client) |
+| Server exports | server | read a player's data, money, job, items, down state, the roster, the jobs, the catalogue, vehicles, doors; change money, jobs, gangs, duty, your own metadata (online or not), items, stashes, chat, keys, vehicles, doors; register items, use handlers and crafting benches; a toast; a bar the server judges; revive | [Server exports](/docs/creators/server) |
+| Client exports | client | open a menu, form or panel, show a toast, run a progress bar, put rows on the eye and hints on the key strip, open your crafting bench, play an animation, read the local player; subscribe to OPX client events | [Client exports](/docs/creators/client) |
 | Public server events | server | react when a character loads, money moves, an item is used, a car is bought… | [Server events](/docs/creators/events) |
 | [Player state bag](#state-bag) | client and server, read | name, job, gang, citizen id of any player in the same bucket, with no call at all | below |
 | [opx_lib](#opx-lib) | client | input, markers, zones, RPC helpers… | [opx_lib](/docs/opx_lib) |
@@ -124,10 +124,14 @@ A server resource whose manifest declares `runtime.commands` can queue an **unre
 
 | You want to | Status |
 |---|---|
-| Veto an action (hooks) | `OPX.Hooks` runs inside `opx_infinity` only. |
-| Open a panel, prompts or the target eye from your resource | No client export for them. |
+| Veto an action (hooks) | `OPX.Hooks` runs inside `opx_infinity` only: a veto answers inside the action, synchronously, and a call into another resource cannot be bounded there. |
 | Hear any OPX client event | Only the events on the [Subscribe list](/docs/creators/client#subscribe). |
-| Start a progress bar from the server and learn how it ended | No export: `StartProgress` is client-only, and its outcome reaches only the client that started it. |
-| Read or write an offline character's metadata | `GetMetadata`/`SetMetadata` work on online characters only. |
+| Open an impound or garage screen for a player, or gate a garage on a job | No export yet. |
+| Run an item shop of the `shops` module | `shops` is the clothing shop. Sell with your own menu and [`RemoveMoney`](/docs/creators/server/removemoney) + [`AddItem`](/docs/creators/server/additem), or a [crafting bench](/docs/creators/server/registercraftingbench). |
+| Register a weapon at runtime | [`RegisterItem`](/docs/creators/server/registeritem) refuses weapons and ammunition: they need a TweakDB record and a class from `data/weapons.lua`. |
+
+What used to be on this list and is not any more: the panel, the key strip and the eye ([client exports](/docs/creators/client#exports)), a bar the server starts and judges ([`StartProgress`](/docs/creators/server/startprogress)), an offline character's metadata ([`SetMetadata`](/docs/creators/server/setmetadata) with a citizen id), runtime items and use handlers ([`RegisterItem`](/docs/creators/server/registeritem), [`RegisterUsableItem`](/docs/creators/server/registerusableitem)).
+
+A request/answer between your client and your server is [`Lib.Callback`](/docs/opx_lib) in `opx_lib`, over `Open77.net`: it is between your own two halves and needs no export.
 
 Code written for the old `opx77_*` exports does not work as is; see [From opx77_* to opx_infinity](/docs/migration/from-opx77).

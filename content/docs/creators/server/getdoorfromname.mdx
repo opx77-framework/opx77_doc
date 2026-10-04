@@ -1,0 +1,27 @@
+---
+title: GetDoorFromName
+description: Reads one door by name, as ox_doorlock's getDoorFromName does.
+---
+
+<a id="export-server-getdoorfromname" />
+
+```lua
+local res = exports.opx_infinity:GetDoorFromName(name)
+```
+
+Scope `read` · sync.
+
+**Parameters**
+- name: `string` — 1–64 characters
+
+- Never carries the door's code.
+
+**Returns**
+- `table` — the door
+
+**Errors**
+- `export.badArgument`, `doorlock.unknownDoor`, `doorlock.badState`
+
+```lua title="Example"
+local res = exports.opx_infinity:GetDoorFromName('vault')
+```

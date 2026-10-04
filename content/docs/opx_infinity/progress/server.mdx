@@ -1,0 +1,62 @@
+---
+title: Server
+description: The progress contract on the server — start a bar on one player's screen and get the server's verdict on how it ended.
+---
+
+```lua
+local progress = OPX.Api.Get('progress')
+```
+
+From server code inside opx_infinity (`modules/progress/server/main.lua`). The client draws the bar; **the server judges it** by its own clock. A `finished` that arrives sooner than the duration (less 150 ms of tick slack) is `rejected` and written to the security journal as `progress.early`; no report by the duration plus 5 s is `no_answer`; the player leaving is `left`. Separate resources use the [`StartProgress`](/docs/creators/server/startprogress) export.
+
+## Start [#server-progress-start]
+
+Puts a numbered bar on one player's screen. One bar per player.
+
+```lua
+progress.Start(source, owner, spec, on)
+```
+
+**Parameters**
+- source: `number` — a connected player
+- owner: `string` — your module name; carried back as `owner`
+- spec: `table` — `{ label, durationMs, cancelable?, animation? = { name, variant? } }`, as the [client `Start`](/docs/opx_infinity/progress/client#client-progress-start)
+- on?: `function` — `on(source, outcome)`, called once with the verdict
+
+**Returns**
+- `Result` — `{ id, durationMs }`; errors `invalid_player`, `invalid_caller`, `invalid_spec`, `progress_busy`, `invalid_duration`, `invalid_label`
+
+The verdict is `{ id, owner, ending, completed, elapsedMs }`, also raised as [`opx:on:progress:finished`](/docs/opx_infinity/progress/events#opx-on-progress-finished).
+
+```lua title="Example"
+progress.Start(source, 'mymodule', { label = 'Searching', durationMs = 5000 }, function(src, outcome)
+  if outcome.completed then --[[ the server timed it: give the loot ]] end
+end)
+```
+
+## Stop [#server-progress-stop]
+
+Takes down a bar this owner put up; ends it `stopped`.
+
+```lua
+progress.Stop(source, owner, id)
+```
+
+**Parameters**
+- source: `number`
+- owner: `string`
+- id?: `integer` — only that bar
+
+**Returns**
+- `Result` — `true`; errors `progress_not_active`, `not_owner`
+
+## State [#server-progress-state]
+
+The bar the server has up on one player.
+
+```lua
+progress.State(source)
+```
+
+**Returns**
+- `Result` — `{ id, owner, remainingMs }`, or `nil`

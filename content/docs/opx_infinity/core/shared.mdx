@@ -360,6 +360,77 @@ Stops every job and drops the list. Boot calls it on resource stop.
 OPX.Scheduler.Stop()
 ```
 
+## OPX.Export.Refuse [#opx-export-refuse]
+
+The refusal every creator export answers with (`core/shared/exports.lua`).
+
+```lua
+OPX.Export.Refuse(code)
+```
+
+**Returns**
+- `{ ok = false, error = code }`
+
+## OPX.Export.Ok [#opx-export-ok]
+
+The success every creator export answers with. The value may be nil.
+
+```lua
+OPX.Export.Ok(value)
+```
+
+**Returns**
+- `{ ok = true, value = value }`
+
+## OPX.Export.Answered [#opx-export-answered]
+
+A contract `Result` as an export answer: its value on success, its code on a refusal, `error.unavailable` for anything that is not a Result.
+
+```lua
+OPX.Export.Answered(result)
+```
+
+## OPX.Export.Admits [#opx-export-admits]
+
+Whether an allowlist (`'*'`, a set or an array of names) admits a caller.
+
+```lua
+OPX.Export.Admits(list, caller)
+```
+
+**Returns**
+- `boolean`
+
+## OPX.Export.IsResourceName [#opx-export-isresourcename]
+
+Whether a name is one a resource could carry: letters, digits, `_ - .`, 1–64 characters.
+
+```lua
+OPX.Export.IsResourceName(name)
+```
+
+## OPX.Export.Caller [#opx-export-caller]
+
+The resource calling the export being run, as the **host** reports it (`GetInvokingResource`), or nil. Never an argument.
+
+```lua
+OPX.Export.Caller()
+```
+
+**Returns**
+- `string?`
+
+## OPX.Export.Available [#opx-export-available]
+
+Whether this host offers `exports` (a callable table on Open77).
+
+```lua
+OPX.Export.Available()
+```
+
+**Returns**
+- `boolean`
+
 # Boot order [#boot]
 
 | Side | Sequence |

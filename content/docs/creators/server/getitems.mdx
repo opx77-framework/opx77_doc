@@ -1,0 +1,25 @@
+---
+title: GetItems
+description: Reads the whole item catalogue.
+---
+
+<a id="export-server-getitems" />
+
+```lua
+local res = exports.opx_infinity:GetItems()
+```
+
+Scope `read` · sync.
+
+- Every entry by name, as [`GetItem`](/docs/creators/server/getitem) answers it.
+
+**Returns**
+- `table<string, table>`
+
+**Errors**
+- `error.unavailable`
+
+```lua title="Example"
+local res = exports.opx_infinity:GetItems()
+for name, item in pairs(res.value) do print(name, item.label) end
+```

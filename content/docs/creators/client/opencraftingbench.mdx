@@ -1,0 +1,27 @@
+---
+title: OpenCraftingBench
+description: Opens one of your crafting benches for the local player.
+---
+
+<a id="export-client-opencraftingbench" />
+
+```lua
+local res = exports.opx_infinity:OpenCraftingBench(key)
+```
+
+Sync.
+
+**Parameters**
+- key: `string` — the key you registered with [`RegisterCraftingBench`](/docs/creators/server/registercraftingbench)
+
+- Asks the server for `<your resource>:<key>`; the server measures the reach and asks the bench's job gate, and answers with the screen or a refusal toast.
+
+**Returns**
+- `true` — the request was sent
+
+**Errors**
+- `invalid_bench`, `no_screen`, `export.badArgument`
+
+```lua title="Example"
+exports.opx_infinity:OpenCraftingBench('bar')
+```

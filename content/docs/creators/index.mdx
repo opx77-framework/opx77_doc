@@ -7,8 +7,8 @@ For a **separate** resource (your own job, shop or heist). `opx_infinity` gives 
 
 | Door | Side | Use it to |
 |---|---|---|
-| [Server exports](/docs/creators/server) | server | read a player (money, job, items, down state); change money, jobs, gangs, duty, your own metadata, items, stashes, chat, keys, a vehicle's state; revive |
-| [Client exports](/docs/creators/client) | client | open a menu or form, show a toast, run a progress bar, play an animation on the local player; subscribe to OPX client events |
+| [Server exports](/docs/creators/server) | server | read a player, the roster, the jobs, the catalogue, a bag, vehicles and doors; change money, jobs, gangs, duty, your own metadata (online or not), items, stashes, chat, keys, vehicles, doors; register items, use handlers and crafting benches; a toast, a bar the server judges; revive |
+| [Client exports](/docs/creators/client) | client | open a menu, form or panel, show a toast, run a progress bar, put rows on the eye and hints on the key strip, open a crafting bench, play an animation, read the local player; subscribe to OPX client events |
 | [Public server events](/docs/creators/events) | server | react when a character loads, money moves, an item is used… |
 
 The modules' own contracts (`OPX.Api.Get`) stay inside `opx_infinity`. If you need more, write a [module](/docs/guides/writing-a-module) instead.
@@ -30,6 +30,9 @@ An export never raises. Always test `answer.ok == true`.
 | `export.badValue` | `SetMetadata`: the value is not plain data. |
 | `export.tooLarge` | `SetMetadata`: over a size or key-count limit. |
 | `export.notSubscribable` | `Subscribe`: that event is not on the list. |
+| `export.ownerTaken` | Eye and key strip: your resource is named like a module of OPX, whose rows it would share. |
+| `export.usableTaken` | `RegisterUsableItem`: another owner already handles that item's use. |
+| `export.duplicate` | `Notify`: the same toast was just shown to that player. |
 | `export.mustAwait` | This call can reach the database. Call it with `Open77.exports.call(...)` and `:await()` ([below](#await)). |
 | `error.unavailable` | The module behind the export is not running, or the call failed. |
 | `error.notLoggedIn` | That player has no character loaded. |
@@ -72,7 +75,7 @@ local answer = pending and pending:await()
 
 | Sync is fine | Must use `Open77.exports.call(...):await()` |
 |---|---|
-| `GetVersion`, `GetPlayerData`, `GetPlayerByCitizenId`, `IsStaff`, `GetMoney`, `HasJob`, `HasGang`, `GetJob`, `GetGang`, `GetMetadata`, `IsDown`, and the memory-only writes `SetDuty`, `SetMetadata`, `Revive` | `AddMoneyOffline`, `SetJob`, `SetGang`, `RemoveJob`, `RemoveGang`, the stash exports, `RevokeKeys`, `RevokeAllKeys`, `SetVehicleState`, and the item exports when `target` is a citizen id. The promise form for every other write is a safe habit. |
+| `GetVersion`, `GetPlayerData`, `GetPlayerByCitizenId`, `GetPlayers`, `GetJobs`, `GetGangs`, `IsStaff`, `GetMoney`, `HasJob`, `HasGang`, `GetJob`, `GetGang`, `GetItem`, `GetItems`, `IsDown`, the door reads, `GetMetadata` / `GetInventory` / `CanCarryItem` / `HasKeys` for a player id, and the memory-only writes `SetDuty`, `SetMetadata` (player id), `Revive`, `RegisterItem`, `RegisterUsableItem`, `UnregisterUsableItem`, `Notify`, `StartProgress`, `StopProgress`, `RegisterCraftingBench`, `UnregisterCraftingBench` | `AddMoneyOffline`, `SetJob`, `SetGang`, `RemoveJob`, `RemoveGang`, the stash exports and `OpenStash`, `RevokeKeys`, `RevokeAllKeys`, `GiveKeys`, `SetVehicleState`, `GetVehicle`, `GetOwnedVehicles`, `AddVehicle`, the door writes, and the item, metadata and key exports when `target` is a citizen id. The promise form for every other write is a safe habit. |
 
 - A call that may reach the database, made synchronously, answers `export.mustAwait` **before** touching anything, so it is safe to retry with the promise form.
 - `await` needs a thread: `CreateThread`, an event handler or a command handler, never file scope.

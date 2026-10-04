@@ -1,0 +1,43 @@
+---
+title: StartProgress
+description: Starts a progress bar on one player's screen from the server, and learns how it ended.
+---
+
+<a id="export-server-startprogress" />
+
+```lua
+local res = exports.opx_infinity:StartProgress(source, spec)
+```
+
+Scope `write` · sync.
+
+**Parameters**
+- source: `number`
+- spec: `table`
+  - label: `string` — required, cut to 64 bytes
+  - durationMs: `integer` — required, between the progress module's `MIN_MS` and `MAX_MS`
+  - cancelable?: `boolean` — default `false`
+  - animation?: `{ name, variant? }`
+
+- **The server judges it.** The client draws the bar and reports how it ended; whether it **finished** is decided by the server's own clock. A `finished` that arrives sooner than the duration is `rejected` and written to the security journal; no report by the duration plus 5 s is `no_answer`; the player leaving is `left`.
+- The outcome arrives on [`opx:on:progress:finished`](/docs/creators/events#opx-on-progress-finished) with your resource as `owner` and this `id`. Only `completed = true` means the action happened.
+- One bar per player (`progress_busy`). Your bars end when your resource stops.
+
+**Returns**
+- `{ id, durationMs }`
+
+**Errors**
+- `progress_busy`, `invalid_duration`, `invalid_label`, `invalid_spec`, `invalid_player`, `export.badArgument`, `export.callerDenied`
+
+```lua title="Example"
+local bars = {}
+local res = exports.opx_infinity:StartProgress(playerId, { label = 'Cracking the safe', durationMs = 8000 })
+if res.ok then bars[res.value.id] = playerId end
+
+AddEventHandler('opx:on:progress:finished', function(src, done)
+  if done.owner ~= GetCurrentResourceName() or not bars[done.id] then return end
+  bars[done.id] = nil
+  if done.completed then -- pay out: the server timed it
+  end
+end)
+```

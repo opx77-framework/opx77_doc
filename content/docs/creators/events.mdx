@@ -41,6 +41,27 @@ AddEventHandler('opx:on:character:unloaded', function(playerId, payload) end)
 
 - payload: `{ citizenId, userId }`
 
+## opx:on:character:created [#opx-on-character-created]
+
+Server, host-wide. A character row was made (no name and no body yet: those come in the world).
+
+```lua
+AddEventHandler('opx:on:character:created', function(playerId, payload) end)
+```
+
+- payload: `{ citizenId, userId, slot }`
+
+## opx:on:character:deleted [#opx-on-character-deleted]
+
+Server, host-wide. A character was deleted (soft: the row stays, the slot is freed). Forget whatever you keep for this citizen id.
+
+```lua
+AddEventHandler('opx:on:character:deleted', function(playerId, payload) end)
+```
+
+- playerId?: `number` — set when the character was being played
+- payload: `{ citizenId, userId, by }` — `by` is the connection that asked (the player, staff), `nil` for the console
+
 ## opx:on:character:money [#opx-on-character-money]
 
 Server, host-wide. Any balance change.
@@ -106,6 +127,22 @@ AddEventHandler('opx:on:inventory:used', function(playerId, payload) end)
 
 - payload: `{ citizenId, name, slot, consumed, metadata }`
 
+## opx:on:inventory:items [#opx-on-inventory-items]
+
+Server, host-wide. What a player's bag gained and lost, **by item name**: a give, a pickup, a drop, a craft, a use, an export call. A drag inside the bag moves nothing in or out and raises nothing.
+
+```lua
+AddEventHandler('opx:on:inventory:items', function(playerId, payload)
+  for _, change in ipairs(payload.changes) do
+    if change.name == 'lockpick' and change.delta > 0 then print('got a lockpick') end
+  end
+end)
+```
+
+- payload: `table`
+  - citizenId: `string`
+  - changes: `{ name, delta, count }[]` — `delta` the units that moved (negative for a loss), `count` what the bag holds now; sorted by name
+
 <a id="downed" />
 
 ## opx:on:downed:changed [#opx-on-downed-changed]
@@ -146,6 +183,26 @@ AddEventHandler('opx:on:vehicles:stored', function(playerId, payload) end)
 
 - payload: `{ citizenId, plate, garage }`, or `{ citizenId, plate, removed }` — `removed` says why the host took it away
 
+## opx:on:vehicles:registered [#opx-on-vehicles-registered]
+
+Server, host-wide. A vehicle row was made for a character: bought at a dealer, given by [`AddVehicle`](/docs/creators/server/addvehicle) or a staff command.
+
+```lua
+AddEventHandler('opx:on:vehicles:registered', function(playerId, payload) end)
+```
+
+- payload: `{ citizenId, plate, record, garage }`
+
+## opx:on:vehicles:state [#opx-on-vehicles-state]
+
+Server, host-wide. A vehicle was moved to stored or **impounded** ([`SetVehicleState`](/docs/creators/server/setvehiclestate), the impound door).
+
+```lua
+AddEventHandler('opx:on:vehicles:state', function(playerId, payload) end)
+```
+
+- payload: `{ citizenId, plate, state, garage }` — `state` is `'stored'` or `'impounded'`
+
 ## opx:on:dealership:sold [#opx-on-dealership-sold]
 
 Server, host-wide. A vehicle was bought at a dealer (`counter`) or sold player-to-player (`offer`).
@@ -172,6 +229,58 @@ AddEventHandler('opx:on:hauling:sold', function(playerId, payload) end)
 ```
 
 - payload: `{ citizenId, site, dropoff, count, pay, each, currency }`
+
+<a id="doorlock" />
+
+## opx:on:doorlock:changed [#opx-on-doorlock-changed]
+
+Server, host-wide. A door was locked or unlocked (ox_doorlock's `stateChanged`).
+
+```lua
+AddEventHandler('opx:on:doorlock:changed', function(playerId, payload) end)
+```
+
+- playerId?: `number` — the player who turned it, `nil` for a resource or the autolock
+- payload: `{ id, door, name, state, locked, by, item? }` — `by` is `ext:<resource>` for an export
+
+<a id="crafting" />
+
+## opx:on:crafting:ordered [#opx-on-crafting-ordered]
+
+Server, host-wide. A player placed an order at a bench: materials and price already taken.
+
+```lua
+AddEventHandler('opx:on:crafting:ordered', function(playerId, payload) end)
+```
+
+- payload: `{ citizenId, bench, recipe, item, count, seconds, price, money?, order }`
+
+## opx:on:crafting:collected [#opx-on-crafting-collected]
+
+Server, host-wide. A finished order was handed over.
+
+```lua
+AddEventHandler('opx:on:crafting:collected', function(playerId, payload) end)
+```
+
+- payload: `{ citizenId, bench, recipe, item, count, order }`
+
+<a id="progress" />
+
+## opx:on:progress:finished [#opx-on-progress-finished]
+
+Server, host-wide. A bar the server started ended, **as the server decided it**: [`StartProgress`](/docs/creators/server/startprogress).
+
+```lua
+AddEventHandler('opx:on:progress:finished', function(playerId, payload) end)
+```
+
+- payload: `table`
+  - id: `integer` — the id `StartProgress` answered
+  - owner: `string` — the resource (or module) that started it; filter on your own name
+  - ending: `string` — `finished`, `stopped`, `cancelled`, `interrupted`, `refused` (the client could not draw it), `rejected` (finished sooner than its duration), `no_answer`, `left`
+  - completed: `boolean` — **only `true` means the action happened**
+  - elapsedMs: `integer` — by the server's clock
 
 ## The private opx:in:* events [#private]
 

@@ -1,0 +1,34 @@
+---
+title: SetDoorState
+description: Locks or unlocks a door, as ox_doorlock's setDoorState does.
+---
+
+<a id="export-server-setdoorstate" />
+
+```lua
+local res = exports.opx_infinity:SetDoorState(id, state)
+```
+
+Scope `write` · must be awaited.
+
+**Parameters**
+- id: `integer | string` — ox's door id, or a seeded / carried-over door's old key
+- state: `0 | 1 | boolean` — 1 or `true` locks
+
+- **You** decided who may: the door's own rules are not consulted. Raises [`opx:on:doorlock:changed`](/docs/creators/events#opx-on-doorlock-changed) with `by = 'ext:<your resource>'`.
+
+**Returns**
+- the door's new state
+
+**Errors**
+- `export.badArgument`, `export.callerDenied`, `doorlock.unknownDoor`, `doorlock.badState`
+
+```lua title="Example"
+CreateThread(function()
+  local pending, why = Open77.exports.call('opx_infinity', 'SetDoorState', 12, 0)
+  if not pending then return print('not sent: ' .. tostring(why)) end
+  local res = pending:await()
+  if not (res and res.ok) then return print('refused: ' .. tostring(res and res.error)) end
+  print('unlocked')
+end)
+```

@@ -1,0 +1,33 @@
+---
+title: CreateDoor
+description: Creates a door, as ox_doorlock's createDoor does.
+---
+
+<a id="export-server-createdoor" />
+
+```lua
+local res = exports.opx_infinity:CreateDoor(data)
+```
+
+Scope `write` · must be awaited.
+
+**Parameters**
+- data: `table` — the door, ox_doorlock's door, field by field (see *Door locks* in the opx_infinity README)
+
+- Validated exactly as a staff save is (a group nobody defined, an item the catalogue does not know, a leaf another door holds are refused), minus the staff member's position.
+
+**Returns**
+- `integer` — the new door's id
+
+**Errors**
+- `export.badArgument`, `export.callerDenied`, doorlock validation codes
+
+```lua title="Example"
+CreateThread(function()
+  local pending, why = Open77.exports.call('opx_infinity', 'CreateDoor', { name = 'my_shop back door', native = '0x00000000DEADBEEF', state = 1, groups = { my_shop = 0 } })
+  if not pending then return print('not sent: ' .. tostring(why)) end
+  local res = pending:await()
+  if not (res and res.ok) then return print('refused: ' .. tostring(res and res.error)) end
+  print('door ' .. res.value)
+end)
+```

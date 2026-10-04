@@ -1,0 +1,24 @@
+---
+title: GetAllDoors
+description: Lists every door, as ox_doorlock's getAllDoors does.
+---
+
+<a id="export-server-getalldoors" />
+
+```lua
+local res = exports.opx_infinity:GetAllDoors()
+```
+
+Scope `read` · sync.
+
+- No door in it carries its code.
+
+**Returns**
+- `table[]` — every door
+
+**Errors**
+- `error.unavailable`
+
+```lua title="Example"
+for _, door in ipairs(exports.opx_infinity:GetAllDoors().value) do print(door.id, door.name) end
+```

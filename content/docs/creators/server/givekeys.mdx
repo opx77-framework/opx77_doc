@@ -1,0 +1,35 @@
+---
+title: GiveKeys
+description: Cuts one key to a plate into a bag.
+---
+
+<a id="export-server-givekeys" />
+
+```lua
+local res = exports.opx_infinity:GiveKeys(target, plate, model)
+```
+
+Scope `write` · must be awaited.
+
+**Parameters**
+- target: `number | string`
+- plate: `string`
+- model?: `string` — a label or record, for the key's name
+
+- Always one more key: you decided. `vehiclekeys.noRoom` when the bag is full.
+
+**Returns**
+- `{ plate, label }`
+
+**Errors**
+- `vehiclekeys.noRoom`, `vehiclekeys.unavailable`, `export.badArgument`, `export.callerDenied`
+
+```lua title="Example"
+CreateThread(function()
+  local pending, why = Open77.exports.call('opx_infinity', 'GiveKeys', playerId, '12ABC345')
+  if not pending then return print('not sent: ' .. tostring(why)) end
+  local res = pending:await()
+  if not (res and res.ok) then return print('refused: ' .. tostring(res and res.error)) end
+  print('key cut: ' .. res.value.label)
+end)
+```

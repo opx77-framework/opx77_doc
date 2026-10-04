@@ -1,0 +1,33 @@
+---
+title: GetOwnedVehicles
+description: Lists every vehicle a character owns.
+---
+
+<a id="export-server-getownedvehicles" />
+
+```lua
+local res = exports.opx_infinity:GetOwnedVehicles(target)
+```
+
+Scope `read` · must be awaited.
+
+**Parameters**
+- target: `number | string` — a loaded player id, or a citizen id
+
+- Oldest first.
+
+**Returns**
+- `table[]` — as [`GetVehicle`](/docs/creators/server/getvehicle)
+
+**Errors**
+- `export.badArgument`, `error.notLoggedIn`, `export.mustAwait`
+
+```lua title="Example"
+CreateThread(function()
+  local pending, why = Open77.exports.call('opx_infinity', 'GetOwnedVehicles', playerId)
+  if not pending then return print('not sent: ' .. tostring(why)) end
+  local res = pending:await()
+  if not (res and res.ok) then return print('refused: ' .. tostring(res and res.error)) end
+  for _, car in ipairs(res.value) do print(car.plate, car.state) end
+end)
+```

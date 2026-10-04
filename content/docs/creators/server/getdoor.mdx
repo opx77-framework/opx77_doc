@@ -1,0 +1,28 @@
+---
+title: GetDoor
+description: Reads one door, as ox_doorlock's getDoor does.
+---
+
+<a id="export-server-getdoor" />
+
+```lua
+local res = exports.opx_infinity:GetDoor(id)
+```
+
+Scope `read` · sync.
+
+**Parameters**
+- id: `integer | string` — ox's door id, or a seeded / carried-over door's old key
+
+- Never carries the door's code.
+
+**Returns**
+- `table` — the door: `{ id, name, state, ... }` (the fields of ox_doorlock's door; see *Door locks* in the opx_infinity README)
+
+**Errors**
+- `export.badArgument`, `doorlock.unknownDoor`
+
+```lua title="Example"
+local res = exports.opx_infinity:GetDoor(12)
+if res.ok then print(res.value.name, res.value.state == 1 and 'locked' or 'open') end
+```

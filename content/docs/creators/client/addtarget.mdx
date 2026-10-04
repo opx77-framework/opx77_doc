@@ -1,0 +1,44 @@
+---
+title: AddTarget
+description: Puts rows on the target eye, owned by your resource.
+---
+
+<a id="export-client-addtarget" />
+
+```lua
+local res = exports.opx_infinity:AddTarget(kind, rows, where)
+```
+
+Sync.
+
+**Parameters**
+- kind: `string` — `any`, `players`, `self`, `vehicles`, `npcs`, `props`, `doors`, `world`, `sky`, `models`, `entities`, `spheres`
+- rows: `table` — one row, or a list registered whole or not at all
+  - id: `string` — your row id
+  - label: `string`
+  - onSelect: `string` — the name of **your** export called with the pick context
+  - canInteract?: `string` — your export answering `true` to list the row
+  - checked?: `string` — your export answering `true` / `false` to draw a box
+  - description?, group?, icon?, distance?, ... — the rest of a [target row](/docs/opx_infinity/target/client)
+- where?: `table` — required for `models` (model records), `entities` (entity ids) and `spheres` (`{ x, y, z, radius }` list)
+
+- Rows are owned under **your resource name**. The eye reads your resource's generation and drops your rows when it stops or reloads.
+- Every callback is an export **name** of yours (`onSelect = 'OnPick'` calls `exports.<you>:OnPick(context)`); a `{ resource, export }` naming any other resource, or anything else, is `export.badArgument`. The eye asks callbacks in slices over export calls, never inside one resume.
+- A resource named like a module of OPX (`target`, `inventory`, ...) is refused: `export.ownerTaken`.
+- The eye limits how many rows one owner holds.
+
+**Returns**
+- `{ token }` for one row, `{ tokens }` for a list
+
+**Errors**
+- `export.ownerTaken`, `export.badArgument`, target codes such as `invalid_option` or `option_limit`
+
+```lua title="Example"
+exports('OnBuy', function(context)
+  TriggerServerEvent('my_shop:open', context.option.id)
+end)
+
+local res = exports.opx_infinity:AddTarget('npcs', {
+  id = 'buy', label = 'Browse the stall', icon = 'cart', onSelect = 'OnBuy',
+})
+```

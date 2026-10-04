@@ -1,0 +1,43 @@
+---
+title: RegisterCraftingBench
+description: Registers a crafting bench your resource owns, on the crafting module's own rules.
+---
+
+<a id="export-server-registercraftingbench" />
+
+```lua
+local res = exports.opx_infinity:RegisterCraftingBench(key, definition)
+```
+
+Scope `write` · sync.
+
+**Parameters**
+- key: `string` — letters, digits, `_ - .`, up to 32; stored as `<your resource>:<key>`
+- definition: `table` — the crafting [bench definition](/docs/opx_infinity/crafting/server) without functions
+  - label?: `string`
+  - position?: `{ x, y, z, bucket? }` and reach?: `number` — measured on the server
+  - queue?: `integer` — orders cooking at once
+  - recipes: `table[]` — `{ KEY, OUTPUT, COUNT?, SECONDS, INPUTS = { item = units }, PRICE?, MONEY?, LABEL?, ICON? }`
+  - jobs?: `{ [job] = minimum grade }` — the gate; any one is enough
+  - onDuty?: `boolean` — a job only counts on duty
+
+- A function cannot cross a resource, so the gate is a **job list**, asked on the server every time a player opens or orders.
+- Materials and price are taken, and the order cooks, on the server. Registering the same key again replaces your bench. Removed when your resource stops (orders already placed stay, and come back with the bench).
+- A player opens it with the client export [`OpenCraftingBench`](/docs/creators/client/opencraftingbench).
+
+**Returns**
+- `{ key, recipes }` — the stored key and how many recipes survived
+
+**Errors**
+- `invalid_bench`, `bench_taken`, `export.badArgument`, `export.callerDenied`
+
+```lua title="Example"
+exports.opx_infinity:RegisterCraftingBench('bar', {
+  label = 'Afterlife bar',
+  position = { x = -1450.2, y = 1010.5, z = 18.4 },
+  jobs = { afterlife = 0 }, onDuty = true,
+  recipes = {
+    { KEY = 'johnny', OUTPUT = 'nicola', COUNT = 1, SECONDS = 20, INPUTS = { water = 1 } },
+  },
+})
+```

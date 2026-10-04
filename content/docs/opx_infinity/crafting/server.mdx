@@ -42,6 +42,17 @@ crafting.UnregisterBenches(owner)
 function M.Stop() crafting.UnregisterBenches('mymodule') end
 ```
 
+## UnregisterBench [#server-crafting-unregisterbench]
+
+Drops one bench, when the owner named is the one that registered it.
+
+```lua
+crafting.UnregisterBench(key, owner)
+```
+
+**Returns**
+- `Result` — `boolean`, whether a bench went; error `not_owner`
+
 ## Benches [#server-crafting-benches]
 
 Every bench, sorted by key.

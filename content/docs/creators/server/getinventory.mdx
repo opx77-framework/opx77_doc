@@ -1,0 +1,30 @@
+---
+title: GetInventory
+description: "Reads a whole bag: its slots, its stacks and its weight."
+---
+
+<a id="export-server-getinventory" />
+
+```lua
+local res = exports.opx_infinity:GetInventory(target)
+```
+
+Scope `read` · sync for a loaded player · must be awaited when `target` is a citizen id.
+
+**Parameters**
+- target: `number | string` — a connected player id, or a citizen id (an offline bag)
+
+- A copy: editing it changes nothing.
+
+**Returns**
+- `table` — `{ id, kind, title?, slots, maxWeight, weight, items = { { slot, name, count, metadata? } } }`
+
+**Errors**
+- `export.badArgument`, `export.mustAwait` (citizen id, synchronous call), inventory codes
+
+```lua title="Example"
+local res = exports.opx_infinity:GetInventory(playerId)
+for _, stack in ipairs(res.ok and res.value.items or {}) do
+  print(stack.slot, stack.name, stack.count)
+end
+```

@@ -1,0 +1,25 @@
+---
+title: HidePrompt
+description: Takes one of your prompt groups down.
+---
+
+<a id="export-client-hideprompt" />
+
+```lua
+local res = exports.opx_infinity:HidePrompt(id)
+```
+
+Sync.
+
+**Parameters**
+- id: `string`
+
+**Returns**
+- `{ id }`
+
+**Errors**
+- `export.ownerTaken`, prompt codes
+
+```lua title="Example"
+exports.opx_infinity:HidePrompt('stall')
+```

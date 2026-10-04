@@ -1,6 +1,6 @@
 ---
 title: Client exports
-description: Put OPX menus, forms, toasts, progress bars and animations on the local player's screen from your own client script, and hear OPX client events.
+description: Put OPX menus, forms, panels, toasts, progress bars, eye rows, key hints and animations on the local player's screen from your own client script, read the local player, and hear OPX client events.
 ---
 
 Defined in `core/client/exports.lua`. They answer `{ ok, value | error }` like the [server exports](/docs/creators/server). Callers allowed: [`CLIENT.EXPORTS.CALLERS`](/docs/opx_infinity/core/config#config-client-exports) (`'*'`, everyone, by default). None of them yields, so the synchronous form is fine:
@@ -27,6 +27,7 @@ Every answer then arrives in your resource as an ordinary event:
 |---|---|---|
 | `opx:on:menu:action` | every action on a menu you opened | the menu's [action payload](/docs/opx_infinity/menu/client#the-action-payload) |
 | `opx:on:form:answer` | a form you opened is submitted or cancelled | the form's [answer](/docs/opx_infinity/form/client#the-answer) |
+| `opx:on:panel:action` | every action on a panel you opened | the panel's action payload, `owner` your resource |
 | `opx:on:progress:done` | a bar you started ends | `{ owner, label, ending, finished }`; only `finished = true` means the action completed |
 | `opx:on:animations:result` | the server's verdict on an animation you asked for | `{ requestId, action, ok, error?, animation?, variant?, playbackId?, ... }` |
 
@@ -51,6 +52,14 @@ Every answer then arrives in your resource as an ordinary event:
 | [`StopAnimation`](/docs/creators/client/stopanimation) | Stops your animation |
 | [`Subscribe`](/docs/creators/client/subscribe) | Forwards an OPX client event to you |
 | [`Unsubscribe`](/docs/creators/client/unsubscribe) | Stops forwarding it |
+| [`OpenPanel`](/docs/creators/client/openpanel) | Opens the side panel |
+| [`UpdatePanel`](/docs/creators/client/updatepanel), [`AppendPanel`](/docs/creators/client/appendpanel), [`ClosePanel`](/docs/creators/client/closepanel) | Patch, fill and close your panel |
+| [`AddTarget`](/docs/creators/client/addtarget) | Puts rows on the target eye |
+| [`UpdateTarget`](/docs/creators/client/updatetarget), [`RemoveTarget`](/docs/creators/client/removetarget), [`ClearTargets`](/docs/creators/client/cleartargets) | Change and remove your rows |
+| [`ShowPrompt`](/docs/creators/client/showprompt) | Puts key hints on the key strip |
+| [`UpdatePrompt`](/docs/creators/client/updateprompt), [`HidePrompt`](/docs/creators/client/hideprompt), [`HideAllPrompts`](/docs/creators/client/hideallprompts) | Change and take down your hints |
+| [`OpenCraftingBench`](/docs/creators/client/opencraftingbench) | Opens one of your crafting benches |
+| [`GetPlayerData`](/docs/creators/client/getplayerdata), [`GetItemCount`](/docs/creators/client/getitemcount), [`HasItem`](/docs/creators/client/hasitem), [`GetItem`](/docs/creators/client/getitem), [`IsDown`](/docs/creators/client/isdown), [`GetNeeds`](/docs/creators/client/getneeds) | Read the local player |
 
 Errors common to all: `export.callerDenied`, `export.badArgument`, `error.unavailable` (the module is not running), `stale_handle`, and the codes of the module behind the export (for example `menu_busy`, `form_busy`, `progress_busy`, or a spec error such as `invalid_items`).
 
@@ -91,7 +100,8 @@ end)
 ## Ownership [#ownership]
 
 - Your screens are kept under the owner `ext:<your resource>`. You can update, close or stop only what you opened; you never take over another owner's menu or form.
-- When your resource stops, OPX closes your menus (reason `owner_stopped`) and forms, stops your bar and your animation, and drops your subscriptions.
+- When your resource stops, OPX closes your menus (reason `owner_stopped`), forms and panel, stops your bar and your animation, removes your eye rows and key hints, and drops your subscriptions.
+- Eye rows and key hints are kept under your **resource name** (the eye watches its generation and drops them on a reload). A resource named like a module of OPX (`target`, `inventory`, ...) is refused them: `export.ownerTaken`.
 
 ## Example: a shop menu [#example]
 

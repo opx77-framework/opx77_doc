@@ -1,0 +1,34 @@
+---
+title: SetDoorLocked
+description: Locks or unlocks a door, in the first version's boolean spelling.
+---
+
+<a id="export-server-setdoorlocked" />
+
+```lua
+local res = exports.opx_infinity:SetDoorLocked(id, locked)
+```
+
+Scope `write` · must be awaited.
+
+**Parameters**
+- id: `integer | string` — ox's door id, or a seeded / carried-over door's old key
+- locked: `boolean`
+
+- The same as [`SetDoorState`](/docs/creators/server/setdoorstate), kept for callers of the first version.
+
+**Returns**
+- the door's new state
+
+**Errors**
+- `export.badArgument`, `export.callerDenied`, `doorlock.unknownDoor`, `doorlock.badState`
+
+```lua title="Example"
+CreateThread(function()
+  local pending, why = Open77.exports.call('opx_infinity', 'SetDoorLocked', 'legacy_vault', true)
+  if not pending then return print('not sent: ' .. tostring(why)) end
+  local res = pending:await()
+  if not (res and res.ok) then return print('refused: ' .. tostring(res and res.error)) end
+  print('locked')
+end)
+```

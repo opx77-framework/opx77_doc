@@ -1,0 +1,25 @@
+---
+title: GetGangs
+description: Lists every gang this server defines, with its grades.
+---
+
+<a id="export-server-getgangs" />
+
+```lua
+local res = exports.opx_infinity:GetGangs()
+```
+
+Scope `read` · sync.
+
+- Same shape as [`GetJobs`](/docs/creators/server/getjobs), from the `GANGS` config.
+
+**Returns**
+- `table[]` — `{ name, label, type, defaultDuty, grades }`
+
+**Errors**
+- `error.unavailable`
+
+```lua title="Example"
+local res = exports.opx_infinity:GetGangs()
+for _, gang in ipairs(res.value) do print(gang.name, gang.label) end
+```

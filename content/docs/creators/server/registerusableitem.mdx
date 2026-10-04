@@ -1,0 +1,37 @@
+---
+title: RegisterUsableItem
+description: Makes one of your exports decide what using an item does.
+---
+
+<a id="export-server-registerusableitem" />
+
+```lua
+local res = exports.opx_infinity:RegisterUsableItem(item, export)
+```
+
+Scope `write` · await it — answers at once.
+
+**Parameters**
+- item: `string` — an item the catalogue carries
+- export: `string` — an export of **your** resource (letters, digits, `_`, up to 64)
+
+- When a player uses the item, the inventory **holds the slot** and calls `exports.<you>:<export>(source, info)` with `info = { name, slot, count, metadata, label, citizenId }`.
+- Your export answers `{ ok = true, consume = <n>? }` to let the use go ahead (`consume` overrides the item's own, `0` keeps the stack), or `{ ok = false, error = '<code>' }` to refuse it. It may yield (the database, a check); it must answer inside the inventory's handler deadline, or the use is refused and nothing is consumed.
+- An item another owner (a module, or another resource) already handles is `export.usableTaken`.
+- Removed when your resource stops. Give the item a `use` table in its definition if you want the inventory screen to offer *Use*.
+
+**Returns**
+- `true`
+
+**Errors**
+- `unknown_item`, `export.usableTaken`, `export.badArgument`, `export.callerDenied`
+
+```lua title="Example"
+-- server.lua of my_food
+exports('UseBurger', function(source, info)
+  -- check on the server, then decide
+  return { ok = true, consume = 1 }
+end)
+
+exports.opx_infinity:RegisterUsableItem('burger', 'UseBurger')
+```

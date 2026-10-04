@@ -1,0 +1,34 @@
+---
+title: EditDoor
+description: Edits a door, as ox_doorlock's editDoor does.
+---
+
+<a id="export-server-editdoor" />
+
+```lua
+local res = exports.opx_infinity:EditDoor(id, data)
+```
+
+Scope `write` · must be awaited.
+
+**Parameters**
+- id: `integer | string` — ox's door id, or a seeded / carried-over door's old key
+- data: `table` — the fields to replace
+
+- Validated as a staff save is.
+
+**Returns**
+- the door
+
+**Errors**
+- `export.badArgument`, `export.callerDenied`, doorlock validation codes
+
+```lua title="Example"
+CreateThread(function()
+  local pending, why = Open77.exports.call('opx_infinity', 'EditDoor', 12, { autolock = 30 })
+  if not pending then return print('not sent: ' .. tostring(why)) end
+  local res = pending:await()
+  if not (res and res.ok) then return print('refused: ' .. tostring(res and res.error)) end
+  print('edited')
+end)
+```

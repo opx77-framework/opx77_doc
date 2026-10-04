@@ -1,0 +1,27 @@
+---
+title: UnregisterUsableItem
+description: Removes the use handler you registered for an item.
+---
+
+<a id="export-server-unregisterusableitem" />
+
+```lua
+local res = exports.opx_infinity:UnregisterUsableItem(item)
+```
+
+Scope `write` · await it — answers at once.
+
+**Parameters**
+- item: `string`
+
+- Only your own handler: another owner's is left alone and the answer is `false`.
+
+**Returns**
+- `boolean` — whether a handler of yours was removed
+
+**Errors**
+- `export.badArgument`, `export.callerDenied`
+
+```lua title="Example"
+exports.opx_infinity:UnregisterUsableItem('burger')
+```

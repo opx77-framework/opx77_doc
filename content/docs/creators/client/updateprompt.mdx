@@ -1,0 +1,26 @@
+---
+title: UpdatePrompt
+description: Changes one of your prompt groups in place.
+---
+
+<a id="export-client-updateprompt" />
+
+```lua
+local res = exports.opx_infinity:UpdatePrompt(id, patch)
+```
+
+Sync.
+
+**Parameters**
+- id: `string`
+- patch: `table` — absent fields keep their value
+
+**Returns**
+- `{ id }`
+
+**Errors**
+- `export.ownerTaken`, prompt codes
+
+```lua title="Example"
+exports.opx_infinity:UpdatePrompt('stall', { title = 'NIGHT MARKET (closing)' })
+```

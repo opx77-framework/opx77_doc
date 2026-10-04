@@ -1,0 +1,30 @@
+---
+title: Notify
+description: Shows a toast on one player's screen.
+---
+
+<a id="export-server-notify" />
+
+```lua
+local res = exports.opx_infinity:Notify(source, message, kind, durationMs)
+```
+
+Scope `write` · sync.
+
+**Parameters**
+- source: `number`
+- message: `string` — cut to 240 characters
+- kind?: `'info' | 'success' | 'warning' | 'error'` — default `info`
+- durationMs?: `integer` — 1000–30 000, default 5000
+
+- Goes through the platform's notifications, titled with the server name. The same message again at once is `export.duplicate`.
+
+**Returns**
+- `true`
+
+**Errors**
+- `export.duplicate`, `export.badArgument`, `export.callerDenied`, `error.unavailable`
+
+```lua title="Example"
+exports.opx_infinity:Notify(playerId, 'Your order is ready', 'success')
+```
