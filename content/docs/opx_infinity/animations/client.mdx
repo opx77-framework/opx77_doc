@@ -60,11 +60,13 @@ anim.List(category)
 ```
 
 **Parameters**
-- category?: `string`
+- category?: `string` — one of the twelve [families](/docs/opx_infinity/animations#catalogue); otherwise `unknown_category`
 
 **Returns**
 - `Result` — `{ animations = { listing, … } }`, each listing:
   - `name`, `label`, `category`, `categoryLabel`, `prop`, `placement`
+  - `kind`: `'layer'` keeps the player walking, `'workspot'` holds them still
+  - `platform`: `true` for a profile read from the platform, `false` for a written row
   - `variants`: `{ { variant, clip, words } }`
 
 ## Categories [#client-animations-categories]
@@ -74,7 +76,7 @@ anim.Categories()
 ```
 
 **Returns**
-- `Result` — `{ categories = { { name, label, count } } }`
+- `Result` — `{ categories = { { name, label, count } } }` — the twelve families in picker order
 
 ## Get [#client-animations-get]
 

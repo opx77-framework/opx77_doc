@@ -15,12 +15,13 @@ Scope `write` · must be awaited.
 - source: `number`
 - name: `string` — a stash listed in `config/inventory`, or one named `<your resource>.<name>`
 - options?: `table`
-  - slots?: `integer` — 1–200, default 50 (only when the stash is created)
-  - maxWeight?: `integer` — grams, default 100 000 (only when created)
+  - slots?: `integer` — 1–200, default 50 (only when the stash is created, and never for a configured stash)
+  - maxWeight?: `integer` — grams, default 100 000 (the same)
   - label?: `string`
   - position?: `{ x, y, z }` and bucket?: `integer` — the player must be in reach of it
 
 - **You decide** who may open it (a job, a key, a code); OPX checks the reach when you give a position.
+- A stash listed in `config/inventory` is made at its **configured** size; `slots` and `maxWeight` only size a new stash of your own. An existing stash keeps the size it was made with.
 - Never a stash outside your namespace (`stash_namespace`): a module's or another resource's storage is not yours to open. A **new** one counts against [`STASHES.CREATE_CAP`](/docs/opx_infinity/core/config#config-server-exports) (`stash_cap`).
 
 **Returns**

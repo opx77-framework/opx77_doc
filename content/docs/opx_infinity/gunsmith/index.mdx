@@ -66,5 +66,7 @@ Chest refusals use `gunsmith.<code>`. Bench gate refusals use `crafting.<code>`;
 | `no_character` | chest, bench | No character loaded (gated armouries only). |
 | `no_such_chest` | chest | Unknown armoury, or it has no chest. |
 | `not_for_you` | chest | Gate refused with no code. |
-| `unavailable` | chest | No `inventory` contract. |
+| `unavailable` | chest | No `inventory` contract, or an inventory code with no `gunsmith.*` text (for example a failed load). The real code goes to the log. |
 | `too_far`, `not_ready`, `not_loaded`, `bad_argument` | chest | Passed through from inventory `OpenStash`. |
+
+The chest accepts one open request per 750 ms per player.

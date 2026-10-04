@@ -3,7 +3,7 @@ title: downed
 description: Death and revive — who is down, the full-screen down view, waiting for help, giving up at a medical centre, and reviving through the contract.
 ---
 
-A player whose life phase becomes `dead` (with a character loaded) is down. They see a full-screen view with two choices: **wait for help** (marks them as waiting, a distress signal other modules can list) or **give up** (unlocks after a delay, wakes them at the nearest configured medical centre). Staff or job modules stand a player up through [`Revive`](/docs/opx_infinity/downed/server#server-downed-revive); nothing else in the runtime respawns a dead player. Being down survives a disconnect: the player is put back down when they return with the same character.
+A player whose life phase becomes `dead` (with a character loaded) is down. They see a full-screen view with two choices: **wait for help** (marks them as waiting, a distress signal other modules can list) or **give up** (unlocks after a delay, wakes them at the nearest configured medical centre). Staff or job modules stand a player up through [`Revive`](/docs/opx_infinity/downed/server#server-downed-revive); nothing else in the runtime respawns a dead player. Being down survives a disconnect: the player is put back down when they return with the same character. Nothing about being down is read or written until the join has placed the body (waited up to 30 s for a death, 10 min for a restore), so the placement's own respawn does not revive a player who quit while down.
 
 | | |
 |---|---|

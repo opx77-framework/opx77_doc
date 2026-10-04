@@ -1,6 +1,6 @@
 ---
 title: GetAllDoors
-description: Lists every door, as ox_doorlock's getAllDoors does.
+description: Every managed door, ox_doorlock's getAllDoors.
 ---
 
 <a id="export-server-getalldoors" />
@@ -11,14 +11,15 @@ local res = exports.opx_infinity:GetAllDoors()
 
 Scope `read` · sync.
 
-- No door in it carries its code.
-
 **Returns**
-- `table[]` — every door
+- the doors, as [`GetDoor`](/docs/creators/server/getdoor), sorted by id
 
 **Errors**
 - `error.unavailable`
 
 ```lua title="Example"
-for _, door in ipairs(exports.opx_infinity:GetAllDoors().value) do print(door.id, door.name) end
+local res = exports.opx_infinity:GetAllDoors()
+if res.ok then
+  for _, door in ipairs(res.value) do print(door.id, door.name, door.state) end
+end
 ```

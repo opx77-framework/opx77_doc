@@ -1,34 +1,35 @@
 ---
 title: EditDoor
-description: Edits a door, as ox_doorlock's editDoor does.
+description: Changes fields of a managed door, ox_doorlock's editDoor.
 ---
 
 <a id="export-server-editdoor" />
 
 ```lua
-local res = exports.opx_infinity:EditDoor(id, data)
+local res = exports.opx_infinity:EditDoor(ref, data)
 ```
 
-Scope `write` · must be awaited.
+Scope `write` · must be awaited — a synchronous call answers `export.mustAwait` before touching anything.
 
 **Parameters**
-- id: `integer | string` — ox's door id, or a seeded / carried-over door's old key
-- data: `table` — the fields to replace
+- ref: `integer | string` — door id or seeded key
+- data: `table` — only the fields to change
 
-- Validated as a staff save is.
+- A field given replaces the door's; `''` clears it.
+- A value of a different type from the stored one is refused with `doorlock.bad_<field>`.
+- A new `native` turns a double door into a single one, and `doors` the reverse.
+- The door is set to the `state` it ends up with.
 
 **Returns**
-- the door
+- the door id
 
 **Errors**
-- `export.badArgument`, `export.callerDenied`, doorlock validation codes
+- `doorlock.unknownDoor`, plus those of [`CreateDoor`](/docs/creators/server/createdoor)
 
 ```lua title="Example"
 CreateThread(function()
-  local pending, why = Open77.exports.call('opx_infinity', 'EditDoor', 12, { autolock = 30 })
-  if not pending then return print('not sent: ' .. tostring(why)) end
-  local res = pending:await()
-  if not (res and res.ok) then return print('refused: ' .. tostring(res and res.error)) end
-  print('edited')
+  local pending = Open77.exports.call('opx_infinity', 'EditDoor', 12, { passcode = '', autolock = 30 })
+  local res = pending and pending:await()
+  if not (res and res.ok) then print('refused: ' .. tostring(res and res.error)) end
 end)
 ```

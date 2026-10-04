@@ -1,0 +1,92 @@
+---
+title: Client
+description: The doorlock contract on the client — the nearest door, turning it, picking it, and the staff panel.
+---
+
+```lua
+local doorlock = OPX.Api.Get('doorlock')
+```
+
+From client code inside opx_infinity. Nothing here decides: `Use` and `PickClosest` only ask, and the server's answer arrives as a toast (and on [`opx:net:doorlock:answer`](/docs/opx_infinity/doorlock/events#opx-net-doorlock-answer)).
+
+## State [#client-doorlock-state]
+
+What this client knows.
+
+```lua
+doorlock.State()
+```
+
+**Returns**
+- `Result` — `{ doors, bucket, mode, nearest?, shown, staff?, picking?, applied, key? }`
+  - `doors`: `number` — count in this bucket
+  - `mode`: `'networked' | 'local'`
+  - `nearest`: `integer?` — id of the door in reach
+  - `staff`: `table?` — `{ save, remove, lock, key, bypass, teleport }`, nil for a player
+  - `applied`: `table` — native id to state this client set (local backend)
+
+## Nearest [#client-doorlock-nearest]
+
+ox's `getClosestDoor`: the door the player stands at.
+
+```lua
+doorlock.Nearest()
+```
+
+**Returns**
+- `Result` — `{ id, name, state }`; error `doorlock.noDoor`
+
+## IdOf [#client-doorlock-idof]
+
+ox's `getDoorIdFromEntity`, on a native door id.
+
+```lua
+doorlock.IdOf(native)
+```
+
+**Parameters**
+- native: `string` — `0x` + 16 hex digits
+
+**Returns**
+- `Result` — the door id; error `doorlock.noDoor`
+
+## Use [#client-doorlock-use]
+
+ox's `useClosestDoor`: asks to flip the door the player stands at.
+
+```lua
+doorlock.Use(origin)
+```
+
+**Parameters**
+- origin?: `string` — default `'contract'`
+
+**Returns**
+- `Result` — `true` once sent; error `doorlock.noDoor`
+
+```lua title="Example"
+local sent = doorlock.Use('mymodule')
+if not sent.ok then print('no door here') end
+```
+
+## PickClosest [#client-doorlock-pickclosest]
+
+ox's `pickClosestDoor`: starts a lockpick on the door in reach.
+
+```lua
+doorlock.PickClosest()
+```
+
+**Returns**
+- `Result` — `true` once sent; error `doorlock.noDoor`
+
+## OpenStaff [#client-doorlock-openstaff]
+
+Opens the staff panel. The server still checks every write.
+
+```lua
+doorlock.OpenStaff()
+```
+
+**Returns**
+- `Result` — error `doorlock.notStaff` for a player without `command.opx.doorlock`

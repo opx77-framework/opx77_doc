@@ -39,13 +39,50 @@ TriggerServerEvent('opx:net:animations:hello')
 
 ## opx:net:animations:offer [#opx-net-animations-offer]
 
-Server → client. The offered catalogue, after `DISABLED` and the platform's own list.
+Server → client. The offered catalogue, after `DISABLED` and the platform's own list. Sent in parts (about 500 values each), because the whole catalogue in one event is past the client's 1 024-value decoder. The client assembles the parts with the same `serial`, then takes them in on its own thread.
 
 ```lua
-RegisterNetEvent('opx:net:animations:offer', function(offer) end)
+RegisterNetEvent('opx:net:animations:offer', function(serial, part, parts, rows, duo) end)
 ```
 
-- offer: `table` — `{ { name, variants }, … }`
+- serial: `number` — one per offer; a newer serial replaces a half-received one
+- part, parts: `number` — this part's index and the total (1..64)
+- rows: `table[]` — at most 256
+  - a written row: `{ name, variants }`
+  - a platform profile: `{ name, label, category, kind, placement, prop, mode, clips, words }` — `mode = 'once'` for a one-shot gesture
+- duo: `table | false` — on the last part only: what may be played with a nearby player
+  - `kinds`: `string[]` — offered move ids (`carry`, `carried`, `escort`, `escorted`, `give`, `heal`, `healed`)
+  - `pairs`: `{ { id, actor, target } }` — offered shortcuts
+  - `any`: `boolean` — any two profiles allowed
+
+## opx:net:animations:duo [#opx-net-animations-duo]
+
+Client → server. Invite the nearest player to an emote together. Same rate window as a play.
+
+```lua
+TriggerServerEvent('opx:net:animations:duo', spec)
+```
+
+- spec: `table` — one of
+  - `{ kind = 'carry' }` — a paired move
+  - `{ pair = 'talk' }` — a `SHARED.PAIRS` shortcut
+  - `{ actor = 'preach', target = 'armscrossed' }` — any two profiles; `actor` is the asker's
+
+```lua title="Example"
+-- what the picker sends for "you dance, they clap"
+TriggerServerEvent('opx:net:animations:duo', { actor = 'dance', target = 'clap' })
+```
+
+## opx:net:animations:reply [#opx-net-animations-reply]
+
+Client → server. The invited player's answer. Only the invited player's own answer counts; on a yes the distance is measured again before the pair starts.
+
+```lua
+TriggerServerEvent('opx:net:animations:reply', inviteId, accepted)
+```
+
+- inviteId: `number` — from [`invite`](#opx-net-animations-invite)
+- accepted: `boolean`
 
 ## opx:net:animations:answer [#opx-net-animations-answer]
 
@@ -78,6 +115,39 @@ RegisterNetEvent('opx:net:animations:picker', function(category) end)
 ```
 
 - category: `string` — `''` for none
+
+## opx:net:animations:invite [#opx-net-animations-invite]
+
+Server → client, to the invited player. Opens the *Accept* / *Decline* menu (or a chat line naming `/e accept`).
+
+```lua
+RegisterNetEvent('opx:net:animations:invite', function(inviteId, what, name, inviteMs) end)
+```
+
+- inviteId: `number`
+- what: `table` — what was asked: `{ kind }`, `{ pair, actor, target }` or `{ actor, target }` (`actor` is the asker's profile)
+- name: `string` — the asker's character name (account name as a fallback)
+- inviteMs: `number` — how long the invitation waits (`SHARED.INVITE_MS`)
+
+## opx:net:animations:uninvite [#opx-net-animations-uninvite]
+
+Server → client, to the invited player. The invitation expired or the asker withdrew it: close the menu.
+
+```lua
+RegisterNetEvent('opx:net:animations:uninvite', function(inviteId) end)
+```
+
+## opx:net:animations:notice [#opx-net-animations-notice]
+
+Server → client. How an emote with a nearby player went, shown as a toast (or a chat line with `NOTIFY = false`).
+
+```lua
+RegisterNetEvent('opx:net:animations:notice', function(kind, code, params) end)
+```
+
+- kind: `'info' | 'success' | 'warning' | 'error'`
+- code: `string` — `sent`, `accepted`, `declined`, `expired`, or a [refusal code](/docs/opx_infinity/animations#codes) (`no_player_nearby`, `too_far`…)
+- params: `{ name? }` — the other player's name
 
 ## opx:on:animations:result [#opx-on-animations-result]
 

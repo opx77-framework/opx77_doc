@@ -18,6 +18,12 @@ Every event has two arguments:
 
 The events are announcements: they fire after the change, and nothing a listener does can undo or veto it.
 
+<Callout type="warn" title="Advisory, not proof">
+
+Server `TriggerEvent` is host-wide in both directions: **any** server resource can raise an `opx:on:*` name with any payload. Use these events to refresh, log or react — never as proof that something happened. Before you pay, give or unlock on the strength of one, ask OPX again (a read export such as [`GetMoney`](/docs/creators/server/getmoney), [`CountItem`](/docs/creators/server/countitem) or [`GetVehicle`](/docs/creators/server/getvehicle)). For a server-started bar, keep the `id` [`StartProgress`](/docs/creators/server/startprogress) answered and check `owner` too.
+
+</Callout>
+
 <a id="character" />
 
 ## opx:on:character:loaded [#opx-on-character-loaded]
@@ -234,14 +240,22 @@ AddEventHandler('opx:on:hauling:sold', function(playerId, payload) end)
 
 ## opx:on:doorlock:changed [#opx-on-doorlock-changed]
 
-Server, host-wide. A door was locked or unlocked (ox_doorlock's `stateChanged`).
+Server, host-wide. A door was locked or unlocked — by a player, staff, autolock or an export.
 
 ```lua
 AddEventHandler('opx:on:doorlock:changed', function(playerId, payload) end)
 ```
 
-- playerId?: `number` — the player who turned it, `nil` for a resource or the autolock
-- payload: `{ id, door, name, state, locked, by, item? }` — `by` is `ext:<resource>` for an export
+- playerId: `number?` — `nil` when no player turned it (autolock, an export)
+- payload: `table`
+  - id, door: `integer` — the door id (the same value twice)
+  - name: `string`
+  - state: `0 | 1` — `1` locked
+  - locked: `boolean`
+  - by: `string` — the player id, `lockpick:<id>`, `staff:<id>`, `autolock` or the contract caller
+  - item?: `string` — the key item that opened it, if any
+
+See [doorlock](/docs/opx_infinity/doorlock).
 
 <a id="crafting" />
 

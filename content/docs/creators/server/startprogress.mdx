@@ -22,6 +22,7 @@ Scope `write` · sync.
 - **The server judges it.** The client draws the bar and reports how it ended; whether it **finished** is decided by the server's own clock. A `finished` that arrives sooner than the duration is `rejected` and written to the security journal; no report by the duration plus 5 s is `no_answer`; the player leaving is `left`.
 - The outcome arrives on [`opx:on:progress:finished`](/docs/creators/events#opx-on-progress-finished) with your resource as `owner` and this `id`. Only `completed = true` means the action happened.
 - One bar per player (`progress_busy`). Your bars end when your resource stops.
+- Public events are advisory (any server resource can raise one): accept a verdict only for an `id` you started and are still waiting on, as the example does.
 
 **Returns**
 - `{ id, durationMs }`

@@ -1,0 +1,31 @@
+---
+title: Events
+description: The local event and page channels of the loading module.
+---
+
+## opx:on:loading:state [#opx-on-loading-state]
+
+Client, local. A load started or ended, or the cover came or went. Never raised for a progress tick. Only reaches code inside opx_infinity's client VM.
+
+```lua
+AddEventHandler('opx:on:loading:state', function(state) end)
+```
+
+- state: `table`
+  - `active`: `boolean` — the platform's own flag
+  - `cover`: `boolean` — OPX is drawing over the native screen
+  - `kind`: `string` — as in [`State`](/docs/opx_infinity/loading/client#client-loading-state)
+  - `id?`: `any` — the platform's load cycle id
+
+```lua title="Example"
+AddEventHandler('opx:on:loading:state', function(state)
+	if state.active then M.PauseScan() else M.ResumeScan() end
+end)
+```
+
+## Page channels [#page-channels]
+
+| Channel | Direction | Payload | Meaning |
+|---|---|---|---|
+| `loading:state` | Lua → page | `{ hide, cover, video, kind, progressKnown, progress }` | What to hide and whether to draw the cover. Sent only when it changes. |
+| <a id="page-loading-ready" />`loading:ready` | page → Lua | `{}` | A new page mounted; Lua resends the state. |

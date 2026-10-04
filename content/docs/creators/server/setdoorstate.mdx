@@ -1,27 +1,27 @@
 ---
 title: SetDoorState
-description: Locks or unlocks a door, as ox_doorlock's setDoorState does.
+description: Locks or unlocks a door, ox_doorlock's setDoorState.
 ---
 
 <a id="export-server-setdoorstate" />
 
 ```lua
-local res = exports.opx_infinity:SetDoorState(id, state)
+local res = exports.opx_infinity:SetDoorState(ref, state)
 ```
 
-Scope `write` · must be awaited.
+Scope `write` · must be awaited — a synchronous call answers `export.mustAwait` before touching anything.
 
 **Parameters**
-- id: `integer | string` — ox's door id, or a seeded / carried-over door's old key
-- state: `0 | 1 | boolean` — 1 or `true` locks
+- ref: `integer | string` — door id or seeded key
+- state: `0 | 1 | boolean` — `1` or `true` locks
 
-- **You** decided who may: the door's own rules are not consulted. Raises [`opx:on:doorlock:changed`](/docs/creators/events#opx-on-doorlock-changed) with `by = 'ext:<your resource>'`.
+- Your resource decided: the door's groups, items and code are not checked. The change reaches everyone in the bucket, re-arms the autolock and raises [`opx:on:doorlock:changed`](/docs/opx_infinity/doorlock/events#opx-on-doorlock-changed) with `by = 'ext:<your resource>'`.
 
 **Returns**
-- the door's new state
+- the state set
 
 **Errors**
-- `export.badArgument`, `export.callerDenied`, `doorlock.unknownDoor`, `doorlock.badState`
+- `doorlock.unknownDoor`, `doorlock.badState`, `export.badArgument`, `error.unavailable`
 
 ```lua title="Example"
 CreateThread(function()
@@ -29,6 +29,6 @@ CreateThread(function()
   if not pending then return print('not sent: ' .. tostring(why)) end
   local res = pending:await()
   if not (res and res.ok) then return print('refused: ' .. tostring(res and res.error)) end
-  print('unlocked')
+  print('door unlocked')
 end)
 ```

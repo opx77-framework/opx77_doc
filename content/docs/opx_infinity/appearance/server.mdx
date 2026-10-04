@@ -76,14 +76,17 @@ appearance.SaveClothing(identifier, clothing)
 
 ## OpenWardrobe [#server-appearance-openwardrobe]
 
-Asks the player's client to open the fitting room and grants a clothing save. The caller checks permission.
+Asks the player's client to open the fitting room and grants a clothing save. The caller checks permission. With `charge`, the room is **priced**: the server bills the save, not the client (see [AllowClothingSave](#server-appearance-allowclothingsave)).
 
 ```lua
-appearance.OpenWardrobe(playerId)
+appearance.OpenWardrobe(playerId, options)
 ```
 
 **Parameters**
 - playerId: `number`
+- options?: `table`
+  - `owner`?: `string` — only logged
+  - `charge`?: `function(source, slots)` — see below. Without it the room is free.
 
 **Returns**
 - `boolean` — `true`: the ask went out (not that a room opened)
@@ -91,19 +94,33 @@ appearance.OpenWardrobe(playerId)
 
 ## AllowClothingSave [#server-appearance-allowclothingsave]
 
-Lets the player's client save clothing for the next 10 minutes. For doors that put clothes on without a room (a bought uniform, a saved outfit).
+Lets the player's client save clothing. A save with no grant is refused `clothing.noFittingRoom`. What `options` holds picks the kind of grant:
 
 ```lua
-appearance.AllowClothingSave(playerId, owner)
+appearance.AllowClothingSave(playerId, owner, options)
 ```
 
 **Parameters**
 - playerId: `number`
 - owner: `string` — only logged
+- options?: `table`
+  - nothing: **open** grant. Any save for 10 minutes, free (the join's room, staff, a clothing store).
+  - `charge`: **priced** grant. `function(source, slots)` is called with the slots the server finds changed (the save against the stored record, outfit overrides included), **before** anything is written. Answer `true[, nil, undo]` to let it through (`undo` refunds if the write then fails) or `false, code` to refuse the save; the client puts the stored look back.
+  - `wear = { Slot = 'Items.Record' | false }`: **look** grant. One free save of exactly that look on top of what is stored, for a door that dresses without a room (a bought uniform, a saved outfit, a code). At most 8 are held per player.
 
 **Returns**
 - `boolean`
-- `string?` — `'invalid_player'` on `false`
+- `string?` — `'invalid_player'`, `'invalid_slot'`, `'invalid_item'` on `false`
+
+```lua title="Example — a priced room"
+appearance.OpenWardrobe(playerId, { owner = 'mytailor', charge = function(source, slots)
+  local paid = character.RemoveMoney(source, 'EDDIES', 50 * #slots, 'tailor')
+  if not paid then return false, 'clothing.unpaid' end
+  return true, nil, function() character.AddMoney(source, 'EDDIES', 50 * #slots, 'refund') end
+end })
+```
+
+A look already paid for inside the room (a uniform bought from a shop) is not billed again by the room's save.
 
 ## The clothing record
 

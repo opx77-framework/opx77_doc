@@ -165,11 +165,14 @@ OPX.Modules.Run(between)
 
 ## OPX.Modules.Stop [#opx-modules-stop]
 
-Calls `Stop` on every `started` or `failed` module, newest dependency first, and marks it `stopped`. A `Stop` that raises is logged.
+Calls `Stop` on every `started` or `failed` module, newest dependency first. A module is marked `stopped` before its `Stop` runs, so a second stop cannot run it twice. A `Stop` that raises is logged.
 
 ```lua
-OPX.Modules.Stop()
+OPX.Modules.Stop(yielding)
 ```
+
+**Parameters**
+- yielding?: `boolean` — `true` waits a frame after each `Stop` when the caller can yield, so each module gets a fresh instruction budget. The client passes `true`; the server passes nothing.
 
 ## OPX.Modules.Report [#opx-modules-report]
 
@@ -360,9 +363,20 @@ Stops every job and drops the list. Boot calls it on resource stop.
 OPX.Scheduler.Stop()
 ```
 
-## OPX.Export.Refuse [#opx-export-refuse]
+# Creator export gate [#export]
 
-The refusal every creator export answers with (`core/shared/exports.lua`).
+`core/shared/exports.lua`, both sides. The scaffolding the [server](/docs/creators/server) and [client](/docs/creators/client) creator exports share: who is calling, whether they are admitted, and the answer shape. One copy, so the two halves cannot disagree about who may call. Use it only if you add an export to `core/*/exports.lua`.
+
+## OPX.Export.Ok [#opx-export-ok]
+
+```lua
+OPX.Export.Ok(value)
+```
+
+**Returns**
+- `{ ok = true, value }` — `value` may be nil
+
+## OPX.Export.Refuse [#opx-export-refuse]
 
 ```lua
 OPX.Export.Refuse(code)
@@ -371,47 +385,50 @@ OPX.Export.Refuse(code)
 **Returns**
 - `{ ok = false, error = code }`
 
-## OPX.Export.Ok [#opx-export-ok]
-
-The success every creator export answers with. The value may be nil.
-
-```lua
-OPX.Export.Ok(value)
-```
-
-**Returns**
-- `{ ok = true, value = value }`
-
 ## OPX.Export.Answered [#opx-export-answered]
 
-A contract `Result` as an export answer: its value on success, its code on a refusal, `error.unavailable` for anything that is not a Result.
+A contract Result as the export answer: the value on success, the code on a refusal, `error.unavailable` for anything that is not a Result.
 
 ```lua
 OPX.Export.Answered(result)
 ```
 
+**Returns**
+- `{ ok, value | error }`
+
+```lua title="Example"
+return OPX.Export.Answered(OPX.Api.Get('weather').SetWeather(name))
+```
+
 ## OPX.Export.Admits [#opx-export-admits]
 
-Whether an allowlist (`'*'`, a set or an array of names) admits a caller.
+Whether an allowlist admits a caller.
 
 ```lua
 OPX.Export.Admits(list, caller)
 ```
+
+**Parameters**
+- list: `'*' | table` — `'*'`, a set (`{ my_res = true }`) or an array of names
+- caller: `string`
 
 **Returns**
 - `boolean`
 
 ## OPX.Export.IsResourceName [#opx-export-isresourcename]
 
-Whether a name is one a resource could carry: letters, digits, `_ - .`, 1–64 characters.
+Whether a string could be a resource name: `[%w_%-%.]`, 1 to 64 characters.
 
 ```lua
 OPX.Export.IsResourceName(name)
 ```
 
+**Returns**
+- `boolean`
+
 ## OPX.Export.Caller [#opx-export-caller]
 
-The resource calling the export being run, as the **host** reports it (`GetInvokingResource`), or nil. Never an argument.
+The calling resource as the host reports it (`GetInvokingResource`), or nil when that is not a valid name. Never take a caller name from an argument.
 
 ```lua
 OPX.Export.Caller()
@@ -422,7 +439,7 @@ OPX.Export.Caller()
 
 ## OPX.Export.Available [#opx-export-available]
 
-Whether this host offers `exports` (a callable table on Open77).
+Whether the host offers `exports`. On Open77 `exports` is a callable table, so a function, a table or userdata all count. (Before PR #58 only a function counted, and no creator export was published.)
 
 ```lua
 OPX.Export.Available()
@@ -436,4 +453,4 @@ OPX.Export.Available()
 | Side | Sequence |
 |---|---|
 | server | Placement-conflict warning → database probe (`OPX.Storage.Ready`) → `Init` → `Api` → `OPX.Tune.Publish` and `OPX.Schema.Apply` (skipped with no database) → `Start` → `OPX.Booted = true` → module report in the log. On resource stop: `OPX.Scheduler.Stop`, `OPX.Modules.Stop`, then every player is released from a selection bucket. |
-| client | On `onClientResourceStart`: `OPX.UI.Surface`, `OPX.Toast.Attach` → `OPX.Modules.Run` → `OPX.Scheduler.Start` → module report. On stop: `OPX.Scheduler.Stop`, `OPX.Modules.Stop`, `OPX.UI.Teardown`. |
+| client | On `onClientResourceStart`: `OPX.UI.Surface`, `OPX.Toast.Attach` → `OPX.Modules.Run` → `OPX.Scheduler.Start` → module report. Boot yields between the surface build and `Modules.Run`. On stop: [`OPX.UI.ReleaseAllFocus`](/docs/opx_infinity/core/client#opx-ui-releaseallfocus) first, then `OPX.Scheduler.Stop`, `OPX.Modules.Stop(true)`, `OPX.UI.Teardown`. |

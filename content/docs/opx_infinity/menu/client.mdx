@@ -7,7 +7,7 @@ description: The menu contract on the client — open, update and close a list m
 local menu = OPX.Api.Get('menu')
 ```
 
-From client code inside opx_infinity. Every function answers a `Result` (`{ ok = true, value }` or `{ ok = false, error }`). None yields. Codes: [Refusal codes](/docs/opx_infinity/menu#codes).
+From client code inside opx_infinity. Every function answers a `Result` (`{ ok = true, value }` or `{ ok = false, error }`). None yields, unless the spec opts in with `yield = true`. Codes: [Refusal codes](/docs/opx_infinity/menu#codes).
 
 ## Open [#client-menu-open]
 
@@ -144,8 +144,16 @@ menu.Keys()
 | `maxHeight` | integer | `MAX_HEIGHT_VH` | Viewport height %, clamped 20..100. |
 | `height` | integer | none | Fixed pixel height, clamped 120..1200. Absent: the rows decide. |
 | `rows` | integer | `VISIBLE_ROWS` | Rows drawn at once, clamped 3..24. |
+| `yield` | boolean | `false` | `Open`/`Update` only. When the caller runs on its own thread, rows are checked six at a time with a frame between, so a big menu stays inside one resume's instruction budget. The surface, the down state, `menu_busy` (or for `Update`, `no_menu_open`/`stale_handle`) are re-checked before the menu is installed. Ignored where the caller cannot yield. |
 
-Limits: 200 rows per level, 400 rows across the whole tree, 8 levels deep. Only the visible window of rows is sent to the page.
+Limits: 200 rows per level, 400 rows across the whole tree, 8 levels deep. Only the visible window of rows is sent to the page. Checking a spec costs roughly 240 instructions per row: for more than a few dozen rows, page them or pass `yield = true` from a thread.
+
+```lua title="Example — a long list from a thread"
+CreateThread(function()
+  local opened = menu.Open({ owner = 'mymodule', items = rows, on = onAction, yield = true })
+  if not opened.ok then print(opened.error) end
+end)
+```
 
 ## Rows
 

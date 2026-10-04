@@ -14,6 +14,8 @@ Scope `read` · sync for a loaded player · must be awaited when `target` is a c
 **Parameters**
 - target: `number | string` — a connected player id, or a citizen id (an offline bag)
 
+- A **read** export: [`SERVER.EXPORTS.READ`](/docs/opx_infinity/core/config#config-server-exports) (`'*'` by default) admits it, so every resource allowed to read can see a player's whole bag.
+- Each stack carries its **metadata** (serial numbers, key plates, door key types, anything a module or a writer stored there). Do not store a secret in item metadata; narrow `READ` if a reader must not see it.
 - A copy: editing it changes nothing.
 
 **Returns**

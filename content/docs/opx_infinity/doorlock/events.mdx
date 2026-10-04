@@ -1,0 +1,182 @@
+---
+title: Events
+description: Network and local events of the doorlock module.
+---
+
+The server re-checks every client payload: a client names a door id and the state it wants, nothing more. Staff events are gated on their own `command.opx.doorlock.*` entry and floored per player; a refusal answers `not_permitted` or `too_fast` on [`staffDone`](#opx-net-doorlock-staffdone).
+
+## Player [#player]
+
+### opx:net:doorlock:ask [#opx-net-doorlock-ask]
+
+Client → server. Asks for the doors of the player's bucket. At most one per second is answered.
+
+```lua
+TriggerServerEvent('opx:net:doorlock:ask')
+```
+
+### opx:net:doorlock:setState [#opx-net-doorlock-setstate]
+
+Client → server. ox's `setState`: turn a door. Without `state` it flips. For a coded door the first request answers `passcode_required` and the client sends it again with `code`.
+
+```lua
+TriggerServerEvent('opx:net:doorlock:setState', { id = 12, state = 0, code = '1234' })
+```
+
+- id: `integer`
+- state?: `0 | 1`
+- code?: `string`
+
+### opx:net:doorlock:pick [#opx-net-doorlock-pick]
+
+Client → server. Starts a lockpick.
+
+```lua
+TriggerServerEvent('opx:net:doorlock:pick', { id = 12 })
+```
+
+### opx:net:doorlock:pickGo [#opx-net-doorlock-pickgo]
+
+Server → client. The pick may start: run one progress bar per step. The server's clock starts now.
+
+```lua
+RegisterNetEvent('opx:net:doorlock:pickGo', function(payload) end)
+```
+
+- payload: `{ id, name, steps }` — `steps`: `number[]`, each bar's milliseconds
+
+### opx:net:doorlock:picked [#opx-net-doorlock-picked]
+
+Client → server. The bars ran. A `finished` that arrives before the steps could have run is refused and audited (`doorlock.pickEarly`); the server makes every roll.
+
+```lua
+TriggerServerEvent('opx:net:doorlock:picked', { id = 12, finished = true })
+```
+
+### opx:net:doorlock:answer [#opx-net-doorlock-answer]
+
+Server → client. The verdict on a request.
+
+```lua
+RegisterNetEvent('opx:net:doorlock:answer', function(payload) end)
+```
+
+- payload: `{ ok, code, id?, name?, state?, how?, broke? }`
+  - `code`: a success (`locked`, `unlocked`, `picked`, `already_locked`, `already_unlocked`) or a [refusal](/docs/opx_infinity/doorlock#codes)
+
+### opx:net:doorlock:sync [#opx-net-doorlock-sync]
+
+Server → client. The doors of the player's bucket, in chunks of 12. Sent on join, on a bucket change, after every staff write.
+
+```lua
+RegisterNetEvent('opx:net:doorlock:sync', function(payload) end)
+```
+
+- payload: `{ bucket, mode, offset, done, doors, staff? }`
+  - `doors`: `{ { id, name, ids, x, y, z, state, reach, hideUi?, holdOpen?, lockpick?, passcode?, lockSound?, unlockSound? } }` — `passcode` is only `true` when the door has one
+  - `staff`: the player's staff flags, nil for a player
+
+### opx:net:doorlock:state [#opx-net-doorlock-state]
+
+Server → client, to everyone in the door's bucket. A door changed state.
+
+```lua
+RegisterNetEvent('opx:net:doorlock:state', function(payload) end)
+```
+
+- payload: `{ id, state, by? }` — `by`: the player id who turned it
+
+## Staff [#staff]
+
+### opx:net:doorlock:staffOpen [#opx-net-doorlock-staffopen]
+
+Server → client. `/opx.doorlock` ran: open the panel.
+
+```lua
+RegisterNetEvent('opx:net:doorlock:staffOpen', function(payload) end)
+```
+
+- payload: `{ access, mode, closest }` — `access`: `{ save, remove, lock, key, bypass, teleport }`
+
+### opx:net:doorlock:staffAsk [#opx-net-doorlock-staffask]
+
+Client → server. The list, or one door's detail. Gated on `command.opx.doorlock`.
+
+```lua
+TriggerServerEvent('opx:net:doorlock:staffAsk', { id = 12 }) -- {} for the list
+```
+
+### opx:net:doorlock:staffList [#opx-net-doorlock-stafflist]
+
+Server → client. The list in chunks of 20, or one door.
+
+```lua
+RegisterNetEvent('opx:net:doorlock:staffList', function(payload) end)
+```
+
+- list: `{ rows, offset, total, done, mode }` — each row `{ id, name, state, bucket, x, y, z, double?, seeded? }`
+- detail: `{ detail, id }` — the door in ox's shape plus `live` and `seeded`; `detail = false` when unknown. The code is in it only for staff with `command.opx.doorlock.save`; others get `hasPasscode`.
+
+### opx:net:doorlock:staffSave [#opx-net-doorlock-staffsave]
+
+Client → server. Create (no `id`) or edit. Gated on `command.opx.doorlock.save`. A save naming no `passcode` keeps the door's code; `''` clears it.
+
+```lua
+TriggerServerEvent('opx:net:doorlock:staffSave', { id = 12, door = { name = 'Back room', state = 1 } })
+```
+
+### opx:net:doorlock:staffRemove [#opx-net-doorlock-staffremove]
+
+Client → server. Deletes a door. Gated on `command.opx.doorlock.remove`.
+
+```lua
+TriggerServerEvent('opx:net:doorlock:staffRemove', { id = 12 })
+```
+
+### opx:net:doorlock:staffState [#opx-net-doorlock-staffstate]
+
+Client → server. Lock or unlock from anywhere; flips without `state`. Gated on `command.opx.doorlock.lock`.
+
+```lua
+TriggerServerEvent('opx:net:doorlock:staffState', { id = 12, state = 1 })
+```
+
+### opx:net:doorlock:staffKey [#opx-net-doorlock-staffkey]
+
+Client → server. Cuts a key for the caller. Gated on `command.opx.doorlock.key`.
+
+```lua
+TriggerServerEvent('opx:net:doorlock:staffKey', { id = 12 })
+```
+
+### opx:net:doorlock:staffDone [#opx-net-doorlock-staffdone]
+
+Server → client. The result of a staff write.
+
+```lua
+RegisterNetEvent('opx:net:doorlock:staffDone', function(payload) end)
+```
+
+- payload: `{ verb, ok, code, id?, name?, created?, detail? }`
+  - `verb`: `'save' | 'remove' | 'state' | 'key'`
+  - `detail`: what a save refusal names (the unknown group, the door holding a leaf)
+
+## opx:on:doorlock:changed [#opx-on-doorlock-changed]
+
+Server, local. ox's `stateChanged`: a door turned, by anyone. Published with `OPX.Publish`, so other server resources can listen too.
+
+```lua
+AddEventHandler('opx:on:doorlock:changed', function(source, data) end)
+```
+
+- source: `number?` — the player, nil for autolock, the console or an export
+- data: `{ id, door, name, state, locked, by, item? }`
+  - `door`: same as `id`
+  - `by`: `string` — a player id, `'autolock'`, `'staff:<id>'`, `'lockpick:<id>'`, `'ext:<resource>'` or the contract's `by`
+  - `item`: `string?` — the item that opened it
+
+```lua title="Example"
+AddEventHandler('opx:on:doorlock:changed', function(source, data)
+  if data.name == 'Vault' and not data.locked then print('vault opened by ' .. data.by) end
+end)
+```

@@ -405,7 +405,7 @@ inventory.Holders(name, limit)
 
 ## ResizeContainer [#server-inventory-resizecontainer]
 
-The only way to change a stored container's size. Stacks past the new slot count are kept but not drawn. Yields.
+The only way to change a stored container's size. Stacks past the new slot count are kept but not drawn. A container it had to load (an offline bag, an unopened stash) is put away again afterwards. Yields.
 
 ```lua
 inventory.ResizeContainer(kind, owner, slots, maxWeight)
@@ -418,7 +418,7 @@ inventory.ResizeContainer(kind, owner, slots, maxWeight)
 - maxWeight: `integer` — grams
 
 **Returns**
-- `Result` — value: container id
+- `Result` — value: container id; `bad_argument` when `kind` is not a string
 
 ## DeleteContainer [#server-inventory-deletecontainer]
 
@@ -433,7 +433,7 @@ inventory.DeleteContainer(kind, owner)
 - owner: `string`
 
 **Returns**
-- `Result` — value `true`
+- `Result` — value `true`; `bad_argument` when `kind` is not a string
 
 ## CloseInventory [#server-inventory-closeinventory]
 
@@ -522,7 +522,7 @@ inventory.RegisterItem(name, definition, owner, cap)
 
 **Parameters**
 - name: `string`
-- definition: `table` — `{ label?, description?, weight?, stack?, drop?, category?, image?, model?, use? }` (lower case)
+- definition: `table` — `{ label?, description?, weight?, stack?, drop?, category?, image?, model?, use? }` (lower case); `use.status` holds at most 8 needs
 - owner: `string`
 - cap?: `integer` — most items this owner may hold registered (default 64)
 

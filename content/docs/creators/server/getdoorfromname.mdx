@@ -1,6 +1,6 @@
 ---
 title: GetDoorFromName
-description: Reads one door by name, as ox_doorlock's getDoorFromName does.
+description: A managed door by its name, ox_doorlock's getDoorFromName.
 ---
 
 <a id="export-server-getdoorfromname" />
@@ -12,16 +12,17 @@ local res = exports.opx_infinity:GetDoorFromName(name)
 Scope `read` · sync.
 
 **Parameters**
-- name: `string` — 1–64 characters
+- name: `string` — 1–64 characters, exact
 
-- Never carries the door's code.
+- Several doors may share a name: the lowest id wins.
 
 **Returns**
-- `table` — the door
+- the door, as [`GetDoor`](/docs/creators/server/getdoor)
 
 **Errors**
-- `export.badArgument`, `doorlock.unknownDoor`, `doorlock.badState`
+- `doorlock.unknownDoor`, `export.badArgument`, `error.unavailable`
 
 ```lua title="Example"
-local res = exports.opx_infinity:GetDoorFromName('vault')
+local res = exports.opx_infinity:GetDoorFromName('NCPD front desk')
+if res.ok then print('door #' .. res.value.id) end
 ```

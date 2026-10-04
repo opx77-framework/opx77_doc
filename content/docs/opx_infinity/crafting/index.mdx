@@ -105,7 +105,7 @@ The toast key is `crafting.<code>`. A `canUse` gate may answer its own codes; th
 | `no_character` | No character loaded. |
 | `short` | Not enough materials. |
 | `cannot_pay` | Fee could not be paid. |
-| `queue_full` | The queue is full. |
+| `queue_full` | The queue is full. The cap is checked in the same statement that writes the order, so two orders placed at once cannot pass it; a refused order gives back its materials and fee. |
 | `no_such_order` | Not one of this character's orders. |
 | `not_ready` | Still cooking. |
 | `no_room` | The bag cannot carry the output. |

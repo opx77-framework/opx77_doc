@@ -738,7 +738,7 @@ New module. Nearest old surface was none; shops/clothing used their own UIs.
 | net `chat:addSuggestion`, `chat:addSuggestions`, `chat:removeSuggestion`, `chat:clearSuggestions` | removed; completions come from `OPX.Command.Register` automatically |
 | net `chat:clear`, `chat:setEnabled` | removed; no server-side equivalent |
 | local `chat:open` / `chat:close` | removed; open with `open77:chat:open` (key `T`), close with `open77:pauseKey` |
-| local `chat:commandSubmitted` | `opx:on:chat:submitted` `{ text, tokens }` |
+| local `chat:commandSubmitted` | removed (the `opx:on:chat:submitted` stand-in was dropped in PR #82); register the command with `OPX.Command.Register` instead |
 | `open77:command:result` handling | unchanged (refusals become toasts) |
 
 **opx77_weather -> weather**

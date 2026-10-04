@@ -13,17 +13,6 @@ TriggerServerEvent('opx:net:shops:open', shopKey)
 
 - shopKey: `string`
 
-## opx:net:shops:bill [#opx-net-shops-bill]
-
-Client → server. The room closed with these slots changed. Ignored when `CHARGE` is off.
-
-```lua
-TriggerServerEvent('opx:net:shops:bill', { shop = shopKey, slots = slots })
-```
-
-- shop: `string`
-- slots: `string[]` — changed slot names
-
 ## opx:net:shops:wear [#opx-net-shops-wear]
 
 Client → server. Buy and put on a ready-made look.
@@ -99,16 +88,6 @@ RegisterNetEvent('opx:net:shops:putOn', function(data) end)
 ```
 
 - data: `table` — `{ look, wear }`
-
-## opx:net:shops:restore [#opx-net-shops-restore]
-
-Server → client. The bill failed: put this look back on.
-
-```lua
-RegisterNetEvent('opx:net:shops:restore', function(clothing) end)
-```
-
-- clothing: `table` — the stored clothing record
 
 ## opx:net:shops:saved [#opx-net-shops-saved]
 

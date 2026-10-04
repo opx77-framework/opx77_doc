@@ -1,34 +1,32 @@
 ---
 title: SetDoorLocked
-description: Locks or unlocks a door, in the first version's boolean spelling.
+description: Locks or unlocks a door with a boolean — the first doorlock version's spelling of SetDoorState.
 ---
 
 <a id="export-server-setdoorlocked" />
 
 ```lua
-local res = exports.opx_infinity:SetDoorLocked(id, locked)
+local res = exports.opx_infinity:SetDoorLocked(ref, locked)
 ```
 
-Scope `write` · must be awaited.
+Scope `write` · must be awaited — a synchronous call answers `export.mustAwait` before touching anything.
 
 **Parameters**
-- id: `integer | string` — ox's door id, or a seeded / carried-over door's old key
+- ref: `integer | string` — door id or seeded key
 - locked: `boolean`
 
-- The same as [`SetDoorState`](/docs/creators/server/setdoorstate), kept for callers of the first version.
+- Same effect as [`SetDoorState`](/docs/creators/server/setdoorstate). Kept for resources written against the first version.
 
 **Returns**
-- the door's new state
+- `locked`
 
 **Errors**
-- `export.badArgument`, `export.callerDenied`, `doorlock.unknownDoor`, `doorlock.badState`
+- `doorlock.unknownDoor`, `doorlock.badState`, `export.badArgument`, `error.unavailable`
 
 ```lua title="Example"
 CreateThread(function()
-  local pending, why = Open77.exports.call('opx_infinity', 'SetDoorLocked', 'legacy_vault', true)
-  if not pending then return print('not sent: ' .. tostring(why)) end
-  local res = pending:await()
-  if not (res and res.ok) then return print('refused: ' .. tostring(res and res.error)) end
-  print('locked')
+  local pending = Open77.exports.call('opx_infinity', 'SetDoorLocked', 'ncpd_front', true)
+  local res = pending and pending:await()
+  if not (res and res.ok) then print('refused: ' .. tostring(res and res.error)) end
 end)
 ```

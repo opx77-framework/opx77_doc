@@ -21,7 +21,7 @@ Nothing secret belongs here: it is sent to every player.
 |---|---|---|
 | <a id="config-shared-locale" />`LOCALE` | `'en'` | Active language of the locale catalogue. English is always the fallback. Shipped: `en`, `fr`. |
 | <a id="config-shared-server-name" />`SERVER_NAME` | `'OPEN//77'` | Title of every toast sent with `OPX.Notify`, and author of every command read-back (`OPX.CommandResult`). |
-| <a id="config-shared-notify-position" />`NOTIFY_POSITION` | `'top-right'` | `position` passed to `Open77.notifications.send` by `OPX.Notify`. Does not move the runtime's own toasts (see [`TOASTS`](#config-client-toasts)). |
+| <a id="config-shared-notify-position" />`NOTIFY_POSITION` | `'top_right'` | `position` passed to `Open77.notifications.send` by `OPX.Notify`: `middle_left`, `top_left`, `top_center`, `top_right`, `bottom_left`, `bottom_center`, `bottom_right`. A hyphen is accepted for the underscore; anything else is logged once and the package default is used. Does not move the runtime's own toasts (see [`TOASTS`](#config-client-toasts)). |
 | <a id="config-shared-money" />`MONEY` | see [MONEY](#money) | Money types. Read by `character`, `inventory` and `admin`. |
 | <a id="config-shared-health" />`HEALTH` | see [HEALTH](#health) | The health pool every character is placed with, in points. Applied by `character`. |
 | <a id="config-shared-av-prefixes" />`AV_PREFIXES` | `{ 'vehicle.av_', 'vehicle.max_tac_av' }` | A TweakDB vehicle record starting with one of these (compared lower-case) is an AV. Read only by [`OPX.Vehicle.IsAvRecord`](/docs/opx_infinity/core/lib#opx-vehicle-isavrecord). An empty list falls back to the shipped pair. |

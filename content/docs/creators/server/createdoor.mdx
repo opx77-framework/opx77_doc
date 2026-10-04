@@ -1,6 +1,6 @@
 ---
 title: CreateDoor
-description: Creates a door, as ox_doorlock's createDoor does.
+description: Creates a managed door, ox_doorlock's createDoor.
 ---
 
 <a id="export-server-createdoor" />
@@ -9,25 +9,30 @@ description: Creates a door, as ox_doorlock's createDoor does.
 local res = exports.opx_infinity:CreateDoor(data)
 ```
 
-Scope `write` · must be awaited.
+Scope `write` · must be awaited — a synchronous call answers `export.mustAwait` before touching anything.
 
 **Parameters**
-- data: `table` — the door, ox_doorlock's door, field by field (see *Door locks* in the opx_infinity README)
+- data: `table` — a door in ox's shape, as on [doorlock](/docs/opx_infinity/doorlock#access)
+  - `native` (one leaf, `0x` + 16 hex digits) or `doors` (two `{ native, coords }`)
+  - `coords`: `{ x, y, z }` — defaults to the middle of a double door
+  - `name?`, `bucket?`, `state?`, `groups?`, `items?`, `characters?`, `passcode?`, `autolock?`, `maxDistance?`, `lockpick?`, `lockpickDifficulty?`, `auto?`, `hideUi?`, `holdOpen?`, `onDuty?`, `lockSound?`, `unlockSound?`
 
-- Validated exactly as a staff save is (a group nobody defined, an item the catalogue does not know, a leaf another door holds are refused), minus the staff member's position.
+- Validated like a staff save (groups and items must exist, a leaf belongs to one door only), without the staff position check. Audited with `ext:<your resource>`.
 
 **Returns**
-- `integer` — the new door's id
+- the new door id
 
 **Errors**
-- `export.badArgument`, `export.callerDenied`, doorlock validation codes
+- `doorlock.bad_door`, `doorlock.bad_<field>`, `doorlock.unknown_group`, `doorlock.unknown_item`, `doorlock.door_taken`, `doorlock.too_many_doors`, `doorlock.not_loaded`, `doorlock.save_failed`, `export.badArgument`, `error.unavailable`
 
 ```lua title="Example"
 CreateThread(function()
-  local pending, why = Open77.exports.call('opx_infinity', 'CreateDoor', { name = 'my_shop back door', native = '0x00000000DEADBEEF', state = 1, groups = { my_shop = 0 } })
-  if not pending then return print('not sent: ' .. tostring(why)) end
-  local res = pending:await()
-  if not (res and res.ok) then return print('refused: ' .. tostring(res and res.error)) end
-  print('door ' .. res.value)
+  local pending = Open77.exports.call('opx_infinity', 'CreateDoor', {
+    name = 'Safehouse', native = '0x00000000ABCDEF01',
+    coords = { x = 10.0, y = 20.0, z = 3.0 },
+    items = { { name = 'door_key', metadata = 'safehouse' } },
+  })
+  local res = pending and pending:await()
+  if res and res.ok then print('door #' .. res.value) else print(res and res.error) end
 end)
 ```

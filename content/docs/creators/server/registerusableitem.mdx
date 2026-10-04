@@ -18,7 +18,13 @@ Scope `write` · await it — answers at once.
 - When a player uses the item, the inventory **holds the slot** and calls `exports.<you>:<export>(source, info)` with `info = { name, slot, count, metadata, label, citizenId }`.
 - Your export answers `{ ok = true, consume = <n>? }` to let the use go ahead (`consume` overrides the item's own, `0` keeps the stack), or `{ ok = false, error = '<code>' }` to refuse it. It may yield (the database, a check); it must answer inside the inventory's handler deadline, or the use is refused and nothing is consumed.
 - An item another owner (a module, or another resource) already handles is `export.usableTaken`.
-- Removed when your resource stops. Give the item a `use` table in its definition if you want the inventory screen to offer *Use*.
+
+<Callout type="warn" title="Answer fast, and stay idempotent">
+
+The inventory waits [`USE_HANDLER_MS`](/docs/opx_infinity/inventory#config-inventory-use-handler-ms) (5 s) for your answer. A handler slower than that is refused (`handler_timeout`) and nothing is consumed — **but your export keeps running**, so an effect it already applied (money paid, a need filled, a door opened) stays applied while the item stays in the bag. Answer quickly, apply your effect last, and make it safe to run twice: the player can use the item again.
+
+</Callout>
+- Removed when your resource stops (not on a `restart` that is already running again: see [When your resource stops](/docs/creators/server#stop)). Give the item a `use` table in its definition if you want the inventory screen to offer *Use*.
 
 **Returns**
 - `true`

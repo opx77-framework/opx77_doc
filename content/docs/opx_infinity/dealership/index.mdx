@@ -36,11 +36,17 @@ A player stands on a dealer marker and presses the key (**E** by default): a cen
 2. The price is taken with `character.RemoveMoney`.
 3. The vehicle is registered with `vehicles.Register`. On failure (`vehicle.limit`, …) the price is refunded. If the refund also fails, the log says so and it must be settled by hand.
 4. A key is cut (`vehiclekeys.Ensure`) when that module runs.
-5. With `HAND_OVER = true` the car is created on the dealer marker, facing its `HEADING` (AVs `AV_LIFT` m higher). A refused hand-over does not undo the sale: the car stays owned and filed.
+5. With `HAND_OVER = true` the car is created on the dealer marker, facing its `HEADING` (AVs `AV_LIFT` m higher). If the marker is taken, it tries one, then two car-widths to either side along the heading. All five taken: the sale still goes through and the buyer is told the car waits in its garage (`dealership.handOverBlocked`). A refused hand-over does not undo the sale: the car stays owned and filed.
+
+- A refund (failed registration) and the seller's commission are paid to the **character**, not the connection: offline or switched, it goes through `AddMoneyOffline`.
+- One purchase per citizen runs at a time (counter, `buy` command and accepted offer share one claim), so `PER_CHARACTER` cannot be passed by racing them.
+- The nearest dealer is searched in the player's own bucket only.
 
 ### Selling to another player
 
 - Inside `ZONE_RADIUS` of a dealer, the target eye shows **Sell a vehicle** on every other player. The seller picks a model; the buyer gets an offer (carrying the dealer's `kind`) and must answer within `OFFER_TIMEOUT_MS`. Both must still be in the zone when the buyer answers.
+- An offer that arrives while the buyer has their own dealership list open waits until that list closes. When an offer expires or the seller leaves, the buyer's offer screen closes ([`opx:net:dealership:withdrawn`](/docs/opx_infinity/dealership/events#opx-net-dealership-withdrawn)).
+- At accept the seller's company is read again; a change refuses the sale with `dealership.sellerNoCompany`.
 - On a yes the buyer picks one of their garages of that kind on their own screen ([`Decide`](/docs/opx_infinity/dealership/client#client-dealership-decide)), resolved in the buyer's bucket; none = the vehicles default garage; an unknown one is refused `dealership.noSuchGarage`. The buyer pays the full price and the sale runs the steps above.
 - The seller's **company** receives the price minus the commission; the seller receives `SELLER_CUT_PERCENT` (rounded down). A commission that cannot be paid to the seller goes to the company.
 - The company is the seller's job (when `COMPANY.JOBS` is on and the job is not in `EXCLUDED`), otherwise their gang (when `COMPANY.GANGS` is on). Neither: refused `dealership.noCompany`.
@@ -139,6 +145,8 @@ Each code is also a locale key. Codes from [`vehicles.Register`](/docs/opx_infin
 | `dealership.noOffer` | No offer waiting, or the token does not match. |
 | `dealership.offerDeclined` / `dealership.offerExpired` | The buyer said no, or did not answer in time. |
 | `dealership.sellerGone` / `dealership.buyerGone` | The other side left or walked out of the zone. |
+| `dealership.sellerNoCompany` | At accept, the seller no longer sells for that company. |
+| `dealership.handOverBlocked` | Not a refusal: every hand-over spot was taken, the car is in its garage. |
 | `dealership.nothingForSale` / `dealership.noList` | Client only: empty stock, or the menu could not open. |
 | `error.noPermission` | Client only: another surface holds the keyboard. |
 | `error.tooFast`, `error.badRequest` | Cooldown or request window; malformed request. |

@@ -88,13 +88,6 @@ Loaded, never opened in front of a player. A new stash must be configured or nam
 - [`AddVehicle`](/docs/creators/server/addvehicle), [`GiveKeys`](/docs/creators/server/givekeys) — write · must be awaited
 - [`HasKeys`](/docs/creators/server/haskeys) — read · sync (await for a citizen id)
 
-## Doors [#doors]
-
-ox_doorlock's server exports, with ox's meaning. No answer ever carries a door's code.
-
-- [`GetDoor`](/docs/creators/server/getdoor), [`GetDoorFromName`](/docs/creators/server/getdoorfromname), [`GetAllDoors`](/docs/creators/server/getalldoors) — read · sync
-- [`SetDoorState`](/docs/creators/server/setdoorstate), [`SetDoorLocked`](/docs/creators/server/setdoorlocked), [`CreateDoor`](/docs/creators/server/createdoor), [`EditDoor`](/docs/creators/server/editdoor), [`RemoveDoor`](/docs/creators/server/removedoor) — write · must be awaited
-
 ## Toasts and bars [#screens]
 
 - [`Notify`](/docs/creators/server/notify) — a toast on one player's screen · write · sync
@@ -106,7 +99,14 @@ ox_doorlock's server exports, with ox's meaning. No answer ever carries a door's
 
 ## When your resource stops [#stop]
 
-Your use handlers, crafting benches and server-started bars go with it. Your runtime items stay in the catalogue (stacks of them are in bags), and everything you wrote stays written.
+Your use handlers, crafting benches and server-started bars go with it. The cleanup runs only if your resource is still not `running` or `starting` when the stop reaches `opx_infinity` (a stop arrives on a later tick): on a `restart` your new instance has usually registered again already, and its registrations replace the old ones rather than being wiped. Register on every start. Your runtime items stay in the catalogue (stacks of them are in bags), and everything you wrote stays written.
+
+## Doors [#doors]
+
+ox_doorlock's server exports under their ox meaning (see [doorlock](/docs/opx_infinity/doorlock)). A door is its integer id, or the key a seeded or carried-over door had. No answer ever carries a door's code.
+
+- [`GetDoor`](/docs/creators/server/getdoor), [`GetDoorFromName`](/docs/creators/server/getdoorfromname), [`GetAllDoors`](/docs/creators/server/getalldoors) — read · sync
+- [`SetDoorState`](/docs/creators/server/setdoorstate), [`SetDoorLocked`](/docs/creators/server/setdoorlocked), [`CreateDoor`](/docs/creators/server/createdoor), [`EditDoor`](/docs/creators/server/editdoor), [`RemoveDoor`](/docs/creators/server/removedoor) — write · must be awaited
 
 ## Examples [#examples]
 

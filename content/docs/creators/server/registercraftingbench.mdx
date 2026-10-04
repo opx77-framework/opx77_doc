@@ -22,7 +22,7 @@ Scope `write` · sync.
   - onDuty?: `boolean` — a job only counts on duty
 
 - A function cannot cross a resource, so the gate is a **job list**, asked on the server every time a player opens or orders.
-- Materials and price are taken, and the order cooks, on the server. Registering the same key again replaces your bench. Removed when your resource stops (orders already placed stay, and come back with the bench).
+- Materials and price are taken, and the order cooks, on the server. Registering the same key again replaces your bench. Removed when your resource stops (not on a `restart` that is already running again: see [When your resource stops](/docs/creators/server#stop)) (orders already placed stay, and come back with the bench).
 - A player opens it with the client export [`OpenCraftingBench`](/docs/creators/client/opencraftingbench).
 
 **Returns**

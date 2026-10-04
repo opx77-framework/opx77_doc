@@ -5,7 +5,7 @@ description: Network, local and host-wide events of the dealership module.
 
 ## opx:net:dealership:ask [#opx-net-dealership-ask]
 
-Client → server. Ask for the dealers of the caller's bucket and the stock. Sent at start and every `POLL_MS`.
+Client → server. Ask for the dealers of the caller's bucket and the stock. Sent at start and every `POLL_MS`. One per player per second is answered.
 
 ```lua
 TriggerServerEvent('opx:net:dealership:ask')
@@ -93,13 +93,24 @@ TriggerServerEvent('opx:net:dealership:decide', token, yes, destKey)
 
 ## opx:net:dealership:settled [#opx-net-dealership-settled]
 
-Server → client. Sent to the seller (or the buyer if the seller left): what became of the offer.
+Server → client. Sent to the seller: what became of the offer. A refused acceptance is reported too.
 
 ```lua
 RegisterNetEvent('opx:net:dealership:settled', function(result) end)
 ```
 
 - result: `table` — `{ ok, error?, entry, model?, cut?, company?, banked? }`
+
+## opx:net:dealership:withdrawn [#opx-net-dealership-withdrawn]
+
+Server → client. Sent to the buyer: the offer ended without their answer (it expired, or the seller left). The client closes the offer screen if `token` is the offer on it.
+
+```lua
+RegisterNetEvent('opx:net:dealership:withdrawn', function(payload) end)
+```
+
+- payload: `table` — `{ token, error }`
+  - `error`: `'dealership.offerExpired'` or `'dealership.sellerGone'`
 
 ## opx:on:dealership:sold [#opx-on-dealership-sold]
 
@@ -126,3 +137,4 @@ AddEventHandler('opx:on:dealership:decision', function(decision) end)
 
 - decision: `table` — `{ ok, error?, entry?, plate?, model?, dealer?, garage?, price?, queued?, commission?, banked?, source }`
   - `source`: `key`, `server`, `client`, `target`, `offer`, `sale` or the caller's `origin`.
+  - `withdrawn`: `true` when the offer was withdrawn by the server.
