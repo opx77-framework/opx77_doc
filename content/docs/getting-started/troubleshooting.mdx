@@ -117,6 +117,65 @@ The devkit validator reports some errors on `opx_infinity` that are **not** real
 | `players.damage.apply` / `players.damage.read` required but not declared | An older spelling the runtime still accepts. The manifest declares the current names, `players.stats.apply` and `players.stats.read`. Do not add the old ones. |
 | `Open77.players.setModel` is in no published server build | True, and handled: see [above](#models). |
 
+## No loading cover, or the HUD stays up during a load [#loading]
+
+### `[loading] this client has no Open77.screen.loadingState; ...`
+
+In the player's client log. The [loading module](/docs/opx_infinity/loading) needs an updated Open77 client. Harmless: nothing is hidden and no cover is shown.
+
+- Ask the player to update their client.
+
+### `[loading] the loading state was refused: permission_denied`
+
+`screen.read` is missing from `open77.lua`.
+
+- Restore the shipped manifest permission.
+
+## Door locks [#doorlock]
+
+### `[doorlock] BACKEND = 'networked' but open77_doors is not running: ...`
+
+Every lock falls back to the **local** backend.
+
+- Add `open77_doors` to `resources.load`. Note that `open77_doors` depends on `open77_elevators`, which takes the lifts away from the [elevators module](/docs/opx_infinity/elevators).
+
+### `[doorlock] ready: N door(s), M refused, backend local`
+
+The local backend only locks each client's own copy of the door: a modified client can walk through. Use `networked` for doors that matter. See [Backends](/docs/opx_infinity/doorlock#backends).
+
+### `[doorlock] config: DOORS.<key> refused: <code>`
+
+A door in `config/doorlock.lua` is invalid and was skipped. Also `saved door #<id> refused` for a row in the database.
+
+- Fix the door; the code is in the [refusal codes](/docs/opx_infinity/doorlock#codes).
+
+### Admins are asked for the code
+
+By design since PR #86. Grant `opx.doorlock.bypass` **and** set [`STAFF_BYPASS = true`](/docs/opx_infinity/doorlock#config-doorlock-staff-bypass), or grant one door with the right `doorlock.<id>`. Staff holding `command.opx.doorlock.save` can read the code in the panel.
+
+## Staff immunity does nothing [#immune]
+
+`opx.admin.immune`, `opx.admin.override` and `opx.admin.vehicle.anywhere` are raw rights, not `command.*` names: a role granted `command.*` does not hold them.
+
+- Add each one to the role in `acl.jsonc` explicitly. See [Raw rights](/docs/opx_infinity/admin#raw-rights).
+- A typed vehicle id answering `vehicle_out_of_reach`: grant `opx.admin.vehicle.anywhere` or raise [`VEHICLES.REACH`](/docs/opx_infinity/admin#config-admin-vehicles).
+
+## Emotes with a nearby player missing [#animations]
+
+### `[animations] Open77.playerInteractions is unavailable ...`
+
+No emote with a nearby player is offered.
+
+- Start `open77_player_interactions` and keep `players.interactions.control` in the manifest.
+
+### `[animations] Open77.animations.list is unavailable; only the written catalogue is offered`
+
+`open77_animations` is missing or the build is old: only the 15 written animations are offered.
+
+## Holocalls refused with `notContact` [#calls]
+
+Calls go to contacts only. Players swap contacts face to face first; offering it again to the same player waits 30 s (`contactTooSoon`). See [calls](/docs/opx_infinity/calls).
+
 ## Useful commands [#commands]
 
 | Command | Where | Prints |

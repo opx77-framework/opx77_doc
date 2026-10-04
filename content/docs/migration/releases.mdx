@@ -5,6 +5,113 @@ description: What changed in opx_infinity and opx_lib, newest first, starting wi
 
 Newest first. The version is the one in each resource's `open77.lua`.
 
+## opx_infinity — PRs #58–#87 (2026-10-02 to 2026-10-04) [#infinity-58-87]
+
+Merged into `main`; the manifest version is still `0.1.2`. One table per group of PRs, newest first. Before updating a running server, read [Upgrading from PR #57](#upgrade-58-87).
+
+### Animations with everyone (PR #87) [#infinity-87]
+
+| Change | Pages |
+|---|---|
+| The emote picker (F3, `/e`) offers **every platform animation**: 104 on op77.123, in 12 families (Sitting, Dance and music, Work, On the move…). Animations a newer build adds appear at the next start. One-shot gestures (wave, shrug…) play once for their real length; the picker shows 16 per page and has a search. | [animations](/docs/opx_infinity/animations), [catalogue](/docs/opx_infinity/animations/catalogue) |
+| **Emotes with a nearby player**: carry or be carried, escort, hand something over, look after someone, two shortcuts, or any two animations, one each. From the picker's *With a nearby player* or `/e with <move\|name> [name]`. | [With a nearby player](/docs/opx_infinity/animations#duo) |
+| The nearest player within 3 m is invited and answers from a menu or with `/e accept` / `/e decline`; an invitation expires after 15 s, the distance is checked again on accept, and the stop key ends the pair for both. Invitations count against `RATE_LIMIT`. | [animations](/docs/opx_infinity/animations#duo) |
+| New config `PLATFORM` and `SHARED`; `DISABLED` also takes platform profile ids and paired-move ids. New events `opx:net:animations:duo`, `invite`, `uninvite`, `reply`, `notice`; `offer` now arrives in parts. | [Configuration](/docs/opx_infinity/animations#configuration), [Events](/docs/opx_infinity/animations/events) |
+
+### Door locks (PRs #70, #80, #86) [#infinity-doorlock]
+
+| Change | Pages |
+|---|---|
+| New module **doorlock**, a port of ox_doorlock: doors open by job, gang, grade, key item, character or code. Press E at the door or use the eye's *Lock door* / *Unlock door*. Doors can relock themselves and play a sound. | [doorlock](/docs/opx_infinity/doorlock) |
+| A pickable door takes a lockpick: one progress bar per step, the rolls are made by the server. The lockpick must still be in the bag, and the player not down, when the attempt ends. | [At a door](/docs/opx_infinity/doorlock#player) |
+| Staff panel: `/opx.doorlock [closest]`, the F9 *World → Manage door locks* row or the eye's *Manage door*. A searchable, paged table of doors; settings in tabs (General, Characters, Groups, Items, Lockpick, Sound); *Pick in world*, *Give me a key*, copy and apply settings. | [Staff panel](/docs/opx_infinity/doorlock#staff-panel) |
+| Admins are asked for the key or code like anyone else. The bypass is the plain right `opx.doorlock.bypass` and only works with `STAFF_BYPASS = true` (off by default). Staff holding `command.opx.doorlock.save` see the door's code in the panel. | [Who may turn a door](/docs/opx_infinity/doorlock#access) |
+| Two backends: `networked` (the platform's `open77_doors`, refused to everyone server-side) and `local` (each client holds its own copy — weaker). | [Backends](/docs/opx_infinity/doorlock#backends) |
+| Doors saved by the first version carry over at boot; keys already cut keep opening their door. | [Migration](/docs/opx_infinity/doorlock#migration) |
+| Creator exports `GetDoor`, `GetDoorFromName`, `GetAllDoors`, `SetDoorState`, `SetDoorLocked`, `CreateDoor`, `EditDoor`, `RemoveDoor`, and the public server event `opx:on:doorlock:changed`. | [Server exports → Doors](/docs/creators/server#doors), [Events](/docs/creators/events#opx-on-doorlock-changed) |
+
+### Staff tools (PRs #67, #79, #82, #83) [#infinity-staff]
+
+| Change | Pages |
+|---|---|
+| Staff menu lists are paged at 20 rows and redraw on their own thread; screens built over a whole catalogue no longer close the menu. | [admin](/docs/opx_infinity/admin) |
+| New raw rights `opx.admin.immune` (staff commands refuse you, `target_protected`) and `opx.admin.override` (act on an immune player, audited). `command.*` grants do not include them. | [Raw rights](/docs/opx_infinity/admin#raw-rights) |
+| Grants are narrower: bag commands on a weapon item also need the matching `weapon.*` command; observe without `self.noclip` ends after 2 minutes; a typed vehicle id must be within [`VEHICLES.REACH`](/docs/opx_infinity/admin#config-admin-vehicles) (100 m) unless you hold `opx.admin.vehicle.anywhere`; `player.health 0` needs the kill grant (`kill_not_granted`). | [What a grant does not imply](/docs/opx_infinity/admin#grant-limits) |
+| One heavy request per operator at a time (`busy`); one announcement per 10 s server-wide ([`ANNOUNCE.COOLDOWN_MS`](/docs/opx_infinity/admin#config-admin-announce)). Bag views, character lists and finds are audited. | [admin](/docs/opx_infinity/admin#codes) |
+| A prompt shown to `-1` is refused instead of reaching everyone; the pause key asks a `dismiss = 'ask'` panel before closing it; the menu spec takes `yield` for long lists. | [prompts](/docs/opx_infinity/prompts/server), [panel](/docs/opx_infinity/panel/client), [menu](/docs/opx_infinity/menu/client) |
+
+### Vehicles, places and world (PRs #69, #78, #81, #85) [#infinity-world]
+
+| Change | Pages |
+|---|---|
+| Holocalls go to **contacts only**; offering your contact again to the same player waits 30 s. A 3-way leave says who hung up. | [calls](/docs/opx_infinity/calls) |
+| Dealership: the offer screen closes when the offer is withdrawn (new `opx:net:dealership:withdrawn`); a bought car is handed over beside the dealer if the spot is taken, or waits in your garage. Refunds and commissions reach the right character, even offline. | [dealership](/docs/opx_infinity/dealership) |
+| Garages refuse to store a car with passengers (`garages.passengers`). Cars out at a server stop keep their condition. | [garages](/docs/opx_infinity/garages), [vehicles](/docs/opx_infinity/vehicles) |
+| Hauling only sells from a truck you own or hold a key to (new server contract `vehiclekeys.Holds`). | [hauling](/docs/opx_infinity/hauling), [vehiclekeys](/docs/opx_infinity/vehiclekeys/server) |
+| Lifts: E away from a lift says nothing; lifts no longer go dead after 10 minutes and are reclaimed after a restart; a downed player cannot ride. Teleport pads no longer stick on "already on your way". `weather.SetTime` is validated. | [elevators](/docs/opx_infinity/elevators), [teleports](/docs/opx_infinity/teleports), [weather](/docs/opx_infinity/weather/server) |
+| Creators: one marker, key and scan helper for every spot module, `OPX.Spots.*` (`lib/client/spots.lua`). | [Spots on the client](/docs/opx_infinity/core/lib#opx-spots-markers-new) |
+
+### Inventory and economy (PRs #65, #68, #74, #76) [#infinity-inventory]
+
+| Change | Pages |
+|---|---|
+| The inventory key just opens the bag; it never picks up a pile you stand next to. | [inventory](/docs/opx_infinity/inventory) |
+| Every droppable item shows a pile prop the platform hosts (`MODEL` aliases; a weapon on the ground is a decorative prop). | [Pile models](/docs/opx_infinity/inventory/items#pile-models) |
+| Bags, trunks and stashes with more than 12 stacks save again. An item in use cannot be moved, split, sorted or used twice (`in_use`); moving a drawn weapon puts it away first (`holstering`). You only see piles in your own instance (new `opx:net:inventory:bucket`). | [inventory](/docs/opx_infinity/inventory#codes), [Events](/docs/opx_infinity/inventory/events#opx-net-inventory-bucket) |
+| A money hook can no longer let one balance pay twice; crafting queues cannot exceed their cap; shop doors and the gunsmith chest have cooldowns; lockpicks are re-checked when an attempt ends. | [character](/docs/opx_infinity/character/server), [crafting](/docs/opx_infinity/crafting), [gunsmith](/docs/opx_infinity/gunsmith) |
+
+### Appearance and body (PRs #64, #66, #75, #77) [#infinity-body]
+
+| Change | Pages |
+|---|---|
+| Joining no longer drops your face or leaves you in the default look: the face goes on once the platform has reset the body. A character switch or a resource restart no longer leaves you invisible to others. | [Joining the world](/docs/opx_infinity/appearance#join) |
+| Fitting-room purchases are billed **by the server** before the look is saved: if you cannot pay, your old clothes come back; if the save fails, you are refunded. Saved outfits and share codes grant one save of exactly that look. | [shops](/docs/opx_infinity/shops), [appearance server](/docs/opx_infinity/appearance/server) |
+| Your look is sent to others at most every 2 s, and an unchanged look is not sent again. Quitting while down no longer gives a free revive. | [appearance events](/docs/opx_infinity/appearance/events), [downed](/docs/opx_infinity/downed) |
+
+### Client budget (PRs #63, #84, #85) [#infinity-budget]
+
+| Change | Pages |
+|---|---|
+| Callbacks that ran past the client's per-resume instruction budget were split: the staff search no longer closes the menu, F9 no longer needs two presses. Joining, blips, the fitting room, panels, chat commands and garage lists are lighter. | [Two runtimes](/docs/opx_infinity/concepts/two-runtimes#budget) |
+| For module authors: keep handlers cheap and yield in loops; the test suite has a budget meter. | [Writing a module](/docs/guides/writing-a-module#budget), [Contributing](/docs/guides/contributing#budget-meter) |
+
+### Core and WebUI audit (PRs #71, #72, #73) [#infinity-core-audit]
+
+| Change | Pages |
+|---|---|
+| Server toasts appear at the configured position ([`NOTIFY_POSITION`](/docs/opx_infinity/core/config#config-shared-notify-position), now `top_right`); a long toast is cut (title 96 bytes, message 384) instead of refused. | [OPX.Notify](/docs/opx_infinity/core/server#opx-notify) |
+| A refused gate release is retried, so players are not left on the loading screen. On client stop, keyboard and cursor are released first ([`OPX.UI.ReleaseAllFocus`](/docs/opx_infinity/core/client#opx-ui-releaseallfocus)); `Modules.Stop` yields between modules. | [core](/docs/opx_infinity/core) |
+| Both export halves go through one shared gate, [`OPX.Export`](/docs/opx_infinity/core/shared#opx-export-ok); export audit lines are kept per calling resource. | [core shared](/docs/opx_infinity/core/shared) |
+| The WebUI bundle is 12% lighter; payload hardening (`records()`, `own()`) and focus fixes (hologram, an unclosable menu, keys meant for a view opened over the menu). | [The WebUI page](/docs/opx_infinity/concepts/webui#payloads) |
+
+### Loading screen (PR #62) [#infinity-62]
+
+| Change | Pages |
+|---|---|
+| New module **loading** (`config/loading.lua`): the HUD and other views step aside during the game's own loading screen, and loads in play (teleport, lift, respawn) get the OPX cover with progress. The join never shows the cover. Needs an updated client and the `screen.read` permission. | [loading](/docs/opx_infinity/loading) |
+
+### Exports, eye and menu fixes (PRs #58–#61) [#infinity-58-61]
+
+| Change | Pages |
+|---|---|
+| Creator exports are published on hosts where `exports` is a callable table (Open77). Before, the boot log said the host had no `exports` and nothing was published. | [For creators](/docs/creators) |
+| The target eye: the row under the pointer steps out like the menu's chosen row, and every row of a column appears together. | [target](/docs/opx_infinity/target) |
+| A menu reopened by a form's Enter no longer fires the row under the cursor: a late press waits for its release. | [menu](/docs/opx_infinity/menu) |
+
+### Upgrading from PR #57 [#upgrade-58-87]
+
+Most of this is drop-in. Check these:
+
+| What | Do |
+|---|---|
+| `SHARED.NOTIFY_POSITION = 'top-right'` | Now spelled `'top_right'`; the hyphen is still accepted. |
+| `config/doorlock.lua` from PR #70 | Rewritten in PR #80: `LOCKPICK.ITEM` → `LOCKPICK.ITEMS` (list), `LOCKPICK.DEFAULT_DIFFICULTY` → `LOCKPICK.DEFAULT`, `LOCKPICK.BREAK_CHANCE` → `{ SUCCESS, FAIL }`, `SOUNDS` → `{ LIST, DEFAULT = { LOCK, UNLOCK } }`; in `DOORS`, `X`/`Y`/`Z` → `COORDS`, `LOCKED` → `STATE`, `DIFFICULTY` → `LOCKPICK_DIFFICULTY`. Saved doors carry over. See [Migration from the first table](/docs/opx_infinity/doorlock#migration). |
+| Staff opening every door | `STAFF_BYPASS` is now `false` and the right is `opx.doorlock.bypass` (was `command.opx.doorlock.bypass`). Grant it and set `STAFF_BYPASS = true` to keep the old behaviour. |
+| Staff immunity | `opx.admin.immune`, `opx.admin.override` and `opx.admin.vehicle.anywhere` are raw rights: add them to `acl.jsonc` explicitly. |
+| New config | `config/loading.lua`; `admin`: `PLACEMENT.OBSERVE_MS`, `ANNOUNCE.COOLDOWN_MS`, `VEHICLES.REACH`, `LINKS.DOORLOCK`; `animations`: `PLATFORM`, `SHARED`. Missing keys take their defaults. |
+| Removed for module code | `OPX.UI.Serve` (use `OPX.UI.On` plus `OPX.UI.Answer`), `OPX.Surface.HasFocus`, the local event `opx:on:chat:submitted`, the net events `opx:net:shops:bill` and `opx:net:shops:restore`; admin codes `bad_amount`, `bad_type`, `vetoed`, `doors_unavailable`. |
+| Changed signatures | `appearance.OpenWardrobe(playerId, options)` and `AllowClothingSave(playerId, owner, options)` take `options`; `weather.SetTime` returns a Result; `opx:net:animations:offer` arrives in parts. |
+
 ## opx_infinity — documentation audit fixes (PR #57, 2026-10-02) [#infinity-57]
 
 Merged into `main`; the manifest version is still `0.1.2`.
