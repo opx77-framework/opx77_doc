@@ -14,6 +14,10 @@ Draws one list menu at a time: a titled strip of rows the player moves through w
 | Config | `config/menu.lua` (shared) |
 | Data | none |
 
+- When a form's Enter reopens a menu (a staff search, for example), Enter and Backspace that are still held during the first four key polls must be released before they act, so the reopened menu does not fire the row under the cursor.
+- With `focus = 'none'`, polled keys run the owner's callback on their own thread, not inside the scheduler's shared resume.
+- A menu opened from inside another view's close callback is no longer orphaned.
+
 ## Configuration
 
 `config/menu.lua` sets `OPX.Config.MODULES.menu`. Shared script. Defaults a spec may override per menu.
