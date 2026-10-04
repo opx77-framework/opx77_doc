@@ -1,4 +1,4 @@
 {
   "title": "progress",
-  "pages": ["index", "client", "events"]
+  "pages": ["index", "client", "server", "events"]
 }

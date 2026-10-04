@@ -149,6 +149,14 @@ Client, local.
 AddEventHandler('opx:on:character:gang', function(gang) end)
 ```
 
+## opx:on:character:created [#opx-on-character-created]
+
+Server, host-wide. A character row was made: `(playerId, { citizenId, userId, slot })`. See [Public server events](/docs/creators/events#opx-on-character-created).
+
+## opx:on:character:deleted [#opx-on-character-deleted]
+
+Server, host-wide. A character was deleted (soft): `(playerId?, { citizenId, userId, by })`. Raised after the module's own cascade (`opx:in:character:deleted`). See [Public server events](/docs/creators/events#opx-on-character-deleted).
+
 ## Server side
 
 - The `opx:on:character:*` events above are client events: only client code inside opx_infinity hears them.

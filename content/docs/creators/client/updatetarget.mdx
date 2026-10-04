@@ -1,0 +1,26 @@
+---
+title: UpdateTarget
+description: Changes some fields of one of your eye rows.
+---
+
+<a id="export-client-updatetarget" />
+
+```lua
+local res = exports.opx_infinity:UpdateTarget(token, patch)
+```
+
+Sync.
+
+**Parameters**
+- token: `string` — from [`AddTarget`](/docs/creators/client/addtarget)
+- patch: `table` — the fields to change; callbacks as in `AddTarget`
+
+**Returns**
+- `{ token }` — the row's new token
+
+**Errors**
+- `export.ownerTaken`, `export.badArgument`, target codes
+
+```lua title="Example"
+exports.opx_infinity:UpdateTarget(token, { label = 'Browse the stall (closed)' })
+```

@@ -1,0 +1,26 @@
+---
+title: UpdatePanel
+description: Patches your open panel.
+---
+
+<a id="export-client-updatepanel" />
+
+```lua
+local res = exports.opx_infinity:UpdatePanel(handle, patch)
+```
+
+Sync.
+
+**Parameters**
+- handle: `integer`
+- patch: `table` — fields of the panel spec an update may carry
+
+**Returns**
+- `true`
+
+**Errors**
+- `stale_handle`, `unknown_field`, `export.badArgument`
+
+```lua title="Example"
+exports.opx_infinity:UpdatePanel(handle, { status = { text = 'Sold out' } })
+```

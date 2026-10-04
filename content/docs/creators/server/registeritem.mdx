@@ -1,0 +1,50 @@
+---
+title: RegisterItem
+description: Adds an item to the catalogue while the server runs, on the server and every client.
+---
+
+<a id="export-server-registeritem" />
+
+```lua
+local res = exports.opx_infinity:RegisterItem(name, definition)
+```
+
+Scope `write` · await it — answers at once.
+
+**Parameters**
+- name: `string` — letters, digits, `_ - .`, up to 48 characters
+- definition: `table` — every field optional
+  - label?: `string` — your text, or a locale key; up to 160 characters
+  - description?: `string`
+  - weight?: `integer` — grams, 0–1 000 000 000; default the inventory's `DEFAULT_ITEM_WEIGHT`
+  - stack?: `boolean` — default `true`
+  - drop?: `boolean` — default `true`; `false` refuses a drop on the server
+  - category?: `string` — word characters; never `weapon` or `ammo`
+  - image?: `string` — an image file name of the inventory page
+  - model?: `string` — a curated `Open77.props` alias for a pile on the ground, never a `.mesh` path
+  - use?: `table` — makes it usable: `{ consume?, close?, status?, animation? = { name, variant?, durationMs? } }`
+    - status?: `{ [need] = amount }` — at most **8** needs, each name up to 32 characters (`bad_definition:use.status` past that): every client walks it inside the one resume that received it
+
+- Validated **whole** by the catalogue's own `Catalog.Register`, which every client runs on the same table; the first wrong field refuses it (`bad_definition:<field>`, `bad_definition:field:<name>` for a field the catalogue does not know).
+- Sent to every client at once, four items per event, and to a client that joins later when it says hello.
+- A name config or another resource already holds is `item_taken`. **Your own** name may be registered again, which replaces it.
+- At most [`SERVER.EXPORTS.ITEMS.MAX_PER_CALLER`](/docs/opx_infinity/core/config#config-server-exports) items per resource (64): `item_cap`.
+- **Not persisted**, and not removed when your resource stops (stacks of it are in bags): register your items again on every start.
+- To decide what using it does, add [`RegisterUsableItem`](/docs/creators/server/registerusableitem).
+
+**Returns**
+- `table` — the item as [`GetItem`](/docs/creators/server/getitem) answers it
+
+**Errors**
+- `bad_name`, `item_taken`, `item_cap`, `bad_definition:<field>`, `export.badArgument`, `export.callerDenied`
+
+```lua title="Example"
+AddEventHandler('onResourceStart', function(name)
+  if name ~= GetCurrentResourceName() then return end
+  local res = exports.opx_infinity:RegisterItem('burger', {
+    label = 'Burger', weight = 250, category = 'food',
+    use = { consume = 1, status = { hunger = 25 } },
+  })
+  if not res.ok then print('burger refused: ' .. res.error) end
+end)
+```

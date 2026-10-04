@@ -65,3 +65,11 @@ AddEventHandler('opx:on:crafting:state', function(state) end)
 ```
 
 - state: `table` — `{ open = true, bench }` or `{ open = false, reason }`
+
+## opx:on:crafting:ordered [#opx-on-crafting-ordered]
+
+Server, host-wide. An order placed: `(playerId, { citizenId, bench, recipe, item, count, seconds, price, money?, order })`. See [Public server events](/docs/creators/events#opx-on-crafting-ordered).
+
+## opx:on:crafting:collected [#opx-on-crafting-collected]
+
+Server, host-wide. A finished order handed over: `(playerId, { citizenId, bench, recipe, item, count, order })`.

@@ -3,14 +3,14 @@ title: progress
 description: A timed-action bar that holds the player still, optionally plays a gesture, and reports how it ended.
 ---
 
-Shows a timed-action bar ("Eating", "Picking the lock") for a few seconds. While it runs the player cannot move or attack (when `LOCK` is on) and an optional animation plays. Only one bar runs at a time. `Start` answers at once whether the bar is up; the outcome arrives later on [`opx:on:progress:done`](/docs/opx_infinity/progress/events#opx-on-progress-done). Server code starts a bar on one client with a net event.
+Shows a timed-action bar ("Eating", "Picking the lock") for a few seconds. While it runs the player cannot move or attack (when `LOCK` is on) and an optional animation plays. Only one bar runs at a time. `Start` answers at once whether the bar is up; the outcome arrives later on [`opx:on:progress:done`](/docs/opx_infinity/progress/events#opx-on-progress-done). Server code starts a bar on one client through the [server contract](/docs/opx_infinity/progress/server), and the server judges how it ended.
 
 | | |
 |---|---|
-| Side | both (all logic is client-side; the server has no contract) |
+| Side | both (the bar is client-side; the server starts numbered bars and judges them) |
 | Requires | none |
 | Optional | `downed`, `animations` |
-| Contract | `progress` v1 — [client](/docs/opx_infinity/progress/client) |
+| Contract | `progress` v1 — [client](/docs/opx_infinity/progress/client), [server](/docs/opx_infinity/progress/server) |
 | Config | `config/progress.lua` (shared) |
 | Data | none |
 

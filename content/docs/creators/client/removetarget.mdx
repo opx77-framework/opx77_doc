@@ -1,0 +1,27 @@
+---
+title: RemoveTarget
+description: Removes one or several of your eye rows.
+---
+
+<a id="export-client-removetarget" />
+
+```lua
+local res = exports.opx_infinity:RemoveTarget(tokens)
+```
+
+Sync.
+
+**Parameters**
+- tokens: `string | string[]`
+
+- A list is removed whole or not at all. Another resource's token is refused.
+
+**Returns**
+- `true`
+
+**Errors**
+- `export.ownerTaken`, `export.badArgument`, target codes
+
+```lua title="Example"
+exports.opx_infinity:RemoveTarget(token)
+```

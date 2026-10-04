@@ -1,0 +1,28 @@
+---
+title: GetJobs
+description: Lists every job this server defines, with its grades.
+---
+
+<a id="export-server-getjobs" />
+
+```lua
+local res = exports.opx_infinity:GetJobs()
+```
+
+Scope `read` · sync.
+
+- From the character config (`JOBS`). Grades are a **list** ordered by level, each carrying its `level`: a table keyed from 0 does not cross an export as a list.
+- Sorted by name.
+
+**Returns**
+- `table[]` — `{ name, label, type, defaultDuty, grades = { { level, name, payment, isBoss } } }`
+
+**Errors**
+- `error.unavailable`
+
+```lua title="Example"
+local res = exports.opx_infinity:GetJobs()
+for _, job in ipairs(res.value) do
+  print(job.name, job.label, #job.grades .. ' grades')
+end
+```

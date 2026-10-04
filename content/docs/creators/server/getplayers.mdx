@@ -1,0 +1,33 @@
+---
+title: GetPlayers
+description: Lists the loaded characters, optionally by job, gang or duty.
+---
+
+<a id="export-server-getplayers" />
+
+```lua
+local res = exports.opx_infinity:GetPlayers(filter)
+```
+
+Scope `read` · sync.
+
+**Parameters**
+- filter?: `table`
+  - job?: `string` — only characters whose primary job is this one
+  - gang?: `string` — only characters whose primary gang is this one
+  - onDuty?: `boolean` — only on duty (`true`) or off duty (`false`)
+
+- A roster row is never a balance or metadata: use [`GetPlayerData`](/docs/creators/server/getplayerdata) for one player.
+- Sorted by player id.
+
+**Returns**
+- `table[]` — `{ source, citizenId, firstName, lastName, job, gang }` per character
+
+**Errors**
+- `export.badArgument`, `error.unavailable`
+
+```lua title="Example"
+local res = exports.opx_infinity:GetPlayers({ job = 'ncpd', onDuty = true })
+local cops = res.ok and #res.value or 0
+if cops < 2 then return print('not enough officers on duty for a heist') end
+```

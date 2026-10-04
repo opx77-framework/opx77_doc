@@ -307,6 +307,34 @@ character.SetMetadata(identifier, key, value)
 **Returns**
 - `boolean`
 
+## ReadMetadata [#server-character-readmetadata]
+
+A character's whole metadata, online or not. Yields for an offline one (the row is read).
+
+```lua
+character.ReadMetadata(citizenId)
+```
+
+**Returns**
+- `Result` — `{ metadata, offline }` (a copy); error `character.notFound`
+
+## WriteMetadata [#server-character-writemetadata]
+
+Writes one metadata key of a character, online or not, held in the offline ledger like `AddMoneyOffline`. Yields. Online, it is written in memory through `SetMetadata`; offline, one key of the row (`JSON_SET` / `JSON_REMOVE` on a quoted path).
+
+```lua
+character.WriteMetadata(citizenId, key, value, check)
+```
+
+**Parameters**
+- citizenId: `string`
+- key: `string` — `[A-Za-z0-9_.-]`, up to 128 bytes
+- value: `any` — plain data, or `nil` to remove the key
+- check?: `function` — `check(metadata)` with the metadata as it stands at the write; a string answer refuses with that code
+
+**Returns**
+- `Result` — `{ offline }`; errors `character.notFound`, `error.badRequest`, `error.unavailable`, or `check`'s code
+
 ## SetName [#server-character-setname]
 
 **Write-once**: refused with `character.nameSet` if a name exists. Each half is checked against `CHARACTERS.NAME`. Yields (saves at once).
@@ -552,6 +580,20 @@ character.GetGroupMembers(groupType, name)
 
 **Returns**
 - `Result` — `{ citizenId, grade, name }[]`
+
+## ListGroups [#server-character-listgroups]
+
+Every job or gang this server defines, as a list: each with its grades as a list ordered by level. A copy. Never yields.
+
+```lua
+character.ListGroups(groupType)
+```
+
+**Parameters**
+- groupType: `'job' | 'gang'`
+
+**Returns**
+- `table[]?` — `{ name, label, type, defaultDuty, grades = { { level, name, payment, isBoss } } }`; `nil` for another group type
 
 ## ListCharacters [#server-character-listcharacters]
 

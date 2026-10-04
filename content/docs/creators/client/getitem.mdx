@@ -1,0 +1,27 @@
+---
+title: GetItem
+description: Reads one catalogue entry on the client.
+---
+
+<a id="export-client-getitem" />
+
+```lua
+local res = exports.opx_infinity:GetItem(item)
+```
+
+Sync.
+
+**Parameters**
+- item: `string`
+
+- Includes items registered at runtime.
+
+**Returns**
+- `table?` — as the server [`GetItem`](/docs/creators/server/getitem)
+
+**Errors**
+- `export.badArgument`
+
+```lua title="Example"
+local res = exports.opx_infinity:GetItem('water')
+```

@@ -1,0 +1,27 @@
+---
+title: GetItemCount
+description: Counts an item in the local player's bag.
+---
+
+<a id="export-client-getitemcount" />
+
+```lua
+local res = exports.opx_infinity:GetItemCount(item)
+```
+
+Sync.
+
+**Parameters**
+- item: `string`
+
+- From the bag the client was last sent.
+
+**Returns**
+- `integer`
+
+**Errors**
+- `export.badArgument`
+
+```lua title="Example"
+local res = exports.opx_infinity:GetItemCount('lockpick')
+```

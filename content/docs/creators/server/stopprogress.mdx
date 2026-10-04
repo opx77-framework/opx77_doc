@@ -1,0 +1,28 @@
+---
+title: StopProgress
+description: Takes down a bar you started from the server.
+---
+
+<a id="export-server-stopprogress" />
+
+```lua
+local res = exports.opx_infinity:StopProgress(source, id)
+```
+
+Scope `write` · sync.
+
+**Parameters**
+- source: `number`
+- id?: `integer` — only that bar
+
+- Ends it `stopped`; the outcome is still announced.
+
+**Returns**
+- `true`
+
+**Errors**
+- `progress_not_active`, `not_owner`, `export.badArgument`, `export.callerDenied`
+
+```lua title="Example"
+exports.opx_infinity:StopProgress(playerId)
+```

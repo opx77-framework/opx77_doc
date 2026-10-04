@@ -1,0 +1,31 @@
+---
+title: GetVehicle
+description: Reads one owned vehicle by its plate.
+---
+
+<a id="export-server-getvehicle" />
+
+```lua
+local res = exports.opx_infinity:GetVehicle(plate)
+```
+
+Scope `read` · must be awaited.
+
+**Parameters**
+- plate: `string` — letters, digits and `-`, up to 12
+
+**Returns**
+- `table` — `{ plate, citizenId, record, garage, state, health, spawned }`; `state` is `'stored'`, `'out'` or `'impounded'`
+
+**Errors**
+- `vehicle.notFound`, `export.badArgument`, `export.mustAwait`
+
+```lua title="Example"
+CreateThread(function()
+  local pending, why = Open77.exports.call('opx_infinity', 'GetVehicle', '12ABC345')
+  if not pending then return print('not sent: ' .. tostring(why)) end
+  local res = pending:await()
+  if not (res and res.ok) then return print('refused: ' .. tostring(res and res.error)) end
+  print(res.value.citizenId, res.value.state, res.value.garage)
+end)
+```

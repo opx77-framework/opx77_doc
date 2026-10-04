@@ -1,0 +1,27 @@
+---
+title: UnregisterCraftingBench
+description: Removes one of your crafting benches.
+---
+
+<a id="export-server-unregistercraftingbench" />
+
+```lua
+local res = exports.opx_infinity:UnregisterCraftingBench(key)
+```
+
+Scope `write` · sync.
+
+**Parameters**
+- key: `string` — your key, as you registered it
+
+- Only `<your resource>:<key>`: another resource's bench is never named.
+
+**Returns**
+- `boolean` — whether a bench went
+
+**Errors**
+- `not_owner`, `export.badArgument`, `export.callerDenied`
+
+```lua title="Example"
+exports.opx_infinity:UnregisterCraftingBench('bar')
+```

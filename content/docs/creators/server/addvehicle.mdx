@@ -1,0 +1,37 @@
+---
+title: AddVehicle
+description: "Gives a character a vehicle: a row in the garage, owned by them."
+---
+
+<a id="export-server-addvehicle" />
+
+```lua
+local res = exports.opx_infinity:AddVehicle(target, record, options)
+```
+
+Scope `write` · must be awaited.
+
+**Parameters**
+- target: `number | string` — a loaded player id, or a citizen id
+- record: `string` — a TweakDB vehicle record, `Vehicle.v_sport2_quadra_type66`
+- options?: `table`
+  - garage?: `string` — where it is stored; default the vehicles module's `DEFAULT_GARAGE`
+
+- Through the vehicles module: a fresh plate, `PER_CHARACTER` holds (`vehicle.limit`), and [`opx:on:vehicles:registered`](/docs/creators/events#opx-on-vehicles-registered) is raised.
+- No key is cut: add [`GiveKeys`](/docs/creators/server/givekeys).
+
+**Returns**
+- `table` — the new vehicle, as [`GetVehicle`](/docs/creators/server/getvehicle)
+
+**Errors**
+- `vehicle.limit`, `vehicle.badRecord`, `export.badArgument`, `export.callerDenied`
+
+```lua title="Example"
+CreateThread(function()
+  local pending, why = Open77.exports.call('opx_infinity', 'AddVehicle', playerId, 'Vehicle.v_sport2_quadra_type66', { garage = 'city' })
+  if not pending then return print('not sent: ' .. tostring(why)) end
+  local res = pending:await()
+  if not (res and res.ok) then return print('refused: ' .. tostring(res and res.error)) end
+  print('new plate ' .. res.value.plate)
+end)
+```

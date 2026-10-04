@@ -50,3 +50,25 @@ AddEventHandler('opx:on:vehicles:stored', function(playerId, data) end)
 
 - playerId?: `number`
 - data: `table` — `{ citizenId, plate, garage }`, or `{ citizenId, plate, removed }` (`removed` says why)
+
+## opx:on:vehicles:registered [#opx-on-vehicles-registered]
+
+Server, host-wide. A vehicle row was made for a character (`Register`: a dealer sale, the `AddVehicle` export, a staff give).
+
+```lua
+AddEventHandler('opx:on:vehicles:registered', function(playerId, data) end)
+```
+
+- playerId?: `number`
+- data: `{ citizenId, plate, record, garage }`
+
+## opx:on:vehicles:state [#opx-on-vehicles-state]
+
+Server, host-wide. `SetState` moved a vehicle to stored or impounded.
+
+```lua
+AddEventHandler('opx:on:vehicles:state', function(playerId, data) end)
+```
+
+- playerId?: `number`
+- data: `{ citizenId, plate, state, garage }`

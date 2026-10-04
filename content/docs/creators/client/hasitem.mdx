@@ -1,0 +1,26 @@
+---
+title: HasItem
+description: Whether the local player's bag holds some units of an item.
+---
+
+<a id="export-client-hasitem" />
+
+```lua
+local res = exports.opx_infinity:HasItem(item, count)
+```
+
+Sync.
+
+**Parameters**
+- item: `string`
+- count?: `integer` — default 1
+
+**Returns**
+- `boolean`
+
+**Errors**
+- `export.badArgument`
+
+```lua title="Example"
+if exports.opx_infinity:HasItem('lockpick').value then print('can pick') end
+```

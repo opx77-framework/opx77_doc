@@ -1,0 +1,32 @@
+---
+title: OpenPanel
+description: Opens the OPX side panel, owned by your resource.
+---
+
+<a id="export-client-openpanel" />
+
+```lua
+local res = exports.opx_infinity:OpenPanel(spec)
+```
+
+Sync. Every action on the panel reaches your [reply export](/docs/creators/client#replies) as `opx:on:panel:action`.
+
+**Parameters**
+- spec: `table` — the [panel spec](/docs/opx_infinity/panel/client) without functions; `id` is required
+  - `owner`, `on` and `steal` are set by OPX; any you pass are ignored.
+  - reply?: `string` — the export your answers go to
+
+- Never over another owner's panel. Closed when your resource stops (`owner_stopped`).
+
+**Returns**
+- `{ handle, id }`
+
+**Errors**
+- `panel_busy`, spec errors such as `invalid_id` or `unknown_field`, `export.badArgument`
+
+```lua title="Example"
+local res = exports.opx_infinity:OpenPanel({
+  id = 'stall', title = 'NIGHT MARKET',
+  actions = { { id = 'buy', label = 'Buy' } },
+})
+```

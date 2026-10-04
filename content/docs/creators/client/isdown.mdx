@@ -1,0 +1,22 @@
+---
+title: IsDown
+description: Whether the local player is down.
+---
+
+<a id="export-client-isdown" />
+
+```lua
+local res = exports.opx_infinity:IsDown()
+```
+
+Sync.
+
+**Returns**
+- `{ down, waiting }`
+
+**Errors**
+- `error.unavailable`
+
+```lua title="Example"
+if exports.opx_infinity:IsDown().value.down then return end
+```

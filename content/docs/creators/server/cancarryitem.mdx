@@ -1,0 +1,31 @@
+---
+title: CanCarryItem
+description: Whether a bag would take some units, by slots and by weight.
+---
+
+<a id="export-server-cancarryitem" />
+
+```lua
+local res = exports.opx_infinity:CanCarryItem(target, item, count, metadata)
+```
+
+Scope `read` · sync for a loaded player · must be awaited when `target` is a citizen id.
+
+**Parameters**
+- target: `number | string`
+- item: `string`
+- count?: `integer` — 1–1 000 000, default 1
+- metadata?: `table`
+
+- Ask before you charge for something you will then give with [`AddItem`](/docs/creators/server/additem).
+
+**Returns**
+- `boolean`
+
+**Errors**
+- `export.badArgument`, inventory codes
+
+```lua title="Example"
+local res = exports.opx_infinity:CanCarryItem(playerId, 'water', 6)
+if not (res.ok and res.value) then return print('bag full') end
+```

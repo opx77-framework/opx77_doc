@@ -1,0 +1,24 @@
+---
+title: ClearTargets
+description: Removes every eye row of your resource.
+---
+
+<a id="export-client-cleartargets" />
+
+```lua
+local res = exports.opx_infinity:ClearTargets()
+```
+
+Sync.
+
+- Done for you when your resource stops.
+
+**Returns**
+- `true`
+
+**Errors**
+- `export.ownerTaken`
+
+```lua title="Example"
+exports.opx_infinity:ClearTargets()
+```

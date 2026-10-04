@@ -1,0 +1,32 @@
+---
+title: ShowPrompt
+description: Puts a group of key hints on the local player's key strip.
+---
+
+<a id="export-client-showprompt" />
+
+```lua
+local res = exports.opx_infinity:ShowPrompt(id, spec)
+```
+
+Sync.
+
+**Parameters**
+- id: `string` — your group id
+- spec: `table` — a [prompt group](/docs/opx_infinity/prompts/client): `{ title?, priority?, rows = { { id?, label, value?, keys, hold?, combo?, dim? } } }`
+
+- Display only: a hint says what a key does; your own code listens for the key.
+- Kept under your resource name; showing an id again replaces it. Taken down when your resource stops.
+
+**Returns**
+- `{ id }`
+
+**Errors**
+- `export.ownerTaken`, prompt codes such as `prompts.rowsRequired`, `prompts.ownerLimit`
+
+```lua title="Example"
+exports.opx_infinity:ShowPrompt('stall', {
+  title = 'NIGHT MARKET',
+  rows = { { label = 'Browse', keys = 'E' } },
+})
+```
