@@ -1,20 +1,91 @@
 ---
 title: animations
-description: Emotes for players — /e and /opx.anim, the F3 picker, the X stop key, walking paces, and a client contract to play an animation.
+description: Emotes for players — every platform animation, alone or with a nearby player, from /e, the F3 picker and the X stop key, plus walking paces and a client contract.
 ---
 
-Players play emotes with `/e dance`, the picker on `F3` (built with the [menu](/docs/opx_infinity/menu)) and stop with `X`. Other modules use the contract to play an animation on the local player (a ripperdoc chair, drinking an item). The module plays nothing itself: it asks the platform's animation service, which replicates to everyone in the bucket and refuses a dead player or one in a vehicle. It adds a catalogue of 15 animations in 6 categories, a per-player rate limit, a readiness check and walking paces on the player's own eye menu. Nothing is written to the database.
+Players play emotes with `/e dance` or the picker on `F3` (built with the [menu](/docs/opx_infinity/menu)) and stop with `X`. Other modules use the contract to play an animation on the local player (a ripperdoc chair, drinking an item). The module plays nothing itself: solo emotes go to the platform's animation service, pairs to its two-player coordinator. It adds the picker, a per-player rate limit, a readiness check, the invitation and walking paces on the player's own eye menu. Nothing is written to the database.
 
 | | |
 |---|---|
 | Side | both |
 | Requires | none |
-| Optional | `menu` (picker), `form` (picker search), `prompts` (stop key hint), `downed` (closes the picker), `target` (walking pace rows) |
+| Optional | `menu` (picker, invitation), `form` (picker search), `prompts` (stop key hint), `downed` (closes the picker), `target` (walking pace rows), `character` (the name an invited player reads) |
 | Contract | `animations` v1 — [client](/docs/opx_infinity/animations/client) |
 | Config | `config/animations.lua` (shared) |
+| Platform | `open77_animations` (solo, `players.animations.control`), `open77_player_interactions` (pairs, `players.interactions.control`) — both declared in the manifest |
 | Data | none |
 
-Catalogue: `gestures` (handsup, clap), `social` (dance, phone), `emotions` (cry, think), `relaxation` (sit, meditate, stretch), `consumables` (smoke, cigar, drink), `interactions` (give, examine, wounded). Most have several variants.
+## Catalogue
+
+Every profile the platform lists is offered: **104 on op77.123**, read at start with `Open77.animations.list`, so a profile a later build adds shows up at the next start. Fifteen rows are also written in `shared/catalogue.lua` and win on the same name. The full list is on [Catalogue](/docs/opx_infinity/animations/catalogue).
+
+Not offered: names in [`DISABLED`](#config-animations-disabled), profiles whose `validation` word says they failed (`fail`, `broken`, `unsupported`…), malformed rows. The boot log has one line with the counts:
+
+```text
+[animations] platform catalogue: 104 profiles listed, 89 adopted (not adopted: written 15)
+```
+
+The picker draws 12 families, 16 emotes to a page. The platform's own family words map onto them:
+
+| Family | Id (`/e <id>`) | Platform words |
+|---|---|---|
+| Gestures | `gestures` | `gestures` |
+| On the move | `onthemove` | `onthemove` |
+| Social | `social` | `social` |
+| Emotions | `emotions` | `emotions` |
+| Postures | `postures` | `postures` |
+| Sitting | `sitting` | `seated` |
+| Relaxation | `relaxation` | `relaxation` |
+| Dance and music | `music` | `dance`, `music` |
+| Consumables | `consumables` | `consumables` |
+| Work | `work` | `work` |
+| Interactions | `interactions` | `interactions` |
+| More | `other` | any word this module does not know |
+
+`/e dance` is the emote, not the family (hence `music` and `sitting`). A one-shot gesture (`wave`, `shrug`…) plays once for the clip length the platform measured; a `layer` profile (the `_walk` rows) keeps your own walking.
+
+## With a nearby player [#duo]
+
+Picker › **With a nearby player**, or `/e with …`. The server invites the **nearest** player within [`SHARED.RANGE`](#config-animations-shared), from positions it observes — no client names who is invited. Nothing plays until they accept.
+
+| You pick | Typed | Coordinator kind |
+|---|---|---|
+| Carry them / Be carried | `/e with carry`, `/e with carried` | `carry` — fixed paired pose; the carrier walks, the other follows |
+| Escort them / Be escorted | `/e with escort`, `/e with escorted` | `escort` — side by side, walking |
+| Hand something over | `/e with give` | `give` |
+| Look after them / Be looked after | `/e with heal`, `/e with healed` | `heal` — you kneel and examine, they sit wounded |
+| A shortcut | `/e with talk`, `/e with film` | `custom` — a [`SHARED.PAIRS`](#config-animations-shared) row |
+| Any two animations | `/e with <yours> [theirs]` | `custom` — one profile per body |
+
+```text
+/e with carry            invite the nearest player: you carry them
+/e with dance            both dance
+/e with preach armscrossed   you preach, they cross their arms
+/e accept                the invited player says yes
+/e decline               ... or no
+```
+
+- A paired move's id is read before a profile of the same word: `/e with carry` is the move, `/e with carry carry` is the `carry` profile on both.
+- In the picker, *Any two animations* is two picks — yours, then theirs ("The same" on top) — so every ordered pair (104 × 104) is reachable without a 10 000-row list.
+- The invited player gets a two-row menu (*Accept*, *Decline*) or a chat line naming `/e accept` and `/e decline`.
+
+```text
+ask ─► nearest player in RANGE invited ─► accept ─► distance measured again ─► pair starts
+                                        ├► decline ─► asker told "<name> declined"
+                                        └► INVITE_MS passes ─► withdrawn, asker told "expired"
+```
+
+- An invitation counts against the same [`RATE_LIMIT`](#config-animations-rate-limit) window as a play.
+- One invitation or pair per player, either side (`duo_busy`).
+- The stop key, `/opx.anim.stop` or disconnecting ends the pair for both; the asker leaving withdraws the invitation.
+- The coordinator also ends a pair on death, a vehicle, a bucket change, separation (`RANGE + 2` m, at most 20) or a failed presentation; both players are told why.
+
+### What the platform cannot do [#limits]
+
+- A `custom` pair is **stationary**: either body walking off ends it, a walking layer included. Only `carry` and `escort` move, and those two take no profile override (`paired_animation_fixed`).
+- A pair plays a profile, not a clip: **no variant choice**.
+- **Two players** per interaction, one interaction each.
+- Solo emotes are refused by the service for a dead player or one in a vehicle (`player_not_alive`, `player_in_vehicle`).
 
 ## Commands
 
@@ -22,10 +93,10 @@ All four act on the caller only and are open by default.
 
 | Command | Access | Arguments | Effect |
 |---|---|---|---|
-| <a id="opx-anim" />`/opx.anim` | everyone | `[name\|category\|stop\|list] [variant]` | None: opens the picker. A category: picker on it. `stop`, `list`: as below. A name: plays it (variant optional). |
+| <a id="opx-anim" />`/opx.anim` | everyone | `[name [variant] \| family \| stop \| list \| with <move\|name> [name] \| accept \| decline]` | None: opens the picker. A family: picker on it. A name: plays it. `with`: invites the nearest player ([above](#duo)). `accept`, `decline`: answers your invitation. |
 | <a id="e" />`/e` | everyone | same as `/opx.anim` | Short form. |
-| <a id="opx-anim-stop" />`/opx.anim.stop` | everyone | — | Stops your animation, unless started as not cancelable. |
-| <a id="opx-anim-list" />`/opx.anim.list` | everyone | — | Every offered animation by category, with variant counts. From the console: printed to the log. |
+| <a id="opx-anim-stop" />`/opx.anim.stop` | everyone | — | Stops your animation (and your pair), unless started as not cancelable. |
+| <a id="opx-anim-list" />`/opx.anim.list` | everyone | — | Every offered animation by family, with variant counts. From the console: printed to the log. |
 
 Names come from [`COMMANDS`](#config-animations-commands); `RESTRICTED = true` gates `command.<name>`.
 
@@ -40,15 +111,42 @@ Names come from [`COMMANDS`](#config-animations-commands); `RESTRICTED = true` g
 | <a id="config-animations-notify" />`NOTIFY` | `true` | Refusals as toasts; `false` writes chat lines. |
 | <a id="config-animations-toast-ms" />`TOAST_MS` | `4000` | Toast duration, 750..120000. |
 | <a id="config-animations-prompts" />`PROMPTS` | `true` | Stop key in the prompt strip while an animation plays. |
-| <a id="config-animations-disabled" />`DISABLED` | `{}` | Catalogue names never offered. |
+| <a id="config-animations-disabled" />`DISABLED` | `{}` | Names never offered, alone or in a pair: a written row, a platform profile (`'camera_point'`), or a paired move's id (`'escort'`, `'carried'`). A name matching nothing is a boot-log warning. |
+| <a id="config-animations-platform" />`PLATFORM` | `true` | Offer every platform profile beside the written rows. `false`: the 15 written rows only. |
+| <a id="config-animations-shared" />`SHARED` | see below | Emotes with a nearby player. Not a table, or `ENABLED = false`: none offered. |
 | <a id="config-animations-loop-by-default" />`LOOP_BY_DEFAULT` | `true` | Loop when a request does not say. |
-| <a id="config-animations-one-shot-ms" />`ONE_SHOT_MS` | `10000` | Length of a non-looping play with no duration. Tunable `ANIM_ONE_SHOT_MS`. |
+| <a id="config-animations-one-shot-ms" />`ONE_SHOT_MS` | `10000` | Length of a non-looping play with no duration (a one-shot platform gesture uses its measured clip). Tunable `ANIM_ONE_SHOT_MS`. |
 | <a id="config-animations-max-duration-ms" />`MAX_DURATION_MS` | `600000` | Longest duration a request may name. Tunable `ANIM_MAX_DURATION_MS`. |
-| <a id="config-animations-rate-limit" />`RATE_LIMIT` | `{ WINDOW_MS = 10000, REQUESTS = 6 }` | Plays per player per window; stops get twice as many. Tunables `ANIM_RATE_WINDOW_MS`, `ANIM_RATE_REQUESTS`. |
+| <a id="config-animations-rate-limit" />`RATE_LIMIT` | `{ WINDOW_MS = 10000, REQUESTS = 6 }` | Plays and invitations per player per window; stops get twice as many. Checked before the request is validated. Tunables `ANIM_RATE_WINDOW_MS`, `ANIM_RATE_REQUESTS`. |
 | <a id="config-animations-picker" />`PICKER` | `{ CLOSE_ON_SELECT = true, SHOW_VARIANT_WORDS = true }` | Close the picker after a choice; show the engine clip words beside each variant. |
 | <a id="config-animations-keys" />`KEYS` | `{ PICKER = 'F3', STOP = 'X' }` | Default keys (`opx.animations.picker`, `opx.animations.stop`), rebindable in the pause menu. `false` registers none. The same key for both drops the stop key. |
 | <a id="config-animations-walk-paces" />`WALK_PACES` | `stroll` 0.8, `walk` 1.2, `brisk` 1.8 | `{ ID, SPEED }` paces in m/s (0.5..2.5) a player cycles from their own eye menu. Past the last: normal movement. |
 | <a id="config-animations-commands" />`COMMANDS` | `ANIM = opx.anim`, `EMOTE = e`, `STOP = opx.anim.stop`, `LIST = opx.anim.list`, all `RESTRICTED = false` | `{ KEY = { NAME, RESTRICTED } }`. `NAME = false` registers none. |
+
+```lua title="config/animations.lua — SHARED"
+SHARED = {
+	ENABLED = true,
+	RANGE = 3.0,         -- metres between the two bodies, 0.25..10
+	INVITE_MS = 15000,   -- how long an invitation waits, 1000..60000
+	KINDS = {            -- the platform's paired moves; DURATION_MS 500..600000
+		carry  = { ENABLED = true, DURATION_MS = 60000 },
+		escort = { ENABLED = true, DURATION_MS = 60000 },
+		give   = { ENABLED = true, DURATION_MS = 5000 },
+		heal   = { ENABLED = true, DURATION_MS = 12000 },
+	},
+	ANY = true,          -- any two profiles, one per body
+	DURATION_MS = 30000, -- length of such a pair; two one-shot gestures use the longer clip
+	PAIRS = {            -- shortcuts listed above "any two"
+		{ ID = 'talk', ACTOR = 'preach', TARGET = 'armscrossed', DURATION_MS = 20000 },
+		{ ID = 'film', ACTOR = 'record', TARGET = 'dance', DURATION_MS = 30000 },
+	},
+},
+```
+
+- `KINDS.<kind>.ENABLED = false` withholds both sides of that move. Only `carry`, `escort`, `give`, `heal` are kinds; another key is a boot warning.
+- A `PAIRS` row: `ID` unique, lower case, not a move's id; its label is the locale key `animations.duo.name.<ID>` (without one the row reads its two profiles). A row naming a profile the build lacks or one in `DISABLED` is not offered.
+- A bad value is a boot warning and falls back to the default shown.
+- Pairs need `open77_player_interactions` running; without it the boot log says so and the picker has no *With a nearby player* row.
 
 ## Refusal codes [#codes]
 
@@ -56,8 +154,8 @@ A refusal caused by a contract call is not shown to the player (the caller decid
 
 | Code | Meaning | Locale key |
 |---|---|---|
-| `unknown_animation` | Not in the catalogue, disabled, or not offered. | `animations.error.unknownAnimation` |
-| `unknown_category` | Not one of the six categories. | — |
+| `unknown_animation` | Not in the catalogue, disabled, or not offered; for a pair, no such move, shortcut or profile. | `animations.error.unknownAnimation`, `animations.duo.unknown` |
+| `unknown_category` | Not one of the twelve families. | — |
 | `invalid_variant` | No such variant, or not offered. | `animations.error.invalidVariant` |
 | `invalid_options` | Bad `options` field, or non-cancelable with no end. | `animations.error.invalidOptions` |
 | `animation_locked` | A non-cancelable animation is running. | `animations.error.locked` |
@@ -65,8 +163,12 @@ A refusal caused by a contract call is not shown to the player (the caller decid
 | `player_not_ready` | The player has not finished loading. | `animations.error.notReady` |
 | `player_not_alive`, `player_in_vehicle`, `animation_owned` | Refused by the platform service. | `animations.error.notAlive`, `animations.error.inVehicle`, `animations.error.owned` |
 | `service_unavailable` | No animation service, or `players.animations.control` not granted. | `animations.error.unavailable` |
-| `play_raised`, `play_refused`, `stop_raised` | The service call failed. | `animations.error.refused` |
+| `play_raised`, `play_refused`, `stop_raised` | The service or coordinator call failed. | `animations.error.refused` |
 | `not_sent`, `request_timeout` | The request did not leave, or got no answer in 15 s. | `animations.error.notSent`, `animations.error.timeout` |
+| `no_player_nearby` | Nobody free and ready within `SHARED.RANGE`, in your bucket. | `animations.duo.nobody` |
+| `duo_busy`, `player_reserved`, `animation_busy` | One of you already has an invitation or pair. | `animations.duo.busy` |
+| `too_far`, `wrong_bucket`, `position_unavailable` | Apart when the invitation was accepted. | `animations.duo.tooFar` |
+| `duo_unavailable`, `interactions_unavailable`, `paired_animation_fixed` | Pairs are off, or the coordinator is missing or refused. | `animations.duo.unavailable` |
 | `menu_not_running`, `player_down`, `picker_not_open` | Picker only. | `animations.error.menuNotRunning` |
 | `invalid_player`, `presentation_unavailable` | `State` only. | — |
 | `internal_error` | A contract function raised. | — |
