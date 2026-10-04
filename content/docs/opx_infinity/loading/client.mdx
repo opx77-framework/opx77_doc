@@ -1,0 +1,32 @@
+---
+title: Client
+description: The loading contract on the client — whether a native load is up and whether OPX covers it.
+---
+
+```lua
+local loading = OPX.Api.Get('loading')
+```
+
+## State [#client-loading-state]
+
+What the module last decided. To react to changes, listen to [`opx:on:loading:state`](/docs/opx_infinity/loading/events#opx-on-loading-state) instead of polling.
+
+```lua
+loading.State()
+```
+
+**Returns**
+- `Result` — value:
+  - `available`: `boolean` — `false` on a client without the reader (or after a refusal)
+  - `mode`: `'state' | 'flag' | nil` — `loadingState`, `isLoading` only, or not read yet
+  - `active`: `boolean` — a native load is up
+  - `hide`: `boolean` — the HUD-like views are hidden
+  - `cover`: `boolean` — the OPX cover is drawn
+  - `kind`: `'unknown' | 'splash' | 'initial' | 'fastTravel'`
+  - `progressKnown`: `boolean`
+  - `progress?`: `number` — 0..1
+
+```lua title="Example"
+local now = loading.State()
+if now.ok and now.value.active then return end -- do not open a menu during a load
+```

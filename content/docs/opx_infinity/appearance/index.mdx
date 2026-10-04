@@ -20,6 +20,16 @@ Declared `fatal = true`. Its client sends `open77:session:gameplayReady`, the on
 
 </Callout>
 
+## Joining the world [#join]
+
+The client sends `open77:session:gameplayReady` as soon as the character's world entry starts, even when the platform has not reset the body yet: the platform resets and revives the body only **after** that announcement.
+
+- The face and clothes go on once the platform's reset has brought the body alive.
+- Before the reset, the entry waits up to 60 s (counted from the announcement), then enters on no face with a warning.
+- After the reset, a body that is still not alive after 5 s settles on no face. A failed reset (`open77:playerReset:failed`) ends the wait at once.
+- A face given up on a dead body goes on when the body is alive again (after a revive).
+- A character switch in the world (`SWITCH = 'relog'`) and a restart of `opx_infinity` mid-session settle like a join: the new character is dressed and its look published.
+
 ## Commands
 
 | Command | Access | Arguments | Effect |
@@ -112,7 +122,8 @@ Sent on [`opx:net:appearance:refused`](/docs/opx_infinity/appearance/events#opx-
 | `appearance.stale` / `clothing.stale` | The save was captured for another character. |
 | `appearance.invalid` / `clothing.invalid` | The face or record failed validation. |
 | `appearance.tooLarge` / `clothing.tooLarge` | Over the size limit. |
-| `clothing.noFittingRoom` | No server door granted a clothing save in the last 10 minutes. |
+| `clothing.noFittingRoom` | No grant covers this save: no open grant in the last 10 minutes, no matching look grant, no priced room. |
+| `clothing.unpaid` | A priced room's charge was refused (or raised). The save is not written and the stored look goes back on. |
 | `error.unavailable` | The stored clothing could not be read at login; saves are off this session. |
 
 Validation details on `appearance.invalid`: `unsupported_schema`, `unsupported_game_build`, `invalid_catalog_digest`, `invalid_gender`, `invalid_option_count`, `option_out_of_range`, `duplicate_option`, `sparse_options`. On `clothing.invalid`: `unknown_field`, `invalid_slot`, `invalid_item`, `invalid_active`, `invalid_outfit`, `invalid_outfit_slot`.

@@ -69,8 +69,11 @@ weather.SetTime(seconds, reason)
 
 **Parameters**
 - seconds: `number`
-  - Seconds since midnight. Not validated: pass 0..86399.
+  - Seconds since midnight; wrapped into one day.
 - reason?: `string`
+
+**Returns**
+- `Result` — error `invalid_time` when `seconds` is not a finite number
 
 ```lua title="Example"
 weather.SetTime(22 * 3600, 'night event') -- 22:00

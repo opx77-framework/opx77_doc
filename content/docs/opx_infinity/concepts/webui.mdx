@@ -5,12 +5,17 @@ description: Every screen in opx_infinity is drawn by one CEF page built from Vu
 
 Everything a player sees from `opx_infinity` — HUD, menus, inventory, toasts, name tags — is drawn by **one CEF page**, `web/index.html`, built from the Vue sources in `ui/src/` with `npm run build` (only `web/` ships). Lua talks to it through [`OPX.UI`](/docs/opx_infinity/core/client#opx-ui-send).
 
-## Two layers in one page [#layers]
+## Layers in one page [#layers]
 
 | Layer | What goes there | Focus |
 |---|---|---|
 | `overlay` | HUD, toasts, prompts, name tags | never takes the keyboard or the pointer |
 | `modal` | anything the player drives: menu, form, panel, inventory | takes focus while open |
+| `cover` | the [loading](/docs/opx_infinity/loading) cover, on top of everything | never takes the pointer; nothing is mounted while it is down |
+
+A view registered with `hideWhileLoading: true` (HUD, toasts, prompts, progress, slot bar, tags, chat log, call hologram, target eye) is hidden with `v-show` while the game's loading screen is up, and comes back exactly as its module left it.
+
+The built page is about 542 kB (12 % lighter since the UI audit): unused augmented-ui rules are pruned at build time, unused font weights are not inlined, and the Vue Options API is compiled out. Write components with `<script setup>`.
 
 The client boot creates the page once (`OPX.UI.Surface()`), before the modules start, with [`OPX.Config.CLIENT.SURFACE`](/docs/opx_infinity/core/config#config-client-surface).
 
@@ -22,11 +27,35 @@ Lua and the page exchange messages on **channels** named `<module>:<verb>` (e.g.
 |---|---|---|
 | [`OPX.UI.Send(target, channel, payload)`](/docs/opx_infinity/core/client#opx-ui-send) | Lua → page | push state or open a view |
 | [`OPX.UI.On(target, channel, handler)`](/docs/opx_infinity/core/client#opx-ui-on) | page → Lua | receive an action; the handler only gets table payloads |
-| [`OPX.UI.Serve(target, channel, handler)`](/docs/opx_infinity/core/client#opx-ui-serve) | page → Lua → page | answer a request; the return value goes back with the request's `ref` |
 
 - Each view emits `<module>:ready` when it mounts. A send made before the page is ready is dropped, not queued.
 - Each module's events page lists its channels under **Page channels**; the core's own are in [Runtime events](/docs/opx_infinity/core/events#page-channels).
 - The page reports its JavaScript errors on the `diag` channel; the diagnostics module forwards them to the server journal. The CEF console is visible nowhere else.
+
+## Reading payloads [#payloads]
+
+A payload comes from Lua and may be malformed: a Lua sequence with a hole arrives as `[a, null, b]`, and a key such as `"constructor"` reads an inherited function from an object literal. Read every payload through the helpers in `ui/src/bridge/types.ts`, never directly.
+
+| Helper | Answers |
+|---|---|
+| `text(v, fallback)`, `num(v, fallback)`, `bool(v, fallback)` | the value if it has the type, else the fallback |
+| `table(v)` | a map, `{}` for anything else |
+| `list(v)` | an array, `[]` for anything else |
+| `records(v)` | a list of maps: each element passed through `table()` **in place**, so a `null` hole becomes `{}` and row indexes are kept |
+| `own(map, key)` | `map[key]` for the map's own keys only, else `undefined` |
+
+```ts title="A view's apply"
+import { records, own, text, type Payload } from '@/bridge/types'
+
+const ICONS: Record<string, string> = { car: 'vehicle', door: 'lock' }
+
+function apply(payload: Payload) {
+  rows.value = records(payload.rows).map((row) => ({
+    id: text(row.id),                                  // '' if missing
+    icon: own(ICONS, text(row.kind)) ?? 'interact',   // 'constructor' -> fallback, not a function
+  }))
+}
+```
 
 ## Focus [#focus]
 
@@ -37,6 +66,7 @@ Several views may want the keyboard at once, so the client keeps a **focus stack
 | [`OPX.UI.AcquireFocus(owner, { keyboard, cursor })`](/docs/opx_infinity/core/client#opx-ui-acquirefocus) | puts `owner` on top; `keyboard` defaults to `true`, `cursor` to `false` |
 | [`OPX.UI.ReleaseFocus(owner)`](/docs/opx_infinity/core/client#opx-ui-releasefocus) | removes `owner`; focus falls to the next one |
 | [`OPX.UI.FocusOwner()`](/docs/opx_infinity/core/client#opx-ui-focusowner) | who holds it now |
+| [`OPX.UI.ReleaseAllFocus()`](/docs/opx_infinity/core/client#opx-ui-releaseallfocus) | empties the stack; the first step of the client stop |
 
 The Escape key belongs to the platform's `open77_pause`; never bind it.
 

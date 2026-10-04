@@ -3,7 +3,7 @@ title: shops
 description: Clothing shops that open the fitting room, bill per changed clothing slot, offer ready-made looks and keep saved outfits with share codes.
 ---
 
-Places clothing shops in the world. At a shop a player picks "Try clothes on" on the target eye and the `appearance` fitting room opens. When the room closes, the player pays for each clothing slot that changed. Inside the room the shop adds four groups: ready-made looks (uniforms), saved outfits, "Save outfit" and "Outfit code". Saved outfits can be shared with an 8-character code another player types in. Use it to sell clothes; it stocks no garments of its own.
+Places clothing shops in the world. At a shop a player picks "Try clothes on" on the target eye and the `appearance` fitting room opens. When the player keeps the new clothes, they pay for each clothing slot that changed, before the look is saved. Inside the room the shop adds four groups: ready-made looks (uniforms), saved outfits, "Save outfit" and "Outfit code". Saved outfits can be shared with an 8-character code another player types in. Use it to sell clothes; it stocks no garments of its own.
 
 | | |
 |---|---|
@@ -18,17 +18,12 @@ Places clothing shops in the world. At a shop a player picks "Try clothes on" on
 
 The server cannot see the clothing catalogue (it is client-only), so it prices **slots**, not garments.
 
-- The client reports which of the nine slots changed between entering and leaving the room: `Head`, `Face`, `InnerChest`, `OuterChest`, `Legs`, `Feet`, `Outfit`, `UnderwearTop`, `UnderwearBottom`. Taking a garment off counts as a change.
-- The server adds up the shop's price for each changed slot and takes it from [`CURRENCY`](#config-shops-currency). The client never sends a price.
-- A slot without a price is free. Underwear is free by default.
-- If the bill cannot be paid, the server sends back the player's stored look and the client puts it back on.
+- The shop opens a **priced** room ([`OpenWardrobe`](/docs/opx_infinity/appearance/server#server-appearance-openwardrobe) with a `charge`).
+- When the room's save arrives, the **server** compares it with the stored record and lists the slots that changed: `Head`, `Face`, `InnerChest`, `OuterChest`, `Legs`, `Feet`, `Outfit`, `UnderwearTop`, `UnderwearBottom`. Taking a garment off counts as a change. The client reports nothing.
+- The server adds up the shop's price for each changed slot and takes it from [`CURRENCY`](#config-shops-currency) **before** the look is written. A slot without a price is free. Underwear is free by default.
+- If the bill cannot be paid, the save is refused (`clothing.unpaid`) and the stored look goes back on. If the write fails after payment, the money is refunded.
+- A uniform bought inside the room is not billed again by the room's save.
 - The server re-checks reach, bucket and the job gate before opening the room, billing, or dressing.
-
-<Callout type="warn">
-
-Payment and the clothing save are not one transaction. The clothing is saved by `appearance`; the bill is taken after the room closes. If the bill fails, the old look is restored afterwards.
-
-</Callout>
 
 ## Ready-made looks [#looks]
 
@@ -39,7 +34,8 @@ A look from [`LOOKS`](#config-shops-looks) is a partial outfit with its own `COS
 - "Save outfit" stores the clothing currently saved for the character (not the unsaved preview) under a name. If the room is open, the save happens when the room closes.
 - A character keeps up to `OUTFITS.MAX_PER_CHARACTER` outfits.
 - "Get a share code" gives the outfit a code made from `23456789ABCDEFGHJKLMNPQRSTUVWXYZ` (no `I`, `O`, `0`, `1`). Typing is case-insensitive and ignores dashes and spaces. A code is not a secret.
-- Wearing a saved or shared outfit is free.
+- Wearing a saved or shared outfit is free. It grants one save of exactly that look, not a free room.
+- The save, list, load, delete and share doors accept one press per 750 ms per player; typing a code, one per 2 s.
 - Deleting a character deletes its saved outfits.
 
 ## Configuration

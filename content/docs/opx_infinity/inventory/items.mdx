@@ -28,7 +28,7 @@ water = {
 | `LABEL` | locale `inventory.item.<name>`, else the name | A locale key or plain text. |
 | `DESCRIPTION` | locale `inventory.item.<name>.description` | A locale key or plain text. |
 | `IMAGE` | none | Image name for the screen. |
-| `MODEL` | `DROPS.MODEL` | A curated `Open77.props` alias drawn for a pile. A `.mesh` path is refused at load. |
+| `MODEL` | `DROPS.MODEL` | A curated `Open77.props` alias drawn for a pile. A `.mesh` path is refused at load. See [Pile models](#pile-models). |
 | `USE` | none | Makes the item usable. See below. |
 
 `USE` sub-fields:
@@ -59,7 +59,7 @@ WEAPONS = { weapon_chao = { RECORD = 'Items.Preset_Chao_Default', CLASS = 'handg
 ```
 
 - A weapon is never stackable. Each unit gets metadata `{ serial, ammo }`: a serial of two letters and eight hex digits, and `ammo = 0`. A `serial` passed in metadata is kept only when one weapon is added.
-- Using a weapon draws it into game weapon slot [`WEAPONS.SLOT`](/docs/opx_infinity/inventory#config-inventory-weapons). Using it again puts it away. Moving it out of the bag puts it away. Other modules put it away with [`HolsterWeapon`](/docs/opx_infinity/inventory/server#server-inventory-holsterweapon).
+- Using a weapon draws it into game weapon slot [`WEAPONS.SLOT`](/docs/opx_infinity/inventory#config-inventory-weapons). Using it again puts it away. Moving, giving or dropping a drawn weapon first puts it away and reads its rounds: that try is refused with `holstering`, the next one goes through with the right `ammo`. Other modules put it away with [`HolsterWeapon`](/docs/opx_infinity/inventory/server#server-inventory-holsterweapon).
 - Using an ammunition item loads it into the drawn weapon of the matching class, up to the weapon's `MAGAZINE` (or its class's). The rounds are kept on the weapon's `ammo` metadata and read back from the game every `WEAPONS.AMMO_SYNC_MS`; they only ever go down that way.
 - With `WEAPONS.REMOVE_UNBACKED = true`, any equipped weapon no bag item backs is taken off the player every `WEAPONS.SCAN_MS`.
 - Drawing a weapon needs the host's `Open77.weapons` relay. Without it the use answers `weapons_unavailable`.
@@ -68,3 +68,32 @@ WEAPONS = { weapon_chao = { RECORD = 'Items.Preset_Chao_Default', CLASS = 'handg
 
 - Drinks, food, medical items, materials (`scrap_metal`, `electronics`), `lockpick`, `hauling_crate` (10 kg, used by [`hauling`](/docs/opx_infinity/hauling)), `phone`, `id_card`, `shard`, `vehicle_key`, `eddies`, four ammunition types and 189 weapons.
 - `vehicle_key` is non-stackable and carries metadata `{ plate, label }`, written by [vehiclekeys](/docs/opx_infinity/vehiclekeys). The screen and the hotbar show a stack's own `metadata.label` when it has one. Use [`CountWhere`](/docs/opx_infinity/inventory/server#server-inventory-countwhere) to find a key by plate.
+- `door_key` is non-stackable, has no `USE` and carries metadata `{ type, label }`, cut by [doorlock](/docs/opx_infinity/doorlock). A door that lists `{ name = 'door_key', metadata = '<type>' }` opens for a key of that type.
+
+## Pile models [#pile-models]
+
+Every droppable item names the nearest prop the platform hosts. The alias list is compiled into the Open77 client, so a resource cannot add one; most non-food items draw a stand-in.
+
+| Items | `MODEL` |
+|---|---|
+| water, coffee | `food.drink_packaged` |
+| nicola | `food.soda_can` |
+| burrito / chips, kibble | `food.street_food` / `food.snack` |
+| bandage, bounce_back, maxdoc | `medical.container` |
+| scrap_metal | `garbage.industrial_trash` (stand-in) |
+| electronics, phone | `electronics.monitor.device` (stand-in) |
+| id_card, shard, vehicle_key, door_key | `crate.valuable` (stand-in) |
+| lockpick | `container.toolbox` |
+| hauling_crate | `crate.small` |
+| ammunition | `crate.ammo_box` |
+| handgun, revolver, SMG, melee classes | `military.case` |
+| rifle, precision, LMG, sniper, shotgun classes | `military.case.large` |
+| axes, hammers (approximate) / Caretaker's Spade | `tool.fire_axe` / `tool.shovel` |
+| eddies | none (`DROP = false`) |
+
+```lua title="data/items.lua — a pile model"
+shard = { WEIGHT = 20, MODEL = 'crate.valuable' }, -- an alias name, never a .mesh path
+```
+
+- A weapon's own `MODEL` wins over its class's.
+- **Decorative weapons** (a pile that looks like the weapon itself) are not possible from a resource: a raw `.mesh` draws as a marker, a raw `.ent` is refused (`template_backend_disabled`), and nothing registers a new alias. It needs one alias per weapon family in the platform. The note is at the top of `data/weapons.lua`.

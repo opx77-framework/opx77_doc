@@ -32,6 +32,16 @@ npm run typecheck && npm run build                   # only if ui/ changed
 | `npm run build` | writes `web/index.html`, the shipped page. Commit it with the `ui/` change. |
 | CI (`.github/workflows/check.yml`) | the above, plus `tools/check-sandbox-globals.py` (no metatables or `require` in shared code) |
 
+### The budget meter [#budget-meter]
+
+The client kills a coroutine resume that runs past its instruction budget (about 10,000 VM instructions), silently, mid-operation. Desktop Lua has no such limit, so a green suite does not prove a handler fits. Run the opt-in meter on any client change:
+
+```bash
+OPX_BUDGET_METER=5000 lua tests/run.lua
+```
+
+At the end it lists every client call site whose worst single resume cost more than the figure, dearest first: each thread resume, net event, page handler, event handler, key mapping and scheduler job. The stub host's own work is not charged. A site on the list is a resume the platform may kill: split it (see [the instruction budget](/docs/guides/writing-a-module#budget)). To pin a fix, `tests/run.lua` has `callCost(fn, ...)` and `resumeCost(env, control, start, rounds)`, which count exactly and let a check fail at the old cost.
+
 ## Code conventions [#code]
 
 | Rule | Detail |

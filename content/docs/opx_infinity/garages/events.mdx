@@ -5,7 +5,7 @@ description: Network and local events of the garages module.
 
 ## opx:net:garages:ask [#opx-net-garages-ask]
 
-Client → server. Asks for the points of the caller's bucket. Sent at start and every `POLL_MS`.
+Client → server. Asks for the points of the caller's bucket. Sent at start and every `POLL_MS`. One per player per second is answered.
 
 ```lua
 TriggerServerEvent('opx:net:garages:ask')
@@ -13,7 +13,7 @@ TriggerServerEvent('opx:net:garages:ask')
 
 ## opx:net:garages:sync [#opx-net-garages-sync]
 
-Server → client. The points of the player's bucket.
+Server → client. The points of the player's bucket. The client reads it on a thread (ten points per resume) and swaps it in a few frames later, whole.
 
 ```lua
 RegisterNetEvent('opx:net:garages:sync', function(payload) end)

@@ -55,16 +55,6 @@ RegisterNetEvent('opx:net:runtime:commandResult', function(line) end)
   - `author`: `string` — the server name
   - `text`: `string`
 
-## opx:on:chat:submitted [#opx-on-chat-submitted]
-
-Client, local. A slash command was typed, just before it is sent to the dispatcher.
-
-```lua
-AddEventHandler('opx:on:chat:submitted', function(payload) end)
-```
-
-- payload: `table` — `{ text, tokens }`
-
 ## opx:on:chat:view [#opx-on-chat-view]
 
 Client, local. The seam between the state and the view; every update to the page passes here.

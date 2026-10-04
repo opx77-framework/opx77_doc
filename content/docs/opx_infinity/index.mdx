@@ -83,7 +83,7 @@ Each module runs on the server, the client or both, and may **require** other mo
 | [needs](/docs/opx_infinity/needs) | both | character | Hunger, thirst, stamina and street cred, and the status-effect chips any module can add. |
 | [downed](/docs/opx_infinity/downed) | both | character | Who is down, the down screen (wait for help or give up), and revival. |
 | [calls](/docs/opx_infinity/calls) | both | character | Player-to-player holocalls and contact swapping. |
-| [animations](/docs/opx_infinity/animations) | both | — | Emotes: `/e`, a picker, a stop key, walking paces. |
+| [animations](/docs/opx_infinity/animations) | both | — | Emotes: every platform animation, alone or with a nearby player; `/e` and `/e with`, a picker, a stop key, walking paces. |
 
 ### Economy and items [#economy]
 
@@ -113,11 +113,13 @@ Each module runs on the server, the client or both, and may **require** other mo
 | [elevators](/docs/opx_infinity/elevators) | both | character | Job-gated floor lists on the game's lifts; the server re-checks every move. |
 | [teleports](/docs/opx_infinity/teleports) | both | character | Operator-placed teleport pads, one- or two-way, optionally job-locked. |
 | [blips](/docs/opx_infinity/blips) | client | — | Map pins for garages, dealers, shops, teleports and job sites. |
+| [doorlock](/docs/opx_infinity/doorlock) | both | — | Locked doors opened by job, gang, grade, key item, character or code (an ox_doorlock port), with a staff panel. |
 
 ### Screens and input [#screens]
 
 | Module | Side | Requires | Summary |
 |---|---|---|---|
+| [loading](/docs/opx_infinity/loading) | client | — | Steps the views aside during the game’s own loading screen and covers loads in play. |
 | [hud](/docs/opx_infinity/hud) | client | character | Gauges, money and job, status chips, microphone and speed; hides the game's own HUD. |
 | [chat](/docs/opx_infinity/chat) | both | — | The chat box, and the only way a typed slash command reaches the host. |
 | [menu](/docs/opx_infinity/menu) | client | — | The keyboard list menu other modules open through its contract. |

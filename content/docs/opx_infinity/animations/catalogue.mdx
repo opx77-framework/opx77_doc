@@ -1,0 +1,201 @@
+---
+title: Catalogue
+description: Every animation the emote menu offers on op77.123 — 104 platform profiles, by picker family.
+---
+
+The server reads the platform catalogue (`Open77.animations.list`) at start, so this list is what op77.123 ships: a later build may add rows, which are then offered without a release. The 15 rows marked ✎ are also written in `modules/animations/shared/catalogue.lua`; the written row wins (translated label, walking pace, curated variants).
+
+- **Name**: what you type after `/e` or `/e with`.
+- **Label**: what the picker shows (English locale).
+- **Where**: what the clip was authored against. `chair`, `barstool`, `bed` and `ground` play where you stand, no furniture needed; `wall` and `counter` read best with one.
+- **Prop**: the item the body holds.
+
+```text
+/e chair          play one
+/e chair 2        play its variant 2
+/e sitting        open the picker on a family
+/e list           every offered name, with its variant count
+```
+
+A name in [`DISABLED`](/docs/opx_infinity/animations#config-animations-disabled) is not offered, alone or in a pair. `/e stop` is the stop command, so the `stop` gesture is only reached from the picker or as part of a pair.
+
+### Gestures [#cat-gestures]
+
+`gestures` · 8
+
+| Name | Label | Where | Prop |
+|---|---|---|---|
+| `handsup` ✎ | Hands up | standing |  |
+| `clap` ✎ | Applaud | standing |  |
+| `fidget` | Fidget with hands | standing |  |
+| `rubhands` | Rub hands | standing |  |
+| `cheer` | Cheer | standing |  |
+| `cheer2` | Cheer, folded arms | standing |  |
+| `crowdwave` | Crowd wave | standing |  |
+| `calmdown` | Calm down | standing |  |
+
+### Social [#cat-social]
+
+`social` · 8
+
+| Name | Label | Where | Prop |
+|---|---|---|---|
+| `phone` ✎ | Use a phone | standing | phone |
+| `preach` | Speak to a crowd | standing |  |
+| `order` | Order food | standing |  |
+| `call` | Phone call | standing | phone |
+| `call2` | Phone call, hand on hip | standing | phone |
+| `phonecheck` | Check phone | standing | phone |
+| `record` | Record on phone | standing | phone |
+| `wallcall` | Phone call against wall | wall | phone |
+
+### Emotions [#cat-emotions]
+
+`emotions` · 10
+
+| Name | Label | Where | Prop |
+|---|---|---|---|
+| `cry` ✎ | Cry | standing |  |
+| `think` ✎ | Think it over | standing |  |
+| `bored` | Bored | standing |  |
+| `sad` | Feeling down | standing |  |
+| `nervous` | Nervous | standing |  |
+| `angry` | Angry gestures | standing |  |
+| `drunk` | Drunk | standing |  |
+| `paranoid` | Paranoid | standing |  |
+| `kneelcry` | Cry on knees | ground |  |
+| `cower` | Cower | ground |  |
+
+### Postures [#cat-postures]
+
+`postures` · 16
+
+| Name | Label | Where | Prop |
+|---|---|---|---|
+| `chair` | Sit as if on a chair | chair |  |
+| `lean` | Lean back against a wall | wall |  |
+| `lie` | Lie down | bed |  |
+| `armscrossed` | Arms crossed | standing |  |
+| `armscrossed2` | Arms crossed, relaxed | standing |  |
+| `handsback` | Hands behind back | standing |  |
+| `handships` | Hands on hips | standing |  |
+| `handsfront` | Hands in front | standing |  |
+| `onehip` | Hand on hip | standing |  |
+| `idle` | Casual standing | standing |  |
+| `wait` | Wait around | standing |  |
+| `arrested` | Lie face down | ground |  |
+| `sitafraid` | Sit with knees held | ground |  |
+| `leanrelaxed` | Lean against wall, relaxed | wall |  |
+| `leanleft` | Lean on left side | wall |  |
+| `barlean` | Lean on a counter | counter |  |
+
+### Sitting [#cat-sitting]
+
+`sitting` · 7
+
+| Name | Label | Where | Prop |
+|---|---|---|---|
+| `seated` | Sit upright | chair |  |
+| `seated2` | Sit, relaxed hands | chair |  |
+| `seatedcheer` | Cheer while seated | chair |  |
+| `seatedsleep` | Doze in a chair | chair |  |
+| `seatedstretch` | Stretch while seated | chair |  |
+| `seatedthink` | Think while seated | chair |  |
+| `barsit` | Sit at a bar | barstool |  |
+
+### Relaxation [#cat-relaxation]
+
+`relaxation` · 5
+
+| Name | Label | Where | Prop |
+|---|---|---|---|
+| `sit` ✎ | Sit on the ground | ground |  |
+| `meditate` ✎ | Meditate | standing |  |
+| `stretch` ✎ | Stretch | standing |  |
+| `taichi` | Tai chi | standing |  |
+| `bedsidelie` | Lie on side | bed |  |
+
+### Dance and music [#cat-music]
+
+`music` · 4
+
+| Name | Label | Where | Prop |
+|---|---|---|---|
+| `dance` ✎ | Dance | standing |  |
+| `headphones` | Dance to headphones | standing | headphones |
+| `handpan` | Play a handpan | ground | handpan |
+| `guitar` | Play guitar | chair | guitar |
+
+### Consumables [#cat-consumables]
+
+`consumables` · 8
+
+| Name | Label | Where | Prop |
+|---|---|---|---|
+| `smoke` ✎ | Smoke a cigarette | standing | cigarette |
+| `cigar` ✎ | Smoke a cigar | standing | cigar |
+| `drink` ✎ | Drink from a can | standing | can |
+| `bottle` | Drink from a bottle | standing | bottle |
+| `takeout` | Eat takeout | standing | takeout |
+| `smokefolded` | Smoke, arm folded | standing | cigarette |
+| `sitsmoke` | Smoke on the ground | ground | cigarette |
+| `wallsmoke` | Smoke against wall | wall | cigarette |
+
+### Work [#cat-work]
+
+`work` · 7
+
+| Name | Label | Where | Prop |
+|---|---|---|---|
+| `tablet` | Use a tablet | standing | tablet |
+| `tablet2` | Work on tablet | standing | tablet |
+| `tablet3` | Tablet in one hand | standing | tablet |
+| `repair` | Kneel and repair | ground | screwdriver |
+| `mechanic` | Kneel with a tool | ground | tool |
+| `scavenge` | Scavenge | ground |  |
+| `laptop` | Use laptop on ground | ground | laptop |
+
+### Interactions [#cat-interactions]
+
+`interactions` · 3
+
+| Name | Label | Where | Prop |
+|---|---|---|---|
+| `give` ✎ | Hold out an item | standing |  |
+| `examine` ✎ | Kneel and look closer | ground |  |
+| `wounded` ✎ | Sit wounded | ground |  |
+
+### Gestures and walking layers (op77.123) [#cat-later]
+
+Added to the platform catalogue after op77.78; the picker files each under the family the build reports, and a family it does not know under **More**. The one-shot gestures play once, for the clip length the platform measured. The `_walk` layers keep your own walking.
+
+| Name | Label |
+|---|---|
+| `camera_point` | Point in camera direction |
+| `carry` | Carry a box in both hands |
+| `carry_pickup` | Pick up a box |
+| `carry_putdown` | Put a box down |
+| `point` | Point ahead |
+| `wave` | Wave hello |
+| `raisehand` | Raise a hand |
+| `beckon` | Come here |
+| `stop` | Stop, halt |
+| `thumbsup` | Thumbs up |
+| `shrug` | Shrug |
+| `facepalm` | Facepalm |
+| `scratchhead` | Scratch head |
+| `what` | What? |
+| `me` | Me? |
+| `smoke_walk` | Smoke a cigarette, walking |
+| `cigar_walk` | Smoke a cigar, walking |
+| `drink_walk` | Drink from a can, walking |
+| `bottle_walk` | Drink from a bottle, walking |
+| `call_walk` | Phone call, walking |
+| `phone_walk` | Use a phone, walking |
+| `hold_item_walk` | Hold an item, walking |
+| `talk_walk` | Talk with the hands |
+| `handsup_walk` | Hands up, walking |
+| `handsback_walk` | Hands behind back, walking |
+| `armscrossed_walk` | Arms crossed, walking |
+| `handships_walk` | Hands on hips, walking |
+| `pocket_walk` | Hand in pocket, walking |

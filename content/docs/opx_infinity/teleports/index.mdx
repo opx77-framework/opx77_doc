@@ -93,7 +93,7 @@ Same format as elevators; see [`OPX.JobGate.Evaluate`](/docs/opx_infinity/core/l
 | Code | Meaning | Player sees |
 |---|---|---|
 | `rate_limited` | Too many requests. | `error.tooFast` |
-| `in_flight` | A trip is already running (lock released after 45 s). | `teleports.inFlight` |
+| `in_flight` | A trip is already running (lock released after 45 s). A trip that fails is always answered, and the client's own latch also opens after 45 s. | `teleports.inFlight` |
 | `no_such_teleport` | Unknown key, or `back` on a one-way pad. | `teleports.noSuchTeleport` |
 | `no_character`, `job_stale`, `job_required`, `grade_too_low`, `off_duty` | The job gate refused. | `REASON`, else `teleports.locked` |
 | `downed` | The player is down. | `teleports.downed` |

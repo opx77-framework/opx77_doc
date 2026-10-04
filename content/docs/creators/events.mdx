@@ -173,6 +173,25 @@ AddEventHandler('opx:on:hauling:sold', function(playerId, payload) end)
 
 - payload: `{ citizenId, site, dropoff, count, pay, each, currency }`
 
+## opx:on:doorlock:changed [#opx-on-doorlock-changed]
+
+Server, host-wide. A door was locked or unlocked — by a player, staff, autolock or an export.
+
+```lua
+AddEventHandler('opx:on:doorlock:changed', function(playerId, payload) end)
+```
+
+- playerId: `number?` — `nil` when no player turned it (autolock, an export)
+- payload: `table`
+  - id, door: `integer` — the door id (the same value twice)
+  - name: `string`
+  - state: `0 | 1` — `1` locked
+  - locked: `boolean`
+  - by: `string` — the player id, `lockpick:<id>`, `staff:<id>`, `autolock` or the contract caller
+  - item?: `string` — the key item that opened it, if any
+
+See [doorlock](/docs/opx_infinity/doorlock).
+
 ## The private opx:in:* events [#private]
 
 <Callout type="warn" title="Server opx:in:* events are visible to every server resource">

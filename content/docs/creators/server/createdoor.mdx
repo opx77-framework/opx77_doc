@@ -1,0 +1,38 @@
+---
+title: CreateDoor
+description: Creates a managed door, ox_doorlock's createDoor.
+---
+
+<a id="export-server-createdoor" />
+
+```lua
+local res = exports.opx_infinity:CreateDoor(data)
+```
+
+Scope `write` · must be awaited — a synchronous call answers `export.mustAwait` before touching anything.
+
+**Parameters**
+- data: `table` — a door in ox's shape, as on [doorlock](/docs/opx_infinity/doorlock#access)
+  - `native` (one leaf, `0x` + 16 hex digits) or `doors` (two `{ native, coords }`)
+  - `coords`: `{ x, y, z }` — defaults to the middle of a double door
+  - `name?`, `bucket?`, `state?`, `groups?`, `items?`, `characters?`, `passcode?`, `autolock?`, `maxDistance?`, `lockpick?`, `lockpickDifficulty?`, `auto?`, `hideUi?`, `holdOpen?`, `onDuty?`, `lockSound?`, `unlockSound?`
+
+- Validated like a staff save (groups and items must exist, a leaf belongs to one door only), without the staff position check. Audited with `ext:<your resource>`.
+
+**Returns**
+- the new door id
+
+**Errors**
+- `doorlock.bad_door`, `doorlock.bad_<field>`, `doorlock.unknown_group`, `doorlock.unknown_item`, `doorlock.door_taken`, `doorlock.too_many_doors`, `doorlock.not_loaded`, `doorlock.save_failed`, `export.badArgument`, `error.unavailable`
+
+```lua title="Example"
+CreateThread(function()
+  local pending = Open77.exports.call('opx_infinity', 'CreateDoor', {
+    name = 'Safehouse', native = '0x00000000ABCDEF01',
+    coords = { x = 10.0, y = 20.0, z = 3.0 },
+    items = { { name = 'door_key', metadata = 'safehouse' } },
+  })
+  local res = pending and pending:await()
+  if res and res.ok then print('door #' .. res.value) else print(res and res.error) end
+end)
+```

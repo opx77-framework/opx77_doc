@@ -127,6 +127,34 @@ end
 ```
 
 - Repeating client work goes through [`OPX.Scheduler.Every`](/docs/opx_infinity/concepts/scheduler).
+
+#### The instruction budget [#budget]
+
+Every client callback runs on a coroutine resume with an instruction budget of about 10,000 VM instructions. Past it, the platform ends the coroutine **silently**, halfway through: a menu that never comes back, a key that needs two presses, a cursor left captured. Net events, page handlers (`OPX.UI.On`), event handlers, key mappings and scheduler jobs all count, and all scheduler jobs of one pass share **one** resume.
+
+- Keep handlers cheap: validate, store, and hand the heavy work to a thread.
+- In a loop over a list that can grow (players, slots, spots, catalogue rows), yield every few dozen items.
+- Draw at most a few engine objects per pass (`OPX.Spots.Markers.New` caps markers at 8).
+- Send long lists to the page in slices, and a big menu with [`yield = true`](/docs/opx_infinity/menu/client#the-menu-spec) or pages.
+
+```lua title="A handler that queues, a thread that works"
+RegisterNetEvent(M.Event.SYNC, function(rows)
+	if type(rows) ~= 'table' then return end
+	M.pending = rows                     -- cheap: just keep it
+	if M.reading then return end
+	M.reading = true
+	CreateThread(function()
+		local list = {}
+		for i, row in ipairs(M.pending) do
+			list[#list + 1] = M.Check(row)
+			if i % 10 == 0 then Wait(0) end -- a fresh budget every 10 rows
+		end
+		M.rows, M.reading = list, false
+	end)
+end)
+```
+
+Measure with the [budget meter](/docs/guides/contributing#budget-meter).
 - Screens go through the [menu](/docs/opx_infinity/menu), [form](/docs/opx_infinity/form) or [panel](/docs/opx_infinity/panel) contracts before you write a new Vue view.
 
 ### List every file in the manifest [step] [#manifest]
@@ -151,6 +179,7 @@ From the `opx_infinity` folder:
 
 ```bash
 lua tests/run.lua
+OPX_BUDGET_METER=5000 lua tests/run.lua   # lists client resumes near the budget
 luac -p $(find . -name '*.lua' -not -name 'open77.lua')
 ```
 

@@ -36,7 +36,7 @@ if not out.ok then print(out.error) end
 
 ## Use [#server-garages-use]
 
-What the marker key does: puts away the owned car the player sits in, filed under this garage; otherwise `Bring`. Yields.
+What the marker key does: puts away the owned car the player sits in, filed under this garage; otherwise `Bring`. A car with passengers is refused `garages.passengers`. Yields.
 
 ```lua
 garages.Use(source, key, plate)

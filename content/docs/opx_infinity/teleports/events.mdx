@@ -5,7 +5,7 @@ description: Network and local events of the teleports module.
 
 ## opx:net:teleports:ask [#opx-net-teleports-ask]
 
-Client → server. Asks for the entrance list. Sent at start, every `POLL_MS`, and after a job refusal.
+Client → server. Asks for the entrance list. Sent at start, every `POLL_MS`, and after a job refusal. One per player per second is answered.
 
 ```lua
 TriggerServerEvent('opx:net:teleports:ask')

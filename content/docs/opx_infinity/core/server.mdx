@@ -137,7 +137,9 @@ OPX.Notify(source, message, kind, durationMs)
 
 **Returns**
 - ok: `boolean`
-- reason?: `string` — `'duplicate'` (an identical toast to the same player within 2 s), `'invalid_source'`, `'notification_refused'`, or the host's own refusal
+- reason?: `string` — `'duplicate'` (an identical toast to the same player within 2 s), `'invalid_source'`, `'no_notifications'` (no `Open77.notifications` on this host), `'notification_refused'`, or the host's own refusal
+
+The title is cut to 96 bytes and the message to 384 bytes, on a character boundary (the package refuses longer ones whole). A toast the host refused is not remembered, so an identical retry goes out.
 
 ## OPX.NotifyLocale [#opx-notifylocale]
 
@@ -331,7 +333,7 @@ OPX.Gate.Watch(source, timeoutMs, onGiveUp)
 **Returns**
 - `boolean` — started
 
-Stops early if the slot empties, changes account or is released.
+Stops early if the slot empties, changes account or is released. A release the host refuses is retried once a second, up to 5 times, asking the host for a fresh session token each time; `onGiveUp` still runs only once. After the fifth refusal the journal says `[gate] gave up releasing <id> after 5 refused attempts`.
 
 # Sessions [#sessions]
 

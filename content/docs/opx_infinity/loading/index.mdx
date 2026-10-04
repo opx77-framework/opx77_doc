@@ -1,0 +1,53 @@
+---
+title: loading
+description: Steps the HUD aside while the game's own loading screen is up, and draws the OPX cover over loads that happen in play.
+---
+
+Teleports, lift rides and respawns put the game's loading screen up. This module reads that state and does two things: it hides the HUD-like views (gauges, key strip, toasts, eye, name tags, chat log, call hologram, slot bar, progress bar) for as long as the load lasts, and it draws a branded cover (the join screen's film or poster, with a progress bar when the platform knows the progress). The join itself never gets the cover: the connection screen belongs to the platform.
+
+| | |
+|---|---|
+| Side | client |
+| Requires | none |
+| Contract | `loading` v1 — [client](/docs/opx_infinity/loading/client) |
+| Config | `config/loading.lua` (shared) |
+| Permission | `screen.read` (declared in `open77.lua`) |
+| Data | none |
+
+<Callout type="warn" title="Needs an updated client">
+It reads `Open77.screen.loadingState`, which arrived after Open77 build op77.78 (and is not in the devkit catalogue). On an older client the module writes one line in the player's log, stops, and every view keeps its own visibility. A client with only `Open77.screen.isLoading` gets the hide and the cover, but no progress.
+</Callout>
+
+- Views are hidden, never switched off: each comes back exactly as its module left it, and a HUD the player turned off stays off.
+- The cover goes up only after `COVER.DELAY_MS`, so a blink of a load shows nothing. The percentage stops at 99; the cover closes when the load ends.
+- While idle a pass costs one host read and sends nothing to the page.
+
+## Configuration
+
+`config/loading.lua` sets `OPX.Config.MODULES.loading`. Shared script.
+
+| Key | Default | Effect |
+|---|---|---|
+| <a id="config-loading-enabled" />`enabled` | `true` | `false` switches the module off: views stay drawn over the loading screen. |
+| <a id="config-loading-hide-hud" />`HIDE_HUD` | `true` | Hide the HUD-like views during a load. |
+| <a id="config-loading-cover" />`COVER` | `{ ENABLED = true, VIDEO = true, DELAY_MS = 250 }` | The cover over loads in play. `ENABLED = false` leaves the native screen alone (views still step aside). `VIDEO = false` draws the poster still only (lighter). `DELAY_MS`: 0..5000. |
+| <a id="config-loading-poll-ms" />`POLL_MS` | `200` | How often the loading state is read, 50..2000 ms. |
+
+```lua title="config/loading.lua"
+OPX.Config.MODULES.loading = {
+	enabled = true,
+	HIDE_HUD = true,
+	COVER = { ENABLED = true, VIDEO = false, DELAY_MS = 400 }, -- poster only, later
+	POLL_MS = 200,
+}
+```
+
+## Journal lines [#journal]
+
+All on the player's client log.
+
+| Line | Meaning |
+|---|---|
+| `[loading] this client has no Open77.screen.loadingState; …` | Older client. Harmless; update the client to get the hide and the cover. |
+| `[loading] reading the native loading lifecycle through isLoading (no progress, no kind)` | Partial support: no progress bar. |
+| `[loading] the loading state was refused: permission_denied` | `screen.read` is missing from `open77.lua`. The module stops and files an `OPX.Note`. |

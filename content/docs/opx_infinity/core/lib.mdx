@@ -539,6 +539,27 @@ OPX.Locale.Catalogue()
 **Returns**
 - `table<key, text>`
 
+## OPX.Locale.CatalogueSliced [#opx-locale-cataloguesliced]
+
+The same flat copy, built a slice at a time: it yields (`Wait(0)`) every `every` keys, so copying several thousand keys on a client does not overrun one resume's instruction budget. Call it from a thread. The client runtime uses it on `opx:ready`.
+
+```lua
+OPX.Locale.CatalogueSliced(every)
+```
+
+**Parameters**
+- every: `integer` — keys copied between two yields
+
+**Returns**
+- `table<key, text>`
+
+```lua title="Example"
+CreateThread(function()
+	local strings = OPX.Locale.CatalogueSliced(200) -- one Wait(0) per 200 keys
+	print(OPX.Table.Count(strings))
+end)
+```
+
 # CitizenId [#citizenid]
 
 `lib/shared/citizenid.lua`, both sides. A citizen id is seven symbols from `34679ACDEFGHJKMNPRTWXYZ`, written `XXX-XXXX`. The seventh is a check symbol (weighted sum modulo 23), so one wrong symbol or two swapped neighbours are caught. `OPX.CitizenId.ALPHABET` holds the symbol set; changing it invalidates every id already issued.
@@ -895,6 +916,93 @@ OPX.Spots.Nearest(spots, x, y, radiusSq)
 **Returns**
 - spot: `spot?`
 - distanceSq?: `number`
+
+# Spots on the client [#spots-client]
+
+`lib/client/spots.lua`, client only. The markers and the key every spot module (garages, dealership, clothing, teleports, the elevator door) used to copy. Build on it instead of writing your own marker loop.
+
+## OPX.Spots.Markers.New [#opx-spots-markers-new]
+
+A set of engine markers kept in line with a spot list.
+
+```lua
+local set = OPX.Spots.Markers.New(options)
+```
+
+**Parameters**
+- options: `table`
+  - tag: `string` — your module id, for the one log line a refused marker writes
+  - look: `function(spot): { shape, style, radius, lift }` — usually [`OPX.Spots.Marker`](#opx-spots-marker)
+  - maxDistance: `function(): number` — metres; read once per pass
+  - variant?: `function(spot): any` — a marker whose variant changed is remade
+
+**Returns**
+- set: `table`
+  - `Reconcile(list, x, y)` — draws spots within range, removes the rest. Pass the position you already read (nil draws nothing). At most `OPX.Spots.MARKER_CREATES_PER_PASS` (8) creates per call; removals are never deferred.
+  - `Clear()`, `Count()`, `Has(key)`, `Reset()`
+
+```lua title="Example — a scheduler job"
+local markers = OPX.Spots.Markers.New({
+	tag = 'mymodule',
+	look = function() return OPX.Spots.Marker(M.Config.MARKER, DEFAULT_LOOK) end,
+	maxDistance = function() return OPX.Spots.MaxDistance(M.Config.MAX_DISTANCE, 60) end,
+})
+OPX.Scheduler.Every('mymodule.scan', 500, function()
+	local x, y = OPX.Spots.PlayerXY()
+	markers.Reconcile(M.Spots, x, y) -- 8 creates at most, so one pass stays cheap
+end)
+```
+
+## OPX.Spots.Key.Register [#opx-spots-key-register]
+
+Declares the rebindable key a spot module uses. A press while another surface holds the keyboard (chat, a form, the pause menu) does nothing; your handler runs under `pcall`.
+
+```lua
+OPX.Spots.Key.Register(options)
+```
+
+**Parameters**
+- options: `table`
+  - tag: `string`
+  - declared: `{ ID, NAME, DEFAULT }` — your config's `KEY` block; `DEFAULT = false` declares none
+  - onPress: `function(origin)` — called with `'key'`; decide yourself what a press away from your spots says (usually nothing)
+
+**Returns**
+- registered: `boolean`
+
+## OPX.Spots.Key.Label [#opx-spots-key-label]
+
+The key the mapping is bound to now (the player's rebind, else `DEFAULT`), for a prompt row.
+
+```lua
+OPX.Spots.Key.Label(registered, declared)
+```
+
+**Returns**
+- `string?` — nil when not registered
+
+## OPX.Spots.Captured [#opx-spots-captured]
+
+Whether another surface holds the keyboard. A read that raises answers `false`.
+
+```lua
+OPX.Spots.Captured()
+```
+
+**Returns**
+- `boolean`
+
+## OPX.Spots.PlayerXY [#opx-spots-playerxy]
+
+The player's ground position, or nil before there is a world.
+
+```lua
+local x, y = OPX.Spots.PlayerXY()
+```
+
+**Returns**
+- x?: `number`
+- y?: `number`
 
 # Vehicle [#vehicle]
 
@@ -1312,15 +1420,6 @@ OPX.Surface.Focus(surface, keyboard, cursor)
 - surface: `table`
 - keyboard: `boolean`
 - cursor: `boolean`
-
-**Returns**
-- `boolean`
-
-## OPX.Surface.HasFocus [#opx-surface-hasfocus]
-
-```lua
-OPX.Surface.HasFocus(surface)
-```
 
 **Returns**
 - `boolean`

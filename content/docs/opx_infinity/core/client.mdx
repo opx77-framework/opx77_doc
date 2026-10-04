@@ -142,25 +142,6 @@ OPX.UI.Answer(target, ref, payload)
 - sent: `boolean`
 - refused: `boolean`
 
-## OPX.UI.Serve [#opx-ui-serve]
-
-A request handler: the return value is sent back with `Answer` under `payload.ref`. A handler that raises answers `{ ok = false, error = 'error.unavailable' }`.
-
-```lua
-OPX.UI.Serve(target, channel, handler)
-```
-
-**Parameters**
-- target: `'overlay' | 'interactive'`
-- channel: `string`
-- handler: `function(payload): table`
-
-```lua title="Example"
-OPX.UI.Serve('interactive', 'thing:list', function(payload)
-	return { ok = true, rows = M.Rows() }
-end)
-```
-
 ## OPX.UI.AcquireFocus [#opx-ui-acquirefocus]
 
 Pushes `owner` on the focus stack.
@@ -203,6 +184,14 @@ OPX.UI.FocusOwner()
 
 **Returns**
 - `string?`
+
+## OPX.UI.ReleaseAllFocus [#opx-ui-releaseallfocus]
+
+Empties the focus stack and gives keyboard and cursor back at once. The client stop path calls it first, before any module's `Stop`, so a stop that overruns the instruction budget can no longer leave a player with the cursor held and nothing drawn.
+
+```lua
+OPX.UI.ReleaseAllFocus()
+```
 
 ## OPX.UI.Teardown [#opx-ui-teardown]
 

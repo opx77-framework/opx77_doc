@@ -186,4 +186,4 @@ Allowed in `Open` and `Update`.
 | `dismiss` | none | Escape with `dismiss = 'ask'`. |
 | `close` | `reason` | `caller`, `dismissed`, `pause`, `reopened`, `superseded`, `owner_stopped`, `player_down`, `stopped`. |
 
-The pause key closes the panel even when `dismiss = 'ask'`.
+The pause key behaves like Escape: with `dismiss = 'ask'` it raises `dismiss` and leaves the panel open (a dialog up swallows it); otherwise it closes with reason `pause`.

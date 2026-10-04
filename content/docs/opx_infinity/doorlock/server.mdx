@@ -1,0 +1,184 @@
+---
+title: Server
+description: The doorlock contract on the server — ox_doorlock's exports, read and write doors.
+---
+
+```lua
+local doorlock = OPX.Api.Get('doorlock')
+```
+
+From server code inside opx_infinity. Other resources use the [door exports](/docs/creators/server#doors). `ref` is a door id, or the key a seeded (`config:`) or carried-over (`legacy:`) door was filed under. `by` is free text written to the audit line; default `'contract'`. No answer ever carries a door's code. Errors are `doorlock.<code>` (see [codes](/docs/opx_infinity/doorlock#codes)).
+
+### The door record [#door-record]
+
+What `Get`, `GetFromName` and `All` answer:
+
+- `id`: `integer`
+- `name`: `string`
+- `state`: `0 | 1` — live state, 1 locked
+- `coords`: `{ x, y, z }`
+- `bucket`: `integer`
+- `groups?`: `{ [name] = grade }`
+- `items?`: `{ { name, metadata?, remove? } }`
+- `characters?`: `string[]`
+- `maxDistance`: `number`
+
+## Get [#server-doorlock-get]
+
+ox's `getDoor`.
+
+```lua
+doorlock.Get(ref)
+```
+
+**Parameters**
+- ref: `integer | string`
+
+**Returns**
+- `Result` — [door record](#door-record); error `doorlock.unknownDoor`
+
+## GetFromName [#server-doorlock-getfromname]
+
+ox's `getDoorFromName`: the lowest id with that name.
+
+```lua
+doorlock.GetFromName(name)
+```
+
+**Parameters**
+- name: `string`
+
+**Returns**
+- `Result` — [door record](#door-record); error `doorlock.unknownDoor`
+
+## All [#server-doorlock-all]
+
+ox's `getAllDoors`, sorted by id.
+
+```lua
+doorlock.All()
+```
+
+**Returns**
+- `Result` — [door record](#door-record)`[]`
+
+## SetState [#server-doorlock-setstate]
+
+ox's `setDoorState`. The caller has decided: the door's own rules are not checked. Yields on the networked backend.
+
+```lua
+doorlock.SetState(ref, state, by)
+```
+
+**Parameters**
+- ref: `integer | string`
+- state: `0 | 1 | boolean` — 1 or `true` locks
+- by?: `string`
+
+**Returns**
+- `Result` — the state; errors `doorlock.unknownDoor`, `doorlock.badState`
+
+```lua title="Example"
+CreateThread(function()
+  local res = doorlock.SetState('ncpd_front', 0, 'raid event')
+  if not res.ok then print(res.error) end
+end)
+```
+
+## SetLocked [#server-doorlock-setlocked]
+
+The first version's boolean form of `SetState`.
+
+```lua
+doorlock.SetLocked(ref, locked, by)
+```
+
+**Parameters**
+- ref: `integer | string`
+- locked: `boolean`
+- by?: `string`
+
+**Returns**
+- `Result` — `locked`; errors `doorlock.unknownDoor`, `doorlock.badState`
+
+## Create [#server-doorlock-create]
+
+ox's `createDoor`. Validated like a panel save, without the staff position check. Yields.
+
+```lua
+doorlock.Create(data, by)
+```
+
+**Parameters**
+- data: `table` — a [door](/docs/opx_infinity/doorlock#access) in ox's shape
+- by?: `string`
+
+**Returns**
+- `Result` — the new id; errors `doorlock.bad_door`, `doorlock.<bad_*>`, `doorlock.unknown_group`, `doorlock.unknown_item`, `doorlock.door_taken`, `doorlock.too_many_doors`, `doorlock.not_loaded`, `doorlock.save_failed`
+
+```lua title="Example"
+CreateThread(function()
+  local res = doorlock.Create({ name = 'Back room', native = '0x00000000ABCDEF01',
+    coords = { x = 10.0, y = 20.0, z = 3.0 }, groups = { police = 1 } })
+  if res.ok then print('door #' .. res.value) end
+end)
+```
+
+## Edit [#server-doorlock-edit]
+
+ox's `editDoor`: the fields given replace the door's, `''` clears one, a type that differs from the stored one is refused (`doorlock.bad_<field>`). A new `native` replaces a double door, and `doors` a single one. Yields.
+
+```lua
+doorlock.Edit(ref, data, by)
+```
+
+**Parameters**
+- ref: `integer | string`
+- data: `table`
+- by?: `string`
+
+**Returns**
+- `Result` — the id; errors as [Create](#server-doorlock-create), plus `doorlock.unknownDoor`
+
+## Remove [#server-doorlock-remove]
+
+ox's `removeDoor`. A seeded door leaves a tombstone so the next boot does not insert it again. Yields.
+
+```lua
+doorlock.Remove(ref, by)
+```
+
+**Parameters**
+- ref: `integer | string`
+- by?: `string`
+
+**Returns**
+- `Result` — errors `doorlock.unknownDoor`, `doorlock.save_failed`
+
+## IsAuthorised [#server-doorlock-isauthorised]
+
+Whether a player may turn a door by its rules, ignoring where they stand and the code. Yields (reads the bag).
+
+```lua
+doorlock.IsAuthorised(playerId, ref)
+```
+
+**Parameters**
+- playerId: `number`
+- ref: `integer | string`
+
+**Returns**
+- `Result` — `{ allowed, how, passcode }`
+  - `how`: `'staff' | 'acl' | 'character' | 'group' | 'item' | 'passcode'`, or the refusal code
+  - `passcode`: `boolean` — the code would still be asked
+
+## Mode [#server-doorlock-mode]
+
+The running backend. A plain string, not a Result.
+
+```lua
+doorlock.Mode()
+```
+
+**Returns**
+- `'networked' | 'local'`

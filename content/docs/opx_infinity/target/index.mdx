@@ -16,6 +16,7 @@ The player holds the target key (`ALT` by default), the cursor appears, and a ri
 
 - The module ships one row of its own, **Identifiers**, which shows and copies another player's server id and character id (see [`IDENTIFY`](#config-target-identify)).
 - The eye closes and will not open while the player is down.
+- The row under the pointer (or focused) steps out like the menu's chosen row: full red, lit plate, a small 3D pop; danger rows pop in the alarm colour; an open folder stays lit without the pop. All rows of a column land together, with no stagger.
 - Limits: 48 rows per owner, 128 in total.
 - Bands for `order` used by the shipped modules (from `config/target.lua`): 0–9 the thing itself, 10–19 its state, 20–39 what it holds, 40–59 work, 60–89 leaving, 100–999 staff.
 
