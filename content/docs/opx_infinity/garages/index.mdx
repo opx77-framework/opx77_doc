@@ -25,6 +25,8 @@ Glowing markers where players fetch and park their own vehicles. On foot at a **
 - Each **location** has one `MENU` point (opens the list), one `ENTRY` point (takes the car you sit in) and an ordered list of `EXITS`.
 - **Exits** are tried in the order written. An exit is taken when any vehicle in the same routing bucket is within `EXIT_CLEARANCE` metres (the car being fetched never blocks its own exit). All taken: `garages.noFreeExit`.
 - **Put away or bring out** is decided by the server from the host's seat assignment, never by the client.
+- A car with **passengers** is not put away: `garages.passengers` until they get out.
+- The nearest point is searched in the player's own bucket only, so an instanced copy on the same spot does not get in the way.
 - A car of yours already out elsewhere is **moved** to the exit (see [`vehicles.Spawn`](/docs/opx_infinity/vehicles/server#server-vehicles-spawn)); refused with `vehicle.occupied` if anyone sits in it.
 - `KIND = 'garage'` brings out ground vehicles only; `KIND = 'avpad'` AVs only. An AV is created `AV_LIFT` metres above the exit. Which records are AVs is `AV_PREFIXES` in `config/shared.lua`.
 
@@ -113,6 +115,7 @@ Each code is also a locale key. Codes from [`vehicles`](/docs/opx_infinity/vehic
 | `garages.nothingHere` | The player owns nothing of this garage's kind. |
 | `vehicle.notFound` | The named plate is not one of the player's eligible vehicles. |
 | `garages.noFreeExit` | Every exit of the location is taken. |
+| `garages.passengers` | Passengers are still in the car you want to put away. |
 | `garages.rateLimited` | Cooldown or request window (bring-outs). |
 | `error.tooFast` | Request window (lists). |
 | `error.noPermission` | Client side only: another surface holds the keyboard. |

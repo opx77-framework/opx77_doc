@@ -194,7 +194,18 @@ Server → client. Every pile, in parts.
 RegisterNetEvent('opx:net:inventory:drops', function(part) end)
 ```
 
-- part: `table` — `{ first, done, drops = { { id, x, y, z, bucket } } }`
+- part: `table` — `{ first, done, drops = { { id, x, y, z, bucket } }, bucket? }`
+  - `bucket`: on the first part only, the player's routing bucket. The client draws only that bucket's piles.
+
+## opx:net:inventory:bucket [#opx-net-inventory-bucket]
+
+Server → client. The player's routing bucket, sent when the host reports a bucket change. The client has no read of its own bucket, so the server reads it from its own position and says it.
+
+```lua
+RegisterNetEvent('opx:net:inventory:bucket', function(bucket) end)
+```
+
+- bucket: `integer`
 
 ## opx:net:inventory:drop [#opx-net-inventory-drop]
 

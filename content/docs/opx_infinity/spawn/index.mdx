@@ -16,7 +16,7 @@ Shows a menu of places when a character enters the world and puts the character 
 
 ## How a choice runs [#flow]
 
-1. When a joining character gets a living body, `character` calls [`spawn.Offer(source, citizenId)`](/docs/opx_infinity/spawn/server#server-spawn-offer). A `/opx.select` switch inside the world is placed directly and never offered the menu.
+1. When a joining character gets a living body, `character` calls [`spawn.Offer(source, citizenId)`](/docs/opx_infinity/spawn/server#server-spawn-offer). A `/opx.select` switch inside the world is placed directly and never offered the menu; a menu still open for the previous character is dropped when it unloads (or replaced by an offer for the new one).
 2. `Offer` answers `false` (character places the body itself, at once) when the module is off, the policy is `'never'`, no location is usable, a choice is already open, or the policy is `'first'` and the character already has a stored position.
 3. Otherwise it sends `opx:net:spawn:offer`. The client opens the menu as soon as `entry` reports itself idle (name form and fitting room done) and reports `opx:net:spawn:opened`.
 4. The player's window (`TIMEOUT_SECONDS`) starts at that report. Before it, only `HOLD_MAX_SECONDS` can end the offer.

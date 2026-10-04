@@ -14,7 +14,9 @@ Takes over lifts that already exist in the game world and gives them a floor lis
 | Config | `config/elevators.lua` (shared) |
 | Data | none |
 
-- The key ([`KEY`](#config-elevators-key), `opx.elevators.use`) opens the floor list at the lift the player stands at. A strip row (`prompts`) names the key while within `USE_RADIUS` of a configured lift; without `prompts` the key still works.
+- The key ([`KEY`](#config-elevators-key), `opx.elevators.use`) opens the floor list at the lift the player stands at. A strip row (`prompts`) names the key while within `USE_RADIUS` of a configured lift; without `prompts` the key still works. Away from any lift the key does nothing and says nothing (E is shared with other modules).
+- A lift nobody rides for 10 minutes is released on the host as well as forgotten, so it can be adopted again. After a restart, the client re-reports a lift that is still managed but not bound (every 30 s) and the server claims it back.
+- The server refuses a downed player (`downed`), not only the client panel.
 - With `KEY.DEFAULT = false` no key is declared and [`OpenPanel`](/docs/opx_infinity/elevators/client#client-elevators-openpanel) is the only way in. Adopted lifts are locked, so the game's own lift panel is refused either way.
 
 <Callout type="warn" title="The shipped elevators are samples">
@@ -43,7 +45,7 @@ The four entries in `config/elevators.lua` have placeholder positions and guesse
 | <a id="config-elevators-scan-ms" />`SCAN_MS` | `2000` | How often the client looks for lifts (and syncs the strip row). |
 | <a id="config-elevators-match-radius" />`MATCH_RADIUS` | `6.0` | Metres between a seen lift and a declared position for them to match. |
 | <a id="config-elevators-use-radius" />`USE_RADIUS` | `4.0` | Metres from the declared position within which a player may ride. |
-| <a id="config-elevators-scan-radius" />`SCAN_RADIUS` | `40.0` | Metres the client scans, and the server's limit on a sighting. |
+| <a id="config-elevators-scan-radius" />`SCAN_RADIUS` | `40.0` | Metres the client scans, and the server's limit on a sighting. Clamped to 1..300. |
 | <a id="config-elevators-travel-ms" />`TRAVEL_MS` | `8000` | Cabin travel time. Tunable `ELEV_TRAVEL_MS`. |
 | <a id="config-elevators-request-window-ms" />`REQUEST_WINDOW_MS` | `10000` | Rate window. Tunable `ELEV_REQUEST_WINDOW_MS`. |
 | <a id="config-elevators-requests-per-window" />`REQUESTS_PER_WINDOW` | `6` | Ride requests per player per window. Tunable `ELEV_REQUESTS_PER_WINDOW`. |
@@ -96,6 +98,7 @@ A floor's `JOBS`, `ON_DUTY` and `REASON` follow the shared job-gate format; see 
 | `no_position`, `wrong_bucket`, `too_far` | The server's position check failed. | `elevators.noPosition`, `elevators.wrongBucket`, `elevators.tooFar` |
 | `move_rejected` | The platform refused to move the cabin. | `elevators.moveRejected` |
 | `rate_limited` | Too many requests. | `elevators.rateLimited` |
+| `downed` | The player is down. | `elevators.downed` |
 | `not_sent` | The net event was not sent. | `elevators.notSent` |
 | `player_down`, `menu_not_running`, `no_floors_available` | `OpenPanel` only. From the key, toasted as `elevators.refused`, `elevators.noPanel`, `elevators.noFloors`. | — |
 | `internal_error` | A client contract function raised; see the log. | — |

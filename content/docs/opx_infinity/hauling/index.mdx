@@ -25,7 +25,7 @@ A delivery job. Crates stand at surveyed points; every player in the site's rout
 1. **Pick up.** ALT on a crate → *Pick up the crate*. The server checks distance (`REACH`), bucket and the site's job gate, claims the crate and runs a `PICKUP_MS` bar while the player plays the site's `PICKUP_POSE`. The crate is then attached (`CARRY`), the `carry` animation plays, weapons are holstered and blocked.
 2. **Put down (optional).** `DROP_KEY` (**X** by default, rebindable as *Hauling: put the crate down*). The crate lands `DROP_DISTANCE` m in front; anyone may pick it up. Untouched for `DROP_RETURN_MS`, it goes back to its point on the next refill pass.
 3. **Load.** ALT on a vehicle within `VEHICLE_REACH` → *Load the crate*, `LOAD_MS` bar. The prop is removed and one `ITEM` (`hauling_crate`, 10 kg) with metadata `{ site = <site key> }` is added to that vehicle's trunk. A full, locked or foreign trunk refuses.
-4. **Sell.** ALT on the seller NPC at a drop-off → *Sell the crates*, `DELIVER_MS` bar. Every crate of that site in the player's bag **and** in the trunk of any vehicle parked within the drop-off's `RADIUS` is sold at once. Pay per crate: the site's `PAY`, else the `HAUL_PAY_PER_CRATE` tunable (starts at `PAY_PER_CRATE`), paid in `CURRENCY`. If payment fails the crates are put back: first where each came from, then into the bag or another trunk of the sale. Crates that fit nowhere are lost and recorded for a refund (`not_paid_lost`, audit event `hauling.crateLost`).
+4. **Sell.** ALT on the seller NPC at a drop-off → *Sell the crates*, `DELIVER_MS` bar. Every crate of that site in the player's bag **and** in the trunk of every vehicle parked within the drop-off's `RADIUS` that the player **owns or holds a key to** ([`vehiclekeys.Holds`](/docs/opx_infinity/vehiclekeys/server#server-vehiclekeys-holds)) is sold at once. Someone else's truck parked there is not counted. Selling from the bag is intended (a drop-off may sit where no vehicle can park). On a server with neither `vehicles` nor `vehiclekeys`, every parked trunk counts, and the log says so once. Pay per crate: the site's `PAY`, else the `HAUL_PAY_PER_CRATE` tunable (starts at `PAY_PER_CRATE`), paid in `CURRENCY`. If payment fails the crates are put back: first where each came from, then into the bag or another trunk of the sale. Crates that fit nowhere are lost and recorded for a refund (`not_paid_lost`, audit event `hauling.crateLost`).
 
 - **Clocks.** The server owns every clock: a completion sooner than the bar minus `CLOCK_TOLERANCE_MS` is refused. A claim not finished within its bar plus `CLAIM_GRACE_MS` is released by the refill pass.
 - **Carry ends** (crate back on its point) when the carrier gets into a vehicle, disconnects, dies or changes bucket.
@@ -104,8 +104,9 @@ Sent as `reason` on [`opx:net:hauling:answer`](/docs/opx_infinity/hauling/events
 | `job_required`, `grade_too_low`, `off_duty`, `job_stale`, `no_such_site` | The site's job gate refused. |
 | `claim_expired` | You took too long; the crate went back. |
 | `carry_dropped` | You got into a vehicle while carrying. |
+| `carry_ended` | The platform ended the carry (death, bucket change, prop removed). Weapons are unblocked. |
 | `too_soon` | Completion arrived before the server's clock allowed. |
-| `not_carrying`, `busy`, `nothing_running` | Nothing to load or drop, or a bar is running. |
+| `not_carrying`, `busy`, `nothing_running` | Nothing to load or drop, a bar is running, or the crate is still being written into the trunk. |
 | `no_such_vehicle`, `trunk_full`, `not_your_trunk`, `trunk_locked`, `no_trunk`, `trunk_refused` | The load into the trunk failed. |
 | `no_such_seller`, `no_crates` | No such seller, or no crates of this site in your bag or a parked vehicle. |
 | `not_paid` | The payment failed; the crates were put back. |

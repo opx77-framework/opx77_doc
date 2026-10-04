@@ -39,6 +39,25 @@ keys.Count(target, plate)
 **Returns**
 - `integer` — `0` without inventory
 
+## Holds [#server-vehiclekeys-holds]
+
+Whether the bag of `target` holds a key to a live vehicle. Looks the plate up and never mints one: a vehicle nobody cut a key for answers `false`. For deciding whether a vehicle is the player's to use without turning its lock.
+
+```lua
+keys.Holds(target, vehicleId)
+```
+
+**Parameters**
+- target: `number | string`
+- vehicleId: `number | string` — the host's vehicle id
+
+**Returns**
+- `boolean`
+
+```lua title="Example"
+if not keys.Holds(source, vehicleId) then return Result.Err('not_your_trunk') end
+```
+
 ## Give [#server-vehiclekeys-give]
 
 Always adds one key.

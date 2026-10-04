@@ -14,10 +14,13 @@ A player presses `H` to open a centred hologram with their contacts and recent c
 | Config | `config/calls.lua` (shared) |
 | Data | character metadata `callContacts` (≤ `MAX_CONTACTS` rows `{ citizenId, name }`) and `callRecent` (last 20 outcomes) |
 
+- **Contacts only.** A call or a join needs the target's citizen id in the caller's contacts; anyone else is refused `notContact`, checked before anything about the target, so the refusal says nothing about who that id is or what they are doing. Strangers swap contacts face to face first.
+- Offering your contact to the same player again is refused for 30 s (`contactTooSoon`); the floor is cleared when either player leaves.
 - One player is in at most one call, with at most one invite out and one waiting.
 - An invite has a `kind`, decided by the server: `call` (start a call), `join` (the sender is in a call; accepting adds you) or `contact` (swap contact rows; no call).
 - `invite`, `accept`, `decline` and `hangup` are each limited to one per `REQUEST_MS` per player; a refusal is shown as a toast.
-- A call is dropped when a participant disconnects, leaves the world or is no longer alive (checked every `SCAN_MS` and on life-state changes).
+- A call is dropped when a participant disconnects, leaves the world or is no longer alive (checked every `SCAN_MS` and on life-state changes). When one of three leaves, the other two are told who hung up. A failed host read no longer ends live calls.
+- Hanging up (and stopping the module) puts the voice route back to proximity.
 - Audit entries: `calls.invite`, `calls.accept`, `calls.decline`, `calls.cancel`, `calls.hangUp`, `calls.contact`, `calls.unanswered`, `calls.eyes`, `calls.voice`.
 - No commands.
 
@@ -61,6 +64,8 @@ Shown to the player as `calls.error.<code>`.
 | `badRequest` | Malformed request. |
 | `tooFast` | Within `REQUEST_MS` of the last one. |
 | `self` | Calling yourself. |
+| `notContact` | The target is not in your contacts. |
+| `contactTooSoon` | You offered them your contact less than 30 s ago. |
 | `noSuchPlayer` | The target is not connected. |
 | `notReady` / `targetNotReady` | You / they are not in the world with a character. |
 | `notAlive` / `targetNotAlive` | You / they are down or dead. |

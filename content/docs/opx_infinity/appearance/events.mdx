@@ -81,7 +81,7 @@ RegisterNetEvent('opx:net:appearance:openPanel', function() end)
 
 ## opx:net:appearance:present [#opx-net-appearance-present]
 
-Client → server. This player's look, for the others. Floor 500 ms.
+Client → server. This player's look, for the others. Floor 2 s per player; a change inside the floor is neither sent nor acknowledged. A look identical to the last one sent (same length and hash) is acknowledged but not sent to anyone again; a look coming back after a withdrawal is sent.
 
 ```lua
 TriggerServerEvent('opx:net:appearance:present', body, equipment, wardrobe, sequence)
