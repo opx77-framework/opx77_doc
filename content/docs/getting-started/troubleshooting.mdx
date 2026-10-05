@@ -176,6 +176,49 @@ No emote with a nearby player is offered.
 
 Calls go to contacts only. Players swap contacts face to face first; offering it again to the same player waits 30 s (`contactTooSoon`). See [calls](/docs/opx_infinity/calls).
 
+## Names and identity [#names]
+
+### I don't see names above heads [#no-names]
+
+Intended since PR #93: **never a name to a stranger**. Every remote player's plate is hidden (no character name, no account gamertag). Chat lines are signed `Player #12`, the give list says where a person stands (`To your left · 1.2 m`), and a holocall names only your contacts. See [Privacy](/docs/opx_infinity/character#privacy).
+
+- Staff see names with `/opx.admin.self.tags` (grant `command.opx.admin.self.tags`).
+- `[character] this client has no Open77.nameplates: remote plates cannot be hidden and will show the account name`: the client build has no plate API; update the client.
+
+### My resource reads `Open77.state.player(id).name` and gets nil [#state-bag-empty]
+
+The player state bag is empty since PR #93. Read the local player with the client export [`GetPlayerData`](/docs/creators/client/getplayerdata), and other players on the server with the [server exports](/docs/creators/server). See [Writing a resource](/docs/guides/writing-a-resource#state-bag).
+
+### A call shows "Unknown caller" [#unknown-caller]
+
+That person is not in your contacts. Swap contacts face to face; from then on their name shows on cards, toasts and recent calls.
+
+## Keys and screens [#keys]
+
+### E does nothing next to a garage and a door [#e-two-spots]
+
+E did something, for the **nearer** spot: when two places that use E are both in reach (a garage beside a door, a lift beside a teleport), only the nearer one acts, and only its row is drawn on the key strip. Step closer to the one you want. A lockpick under way holds E for its door. The order is [`KEY_PRIORITY`](/docs/opx_infinity/core/config#config-client-key-priority); see [One press, one owner](/docs/opx_infinity/core/lib#key-contest).
+
+### X put the crate down but did not hang up the call [#x-order]
+
+One press, one action. X goes to: a cancelable progress bar, then a ringing call (decline), your outgoing call (withdraw), a carried crate, your emote, and last a call in progress (hang up). Rebind one of them in the pause menu to keep both on separate keys.
+
+### Y does not peek the hotbar [#y-ringing]
+
+While a call rings, Y answers it and the peek stays silent. Intended.
+
+### Escape closed only one screen [#escape]
+
+Intended since PR #95: Escape closes the **top** layer only (the screen opened last), and inside a submenu it goes back one level.
+
+### A click on an eye row only changed it to "Confirm: …" [#eye-confirm]
+
+A `danger` row asks for a second click within 4 s. A resource that wants one click sets `confirm = false` on the row ([AddTarget](/docs/creators/client/addtarget)).
+
+### "Too far" at the edge of a marker [#too-far]
+
+The server allows [`REACH_SLACK`](/docs/opx_infinity/core/config#config-shared-reach-slack) (1 m) beyond the radius the client draws. Raise it (0–4) if players with high latency are still refused.
+
 ## Useful commands [#commands]
 
 | Command | Where | Prints |

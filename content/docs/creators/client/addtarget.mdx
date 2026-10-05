@@ -19,13 +19,16 @@ Sync.
   - onSelect: `string` — the name of **your** export called with the pick context
   - canInteract?: `string` — your export answering `true` to list the row
   - checked?: `string` — your export answering `true` / `false` to draw a box
-  - description?, group?, icon?, distance?, ... — the rest of a [target row](/docs/opx_infinity/target/client)
+  - danger?: `boolean` — drawn as dangerous, and **asks for a second click** unless `confirm = false`
+  - confirm?: `boolean` — `true` asks for a second click on any row; `false` lets a `danger` row run in one click
+  - description?, group?, icon?, distance?, ... — the rest of a [target row](/docs/opx_infinity/target/client#row-definition)
 - where?: `table` — required for `models` (model records), `entities` (entity ids) and `spheres` (`{ x, y, z, radius }` list)
 
 - Rows are owned under **your resource name**. The eye reads your resource's generation and drops your rows when it stops or reloads.
 - Every callback is an export **name** of yours (`onSelect = 'OnPick'` calls `exports.<you>:OnPick(context)`); a `{ resource, export }` naming any other resource, or anything else, is `export.badArgument`. The eye asks callbacks in slices over export calls, never inside one resume.
 - A resource named like a module of OPX (`target`, `inventory`, ...) is refused: `export.ownerTaken`.
 - The eye limits how many rows one owner holds.
+- A confirm row: the first click relabels it `Confirm: <label>` in place; `onSelect` is called only on a second click on the same row within 4 s. Your export is never called for the first click. Since PR #90 every `danger` row confirms by default: set `confirm = false` to keep one click (for example when `onSelect` opens a form that confirms on its own).
 
 **Returns**
 - `{ token }` for one row, `{ tokens }` for a list
@@ -40,5 +43,10 @@ end)
 
 local res = exports.opx_infinity:AddTarget('npcs', {
   id = 'buy', label = 'Browse the stall', icon = 'cart', onSelect = 'OnBuy',
+})
+
+-- Two clicks: "Rob the stall", then "Confirm: Rob the stall".
+exports.opx_infinity:AddTarget('npcs', {
+  id = 'rob', label = 'Rob the stall', icon = 'warning', danger = true, onSelect = 'OnRob',
 })
 ```

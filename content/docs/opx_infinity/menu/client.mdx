@@ -166,7 +166,7 @@ A row's kind comes from its shape. Tested in this order; the first match wins.
 | toggle | `toggle = true/false`, optional `onLabel`, `offLabel` | Enter, Left or Right flips it (`change`). `value` is the boolean. |
 | choices | `choices = { 'a', 'b' }`, optional `selected` (index) | Left/Right cycles (`change`). `value` is the chosen string. |
 | slider | `slider = { min = 0, max = 100, step = 1, value, suffix }` | Left/Right steps and clamps (`change`). `value` is the number. `max` must be above `min`. |
-| back | `back = true` | Pops one level, or closes at the root. |
+| back | `back = true` | Pops one level, or closes at the root. Escape does the same: it goes back one level and closes only at the top. |
 | close | `close = true` and no `act` | Closes the menu (reason `item`). |
 | action | anything else | Enter raises `select`. `value` (max 48) is the right-hand text. |
 
@@ -183,6 +183,27 @@ Fields every row may carry:
 | `act` | `act(payload)`, called before `on` for this row only. |
 | `close` | On an action row with `act`: close after it fires. |
 | `submenu` | `true` draws the arrow on a row with no `items` of its own (for owners that open one flat screen at a time). It still raises `select`. |
+| `confirm` | On a row with no `items`: `true` or `{ title?, yes?, no? }`. See [Confirm rows](#confirm). |
+
+## Confirm rows [#confirm]
+
+A row with `confirm` opens a two-row level instead of acting. The **first** row keeps things as they are (a `back` row, so Enter pressed without looking does nothing); the second does what the row said, under the **same `id` and `data`**, so `on` receives the `select` it always did.
+
+| Field | Default (en / fr) |
+|---|---|
+| `title` | `{label}?` / `{label} ?` (`menu.confirm.title`) |
+| `no` | `No, keep it` / `Non, garder` (`menu.confirm.no`) |
+| `yes` | `Yes, {label}` / `Oui : {label}` (`menu.confirm.yes`) |
+
+```lua title="Example"
+items = {
+  { id = 'delete', label = 'Delete outfit', icon = 'trash', confirm = { yes = 'Delete outfit', no = 'Keep it' } },
+  { id = 'sell', label = 'Sell', confirm = true },
+},
+on = function(p)
+  if p.action == 'select' and p.itemId == 'delete' then --[[ only after the second row ]] end
+end,
+```
 
 ## The action payload
 

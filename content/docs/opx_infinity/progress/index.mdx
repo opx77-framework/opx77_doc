@@ -20,6 +20,7 @@ Shows a timed-action bar ("Eating", "Picking the lock") for a few seconds. While
 - It never takes keyboard focus (it is drawn on the `overlay` surface).
 - While a bar is up and `LOCK` is true, the input actions `Movement` and `Attack` are blocked. The camera stays free.
 - A bar marked `cancelable` can be ended by the player with the [cancel key](#config-progress-cancel-key) (`X` by default); it ends `cancelled`. The page draws the hint `progress.cancel` ("`{key}` to cancel") naming the bound key. A bar not marked ignores the key.
+- X is shared with a call's decline and hang-up, a carried crate and the emote stop. While a cancelable bar is up it owns the press (rank `PROGRESS`, see [One press, one owner](/docs/opx_infinity/core/lib#key-contest)): cancelling an eat or a repair during a call no longer ends the call. A press while chat or a form holds the keyboard does nothing.
 
 ## Configuration
 

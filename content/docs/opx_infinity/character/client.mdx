@@ -7,7 +7,7 @@ description: The character contract on the client — a read-only mirror of the 
 local character = OPX.Api.Get('character')
 ```
 
-From client code inside opx_infinity. These read a local mirror of the server; nothing is authoritative. Never yields. The client also puts each player's character name on the platform nameplate above their head.
+From client code inside opx_infinity. These read a local mirror of the server; nothing is authoritative. Never yields. The client **hides** every other player's platform nameplate: no character name and no account gamertag over a stranger's head ([Privacy](/docs/opx_infinity/character#privacy)).
 
 ## GetPlayerData [#client-character-getplayerdata]
 
@@ -173,7 +173,7 @@ character.SetName(firstName, lastName)
 
 ## GetPlayerState [#client-character-getplayerstate]
 
-Any player in your bucket, from the [state bag](#state-bag). Cached; do not write to it.
+Kept for callers written against the old contract: always an empty table, because the [state bag](#state-bag) carries nothing. Do not write to it.
 
 ```lua
 character.GetPlayerState(playerId)
@@ -183,11 +183,11 @@ character.GetPlayerState(playerId)
 - playerId: `number`
 
 **Returns**
-- `table` — `{}` when unknown
+- `table` — always `{}`
 
 ## GetPlayerName [#client-character-getplayername]
 
-The character name.
+Another player's character name: never known on a client.
 
 ```lua
 character.GetPlayerName(playerId)
@@ -197,11 +197,11 @@ character.GetPlayerName(playerId)
 - playerId: `number`
 
 **Returns**
-- `string?` — nil while unnamed
+- `nil` — always
 
 ## GetPlayerIdentity [#client-character-getplayeridentity]
 
-Three strings for a name tag.
+Kept for the old contract: a fresh table of three nils. Staff name tags come from the staff tag list instead ([admin](/docs/opx_infinity/admin)).
 
 ```lua
 character.GetPlayerIdentity(playerId)
@@ -211,22 +211,14 @@ character.GetPlayerIdentity(playerId)
 - playerId: `number`
 
 **Returns**
-- `{ name?, username?, citizenId? }`
+- `{ name = nil, username = nil, citizenId = nil }`
 
 ## State bag [#state-bag]
 
-The server writes the public part of each loaded character to that player's state bag. Any client in the same routing bucket can read it, from any resource, with `Open77.state.player(playerId)`; inside opx_infinity use [`GetPlayerState`](#client-character-getplayerstate). Money, metadata, user id, pay and `bankAuth` are never on the bag. Keys are written only when they change, and cleared on logout or character switch. Every key is readable by every client in the bucket.
+**Empty since PR #93.** A player bag reaches every client in the routing bucket (the whole city), so the character module writes **no key** on it (`State.KEYS = {}`, held by a test). The keys an older build wrote (`citizenId`, `name`, `charInfo`, `job`, `gang`, `username`, `life`) are cleared once per player when they are found.
 
-| Key | Shape |
+| Need | Use instead |
 |---|---|
-| `citizenId` | `string` |
-| `name` | `string` `"First Last"`, absent until the character is named |
-| `charInfo` | `{ firstName?, lastName?, gender?, origin? }` — `origin` is always empty today |
-| `job` | `{ name, label, type?, onDuty, isBoss, grade = { name, level } }` |
-| `gang` | `{ name, label, onDuty, isBoss, grade = { name, level } }` |
-| `username` | `string`, the platform account name |
-| `life` | `{ dead, lastStand }` from `metadata.isDead` / `metadata.inLastStand` |
-
-```lua title="Example (any resource)"
-local bag = Open77.state.player(playerId)
-```
+| The local player's own character | [`GetPlayerData`](#client-character-getplayerdata) or the [`GetPlayerData` client export](/docs/creators/client/getplayerdata) |
+| Another player's job, gang, name or life state | the server: [server exports](/docs/creators/server) such as `GetPlayerData`, `HasJob`, `IsDown`. Never hand a name on to a client that has not met that character. |
+| Who is who, for staff | the staff name tags (`opx.admin.self.tags`) |

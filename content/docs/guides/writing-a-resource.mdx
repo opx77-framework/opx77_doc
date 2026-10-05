@@ -1,6 +1,6 @@
 ---
 title: Write a separate resource
-description: How a resource outside opx_infinity uses OPX//77 — server and client exports, public server events, the player state bag, opx_lib — and what it still cannot do.
+description: How a resource outside opx_infinity uses OPX//77 — server and client exports, public server events, opx_lib — what the player state bag no longer carries, and what it still cannot do.
 ---
 
 For a resource that is **not** part of `opx_infinity` (your own `my_jobs`, for example). It uses the curated surface `opx_infinity` publishes for creators. If you need a module's full contract (every function of `character`, `inventory`…), write a [module](/docs/guides/writing-a-module) instead.
@@ -12,7 +12,7 @@ For a resource that is **not** part of `opx_infinity` (your own `my_jobs`, for e
 | Server exports | server | read a player's data, money, job, items, down state, the roster, the jobs, the catalogue, vehicles, doors; change money, jobs, gangs, duty, your own metadata (online or not), items, stashes, chat, keys, vehicles, doors; register items, use handlers and crafting benches; a toast; a bar the server judges; revive | [Server exports](/docs/creators/server) |
 | Client exports | client | open a menu, form or panel, show a toast, run a progress bar, put rows on the eye and hints on the key strip, open your crafting bench, play an animation, read the local player; subscribe to OPX client events | [Client exports](/docs/creators/client) |
 | Public server events | server | react when a character loads, money moves, an item is used, a car is bought… | [Server events](/docs/creators/events) |
-| [Player state bag](#state-bag) | client and server, read | name, job, gang, citizen id of any player in the same bucket, with no call at all | below |
+| [Player state bag](#state-bag) | — | **nothing** since PR #93: never a name to a stranger | below |
 | [opx_lib](#opx-lib) | client | input, markers, zones, RPC helpers… | [opx_lib](/docs/opx_lib) |
 | [Ordinary commands](#commands) | server | running an unrestricted command | below |
 
@@ -82,18 +82,18 @@ end)
 
 ## The player state bag [#state-bag]
 
-The [character module](/docs/opx_infinity/character/client#state-bag) writes public facts about each loaded character on the player's replicated state bag. Any resource reads them with no permission and no call.
+The [character module](/docs/opx_infinity/character/client#state-bag) writes **no key** on the player's replicated state bag any more (PR #93). The old keys (`citizenId`, `name`, `charInfo`, `job`, `gang`, `username`, `life`) reached every client in the bucket, the whole city, and are cleared. Ask the server instead, and keep the rule the framework keeps: **never a name to a stranger** — do not relay a character's name, citizen id, job or balance to a client whose player has not met that character.
 
-```lua
-local who = Open77.state.player(playerId)
-if who.job and who.job.name == 'police' then
+```lua title="server — instead of reading the bag"
+local res = exports.opx_infinity:HasJob(playerId, 'police')
+if res.ok and res.value then
 	-- ...
 end
 ```
 
-- Keys: `citizenId`, `name`, `charInfo`, `job`, `gang`, `username`, `life`.
-- A client only receives bags of players in **its own routing bucket**.
-- Money, metadata and inventory are not in the bag; use the server exports.
+- The local player's own character: the client export [`GetPlayerData`](/docs/creators/client/getplayerdata).
+- Another player: the [server exports](/docs/creators/server) (`GetPlayerData`, `HasJob`, `IsDown`…), gated by [`SERVER.EXPORTS.READ`](/docs/opx_infinity/core/config#config-server-exports).
+- Platform names outside OPX: `Open77.players.nearby` and the platform chat/scoreboard still show account names; that is a platform setting.
 
 ## opx_lib [#opx-lib]
 

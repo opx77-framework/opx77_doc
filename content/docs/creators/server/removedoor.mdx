@@ -20,7 +20,7 @@ Scope `write` · must be awaited — a synchronous call answers `export.mustAwai
 - nothing (`res.value` is nil)
 
 **Errors**
-- `doorlock.unknownDoor`, `doorlock.save_failed`, `export.badArgument`, `error.unavailable`
+- `doorlock.unknownDoor`, `doorlock.error.save_failed` (was `doorlock.save_failed` before PR #95), `export.badArgument`, `error.unavailable`
 
 ```lua title="Example"
 CreateThread(function()

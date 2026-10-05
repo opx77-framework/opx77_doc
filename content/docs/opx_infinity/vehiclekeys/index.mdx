@@ -38,7 +38,7 @@ Each code is also a locale key (English and French).
 |---|---|
 | `vehiclekeys.noVehicle` | No live vehicle with that id, or the used key has no plate. |
 | `vehiclekeys.notOut` | The vehicle the used key opens is not in the world. |
-| `vehiclekeys.tooFar` | Not seated in it and further than 6 m, or in another bucket. |
+| `vehiclekeys.tooFar` | Not seated in it and further than 6 m plus [`REACH_SLACK`](/docs/opx_infinity/core/config#config-shared-reach-slack) (7 m by default), or in another bucket. |
 | `vehiclekeys.noKey` | No key to that vehicle in the bag. |
 | `vehiclekeys.lockRefused` | The host refused the lock change, cannot read the lock, or the lock native raised. |
 | `vehiclekeys.noRoom` | The bag is full or too heavy for the key (detail: the key label). |

@@ -121,13 +121,14 @@ RegisterNetEvent('opx:net:animations:picker', function(category) end)
 Server → client, to the invited player. Opens the *Accept* / *Decline* menu (or a chat line naming `/e accept`).
 
 ```lua
-RegisterNetEvent('opx:net:animations:invite', function(inviteId, what, name, inviteMs) end)
+RegisterNetEvent('opx:net:animations:invite', function(inviteId, what, inviteMs) end)
 ```
 
 - inviteId: `number`
 - what: `table` — what was asked: `{ kind }`, `{ pair, actor, target }` or `{ actor, target }` (`actor` is the asker's profile)
-- name: `string` — the asker's character name (account name as a fallback)
 - inviteMs: `number` — how long the invitation waits (`SHARED.INVITE_MS`)
+
+Since PR #93 there is **no name** argument (it was the third, before `inviteMs`): the invited player reads *The person next to you invites you: `{emote}`.* A name sent by an older server is ignored.
 
 ## opx:net:animations:uninvite [#opx-net-animations-uninvite]
 
@@ -145,9 +146,9 @@ Server → client. How an emote with a nearby player went, shown as a toast (or 
 RegisterNetEvent('opx:net:animations:notice', function(kind, code, params) end)
 ```
 
-- kind: `'info' | 'success' | 'warning' | 'error'`
+- kind: `'info' | 'success' | 'warning' | 'error'` — through [`OPX.Result.Kind`](/docs/opx_infinity/core/lib#opx-result-kind): `too_far` is an error, too fast a warning
 - code: `string` — `sent`, `accepted`, `declined`, `expired`, or a [refusal code](/docs/opx_infinity/animations#codes) (`no_player_nearby`, `too_far`…)
-- params: `{ name? }` — the other player's name
+- params: `table` — never a name since PR #93
 
 ## opx:on:animations:result [#opx-on-animations-result]
 

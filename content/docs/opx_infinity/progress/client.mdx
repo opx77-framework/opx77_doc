@@ -66,5 +66,14 @@ progress.State()
 
 **Returns**
 - `Result`
-  - `{ open = false }`
-  - or `{ open = true, owner, label, remainingMs }`
+  - `{ open = false, cancelledAtMs? }`
+  - or `{ open = true, owner, label, remainingMs, cancelable, cancelKey?, cancelledAtMs? }`
+    - cancelable: `boolean` — the player may cancel it with the key
+    - cancelKey?: `string` — the key the cancel is bound to now, when `cancelable`
+    - cancelledAtMs?: `integer` — `OPX.Now()` of the last cancel by key. For a module sharing the key: a press within a few hundred ms of it was the bar's.
+
+```lua title="Example — X is not mine while a cancelable bar is up"
+local bar = OPX.Api.Get('progress').State().value
+if bar.open and bar.cancelable then return end
+if bar.cancelledAtMs and OPX.Now() - bar.cancelledAtMs < 300 then return end
+```

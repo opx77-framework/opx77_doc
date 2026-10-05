@@ -11,7 +11,8 @@ Server → client. A choice is open. The client ignores a second offer while one
 RegisterNetEvent('opx:net:spawn:offer', function(offer) end)
 ```
 
-- offer: `table` — `{ timeoutMs }`
+- offer: `table` — `{ timeoutMs, resume }`
+  - resume: `boolean` — the character's row holds a position: the client shows a first card, *Where I left off*, with id `'resume'`
 
 ## opx:net:spawn:opened [#opx-net-spawn-opened]
 
@@ -23,7 +24,7 @@ TriggerServerEvent('opx:net:spawn:opened', {})
 
 ## opx:net:spawn:choose [#opx-net-spawn-choose]
 
-Client → server. The place clicked. Unknown ids are refused (`spawn.noChoice`) and the menu stays up. Cooldown `CHOOSE_COOLDOWN_MS`.
+Client → server. The place clicked. Unknown ids are refused (`spawn.noChoice`) and the menu stays up. `id = 'resume'` keeps the row's position; it is refused the same way when the offer had no `resume`. Cooldown `CHOOSE_COOLDOWN_MS`.
 
 ```lua
 TriggerServerEvent('opx:net:spawn:choose', { id = placeId })
@@ -33,15 +34,17 @@ TriggerServerEvent('opx:net:spawn:choose', { id = placeId })
 
 ## opx:net:spawn:close [#opx-net-spawn-close]
 
-Server → client. The choice is over. The client toasts the result.
+Server → client. Sent **twice** per choice. The first (`{ reason }`) takes the menu down before the body moves and says nothing. The second (`result = true`) comes after the placement: the client toasts *Spawned at `{place}`*, *Back where you left off*, the timeout line, or, when `placed` is false, *You could not be moved there*.
 
 ```lua
 RegisterNetEvent('opx:net:spawn:close', function(result) end)
 ```
 
 - result: `table`
-  - `reason`: `string` — `'chosen'` or `'timeout'`
-  - `place`: `string?` — the label chosen
+  - `reason`: `string` — `'chosen'`, `'resumed'` or `'timeout'`
+  - `result`?: `true` — on the second message only
+  - `placed`?: `boolean` — second message: whether the body was moved
+  - `place`?: `string` — second message: the label chosen
 
 ## opx:on:spawn:state [#opx-on-spawn-state]
 

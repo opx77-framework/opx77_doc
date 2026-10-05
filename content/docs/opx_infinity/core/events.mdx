@@ -11,15 +11,16 @@ The core calls itself `runtime` on the net channel: `opx:net:runtime:<verb>`.
 
 ## opx:net:runtime:notify [#opx-net-runtime-notify]
 
-Server → client. A refusal, sent by [`OPX.Refuse`](/docs/opx_infinity/core/server#opx-refuse). The client shows `locale(code)` as an error toast; an `icon` outside `OPX.Glyphs` is dropped.
+Server → client. A refusal, sent by [`OPX.Refuse`](/docs/opx_infinity/core/server#opx-refuse). The client shows `locale(code, params)` as a toast of `kind`; an `icon` outside `OPX.Glyphs` is dropped, and so is a param that is not a string or a number.
 
 ```lua
 RegisterNetEvent('opx:net:runtime:notify', function(payload) end)
 ```
 
 - payload: `table`
-  - kind: `'error'`
+  - kind: `'error' | 'warning'` — from [`OPX.Result.Kind`](/docs/opx_infinity/core/lib#opx-result-kind)
   - code: `string` — always a locale key that exists
+  - params?: `table<string, string | number>` — at most 8, strings cut to 64 bytes
   - operation: `string`
   - icon?: `string`
 

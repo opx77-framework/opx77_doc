@@ -5,7 +5,7 @@ description: Network and local events, host events and page channels of the chat
 
 ## opx:net:chat:say [#opx-net-chat-say]
 
-Client → server. A chat line. Dropped if within `RATE_MS` of the sender's last one or blank; cut to `MAX_LENGTH`; broadcast to **every** player.
+Client → server. A chat line. Dropped if blank, or within `RATE_MS` of the sender's last one (then refused with `chat.tooFast`, once per burst); cut to `MAX_LENGTH`; broadcast to **every** player.
 
 ```lua
 TriggerServerEvent('opx:net:chat:say', text)
@@ -30,7 +30,7 @@ RegisterNetEvent('opx:net:chat:message', function(line) end)
 ```
 
 - line: `table` — `{ kind = 'chat', author, text }`
-  - `author`: the character's first and last name, else the account name, else `player <id>`.
+  - `author`: `Player #<id>` (`chat.author.player`), the sender's server id. Never a name.
 
 ## opx:net:chat:suggestions [#opx-net-chat-suggestions]
 

@@ -45,11 +45,12 @@ On the `interactive` surface. Every message carries the `handle` of the current 
 | <a id="page-target-pick" />`target:pick` | page → Lua | `{ handle, x, y }` | Right-click at that point. |
 | <a id="page-target-select" />`target:select` | page → Lua | `{ handle, token }` | A listed row was clicked. |
 | <a id="page-target-cancel" />`target:cancel` | page → Lua | `{ handle }` | Close the eye. |
-| `target:open` | Lua → page | `{ handle, hoverMs, labels = { hint, looking, unavailable, back } }` | Eye opened. |
+| `target:open` | Lua → page | `{ handle, hoverMs, labels = { looking, unavailable } }` | Eye opened. |
 | `target:hover` | Lua → page | `{ handle, available }` | Something under the cursor has rows. |
 | `target:loading` | Lua → page | `{ handle, x, y }` | A pick is being resolved. |
 | `target:menu` | Lua → page | `{ handle, x, y, options = { { token, label, description, group, icon, danger, checked } } }` | The rows to list. |
 | `target:empty` | Lua → page | `{ handle }` | Nothing to offer. |
 | `target:busy` | Lua → page | `{ handle, token }` | A choice is being checked. |
+| `target:confirm` | Lua → page | `{ handle, token, label }` | First click on a confirm row: relabel it `label` (`Confirm: …`); the next click on it runs. |
 | `target:error` | Lua → page | `{ handle }` | The choice no longer applies. |
 | `target:close` | Lua → page | `{ handle }` | Eye closed. |

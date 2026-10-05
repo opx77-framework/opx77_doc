@@ -84,7 +84,7 @@ Server → client, to everyone in the door's bucket. A door changed state.
 RegisterNetEvent('opx:net:doorlock:state', function(payload) end)
 ```
 
-- payload: `{ id, state, by? }` — `by`: the player id who turned it
+- payload: `{ id, state }` — no `by`: who turned a door is not sent to the bucket (the journal keeps it for staff)
 
 ## Staff [#staff]
 

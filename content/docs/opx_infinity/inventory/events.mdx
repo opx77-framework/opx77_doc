@@ -150,13 +150,15 @@ RegisterNetEvent('opx:net:inventory:secondary', function(container) end)
 
 ## opx:net:inventory:nearby [#opx-net-inventory-nearby]
 
-Server → client. Players in reach, for "give to".
+Server → client. Players in reach, nearest first, for "give to". **Never a name**: the server does not read or send one. The page shows `To your left · 1.2 m` with `#12` beside it.
 
 ```lua
 RegisterNetEvent('opx:net:inventory:nearby', function(players) end)
 ```
 
-- players: `{ id, distance }[]`
+- players: `{ id, distance, side? }[]`
+  - distance: `number` — metres, one decimal
+  - side?: `'ahead' | 'behind' | 'left' | 'right'` — from the giver's facing; absent on a host that cannot read it
 
 ## opx:net:inventory:open [#opx-net-inventory-open]
 

@@ -33,7 +33,7 @@ The three entries in `POINTS` are examples at coordinate `0,0,0` with `enabled =
 | Key | Default | Effect |
 |---|---|---|
 | <a id="config-teleports-enabled" />`enabled` | `true` | `false` switches the module off. |
-| <a id="config-teleports-use-radius" />`USE_RADIUS` | `2.0` | Metres across the ground from an entrance within which it may be used. |
+| <a id="config-teleports-use-radius" />`USE_RADIUS` | `2.0` | Metres across the ground from an entrance within which it may be used. The server allows [`REACH_SLACK`](/docs/opx_infinity/core/config#config-shared-reach-slack) (1 m) more. |
 | <a id="config-teleports-use-height" />`USE_HEIGHT` | `2.5` | Metres above or below the entrance that still count, so a player falling past is not on it. |
 | <a id="config-teleports-marker" />`MARKER` | `{ shape = 'cylinder', style = 'interaction', RADIUS = 1.2 }` | Marker look. Shapes `ring`, `cylinder`; styles `interaction`, `objective`, `spawn`, `danger`; radius 0.1..50. |
 | <a id="config-teleports-locked-style" />`LOCKED_STYLE` | `'danger'` | Marker style for a pad the player may not use (with `DENIED = 'shown'`). |
@@ -47,7 +47,7 @@ The three entries in `POINTS` are examples at coordinate `0,0,0` with `enabled =
 | <a id="config-teleports-fade-ms" />`FADE_MS` | `400` | Screen fade around the move. Tunable `TP_FADE_MS`. |
 | <a id="config-teleports-settle-ms" />`SETTLE_MS` | `12000` | How long the platform waits for the body to stand at the destination, 1000..30000. Tunable `TP_SETTLE_MS`. |
 | <a id="config-teleports-request-window-ms" />`REQUEST_WINDOW_MS` | `10000` | Rate window. Tunable `TP_REQUEST_WINDOW_MS`. |
-| <a id="config-teleports-requests-per-window" />`REQUESTS_PER_WINDOW` | `4` | Trips asked per player per window. Tunable `TP_REQUESTS_PER_WINDOW`. |
+| <a id="config-teleports-requests-per-window" />`REQUESTS_PER_WINDOW` | `6` | Trips asked per player per window, as every other place (was 4 before PR #95). Tunable `TP_REQUESTS_PER_WINDOW`. |
 | <a id="config-teleports-key" />`KEY` | `{ ID = 'opx.teleports.use', NAME = 'teleports.key.use', DEFAULT = 'E' }` | The use key. Players rebind it in the pause menu under `ID`. `DEFAULT = false` registers none. |
 | <a id="config-teleports-command" />`COMMAND` | `'opx.teleports.where'` | Diagnostic command name; `false` registers none. |
 | <a id="config-teleports-points" />`POINTS` | 3 disabled examples | Pad key → definition. See below. |

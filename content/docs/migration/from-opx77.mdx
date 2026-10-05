@@ -28,7 +28,7 @@ No drop-in replacement, but a curated set: call `opx_infinity` instead of `opx77
 
 | Old call | New call |
 |---|---|
-| `opx77_core` client `GetPlayerData`, `HasJob`, `HasGang` | server exports `GetPlayerData`, `HasJob`, `HasGang` (or read the player state bag on the client) |
+| `opx77_core` client `GetPlayerData`, `HasJob`, `HasGang` | server exports `GetPlayerData`, `HasJob`, `HasGang`; the client export [`GetPlayerData`](/docs/creators/client/getplayerdata) for the local player (the state bag is empty since PR #93) |
 | `opx77_core` server `GetIdentity` | server exports `GetPlayerData`, `GetPlayerByCitizenId` |
 | `opx77_core` server `GetVersion` | server export `GetVersion` |
 | `opx77_inventory` `AddItem`, `RemoveItem`, `HasItem`, `GetItemCount` | server exports `AddItem`, `RemoveItem`, `HasItem`, `CountItem` |
@@ -79,14 +79,14 @@ Old name → new name. "Removed" means there is no equivalent.
 
 Modules: `character` replaces the character half of `opx77_core` (roster, money, groups, metadata, placement, commands, hooks, data/ files). `entry` replaces `opx77_charcreator` (the name form; face via appearance). `opx77_charselector` is removed: there is no selection screen, the account is locked on one character and commands move the lock. `spawn`, `theme`, `diagnostics` are new (no old resource); `/opx77` status maps to `diagnostics`.
 
-Key change for every old caller: opx_infinity publishes NO Open77 exports. Everything below is a contract function (`OPX.Api.Get('character')`) reachable only from code inside opx_infinity. From another resource, only the state bag (`Open77.state.player(id)`: citizenId, name, charInfo, job, gang, username, life) and host-wide server events remain.
+Key change for every old caller: the old exports are gone; opx_infinity publishes only the curated [creator exports](/docs/creators). Everything below is a contract function (`OPX.Api.Get('character')`) reachable only from code inside opx_infinity. From another resource, use the [creator exports](/docs/creators) and the public server events. The player state bag carries nothing since PR #93.
 
 **opx77_core server exports (exports/server.md)**
 
 | Old | New |
 |---|---|
 | `GetVersion` | none as export; `OPX.VERSION` / `/opx.version` |
-| `GetIdentity(source\|citizenId)` | none as export; in-resource `character.GetPlayer` / `GetPlayerByCitizenId` / `GetCharacter`; cross-resource: state bag `citizenId` |
+| `GetIdentity(source\|citizenId)` | none as export; in-resource `character.GetPlayer` / `GetPlayerByCitizenId` / `GetCharacter`; cross-resource: server export `GetPlayerData` |
 | `GetChanges` | removed, no equivalent |
 | `GetVehiclePlate` | vehicles module (not character) |
 | `InventoryEnsure/Read/Stage/Commit/Resize/Delete/Holders` | inventory module (not character) |
@@ -95,7 +95,7 @@ Key change for every old caller: opx_infinity publishes NO Open77 exports. Every
 
 | Old | New |
 |---|---|
-| `GetPlayerData` | client `character.GetPlayerData` (in-resource); other resources: state bag (public half only) |
+| `GetPlayerData` | client `character.GetPlayerData` (in-resource); other resources: the `GetPlayerData` export |
 | `IsLoggedIn` | client `character.IsLoggedIn` |
 | `HasJob` / `HasGang` | client `character.HasJob` / `HasGang` |
 | `GetAppearance` / `GetClothing` | appearance module |
@@ -106,7 +106,7 @@ Key change for every old caller: opx_infinity publishes NO Open77 exports. Every
 | `GetSharedConfig` | `OPX.Config.SHARED` (core) |
 | `Locale` | `locale()` (core) |
 | `GetJobs` / `GetGangs` | `OPX.Config.MODULES.character.JOBS` / `GANGS` (shared config); server `character.GetJob` / `GetGang` |
-| `GetOrigins` | `OPX.Config.MODULES.character.ORIGINS` (unused by runtime) |
+| `GetOrigins` | none (`ORIGINS` was removed from `config/character.lua` in PR #95) |
 | `GetVersion` | `OPX.VERSION` |
 | `OPX.PlayerData`, `OPX.IsLoggedIn` | client `GetPlayerData`, `IsLoggedIn` |
 | `OPX.GetPlayerData/GetCitizenId/GetJobData/GetGangData/HasJob/HasGang/GetJobGrade/GetMoney/GetMetadata/GetPosition` | client contract, same names |
@@ -127,7 +127,7 @@ Key change for every old caller: opx_infinity publishes NO Open77 exports. Every
 | `OPX.SetMetadata/GetMetadata` | `character.SetMetadata/GetMetadata` |
 | `OPX.SaveAppearance/GetAppearance/SaveClothing/GetClothing`, `OPX.Appearance.*`, `OPX.Clothing.*` | appearance / clothing modules |
 | `OPX.SetJob/SetJobDuty/AddPlayerToJob/RemovePlayerFromJob/SetPlayerPrimaryJob/SetGang/AddPlayerToGang/RemovePlayerFromGang/SetPlayerPrimaryGang/GetGroupMembers/GetPlayersByJob/GetPlayersByGang/GetJob/GetGang` | `character.<same>` |
-| `OPX.Jobs/Gangs/Origins` | `OPX.Config.MODULES.character.JOBS/GANGS/ORIGINS` |
+| `OPX.Jobs/Gangs/Origins` | `OPX.Config.MODULES.character.JOBS/GANGS` (origins: none) |
 | `OPX.ResolveJob/ResolveGang/TopGrade` | internal, not exposed |
 | `OPX.SendCharacters` | removed |
 | `OPX.CreateCharacter(source, registration)` | `character.CreateCharacter(source)` (no payload, empty row) |
@@ -204,7 +204,7 @@ Key change for every old caller: opx_infinity publishes NO Open77 exports. Every
 
 | Old | New |
 |---|---|
-| `data/jobs.lua`, `data/gangs.lua`, `data/origins.lua` | `config/character.lua` `JOBS`, `GANGS`, `ORIGINS` (same field names: label, type, defaultDuty, offDutyPay, grades[n].name/payment/isBoss/bankAuth; not re-verified field by field against the old files) |
+| `data/jobs.lua`, `data/gangs.lua`, `data/origins.lua` | `config/character.lua` `JOBS`, `GANGS`; origins are not carried over (same field names: label, type, defaultDuty, offDutyPay, grades[n].name/payment/isBoss/bankAuth; not re-verified field by field against the old files) |
 | `SHARED.CHARACTERS.NAME` | `character.CHARACTERS.NAME` + `entry.NAME` |
 | `SHARED.DEFAULT_SPAWN` | `character.DEFAULT_SPAWN` |
 | `AUTOSAVE_SECONDS` | `character.AUTOSAVE_SECONDS` |
@@ -302,8 +302,8 @@ running inside `opx_infinity`. Function names moved from lowerCamel to PascalCas
 | `OPX.CitizenId.parse / generate / build` | `OPX.CitizenId.Parse / Generate / Build` |
 | `OPX.CitizenId.isValid` | removed (use `Parse(x).ok`) |
 | `OPX.FormatMoney`, `OPX.IsMoneyType`, `OPX.ValidateName` | `character` contract (`FormatMoney`, `IsMoneyType`) / character module (`ValidateName`) |
-| server exports `GetVersion`, `GetIdentity`, `GetChanges`, `GetVehiclePlate`, `Inventory*` | removed — no exports. In-VM: `OPX.VERSION`, `OPX.Api.Versions()`; identity via the `character` contract; other resources read the character state bag. |
-| client exports (`GetPlayerData`, `HasJob`, …, `GetVersion`, `Locale`) | removed — no exports. In-VM: `character` contract; other resources: player state bag. |
+| server exports `GetVersion`, `GetIdentity`, `GetChanges`, `GetVehiclePlate`, `Inventory*` | removed — no exports. In-VM: `OPX.VERSION`, `OPX.Api.Versions()`; identity via the `character` contract; other resources use the [creator exports](/docs/creators). |
+| client exports (`GetPlayerData`, `HasJob`, …, `GetVersion`, `Locale`) | In-VM: `character` contract; other resources: the [client exports](/docs/creators/client) (`GetPlayerData`). |
 | event `opx77:client:notify` | `opx:net:runtime:notify` (payload `{ kind, code, operation, icon? }`) |
 | event `opx77:client:commandAnswer` | `opx:net:runtime:commandAnswer` (`raw, kind, message, toasted, icon?`) |
 | (new) | `opx:net:runtime:commandResult` (`OPX.CommandResult` read-back `{ kind, author, text }`, `kind` = `'info'\|'error'`), `opx:net:runtime:note` / `OPX.Note` |

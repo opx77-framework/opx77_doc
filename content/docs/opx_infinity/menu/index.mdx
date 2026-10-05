@@ -17,6 +17,8 @@ Draws one list menu at a time: a titled strip of rows the player moves through w
 - When a form's Enter reopens a menu (a staff search, for example), Enter and Backspace that are still held during the first four key polls must be released before they act, so the reopened menu does not fire the row under the cursor.
 - With `focus = 'none'`, polled keys run the owner's callback on their own thread, not inside the scheduler's shared resume.
 - A menu opened from inside another view's close callback is no longer orphaned.
+- Escape inside a submenu goes **back one level** (like Backspace) and closes only at the top level. It reaches the menu only when the menu is the [top layer](/docs/opx_infinity/concepts/webui#focus).
+- A row with `confirm` asks first: see [Confirm rows](/docs/opx_infinity/menu/client#confirm).
 
 ## Configuration
 
@@ -52,4 +54,4 @@ Draws one list menu at a time: a titled strip of rows the player moves through w
 | `handle_required` | `Close` was called without a handle. |
 | `no_menu_open`, `stale_handle` | Nothing is open, or the handle is not the open menu's. |
 
-Locale keys owned here: `menu.key.choose`, `menu.key.select`, `menu.key.change`, `menu.key.back` (the [`Keys`](/docs/opx_infinity/menu/client#client-menu-keys) labels).
+Locale keys owned here: `menu.key.choose`, `menu.key.select`, `menu.key.change`, `menu.key.back` (the [`Keys`](/docs/opx_infinity/menu/client#client-menu-keys) labels), and `menu.confirm.title`, `menu.confirm.yes`, `menu.confirm.no` (the [confirm rows](/docs/opx_infinity/menu/client#confirm)).

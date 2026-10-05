@@ -21,7 +21,7 @@ Workbenches for other modules. No recipes of its own: a module such as [gunsmith
 - Ordering checks gate, reach, queue space, materials and money, then removes the materials, then takes the fee. If a later step fails, earlier ones are given back.
 - Ready times use the database clock (`ready_at`): an order keeps cooking while the server is down.
 - Collecting checks the bag can carry the output first. The order is deleted, then the item given; if it cannot be given, the order is put back on the shelf.
-- A bench with a `position` is reach-checked on the server; without one it can be used from anywhere.
+- A bench with a `position` is reach-checked on the server (its `reach` plus [`REACH_SLACK`](/docs/opx_infinity/core/config#config-shared-reach-slack)); without one it can be used from anywhere. This covers the gunsmith bench.
 - Order and collect are audited (`crafting.order`, `crafting.collect`).
 
 ## Bench definition

@@ -68,7 +68,7 @@ Several views may want the keyboard at once, so the client keeps a **focus stack
 | [`OPX.UI.FocusOwner()`](/docs/opx_infinity/core/client#opx-ui-focusowner) | who holds it now |
 | [`OPX.UI.ReleaseAllFocus()`](/docs/opx_infinity/core/client#opx-ui-releaseallfocus) | empties the stack; the first step of the client stop |
 
-The Escape key belongs to the platform's `open77_pause`; never bind it.
+The Escape key belongs to the platform's `open77_pause`; never bind it. It raises `open77:pauseKey` to every listener, and since PR #95 **only the top layer closes**: the menu, form, panel, door panel, chat box and call hologram each enter [`OPX.Spots.Key.Layer`](/docs/opx_infinity/core/lib#opx-spots-key-layer), and the one opened last takes the press. A menu over the hologram closes alone; a form over a menu closes and leaves the menu. Inside a submenu, Escape goes back one level. A view of your own should do the same with [`TopLayer`](/docs/opx_infinity/core/lib#opx-spots-key-toplayer).
 
 ## Keep rules and drawing apart [#view-seam]
 

@@ -22,10 +22,10 @@ A port of [ox_doorlock](https://github.com/overextended/ox_doorlock) to Open77's
 
 | What | How |
 |---|---|
-| Turn a door | Stand within reach and press **E** ([`KEY`](#config-doorlock-key)) — the prompt strip reads `Lock {door}` / `Unlock {door}` — or use the eye row *Lock door* / *Unlock door*. Away from a managed door E does nothing and says nothing (it is shared with garages, stores, lifts and teleports). |
+| Turn a door | Stand within reach and press **E** ([`KEY`](#config-doorlock-key)) — the prompt strip reads `Lock {door}` / `Unlock {door}` — or use the eye row *Lock door* / *Unlock door*. Away from a managed door E does nothing and says nothing. E is shared with garages, dealers, fitting rooms, lifts and teleports: when a door and another spot are both in reach, **the nearer one** acts and only its prompt row is drawn ([key contest](/docs/opx_infinity/core/lib#key-contest)). |
 | A door with a code | A form asks for the code, then the request is sent again with it. A wrong guess costs 3 s. |
 | A key | A `door_key` item whose metadata `type` matches the door's item row. Staff cut one with [`/opx.doorlock.key`](#opx-doorlock-key). |
-| Pick a lock | Eye row *Pick lock* on a pickable door, with a [`LOCKPICK.ITEMS`](#config-doorlock-lockpick) item in the bag. One progress bar per step; the server times them and rolls each step. A pick can break. |
+| Pick a lock | Eye row *Pick lock* on a pickable door, with a [`LOCKPICK.ITEMS`](#config-doorlock-lockpick) item in the bag. One progress bar per step; the server times them and rolls each step. A pick can break; a pick that opens the lock and breaks says both. While a pick runs, E belongs to it (rank `PICK`): it neither turns the door nor opens a nearer garage. Lockpicking uses the same `REQUEST_MS` floor as turning a door. |
 | Autolock | A door with `autolock` locks itself that many seconds after it was unlocked. |
 | Sounds | The door's lock / unlock sound plays for everyone within 20 m. |
 
@@ -155,7 +155,7 @@ The first version of this module (PR #70) stored doors in `opx77_doorlock` (no s
 | <a id="config-doorlock-slack" />`SLACK` | `1.0` | Metres added on the server for latency. |
 | <a id="config-doorlock-scan-ms" />`SCAN_MS` | `500` | How often the client looks for the nearest door and, on `local`, re-applies locks. |
 | <a id="config-doorlock-scan-radius" />`SCAN_RADIUS` | `40.0` | Metres around the player streamed doors are read on `local`. |
-| <a id="config-doorlock-request-ms" />`REQUEST_MS` | `600` | Floor between two door requests from one player. |
+| <a id="config-doorlock-request-ms" />`REQUEST_MS` | `600` | Floor between two door requests from one player, turns and lockpick attempts alike. |
 | <a id="config-doorlock-membership" />`MEMBERSHIP` | `'any'` | `'any'` counts every job and gang membership; `'primary'` only the worked job and primary gang. |
 | <a id="config-doorlock-staff-bypass" />`STAFF_BYPASS` | `false` | `true` lets holders of `opx.doorlock.bypass` turn any door without key or code. |
 | <a id="config-doorlock-notify" />`NOTIFY` | `true` | Toast after a success. Refusals are always shown. |
@@ -217,7 +217,10 @@ Shown as toasts, locale key `doorlock.error.<code>`.
 | `not_loaded`, `save_failed`, `too_many_doors` | Staff save: doors still loading, database error, 512 doors. |
 | `unknown_group`, `unknown_item`, `door_taken` | Staff save: a group, grade or item nobody defined, or a leaf another door holds. |
 | `bad_door`, `bad_doors`, `bad_door_id`, `duplicate_door_id`, `bad_position`, `bad_bucket`, `bad_groups`, `bad_group`, `bad_items`, `bad_item`, `bad_characters`, `bad_character`, `bad_passcode`, `bad_autolock`, `bad_difficulty`, `bad_distance`, `bad_sound`, `bad_id` | Staff save: a malformed field. |
+| `bad_field` | Edit: a field of a different type from the stored one (`detail` names it). Replaces the per-field `bad_<field>` codes. |
 | `no_key_item`, `no_inventory`, `key_refused`, `no_player` | `/opx.doorlock.key`. |
 | `lift_door` | *Pick in world* on a lift's door. |
 
-Successes: `locked`, `unlocked`, `picked`, `already_locked`, `already_unlocked` (`doorlock.answer.<code>`).
+Successes: `locked`, `unlocked`, `picked`, `picked_broke` (opened, and the lockpick broke), `already_locked`, `already_unlocked` (`doorlock.answer.<code>`).
+
+The contract and the [door exports](/docs/creators/server#doors) answer a write refusal (create, edit, remove) as `doorlock.error.<code>`, the same keys as these toasts. Their own codes `doorlock.unknownDoor`, `doorlock.badState`, `doorlock.noDoor` and `doorlock.notStaff` now have sentences too.

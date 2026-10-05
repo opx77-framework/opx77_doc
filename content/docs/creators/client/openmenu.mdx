@@ -15,6 +15,7 @@ Sync. Every action on the menu reaches your [reply export](/docs/creators/client
 - spec: `table` — the [menu spec](/docs/opx_infinity/menu/client#the-menu-spec) without functions
   - `owner`, `on` and `steal` are set by OPX; any you pass are ignored.
   - Rows carry an `id` you read back as `itemId`.
+  - A row with `confirm = true` (or `{ title, yes, no }`) opens a two-row level, *No, keep it* first; your reply export gets the row's `select` only after the second row. See [Confirm rows](/docs/opx_infinity/menu/client#confirm).
   - reply?: `string` — the export your answers go to; default [`CLIENT.EXPORTS.REPLY`](/docs/opx_infinity/core/config#config-client-exports) (`OnOpxEvent`)
 
 **Returns**
@@ -27,7 +28,10 @@ Sync. Every action on the menu reaches your [reply export](/docs/creators/client
 local res = exports.opx_infinity:OpenMenu({
 	title = 'NIGHT MARKET',
 	closeOnSelect = true,
-	items = { { id = 'water', label = 'Water', value = '5 €$' } },
+	items = {
+		{ id = 'water', label = 'Water', value = '5 €$' },
+		{ id = 'reset', label = 'Reset my stall', confirm = true },
+	},
 })
 if not res.ok then print('menu refused: ' .. res.error) end
 ```

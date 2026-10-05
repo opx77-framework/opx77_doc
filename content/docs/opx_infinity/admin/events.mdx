@@ -135,13 +135,14 @@ RegisterNetEvent('opx:net:admin:tagsState', function(on, persist) end)
 
 ## opx:net:admin:tagRows [#opx-net-admin-tagrows]
 
-Server → client. Who to tag.
+Server → client. Who to tag. Sent only to a player the ACL grants `opx.admin.self.tags`: since PR #93 it is the **only** place the character name and citizen id reach a client (the player state bag carries nothing).
 
 ```lua
 RegisterNetEvent('opx:net:admin:tagRows', function(chunk) end)
 ```
 
-- chunk: `table` — rows `{ id, name, staff? }`
+- chunk: `table` — `{ rows, offset, done }`
+  - rows: `{ id, name, character?, citizenId?, staff? }[]` — `name` is the verified account name, `character` the character name
 
 ## opx:net:admin:doors [#opx-net-admin-doors]
 
