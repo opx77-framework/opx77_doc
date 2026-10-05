@@ -234,7 +234,7 @@ character.GetMoney(identifier, moneyType)
 
 ## FormatMoney [#server-character-formatmoney]
 
-Grouped digits; `EDDIES` (or nil) gets ` €$`, other types their name.
+[`OPX.Locale.Money`](/docs/opx_infinity/core/lib#opx-locale-money): the language's thousands separator and the currency word from the catalogue (`4,500 €$`, `500 €$ (bank)`; French `4 500 €$`, `500 €$ (banque)`). Every dealership, shop, crafting, hauling and paycheck amount goes through it.
 
 ```lua
 character.FormatMoney(amount, moneyType)
@@ -242,7 +242,7 @@ character.FormatMoney(amount, moneyType)
 
 **Parameters**
 - amount: `number`
-- moneyType?: `string`
+- moneyType?: `string` — default `MONEY.DEFAULT`
 
 **Returns**
 - `string`

@@ -5,6 +5,105 @@ description: What changed in opx_infinity and opx_lib, newest first, starting wi
 
 Newest first. The version is the one in each resource's `open77.lua`.
 
+## opx_infinity — PRs #88–#95 (2026-10-04 to 2026-10-05) [#infinity-88-95]
+
+Merged into `main`; the manifest version is still `0.1.2`. One table per theme. Before updating a running server or a resource that calls OPX, read [Upgrading from PR #87](#upgrade-88-95).
+
+### Never a name to a stranger (PRs #91, #93) [#infinity-privacy]
+
+In roleplay a name is learnt by meeting someone. The data below is **removed at the server**, not hidden on the page. Overview: [Privacy](/docs/opx_infinity/character#privacy).
+
+| What players see now | Before | Pages |
+|---|---|---|
+| No name over anyone's head: every remote plate is hidden. | The character name (and before that the account gamertag) over every player. | [character client](/docs/opx_infinity/character/client) |
+| Chat lines signed `Player #12` / `Joueur #12`. | The character name, else the gamertag, else part of the account id, to the whole server. | [chat](/docs/opx_infinity/chat) |
+| A call names a person only if they are in your contacts; otherwise *Unknown caller*. "X joined / hung up / declined" follows the same rule. | A third person on a call learnt every name; a contact offer told its sender the other's name. | [calls](/docs/opx_infinity/calls) |
+| The give list reads `To your left · 1.2 m` with `#12`. | `#12` (PR #90 briefly showed the character name). | [inventory](/docs/opx_infinity/inventory#give-drop) |
+| A dealership offer reads *You are being offered a `{model}`*; the seller's list *Sell to the person in front of you (#12)*. | The seller's and buyer's account names. | [dealership](/docs/opx_infinity/dealership) |
+| A duo emote invitation reads *The person next to you invites you: `{emote}`.* | The asker's name, and the other's name in every notice. | [animations](/docs/opx_infinity/animations#duo) |
+| The eye's *Show server ID* row copies the server id only. | *Identifiers*: server id and citizen id. | [target](/docs/opx_infinity/target) |
+| Staff still see who is who on their name tags. | The tags read the public state bag. | [admin](/docs/opx_infinity/admin) |
+
+| Under the hood | Pages |
+|---|---|
+| The player state bag carries **no key** (`citizenId`, `name`, `charInfo`, `job`, `gang`, `username`, `life` are cleared once). `GetPlayerState` / `GetPlayerName` / `GetPlayerIdentity` stay on the client contract and answer empty. | [State bag](/docs/opx_infinity/character/client#state-bag), [Writing a resource](/docs/guides/writing-a-resource#state-bag) |
+| Probes closed: a give checks reach first (`too_far` for any id out of reach); a dealership offer always goes out and only the buyer learns they cannot pay; an id outside the showroom always answers `buyerNotInZone`. | [inventory codes](/docs/opx_infinity/inventory#codes), [dealership codes](/docs/opx_infinity/dealership#codes) |
+| The doorlock state push is `{ id, state }`: no `by`. The staff tag list now carries `character` and `citizenId`. | [doorlock events](/docs/opx_infinity/doorlock/events), [admin events](/docs/opx_infinity/admin/events#opx-net-admin-tagrows) |
+
+### Keys: one press, one owner (PRs #90, #92, #95) [#infinity-keys]
+
+| Change | Pages |
+|---|---|
+| **E** (garages, dealership, fitting rooms, teleports, lifts, doors): when two spots are in reach, the **nearer** one acts and only its key-strip row is drawn. A lockpick under way holds E. With the list open, E closes it. | [One press, one owner](/docs/opx_infinity/core/lib#key-contest) |
+| **X**: a cancelable bar > ringing call (decline) > outgoing call (withdraw) > carried crate > own emote > call in progress (hang up). Cancelling an eat during a call no longer hangs up; X with a crate during a call only drops the crate. | [progress](/docs/opx_infinity/progress), [calls](/docs/opx_infinity/calls#keys) |
+| **Y** answers a ringing call and the hotbar peek stays silent; otherwise Y peeks. | [calls](/docs/opx_infinity/calls#keys) |
+| **Escape** closes only the top layer (menu, form, panel, door panel, chat, call hologram); inside a submenu it goes back one level. | [The WebUI page](/docs/opx_infinity/concepts/webui#focus), [menu](/docs/opx_infinity/menu) |
+| H, Y and X ignore a press while chat or a form holds the keyboard. E during a bar or while down no longer toasts anywhere but at a teleport or lift. The crate-drop hint names the key the player rebound. | [calls](/docs/opx_infinity/calls), [hauling](/docs/opx_infinity/hauling) |
+| Ranks are config: [`KEY_PRIORITY`](/docs/opx_infinity/core/config#config-client-key-priority). Only mappings bound to the same physical key contend. | [Core configuration](/docs/opx_infinity/core/config#key-priority) |
+
+### Menus, eye and toasts (PRs #88, #90, #95) [#infinity-menus]
+
+| Change | Pages |
+|---|---|
+| Every staff and player row names its action (*Spawn a vehicle*, *Give or take money*, *Lock door* / *Unlock door*, *Lock vehicle* / *Unlock vehicle*, *Take elevator: `{place}`*, *Open fitting room* everywhere). The confirmation's second row repeats the action. Saved staff spots and outfits are deleted only after a confirmation. | [admin](/docs/opx_infinity/admin), [target](/docs/opx_infinity/target) |
+| Menu rows take `confirm = true` or `{ title, yes, no }`: a two-row level whose first row keeps things as they are. | [Confirm rows](/docs/opx_infinity/menu/client#confirm) |
+| A `danger` eye row asks for a second click (*Confirm: …*) unless it sets `confirm = false`; any row can opt in. This includes rows other resources add with `AddTarget`. | [target row](/docs/opx_infinity/target/client#row-definition), [AddTarget](/docs/creators/client/addtarget) |
+| One toast per refusal: no raw codes on screen, no second toast after `OPX.Refuse`. `OPX.Refuse` takes `params`. | [OPX.Refuse](/docs/opx_infinity/core/server#opx-refuse) |
+| One toast kind per situation: too fast, rate limited and busy are **warnings**; too far, not allowed, no permission are **errors** (`OPX.Result.Kind`). | [OPX.Result.Kind](/docs/opx_infinity/core/lib#opx-result-kind) |
+| Money reads `4,500 €$` / `4 500 €$`, `€$ (bank)` / `€$ (banque)` everywhere (`OPX.Locale.Money`). The HUD's money captions are translated. | [OPX.Locale.Money](/docs/opx_infinity/core/lib#opx-locale-money) |
+| The garage list reads `Villefort Cortes · 8XK2L0P`, the same name as the key (`OPX.Vehicle.DisplayName`). | [garages](/docs/opx_infinity/garages) |
+| French catalogues fixed (accents, `vous`); every key exists in both languages; no raw key flashes before the catalogue arrives. | [Locales](/docs/opx_infinity/concepts/locales) |
+| The gunsmith's *Use workbench* / *Open armoury stock* rows work (they did nothing). | [gunsmith](/docs/opx_infinity/gunsmith) |
+
+### Player flows (PRs #88, #90, #94) [#infinity-flows]
+
+| Change | Pages |
+|---|---|
+| Spawn: a **Where I left off** card for a character with a stored position. "Spawned at …" appears after the move; a refused move says so. | [spawn](/docs/opx_infinity/spawn#flow) |
+| Inventory: Give and Drop on a stack ask **how many**; refusals say the real reason once; the receiver reads only `+2 Water`; four hotbar presses inside one bite eat one item; the trunk panel's Close works; Escape closes the innermost dialog first. | [Give and drop](/docs/opx_infinity/inventory#give-drop) |
+| Calls: a ring that dies updates the caller and files a missed call on both sides; a disconnect while ringing is said; a contact offer says sent / declined / not answered; going down closes the hologram. | [calls](/docs/opx_infinity/calls) |
+| Chat: a second line within 800 ms says it was not sent. | [chat](/docs/opx_infinity/chat#configuration) |
+| Garages: sitting in someone else's car at the entry says *Only your own vehicles go in here*; one toast naming the garage. Dealership: a failed hand-over says the car waits in the garage; a zero commission is worded. | [garages](/docs/opx_infinity/garages), [dealership](/docs/opx_infinity/dealership) |
+| Hauling: the truck leaving mid-load ends the load; a refused pickup frees the hands at once; the drop hint appears after the lift. | [hauling](/docs/opx_infinity/hauling) |
+| Money notes: *You took 1,000,000 €$ out as notes.* / *You put 4,500 €$ in notes back in your wallet.* | [inventory](/docs/opx_infinity/inventory#give-drop) |
+| Shops: *You cannot afford that: `{total}` needed*; a paid uniform says *Paid `{total}` at `{shop}`*; a queued outfit save is not dropped. Crafting: going off duty closes the bench. | [shops](/docs/opx_infinity/shops), [crafting](/docs/opx_infinity/crafting) |
+| Join: the fitting room's timer waits while the name form is up; a short name reads *Each name takes between 2 and 32 letters*. `/opx.delete <id>` needs `confirm`. Doorlock: a pick that opens and breaks says both. | [character](/docs/opx_infinity/character#switching), [doorlock](/docs/opx_infinity/doorlock#player) |
+
+### Reach and pace (PRs #92, #95) [#infinity-reach]
+
+| Change | Pages |
+|---|---|
+| The server allows [`REACH_SLACK`](/docs/opx_infinity/core/config#config-shared-reach-slack) (1 m) beyond the drawn radius at garages, dealers, fitting rooms, teleports, lifts, shops, crafting and gunsmith benches and vehicle keys: a press at the edge of a marker is no longer refused. | [OPX.Spots.ServerReach](/docs/opx_infinity/core/lib#opx-spots-serverreach) |
+| Lifts scan every 500 ms ([`SCAN_MS`](/docs/opx_infinity/elevators#config-elevators-scan-ms), was 2000); teleports allow 6 requests per window ([`REQUESTS_PER_WINDOW`](/docs/opx_infinity/teleports#config-teleports-requests-per-window), was 4). Lockpicking uses doorlock's `REQUEST_MS`. A downed rider reads *Not while you are down*. | [elevators](/docs/opx_infinity/elevators), [teleports](/docs/opx_infinity/teleports) |
+| Character code fallbacks match the config (autosave 300 s, heading report 5000 ms, 3 slots, row ceiling 60). | [character](/docs/opx_infinity/character#configuration) |
+
+### Creator surface (PR #89) [#infinity-89]
+
+| Change | Pages |
+|---|---|
+| New server exports: reads (`GetPlayers`, `GetJobs`, `GetGangs`, `GetItem(s)`, `GetInventory`, `CanCarryItem`, vehicles and keys), runtime items (`RegisterItem`), use handlers, `OpenStash`, `Notify`, server-judged progress bars, crafting benches. | [Server exports](/docs/creators/server) |
+| New client exports: eye rows (`AddTarget`…), key-strip groups (`ShowPrompt`…), panels, crafting bench, local reads. | [Client exports](/docs/creators/client) |
+| New public events, e.g. `opx:on:inventory:items`, `opx:on:progress:finished`. | [Events](/docs/creators/events) |
+
+### Upgrading from PR #87 [#upgrade-88-95]
+
+| What | Do |
+|---|---|
+| **Doorlock contract codes renamed (API change).** `CreateDoor` / `EditDoor` / `RemoveDoor` and the `doorlock` contract's `Create` / `Edit` / `Remove` answer `doorlock.error.<code>` instead of `doorlock.<code>` (e.g. `doorlock.save_failed` → `doorlock.error.save_failed`, `doorlock.bad_door` → `doorlock.error.bad_door`). | Update any `res.error == 'doorlock.…'` comparison. `doorlock.unknownDoor`, `doorlock.badState`, `doorlock.noDoor`, `doorlock.notStaff` are unchanged. See [CreateDoor](/docs/creators/server/createdoor). |
+| **`doorlock.bad_<field>` → `doorlock.error.bad_field`** on an edit with a wrongly typed field; the field is in `res.detail`. | Branch on `bad_field` and read `detail`. |
+| **Eye `danger` rows confirm by default (API behaviour).** A row added with `AddTarget` and `danger = true` now needs two clicks. | Add `confirm = false` to keep one click. |
+| **Player state bag is empty.** `Open77.state.player(id)` no longer has `citizenId`, `name`, `charInfo`, `job`, `gang`, `username`, `life`. | Use the client export `GetPlayerData` (own player) or the server exports (others). Never relay a name to a stranger. |
+| **Net payloads changed** (module code and anything listening to them). | `opx:net:animations:invite` lost its `name` argument: it is now `(inviteId, what, inviteMs)`; `opx:net:animations:notice` params carry no name; `opx:net:dealership:offered` has no `seller`; `opx:net:doorlock:state` has no `by`; `opx:net:calls:state` names are per viewer (*Unknown caller*); `opx:net:inventory:nearby` rows are `{ id, distance, side? }`; `opx:net:chat:message` `author` is `Player #<id>`; `opx:net:spawn:close` comes twice (second with `result`, `placed`); `opx:net:spawn:offer` has `resume`; `opx:net:runtime:notify` has `params` and a `warning` kind. |
+| **Toast kinds.** `OPX.Refuse`, `OPX.NotifyLocale` and `OPX.Toast.Locale` turn `error`/`warning` into the situation's kind (`OPX.Result.Kind`). | Nothing, unless you relied on "too fast" being red. |
+| **`OPX.Refuse(source, code, operation, icon, params)`** | Optional 5th argument. Remove a `NotifyLocale` that followed a `Refuse` only to carry params. |
+| **New config** | `config/client.lua` [`KEY_PRIORITY`](/docs/opx_infinity/core/config#config-client-key-priority); `config/shared.lua` [`REACH_SLACK`](/docs/opx_infinity/core/config#config-shared-reach-slack). Missing keys take their defaults. |
+| **Changed defaults** | `elevators.SCAN_MS` 2000 → 500; `teleports.REQUESTS_PER_WINDOW` 4 → 6. A copied config keeps the old value: update it. |
+| **Removed config** | `character.ORIGINS` (nothing read it). Delete the block. |
+| **Removed locale keys** | 26 unused keys (#90), e.g. `target.hint`, `target.back`, `inventory.title`, `inventory.ui.slots`, `calls.incoming.*`, `calls.live.*`, `inventory.notify.received`; `chat.author.unknown` → `chat.author.player`; `target.identify.*` reworded (no `{citizen}`). An override of one of them is now unused. |
+| **New in `lib/`** | [`OPX.Locale.Money`](/docs/opx_infinity/core/lib#opx-locale-money), [`OPX.Vehicle.DisplayName`](/docs/opx_infinity/core/lib#opx-vehicle-displayname), [`OPX.Result.Kind`](/docs/opx_infinity/core/lib#opx-result-kind), [`OPX.Spots.ServerReach`](/docs/opx_infinity/core/lib#opx-spots-serverreach), the key contest (`OPX.Spots.Key.Owns`, `Contend`, `Shows`, `Layer`, `TopLayer`…). A module sharing E or X should enter the contest. |
+| **`progress.State()`** | Adds `cancelable`, `cancelKey`, `cancelledAtMs`. |
+| **`/opx.delete <id>`** | Now `/opx.delete <id> confirm`. |
+
 ## opx_infinity — PRs #58–#87 (2026-10-02 to 2026-10-04) [#infinity-58-87]
 
 Merged into `main`; the manifest version is still `0.1.2`. One table per group of PRs, newest first. Before updating a running server, read [Upgrading from PR #57](#upgrade-58-87).

@@ -25,6 +25,7 @@ Nothing secret belongs here: it is sent to every player.
 | <a id="config-shared-money" />`MONEY` | see [MONEY](#money) | Money types. Read by `character`, `inventory` and `admin`. |
 | <a id="config-shared-health" />`HEALTH` | see [HEALTH](#health) | The health pool every character is placed with, in points. Applied by `character`. |
 | <a id="config-shared-av-prefixes" />`AV_PREFIXES` | `{ 'vehicle.av_', 'vehicle.max_tac_av' }` | A TweakDB vehicle record starting with one of these (compared lower-case) is an AV. Read only by [`OPX.Vehicle.IsAvRecord`](/docs/opx_infinity/core/lib#opx-vehicle-isavrecord). An empty list falls back to the shipped pair. |
+| <a id="config-shared-reach-slack" />`REACH_SLACK` | `1.0` | Metres the **server** adds to a place's reach when it measures a press again: garages, dealers, fitting rooms, teleports, lifts, shops, crafting and gunsmith benches, vehicle keys. The server measures where it last saw the player, a moment behind the press, so a row drawn at the edge was refused as "too far" without it. 0 to 4. Read by [`OPX.Spots.ServerReach`](/docs/opx_infinity/core/lib#opx-spots-serverreach). `doorlock` has its own [`SLACK`](/docs/opx_infinity/doorlock#config-doorlock-slack). |
 
 ### MONEY [#money]
 
@@ -122,3 +123,24 @@ No alias is shipped for `opx.admin`, for irreversible commands (ban, kick, kill,
 | <a id="config-client-surface" />`SURFACE` | `{ layer = 'hud', zIndex = 700, fps = 60 }` | The one WebUI page. `layer`: `hud`, `menu`, `modal`, `system` or `debug` (`system` needs the `webui.system` permission; an unknown value becomes `hud`). `fps` is fixed when the page is created. |
 | <a id="config-client-exports" />`EXPORTS` | `{ CALLERS = '*', REPLY = 'OnOpxEvent' }` | The [client exports](/docs/creators/client). `CALLERS`: who may call them, including `Subscribe` (`'*'`, a set or an array). `REPLY`: the export of the caller that receives answers when a call names no `reply`. Advice, not a lock: the server re-checks anything that matters. |
 | <a id="config-client-toasts" />`TOASTS` | `{ position = 'top_right', width = 340 }` | Where the runtime's own toasts stack, and their width in px. `position`: `top_left`, `top_center`, `top_right`, `middle_left`, `bottom_left`, `bottom_center` or `bottom_right`. The page refuses an unknown name and keeps its default. |
+| <a id="config-client-key-priority" />`KEY_PRIORITY` | see below | The ranks of the [key contest](/docs/opx_infinity/core/lib#key-contest): when several features share one physical key (E, X), only the highest-ranked one with something to do acts; at equal rank the nearer one. Higher wins; reorder freely, a missing name keeps its default. Read by [`OPX.Spots.Key.Rank`](/docs/opx_infinity/core/lib#opx-spots-key-rank). |
+
+### KEY_PRIORITY [#key-priority]
+
+| Name | Default | When |
+|---|---|---|
+| `PROGRESS` | `100` | a cancelable progress bar is up (X cancels it) |
+| `PICK` | `95` | a lockpick under way, or staff *Pick in world* on the door panel (E). Beats a nearer spot. |
+| `OPEN` | `90` | the key closes a list it opened: garages, dealership (E) |
+| `RINGING` | `80` | a call rings at the player (X declines) |
+| `OUTGOING` | `70` | the player is ringing someone (X withdraws) |
+| `CARRY` | `60` | a hauling crate is carried (X puts it down) |
+| `EMOTE` | `50` | the player's own emote plays (X stops it) |
+| `SPOT` | `20` | at a garage, dealer, fitting room, lift, teleport or door (E) |
+| `CALL` | `10` | on a call (X hangs up) |
+
+```lua title="config/client.lua — X puts the crate down even while a call rings"
+KEY_PRIORITY = { CARRY = 85 } -- the other names keep their defaults
+```
+
+Two spots on E (a garage beside a door) are both `SPOT`: the nearer one acts and only its key-strip row is drawn.

@@ -14,7 +14,9 @@ The player holds the target key (`ALT` by default), the cursor appears, and a ri
 | Config | `config/target.lua` (shared) |
 | Data | none |
 
-- The module ships one row of its own, **Identifiers**, which shows and copies another player's server id and character id (see [`IDENTIFY`](#config-target-identify)).
+- The module ships one row of its own, **Show server ID**, which shows and copies another player's **server id only**, enough for a report to staff (see [`IDENTIFY`](#config-target-identify)). Never the character id or name: staff read those on their name tags.
+- A `danger` row asks for a second click (`Confirm: <label>`) unless it sets `confirm = false`; any row can opt in with `confirm = true` ([row definition](/docs/opx_infinity/target/client#row-definition)). The staff *Remove (staff vehicle)* asks; *Kick* and *Ban* do not, their form confirms.
+- Lock rows say which way they go: *Lock door* / *Unlock door*, *Lock vehicle* / *Unlock vehicle*.
 - The eye closes and will not open while the player is down.
 - The row under the pointer (or focused) steps out like the menu's chosen row: full red, lit plate, a small 3D pop; danger rows pop in the alarm colour; an open folder stays lit without the pop. All rows of a column land together, with no stagger.
 - Limits: 48 rows per owner, 128 in total.
@@ -38,7 +40,7 @@ The player holds the target key (`ALT` by default), the cursor appears, and a ri
 | <a id="config-target-revalidate-ms" />`REVALIDATE_MS` | `200` | Milliseconds between two checks that the picked target is still there (50–5000). |
 | <a id="config-target-lookup-budget-ms" />`LOOKUP_BUDGET_MS` | `1500` | Total time all `canInteract`/`checked` calls of one pick may take (100–10000). |
 | <a id="config-target-batch" />`BATCH` | `5` | Rows resolved per slice (1–16). Keep it small. |
-| <a id="config-target-identify" />`IDENTIFY` | `{ ENABLED = true, DISTANCE = 12.0 }` | The built-in **Identifiers** row on other players: shows and copies `server id / citizen id`. `DISTANCE` is clamped to 1–50 m. |
+| <a id="config-target-identify" />`IDENTIFY` | `{ ENABLED = true, DISTANCE = 12.0 }` | The built-in **Show server ID** row on other players: shows and copies the server id. `DISTANCE` is clamped to 1–50 m. |
 
 Scheduler intervals below about 100 ms run at roughly 100 ms unless another job keeps the loop busy.
 

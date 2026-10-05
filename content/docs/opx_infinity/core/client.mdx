@@ -233,7 +233,7 @@ local id = OPX.Toast.Show({ message = 'Saved', kind = 'success', icon = 'folder'
 
 ## OPX.Toast.Locale [#opx-toast-locale]
 
-`Show` with the text of a locale key.
+`Show` with the text of a locale key. A `kind` of `'error'` or `'warning'` is replaced by [`OPX.Result.Kind(key, kind)`](/docs/opx_infinity/core/lib#opx-result-kind).
 
 ```lua
 OPX.Toast.Locale(key, params, kind, icon)

@@ -23,7 +23,9 @@ Scope `write` · must be awaited — a synchronous call answers `export.mustAwai
 - the new door id
 
 **Errors**
-- `doorlock.bad_door`, `doorlock.bad_<field>`, `doorlock.unknown_group`, `doorlock.unknown_item`, `doorlock.door_taken`, `doorlock.too_many_doors`, `doorlock.not_loaded`, `doorlock.save_failed`, `export.badArgument`, `error.unavailable`
+- `doorlock.error.<code>`: `bad_door` and the other malformed-field codes (`bad_position`, `bad_groups`… see [refusal codes](/docs/opx_infinity/doorlock#codes)), `unknown_group`, `unknown_item`, `door_taken`, `too_many_doors`, `not_loaded`, `save_failed`
+- `export.badArgument`, `error.unavailable`
+- Before PR #95 these were spelled `doorlock.<code>`. See [Upgrading](/docs/migration/releases#upgrade-88-95).
 
 ```lua title="Example"
 CreateThread(function()

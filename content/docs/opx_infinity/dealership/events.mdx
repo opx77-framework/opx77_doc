@@ -76,7 +76,8 @@ Server → client. Sent to the buyer: the offer to answer.
 RegisterNetEvent('opx:net:dealership:offered', function(offer) end)
 ```
 
-- offer: `table` — `{ token, entry, model, price, text, seller, dealer, label, kind, timeoutMs }`
+- offer: `table` — `{ token, entry, model, price, text, dealer, label, kind, timeoutMs }`
+  - no `seller` since PR #93 (it carried the seller's account name); `text` is the price formatted with [`OPX.Locale.Money`](/docs/opx_infinity/core/lib#opx-locale-money)
   - `kind`: the dealer's kind, so the buyer's screen lists only garages a vehicle of that kind may be filed under.
 
 ## opx:net:dealership:decide [#opx-net-dealership-decide]

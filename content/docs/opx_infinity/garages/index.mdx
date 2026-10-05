@@ -24,7 +24,10 @@ Glowing markers where players fetch and park their own vehicles. On foot at a **
 - A **garage** is a key (e.g. `garage1`). A vehicle's `garage` column holds that key, so a car stored at one location comes out at every location of the same garage.
 - Each **location** has one `MENU` point (opens the list), one `ENTRY` point (takes the car you sit in) and an ordered list of `EXITS`.
 - **Exits** are tried in the order written. An exit is taken when any vehicle in the same routing bucket is within `EXIT_CLEARANCE` metres (the car being fetched never blocks its own exit). All taken: `garages.noFreeExit`.
-- **Put away or bring out** is decided by the server from the host's seat assignment, never by the client.
+- **Put away or bring out** is decided by the server from the host's seat assignment, never by the client. Sitting in someone else's car at the entry point is refused with `garages.notYours` ("Only your own vehicles go in here."), instead of bringing one of yours out beside you. On foot, the entry prompt reads *Take out your vehicle*.
+- The list shows each car as `Villefort Cortes · 8XK2L0P`: the same name as its key ([`OPX.Vehicle.DisplayName`](/docs/opx_infinity/core/lib#opx-vehicle-displayname)), the plate as the value.
+- A refused bring-out is **one** toast that names the garage (no more three toasts and a platform notice).
+- E is shared with doors, dealers, fitting rooms, lifts and teleports: the nearer spot acts, and only its prompt row is drawn; while the list is open, E closes it (rank `OPEN`). See [One press, one owner](/docs/opx_infinity/core/lib#key-contest).
 - A car with **passengers** is not put away: `garages.passengers` until they get out.
 - The nearest point is searched in the player's own bucket only, so an instanced copy on the same spot does not get in the way.
 - A car of yours already out elsewhere is **moved** to the exit (see [`vehicles.Spawn`](/docs/opx_infinity/vehicles/server#server-vehicles-spawn)); refused with `vehicle.occupied` if anyone sits in it.
@@ -53,7 +56,7 @@ Glowing markers where players fetch and park their own vehicles. On foot at a **
 | Key | Default | Effect |
 |---|---|---|
 | <a id="config-garages-enabled" />`enabled` | `true` | `false` switches the module off. |
-| <a id="config-garages-use-radius" />`USE_RADIUS` | `4.0` | Flat metres from a point's X/Y within which it can be used. |
+| <a id="config-garages-use-radius" />`USE_RADIUS` | `4.0` | Flat metres from a point's X/Y within which it can be used. The server allows [`REACH_SLACK`](/docs/opx_infinity/core/config#config-shared-reach-slack) (1 m) more. |
 | <a id="config-garages-exit-clearance" />`EXIT_CLEARANCE` | `3.0` | Flat metres around an exit that must be free of vehicles. |
 | <a id="config-garages-marker" />`MARKER` | `garage = cylinder/spawn/2.5`, `avpad = ring/objective/3.5`, `entry = ring/interaction/3.0` | Marker look per kind (menu points) and for entry points. Each `{ shape, style, RADIUS }`. |
 | <a id="config-garages-max-distance" />`MAX_DISTANCE` | `150.0` | Metres beyond which a marker is not drawn (1–500). |
@@ -115,6 +118,7 @@ Each code is also a locale key. Codes from [`vehicles`](/docs/opx_infinity/vehic
 | `garages.nothingHere` | The player owns nothing of this garage's kind. |
 | `vehicle.notFound` | The named plate is not one of the player's eligible vehicles. |
 | `garages.noFreeExit` | Every exit of the location is taken. |
+| `garages.notYours` | Seated in a car that is not yours at the entry point. |
 | `garages.passengers` | Passengers are still in the car you want to put away. |
 | `garages.rateLimited` | Cooldown or request window (bring-outs). |
 | `error.tooFast` | Request window (lists). |

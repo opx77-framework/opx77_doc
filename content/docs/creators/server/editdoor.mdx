@@ -16,7 +16,7 @@ Scope `write` · must be awaited — a synchronous call answers `export.mustAwai
 - data: `table` — only the fields to change
 
 - A field given replaces the door's; `''` clears it.
-- A value of a different type from the stored one is refused with `doorlock.bad_<field>`.
+- A value of a different type from the stored one is refused with `doorlock.error.bad_field`; `detail` names the field (was `doorlock.bad_<field>` before PR #95).
 - A new `native` turns a double door into a single one, and `doors` the reverse.
 - The door is set to the `state` it ends up with.
 
@@ -24,7 +24,7 @@ Scope `write` · must be awaited — a synchronous call answers `export.mustAwai
 - the door id
 
 **Errors**
-- `doorlock.unknownDoor`, plus those of [`CreateDoor`](/docs/creators/server/createdoor)
+- `doorlock.unknownDoor`, `doorlock.error.bad_door` (data not a table), `doorlock.error.bad_field`, plus those of [`CreateDoor`](/docs/creators/server/createdoor)
 
 ```lua title="Example"
 CreateThread(function()

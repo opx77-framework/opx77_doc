@@ -20,6 +20,10 @@ A player presses `H` to open a centred hologram with their contacts and recent c
 - An invite has a `kind`, decided by the server: `call` (start a call), `join` (the sender is in a call; accepting adds you) or `contact` (swap contact rows; no call).
 - `invite`, `accept`, `decline` and `hangup` are each limited to one per `REQUEST_MS` per player; a refusal is shown as a toast.
 - A call is dropped when a participant disconnects, leaves the world or is no longer alive (checked every `SCAN_MS` and on life-state changes). When one of three leaves, the other two are told who hung up. A failed host read no longer ends live calls.
+- **Names only for contacts.** Every card, toast ("X joined / hung up / declined / did not answer") and recent-call row names a person only to a viewer who has them in their contacts; anyone else reads *Unknown caller*. A contact offer names its sender, never the person it was offered to. See [Privacy](/docs/opx_infinity/character#privacy).
+- A contact offer tells its sender *offered*, *declined* or *not answered*, without the other person's name; the panel says *Offering your contact...*.
+- An invite that rings out, or is answered just as it dies, updates the caller's screen and files a missed call on both sides. A disconnect while ringing: the callee gets a missed call, the caller reads "The call could not go through" and an unanswered row.
+- Going down closes the hologram.
 - Hanging up (and stopping the module) puts the voice route back to proximity.
 - Audit entries: `calls.invite`, `calls.accept`, `calls.decline`, `calls.cancel`, `calls.hangUp`, `calls.contact`, `calls.unanswered`, `calls.eyes`, `calls.voice`.
 - No commands.
@@ -30,9 +34,13 @@ A player presses `H` to open a centred hologram with their contacts and recent c
 |---|---|---|---|
 | `opx.calls.holo` | `H` | `calls.key.holo` | Open or close the hologram. |
 | `opx.calls.answer` | `Y` | `calls.key.answer` | Answer the waiting invite; nothing when nothing rings. |
-| `opx.calls.decline` | `X` | `calls.key.decline` | In order: refuse the invite ringing at you; else withdraw the invite you sent; else hang up the live call (`M.DeclineOrHangUp`). |
+| `opx.calls.decline` | `X` | `calls.key.decline` | In order: refuse the invite ringing at you; else withdraw the invite you sent; else hang up the live call (`M.DeclineOrHangUp`). Label *Decline or hang up a holocall*. |
 
-`Y` is also the inventory hotbar peek and `X` stops an emote. Both actions fire; outside a call the calls handlers do nothing.
+`Y` and `X` are shared, and a press goes to **one** owner ([key contest](/docs/opx_infinity/core/lib#key-contest), ranks in [`KEY_PRIORITY`](/docs/opx_infinity/core/config#config-client-key-priority)):
+
+- **X**: a cancelable progress bar > a ringing call (decline) > your outgoing call (withdraw) > a carried crate > your emote > a call in progress (hang up). Cancelling an eat during a call no longer hangs up.
+- **Y**: while a call rings, Y answers and the hotbar peek stays silent; otherwise Y peeks.
+- H, Y and X do nothing while chat or a form holds the keyboard. Escape closes the hologram only when it is the top layer.
 
 ## Configuration
 

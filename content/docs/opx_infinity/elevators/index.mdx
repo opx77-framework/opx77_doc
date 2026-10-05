@@ -42,9 +42,9 @@ The four entries in `config/elevators.lua` have placeholder positions and guesse
 | <a id="config-elevators-membership" />`MEMBERSHIP` | `'primary'` | `primary` reads the worked job only; `any` also counts every job membership for the grade (never for `ON_DUTY`). |
 | <a id="config-elevators-job-max-age-ms" />`JOB_MAX_AGE_MS` | `60000` | Past this snapshot age every gated floor closes (`job_stale`); public floors stay open. |
 | <a id="config-elevators-poll-ms" />`POLL_MS` | `15000` | How often the client re-reads the character's job. |
-| <a id="config-elevators-scan-ms" />`SCAN_MS` | `2000` | How often the client looks for lifts (and syncs the strip row). |
+| <a id="config-elevators-scan-ms" />`SCAN_MS` | `500` | How often the client looks for lifts (and syncs the strip row). Was 2000 before PR #95: the row came up to 2 s late. |
 | <a id="config-elevators-match-radius" />`MATCH_RADIUS` | `6.0` | Metres between a seen lift and a declared position for them to match. |
-| <a id="config-elevators-use-radius" />`USE_RADIUS` | `4.0` | Metres from the declared position within which a player may ride. |
+| <a id="config-elevators-use-radius" />`USE_RADIUS` | `4.0` | Metres from the declared position within which a player may ride. The server allows [`REACH_SLACK`](/docs/opx_infinity/core/config#config-shared-reach-slack) (1 m) more. |
 | <a id="config-elevators-scan-radius" />`SCAN_RADIUS` | `40.0` | Metres the client scans, and the server's limit on a sighting. Clamped to 1..300. |
 | <a id="config-elevators-travel-ms" />`TRAVEL_MS` | `8000` | Cabin travel time. Tunable `ELEV_TRAVEL_MS`. |
 | <a id="config-elevators-request-window-ms" />`REQUEST_WINDOW_MS` | `10000` | Rate window. Tunable `ELEV_REQUEST_WINDOW_MS`. |
@@ -100,5 +100,5 @@ A floor's `JOBS`, `ON_DUTY` and `REASON` follow the shared job-gate format; see 
 | `rate_limited` | Too many requests. | `elevators.rateLimited` |
 | `downed` | The player is down. | `elevators.downed` |
 | `not_sent` | The net event was not sent. | `elevators.notSent` |
-| `player_down`, `menu_not_running`, `no_floors_available` | `OpenPanel` only. From the key, toasted as `elevators.refused`, `elevators.noPanel`, `elevators.noFloors`. | — |
+| `player_down`, `menu_not_running`, `no_floors_available` | `OpenPanel` only. From the key at a lift, toasted as `elevators.downed` (*Not while you are down.*), `elevators.noPanel`, `elevators.noFloors`. Away from a lift the key says nothing. | — |
 | `internal_error` | A client contract function raised; see the log. | — |

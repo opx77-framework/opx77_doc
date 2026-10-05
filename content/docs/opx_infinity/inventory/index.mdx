@@ -34,6 +34,16 @@ A container is a `(kind, owner)` pair. Positive id: a database row. Negative id:
 - A client only draws and offers the piles of its own routing bucket. The server tells it which bucket it is in ([`opx:net:inventory:bucket`](/docs/opx_infinity/inventory/events#opx-net-inventory-bucket)).
 - Changes are written [`SAVE.DELAY_MS`](#config-inventory-save) after the last change, in batches. Any number of stacks is saved (12 item rows per `INSERT`, at most 64 statements per transaction); a batch that fails is retried one container at a time.
 - While a use handler runs, its slot is **held**: moving, splitting, sorting or using it again is refused with `in_use`, and removing by name skips it.
+- An item whose use plays a timed gesture (eating, drinking) holds the next use until the gesture ends: four hotbar presses inside one bite eat one item.
+
+## Give and drop [#give-drop]
+
+- **Count.** Give or Drop on a stack of more than one opens the count dialog (*Give how many?* / *Drop how many?*), starting at 1; its button says *Give* or *Drop* and is the confirm step. A single item goes in one click.
+- **Who.** The give list shows people within arm's reach as **where they stand and how far**, `To your left · 1.2 m` / `À votre gauche · 1,2 m`, with their server id (`#12`). **Never a name**: in roleplay a name is learnt by meeting someone ([`opx:net:inventory:nearby`](/docs/opx_infinity/inventory/events#opx-net-inventory-nearby)). Only the giver sees the list; it is fetched when the bag opens.
+- **Receiving.** The receiver reads only their bag's own `+2 Water` line (no second server toast); a staff give the same.
+- **Refusals.** A refused move, split, sort or drop toasts the server's reason (full trunk, no room…) once; the page's own "That did not work." is only for a timeout or a request that did not get through. The cooldown stays silent.
+- **Secondary panel.** Its Close button closes it on the server too. A trunk shut by its lock says "That vehicle is locked."
+- **Money notes.** *You took 1,000,000 €$ out as notes.* / *You put 4,500 €$ in notes back in your wallet.*, formatted with [`OPX.Locale.Money`](/docs/opx_infinity/core/lib#opx-locale-money); `/withdraw` adds no second toast.
 - A stash loaded by name (by the [stash functions](/docs/opx_infinity/inventory/server#server-inventory-addtostash)) and not opened by a player is saved and put away after `SERVER.EXPORTS.STASHES.IDLE_MS` (60 s) without use; a sweep runs every 15 s.
 - Deleting a character deletes all its containers and their items.
 
@@ -137,12 +147,12 @@ Toasted to the player as locale `inventory.error.<code>` (commands use `inventor
 | `use_refused` | The use handler answered `ok = false` with no code. |
 | `handler_failed` | The use handler did not return a table. |
 | `handler_timeout` | The use handler raised or took longer than `USE_HANDLER_MS`. |
-| `too_fast` | Rate limit or use cooldown. |
+| `too_fast` | Rate limit, use cooldown, the 1 s pile cooldown, or a use while the last item's eat/drink gesture still plays (not toasted). |
 | `stash_namespace` | A resource tried to create a stash outside its own `<resource>.<name>` namespace. |
 | `stash_cap` | That resource already created `CREATE_CAP` stashes. |
 | `hands_full` | The player is carrying a `hauling` crate; no use or draw. |
-| `too_far` | Out of reach. |
-| `target_unavailable` | The player to hand to cannot receive. |
+| `too_far` | Out of reach. A give checks reach **first**: any id out of reach answers `too_far`, whether that player exists, is joining or is loaded. |
+| `target_unavailable` | The player to hand to (within reach) cannot receive. |
 | `drops_disabled` | Piles are switched off. |
 | `drop_limit` | Too many piles on the server or for this character. |
 | `no_drop` | The item has `DROP = false`. |

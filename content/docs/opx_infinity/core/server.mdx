@@ -143,7 +143,7 @@ The title is cut to 96 bytes and the message to 384 bytes, on a character bounda
 
 ## OPX.NotifyLocale [#opx-notifylocale]
 
-`OPX.Notify` with the text of a locale key (through `RefusalKey`).
+`OPX.Notify` with the text of a locale key (through `RefusalKey`). A `kind` of `'error'` or `'warning'` is replaced by [`OPX.Result.Kind(key, kind)`](/docs/opx_infinity/core/lib#opx-result-kind).
 
 ```lua
 OPX.NotifyLocale(source, key, params, kind)
@@ -179,10 +179,10 @@ OPX.RefusalKey(code)
 
 ## OPX.Refuse [#opx-refuse]
 
-Sends [`opx:net:runtime:notify`](/docs/opx_infinity/core/events#opx-net-runtime-notify) to one player: an error toast with the text of `RefusalKey(code)`. Does nothing for source `<= 0`.
+Sends [`opx:net:runtime:notify`](/docs/opx_infinity/core/events#opx-net-runtime-notify) to one player: a toast with the text of `RefusalKey(code)`. Its kind is [`OPX.Result.Kind(code, 'error')`](/docs/opx_infinity/core/lib#opx-result-kind): `warning` for too fast, rate limited or busy, else `error`. Does nothing for source `<= 0`. One refusal is one toast: do not follow it with `NotifyLocale`.
 
 ```lua
-OPX.Refuse(source, code, operation, icon)
+OPX.Refuse(source, code, operation, icon, params)
 ```
 
 **Parameters**
@@ -190,11 +190,13 @@ OPX.Refuse(source, code, operation, icon)
 - code: `string` — a locale key
 - operation?: `string` — which request was refused; default `'unknown'`. Not shown in the toast.
 - icon?: `string` — a name from `OPX.Glyphs`; the client drops an unknown one
+- params?: `table` — the sentence's `{placeholders}`. Keys match `[%w_]+`, values are strings or numbers, at most 8 entries, strings cut to 64 bytes; anything else is dropped. The client checks them again.
 
 ```lua title="Example"
 if OPX.Cooling(source, 'thing.use', 1000) then
-	return OPX.Refuse(source, 'error.tooFast', 'thing.use')
+	return OPX.Refuse(source, 'error.tooFast', 'thing.use') -- a warning toast
 end
+return OPX.Refuse(source, 'thing.blocked', 'thing.use', nil, { place = spot.label })
 ```
 
 ## OPX.CommandResult [#opx-commandresult]

@@ -20,7 +20,8 @@ Shows a menu of places when a character enters the world and puts the character 
 2. `Offer` answers `false` (character places the body itself, at once) when the module is off, the policy is `'never'`, no location is usable, a choice is already open, or the policy is `'first'` and the character already has a stored position.
 3. Otherwise it sends `opx:net:spawn:offer`. The client opens the menu as soon as `entry` reports itself idle (name form and fitting room done) and reports `opx:net:spawn:opened`.
 4. The player's window (`TIMEOUT_SECONDS`) starts at that report. Before it, only `HOLD_MAX_SECONDS` can end the offer.
-5. A click sends the place id. The server looks it up in its own list and calls `character.PlaceCharacter`. A timeout places the character with no target (stored position, then `DEFAULT_SPAWN`). Either way the server sends `opx:net:spawn:close`.
+5. A character whose row holds a position gets a first card, **Where I left off** (*Là où j'étais*, id `resume`): choosing it places the character with no target, so the stored position decides. A character that has never stood anywhere does not get it.
+6. A click sends the place id. The server looks it up in its own list and calls `character.PlaceCharacter`. A timeout places the character with no target (stored position, then `DEFAULT_SPAWN`). The menu goes down at once; "Spawned at …" is said only once the body has moved, and a refused placement says "You could not be moved there."
 
 ## Configuration
 
@@ -40,7 +41,7 @@ Shows a menu of places when a character enters the world and puts the character 
 { id = 'stoop', label = 'King Stoop forecourt', district = 'Watson', x = -410.22, y = 722.73, z = 115.0, heading = 147.0 },
 ```
 
-- `id`: 1–32 characters of letters, digits, `_ : - .`; unique. Sent on the wire, so **do not rename** one.
+- `id`: 1–32 characters of letters, digits, `_ : - .`; unique. Sent on the wire, so **do not rename** one. `resume` is reserved for the *Where I left off* card: an entry with that id is dropped with a warning.
 - `label`: 1–48 characters, shown on the card.
 - `district`: up to 32 characters, the hint line. Optional.
 - `x`, `y`, `z`: finite numbers. Copy them from the game; a guessed coordinate can drop the player through the world.
@@ -51,5 +52,5 @@ Shows a menu of places when a character enters the world and puts the character 
 
 | Code | Meaning |
 |---|---|
-| `spawn.noChoice` | No choice is open for you, or the id is not in the list. |
+| `spawn.noChoice` | No choice is open for you, the id is not in the list, or `resume` was asked by a character with no stored position. |
 | `error.tooFast` | Clicked again inside `CHOOSE_COOLDOWN_MS`. |

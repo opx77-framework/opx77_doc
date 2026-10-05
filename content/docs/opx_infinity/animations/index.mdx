@@ -9,7 +9,7 @@ Players play emotes with `/e dance` or the picker on `F3` (built with the [menu]
 |---|---|
 | Side | both |
 | Requires | none |
-| Optional | `menu` (picker, invitation), `form` (picker search), `prompts` (stop key hint), `downed` (closes the picker), `target` (walking pace rows), `character` (the name an invited player reads) |
+| Optional | `menu` (picker, invitation), `form` (picker search), `prompts` (stop key hint), `downed` (closes the picker), `target` (walking pace rows) |
 | Contract | `animations` v1 — [client](/docs/opx_infinity/animations/client) |
 | Config | `config/animations.lua` (shared) |
 | Platform | `open77_animations` (solo, `players.animations.control`), `open77_player_interactions` (pairs, `players.interactions.control`) — both declared in the manifest |
@@ -67,11 +67,11 @@ Picker › **With a nearby player**, or `/e with …`. The server invites the **
 
 - A paired move's id is read before a profile of the same word: `/e with carry` is the move, `/e with carry carry` is the `carry` profile on both.
 - In the picker, *Any two animations* is two picks — yours, then theirs ("The same" on top) — so every ordered pair (104 × 104) is reachable without a 10 000-row list.
-- The invited player gets a two-row menu (*Accept*, *Decline*) or a chat line naming `/e accept` and `/e decline`.
+- The invited player gets a two-row menu (*Accept*, *Decline*) or a chat line naming `/e accept` and `/e decline`. **No name either way**: "The person next to you invites you: `{emote}`.", and the asker reads *sent*, *accepted* or *declined* without the other's name.
 
 ```text
 ask ─► nearest player in RANGE invited ─► accept ─► distance measured again ─► pair starts
-                                        ├► decline ─► asker told "<name> declined"
+                                        ├► decline ─► asker told "declined" (no name)
                                         └► INVITE_MS passes ─► withdrawn, asker told "expired"
 ```
 

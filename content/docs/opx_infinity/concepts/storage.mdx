@@ -69,4 +69,4 @@ Several modules still **read** tables written by the old `opx77_*` resources at 
 
 ## Player state bags [#state-bags]
 
-The [character module](/docs/opx_infinity/character/client#state-bag) publishes a few public facts per player (name, job, gang…) on the player's replicated state bag. Any client in the same routing bucket reads them with `Open77.state.player(id)`. Nothing private (money, metadata) goes there.
+A player's replicated state bag reaches every client in the same routing bucket. Since PR #93 the [character module](/docs/opx_infinity/character/client#state-bag) writes **nothing** there (it used to publish name, job, gang…), and clears the keys an older build left. Anything about another player is read on the server.

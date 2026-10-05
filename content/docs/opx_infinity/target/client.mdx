@@ -215,7 +215,8 @@ target.State()
 | `networked` | boolean | any | If set, the target's `networked` flag must equal it. |
 | `allowSelf` | boolean | `false` | Allow the local player's own body. |
 | `selfOnly` | boolean | `false` | Only the local player's body. Needs `allowSelf = true` and, if `types` is set, `player` in it. |
-| `danger` | boolean | `false` | Drawn as a dangerous action. |
+| `danger` | boolean | `false` | Drawn as a dangerous action. Asks for a second click unless `confirm = false`. |
+| `confirm` | boolean | `danger` | `true`: the first click relabels the row `Confirm: <label>` in place (inside its folder); only a second click on the same row within 4 s runs `onSelect`. `false` on a `danger` row runs it in one click. |
 | `distance` | number | `3.0` | Metres from the player to the hit point, 0.1–50. Not checked for `sky`. |
 | `order` | integer | `0` | −1000..1000. Lower first. A group sorts at its lowest `order`. |
 | `types` | string list | any | Up to 32 of `player`, `vehicle`, `npc`, `prop`, `door`, `device`, `item`, `object`, `world`, `sky`. `sky` rows must list `sky`. |

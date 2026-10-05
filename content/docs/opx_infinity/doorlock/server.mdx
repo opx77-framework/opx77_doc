@@ -114,7 +114,7 @@ doorlock.Create(data, by)
 - by?: `string`
 
 **Returns**
-- `Result` — the new id; errors `doorlock.bad_door`, `doorlock.<bad_*>`, `doorlock.unknown_group`, `doorlock.unknown_item`, `doorlock.door_taken`, `doorlock.too_many_doors`, `doorlock.not_loaded`, `doorlock.save_failed`
+- `Result` — the new id; errors `doorlock.error.<code>`: `bad_door`, the other `bad_*` field codes, `unknown_group`, `unknown_item`, `door_taken`, `too_many_doors`, `not_loaded`, `save_failed`. Every one has a sentence in the catalogue.
 
 ```lua title="Example"
 CreateThread(function()
@@ -126,7 +126,7 @@ end)
 
 ## Edit [#server-doorlock-edit]
 
-ox's `editDoor`: the fields given replace the door's, `''` clears one, a type that differs from the stored one is refused (`doorlock.bad_<field>`). A new `native` replaces a double door, and `doors` a single one. Yields.
+ox's `editDoor`: the fields given replace the door's, `''` clears one, a type that differs from the stored one is refused (`doorlock.error.bad_field`, the field in `detail`). A new `native` replaces a double door, and `doors` a single one. Yields.
 
 ```lua
 doorlock.Edit(ref, data, by)
@@ -153,7 +153,7 @@ doorlock.Remove(ref, by)
 - by?: `string`
 
 **Returns**
-- `Result` — errors `doorlock.unknownDoor`, `doorlock.save_failed`
+- `Result` — errors `doorlock.unknownDoor`, `doorlock.error.save_failed`
 
 ## IsAuthorised [#server-doorlock-isauthorised]
 

@@ -39,6 +39,27 @@ if not row then return OPX.Result.Err('not_found') end
 return OPX.Result.Ok(row)
 ```
 
+## OPX.Result.Kind [#opx-result-kind]
+
+The toast kind a refusal code's situation calls for. The code is lower-cased and stripped to letters, then matched: `toofast`, `ratelimit`, `busy` → `warning` (wait, and it works); `toofar`, `notallowed`, `notpermitted`, `nopermission` → `error` (not from here, or not for you). Anything else answers `fallback`. [`OPX.Refuse`](/docs/opx_infinity/core/server#opx-refuse), [`OPX.NotifyLocale`](/docs/opx_infinity/core/server#opx-notifylocale) and [`OPX.Toast.Locale`](/docs/opx_infinity/core/client#opx-toast-locale) apply it.
+
+```lua
+OPX.Result.Kind(code, fallback)
+```
+
+**Parameters**
+- code: `any` — a refusal code or catalogue key
+- fallback: `string`
+
+**Returns**
+- `string`
+
+```lua title="Example"
+OPX.Result.Kind('error.tooFast', 'error') -- 'warning'
+OPX.Result.Kind('garages.tooFar', 'warning') -- 'error'
+OPX.Result.Kind('shops.noStock', 'error') -- 'error' (the fallback)
+```
+
 # Table [#table]
 
 `lib/shared/table.lua`, both sides.
@@ -560,6 +581,26 @@ CreateThread(function()
 end)
 ```
 
+## OPX.Locale.Money [#opx-locale-money]
+
+An amount of money as a player reads it, in the active language: rounded, grouped with `money.separator` (`,` in English, a narrow no-break space in French), with the currency word `money.type.<TYPE>` (`€$`, `€$ (bank)`), through `money.amount`. An unknown type is shown by its configured name.
+
+```lua
+OPX.Locale.Money(amount, moneyType)
+```
+
+**Parameters**
+- amount: `number`
+- moneyType?: `string` — a configured money type; default `SHARED.MONEY.DEFAULT`, else `'EDDIES'`
+
+**Returns**
+- `string`
+
+```lua title="Example"
+OPX.Locale.Money(4500) -- '4,500 €$' (en), '4 500 €$' (fr)
+OPX.Locale.Money(500, 'BANK') -- '500 €$ (bank)'
+```
+
 # CitizenId [#citizenid]
 
 `lib/shared/citizenid.lua`, both sides. A citizen id is seven symbols from `34679ACDEFGHJKMNPRTWXYZ`, written `XXX-XXXX`. The seventh is a check symbol (weighted sum modulo 23), so one wrong symbol or two swapped neighbours are caught. `OPX.CitizenId.ALPHABET` holds the symbol set; changing it invalidates every id already issued.
@@ -917,6 +958,36 @@ OPX.Spots.Nearest(spots, x, y, radiusSq)
 - spot: `spot?`
 - distanceSq?: `number`
 
+## OPX.Spots.ServerReach [#opx-spots-serverreach]
+
+The reach the **server** allows for a radius the client draws or an eye row offers: `radius` plus [`REACH_SLACK`](/docs/opx_infinity/core/config#config-shared-reach-slack) (clamped 0–4, 1.0 when unset). The server measures where it last saw the player, a moment behind the press.
+
+```lua
+OPX.Spots.ServerReach(radius)
+```
+
+**Parameters**
+- radius: `number` — metres, e.g. the module's `USE_RADIUS`
+
+**Returns**
+- `number` — metres
+
+## OPX.Spots.ServerReachSq [#opx-spots-serverreachsq]
+
+`ServerReach(radius)` squared, to compare with `Nearest`'s `distanceSq`.
+
+```lua
+OPX.Spots.ServerReachSq(radius)
+```
+
+**Returns**
+- `number`
+
+```lua title="Example — server"
+local spot = OPX.Spots.Nearest(M.Spots, x, y, OPX.Spots.ServerReachSq(M.Config.USE_RADIUS))
+if not spot then return OPX.Refuse(source, 'mymodule.tooFar', 'mymodule.use') end
+```
+
 # Spots on the client [#spots-client]
 
 `lib/client/spots.lua`, client only. The markers and the key every spot module (garages, dealership, clothing, teleports, the elevator door) used to copy. Build on it instead of writing your own marker loop.
@@ -966,9 +1037,22 @@ OPX.Spots.Key.Register(options)
   - tag: `string`
   - declared: `{ ID, NAME, DEFAULT }` — your config's `KEY` block; `DEFAULT = false` declares none
   - onPress: `function(origin)` — called with `'key'`; decide yourself what a press away from your spots says (usually nothing)
+  - wants?: `function(x, y, z): rank?, distance?` — enters the mapping into the [contest](#key-contest) for its key. Answer nil when the press is nothing to you. Must not act. On a press it gets the position; from [`Shows`](#opx-spots-key-shows) it gets nils and answers from your last scan.
 
 **Returns**
 - registered: `boolean`
+
+```lua title="Example"
+local registered = OPX.Spots.Key.Register({
+	tag = 'mymodule',
+	declared = M.Config.KEY,
+	onPress = function() if near then use(near) end end,
+	wants = function(x, y)
+		if not near then return nil end
+		return OPX.Spots.Key.Rank('SPOT'), OPX.Spots.Key.Reach(near, x, y, nearSq)
+	end,
+})
+```
 
 ## OPX.Spots.Key.Label [#opx-spots-key-label]
 
@@ -980,6 +1064,149 @@ OPX.Spots.Key.Label(registered, declared)
 
 **Returns**
 - `string?` — nil when not registered
+
+## One press, one owner [#key-contest]
+
+The host fires **every** mapping bound to a key from one press. E is declared by garages, dealership, clothing, teleports, elevators and doorlock; X by progress, calls, hauling and animations. So a press is a contest: each contender answers `wants` with a rank from [`KEY_PRIORITY`](/docs/opx_infinity/core/config#config-client-key-priority) and a distance; the highest rank acts, then the nearer, then the lower id. When nobody wants the press, every handler runs as before. Only mappings bound to the **same** physical key contend: a player who rebinds one apart gets both back.
+
+| Key | Order (default ranks) |
+|---|---|
+| E | a lockpick or *Pick in world* under way `PICK` 95 > the key closes a list it opened (garages, dealership) `OPEN` 90 > the spot you stand at `SPOT` 20. Two spots: the nearer wins, and only its strip row is drawn. |
+| X | cancelable bar `PROGRESS` 100 > ringing call, decline `RINGING` 80 > outgoing call, withdraw `OUTGOING` 70 > carried crate `CARRY` 60 > own emote `EMOTE` 50 > call in progress, hang up `CALL` 10 |
+| Y | the call's answer while a call rings; the hotbar peek contends but never claims, so it is silent while a call rings |
+| Escape | the layer opened last (menu, form, panel, door panel, chat, call hologram); see [`Layer`](#opx-spots-key-layer) |
+
+## OPX.Spots.Key.Rank [#opx-spots-key-rank]
+
+The rank of a context name: `KEY_PRIORITY[name]`, else `OPX.Spots.Key.RANK_DEFAULTS[name]`, else 0.
+
+```lua
+OPX.Spots.Key.Rank(name)
+```
+
+**Parameters**
+- name: `'PROGRESS' | 'PICK' | 'OPEN' | 'RINGING' | 'OUTGOING' | 'CARRY' | 'EMOTE' | 'SPOT' | 'CALL'`
+
+**Returns**
+- `number`
+
+## OPX.Spots.Key.Contend [#opx-spots-key-contend]
+
+Enters a mapping into the contest for its key. `Register` does it for you when you pass `wants`; call it yourself for a mapping registered another way.
+
+```lua
+OPX.Spots.Key.Contend(options)
+```
+
+**Parameters**
+- options: `table`
+  - id: `string` — the mapping id
+  - default: `string` — the declared default key
+  - wants: `function(x, y, z): rank?, distance?` — runs under `pcall`; must not act
+  - tag?: `string`
+
+## OPX.Spots.Key.Owns [#opx-spots-key-owns]
+
+Whether this press is this mapping's to act on. Ask it first in the handler. The first handler of a press decides for every contender on that key, before any has acted, and the decision is kept until each has asked, or for `PRESS_MS` (500 ms).
+
+```lua
+OPX.Spots.Key.Owns(id)
+```
+
+**Parameters**
+- id: `string`
+
+**Returns**
+- `boolean` — `true` for a mapping that does not contend, and for everyone when nobody wants the press
+
+```lua title="Example"
+OPX.Spots.Key.Contend({ id = 'mymodule.drop', default = 'X', wants = function()
+	if carrying then return OPX.Spots.Key.Rank('CARRY') end
+end })
+RegisterKeyMapping('mymodule.drop', 'Drop it', 'X', function()
+	if not OPX.Spots.Key.Owns('mymodule.drop') then return end
+	drop()
+end)
+```
+
+## OPX.Spots.Key.Prime [#opx-spots-key-prime]
+
+Records the key a contender is bound to, for its strip row, so `Shows` makes no host read until a rebind. `Register` calls it with the host's answer.
+
+```lua
+OPX.Spots.Key.Prime(id, key)
+```
+
+**Parameters**
+- id: `string`
+- key?: `string`
+
+## OPX.Spots.Key.Shows [#opx-spots-key-shows]
+
+Files this mapping's claim from your scan and answers whether its key-strip row should be drawn: `false` when another mapping on the same key holds a claim that would take the press. Call it every scan, row or no row. A claim not renewed within `CLAIM_MS` (1.5 s) is ignored. A press still decides from live state.
+
+```lua
+OPX.Spots.Key.Shows(id)
+```
+
+**Parameters**
+- id: `string`
+
+**Returns**
+- `boolean`
+
+## OPX.Spots.Key.Reach [#opx-spots-key-reach]
+
+The flat distance from a position to a spot, for `wants`. With `x = nil` (a claim from `Shows`) it answers `sqrt(measuredSq)`, the distance your scan already measured.
+
+```lua
+OPX.Spots.Key.Reach(spot, x, y, measuredSq)
+```
+
+**Parameters**
+- spot?: `{ x, y }`
+- x?: `number`
+- y?: `number`
+- measuredSq?: `number`
+
+**Returns**
+- `number?` — nil ranks the spot behind any that can be measured
+
+## OPX.Spots.Key.Layer [#opx-spots-key-layer]
+
+Enters a screen layer into the Escape contest. The pseudo-key is `OPX.Spots.Key.ESCAPE`; the rank is when the layer opened, so the newest layer takes Escape and the rest stay open.
+
+```lua
+local id = OPX.Spots.Key.Layer(layer, openedAt)
+```
+
+**Parameters**
+- layer: `string` — e.g. `'menu'`
+- openedAt: `function(): number?` — ms when it opened, nil while shut
+
+**Returns**
+- id: `string` — `'escape.<layer>'`
+
+## OPX.Spots.Key.TopLayer [#opx-spots-key-toplayer]
+
+Whether this Escape is this layer's. Ask it first in the pause handler.
+
+```lua
+OPX.Spots.Key.TopLayer(id)
+```
+
+**Returns**
+- `boolean`
+
+```lua title="Example"
+local openedAt
+local escapeId = OPX.Spots.Key.Layer('mypanel', function() return openedAt end)
+AddEventHandler('open77:pauseKey', function()
+	if not openedAt or not OPX.Spots.Key.TopLayer(escapeId) then return end
+	openedAt = nil
+	close()
+end)
+```
 
 ## OPX.Spots.Captured [#opx-spots-captured]
 
@@ -1007,6 +1234,25 @@ local x, y = OPX.Spots.PlayerXY()
 # Vehicle [#vehicle]
 
 `lib/shared/vehicle.lua`, both sides.
+
+## OPX.Vehicle.DisplayName [#opx-vehicle-displayname]
+
+The name a player reads for a vehicle model: a catalogue label as it is, or a TweakDB record made readable (namespace, `v_`, the class token such as `standard2_` and `_player` dropped, words capitalised). Control characters are removed. The vehicle keys and the garage list both use it.
+
+```lua
+OPX.Vehicle.DisplayName(model, maxBytes)
+```
+
+**Parameters**
+- model: `string`
+- maxBytes?: `integer` — default 48
+
+**Returns**
+- `string?` — nil for nothing usable
+
+```lua title="Example"
+OPX.Vehicle.DisplayName('Vehicle.v_standard2_villefort_cortes_player') -- 'Villefort Cortes'
+```
 
 ## OPX.Vehicle.IsAvRecord [#opx-vehicle-isavrecord]
 

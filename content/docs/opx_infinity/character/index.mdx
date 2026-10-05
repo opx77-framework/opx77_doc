@@ -30,7 +30,26 @@ Placement is always a kill + respawn (fade, preload, 5 s grace), never a telepor
 |---|---|
 | `/opx.select <citizenId>` | Under `CHARACTERS.SWITCH = 'relog'` (shipped): the current character is saved (and waited on), the other is loaded and placed, no disconnect. If that fails, or under `'reconnect'`: the lock moves and the player is disconnected; the next connection enters on the new character. |
 | `/opx.create` | Clears the lock and **always disconnects**; the next connection builds a new character. A new body needs the game's main-menu creator, which cannot be reopened mid-session. |
-| `/opx.delete <citizenId>` | Soft-deletes the character. Whoever is playing it is disconnected. |
+| `/opx.delete <citizenId> confirm` | Soft-deletes the character with its clothes, items and vehicles. Without `confirm` the command only says what it would do. Whoever is playing it is disconnected. |
+
+## Privacy: never a name to a stranger [#privacy]
+
+In roleplay a character's name is learnt by meeting them. Since PRs #91 and #93 no part of OPX hands a name, citizen id or out-of-character account data to a client that has not earned it. The data is **absent from the wire**, not hidden on the page.
+
+| Where | What a stranger gets |
+|---|---|
+| Player [state bag](/docs/opx_infinity/character/client#state-bag) | Nothing: no key is written. |
+| Plate over a head | Hidden for every remote player (no character name, no account gamertag). |
+| [Chat](/docs/opx_infinity/chat) | Lines signed `Player #12` / `Joueur #12`. |
+| [Holocalls](/docs/opx_infinity/calls) | A name only if the viewer has that person in their contacts; else *Unknown caller*. A contact offer names its sender. |
+| [Inventory](/docs/opx_infinity/inventory#give-drop) give list | `To your left · 1.2 m` and `#12`. Out-of-reach ids all answer `too_far`. |
+| [Dealership](/docs/opx_infinity/dealership) offer | No seller name; no buyer name for the seller; no balance probe, no presence probe. |
+| [Duo emotes](/docs/opx_infinity/animations#duo) | "The person next to you invites you". |
+| [Doorlock](/docs/opx_infinity/doorlock) | The state push carries no `by`. |
+| Eye *Show server ID* | The server id only. |
+| Staff | Name tags (`opx.admin.self.tags`) carry account, character and citizen id, behind the ACL. |
+
+Not covered by OPX: `Open77.players.nearby` returns the account name to any client resource, and the platform chat or scoreboard (if enabled) show account names. Server resources allowed by [`SERVER.EXPORTS.READ`](/docs/opx_infinity/core/config#config-server-exports) can read names: they must not relay them to players.
 
 ## Commands
 
@@ -39,7 +58,7 @@ Placement is always a kill + respawn (fade, preload, 5 s grace), never a telepor
 | <a id="opx-characters" />`/opx.characters` | everyone (alias `chars`) | — | Your characters, slot count, and the one you enter on (`>`). In game only. 2 s cooldown. |
 | <a id="opx-select" />`/opx.select` | everyone | `<citizenId>` | Switches to another of your characters (see [Changing character](#switching)). 3 s cooldown. |
 | <a id="opx-create" />`/opx.create` | everyone | — | Clears your lock and disconnects you; next connection builds a new character. Refused at the slot limit or `ROW_CEILING`. |
-| <a id="opx-delete" />`/opx.delete` | everyone | `<citizenId>` | Soft-deletes one of your own characters. Refused when `CHARACTERS.SELF_DELETE` is false. |
+| <a id="opx-delete" />`/opx.delete` | everyone | `<citizenId> confirm` | Soft-deletes one of your own characters, with its clothes, items and vehicles. Without `confirm` it only explains. Refused when `CHARACTERS.SELF_DELETE` is false. |
 | <a id="opx-duty" />`/opx.duty` | everyone (alias `duty`) | — | Toggles duty for your primary job. `job.noDuty` for a `defaultDuty = true` job. 2 s cooldown. |
 | <a id="opx-players" />`/opx.players` | ACL `command.opx.players` | — | Loaded characters: player id, citizen id, name, job. |
 | <a id="opx-where" />`/opx.where` | ACL `command.opx.where` | `[playerId]` | What the server holds on a player: account, character, gate, life phase, position and bucket, job, gang, balances. |
@@ -67,7 +86,8 @@ Placement is always a kill + respawn (fade, preload, 5 s grace), never a telepor
 | <a id="config-character-default-spawn" />`DEFAULT_SPAWN` | `{ SET = true, X = -1600.137451, Y = -2340.758057, Z = 43.250328, HEADING = 139.650009 }` | Where a character with no stored position is placed. `SET = false` leaves it where the game put it. `/opx.here` prints this block. |
 | <a id="config-character-jobs" />`JOBS` | 12 jobs | Job definitions; see [Job and gang format](#group-format). |
 | <a id="config-character-gangs" />`GANGS` | 12 gangs (incl. `none`) | Gang definitions. |
-| <a id="config-character-origins" />`ORIGINS` | `nomad`, `streetkid`, `corpo` | Lifepaths `{ label, description }`. **Not read by anything yet.** |
+
+`ORIGINS` (lifepaths) was removed in PR #95: nothing read it.
 
 ### MONEY
 

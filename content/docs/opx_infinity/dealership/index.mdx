@@ -44,7 +44,8 @@ A player stands on a dealer marker and presses the key (**E** by default): a cen
 
 ### Selling to another player
 
-- Inside `ZONE_RADIUS` of a dealer, the target eye shows **Sell a vehicle** on every other player. The seller picks a model; the buyer gets an offer (carrying the dealer's `kind`) and must answer within `OFFER_TIMEOUT_MS`. Both must still be in the zone when the buyer answers.
+- Inside `ZONE_RADIUS` of a dealer, the target eye shows **Sell them a vehicle** on every other player. The seller's list is titled *Sell to the person in front of you (#12)*; the buyer reads *You are being offered a `{model}`* and *Offered to you for `{price}`*. **No name either way**: the offer carries no seller, and the seller is never shown the buyer's account name. The buyer must answer within `OFFER_TIMEOUT_MS`; both must still be in the zone when they do.
+- The counter's garage row reads *Buy, deliver here*. A hand-over refused for another reason than "every spot taken" says the car waits in the garage. A zero commission reads *Sale done: `{model}`. The whole price went to the company.*
 - An offer that arrives while the buyer has their own dealership list open waits until that list closes. When an offer expires or the seller leaves, the buyer's offer screen closes ([`opx:net:dealership:withdrawn`](/docs/opx_infinity/dealership/events#opx-net-dealership-withdrawn)).
 - At accept the seller's company is read again; a change refuses the sale with `dealership.sellerNoCompany`.
 - On a yes the buyer picks one of their garages of that kind on their own screen ([`Decide`](/docs/opx_infinity/dealership/client#client-dealership-decide)), resolved in the buyer's bucket; none = the vehicles default garage; an unknown one is refused `dealership.noSuchGarage`. The buyer pays the full price and the sale runs the steps above.
@@ -72,7 +73,7 @@ Each `PREVIEW.POINTS` row stands one stock model, **locked** and **persistent**,
 | <a id="config-dealership-enabled" />`enabled` | `true` | `false` switches the module off. |
 | <a id="config-dealership-currency" />`CURRENCY` | `'EDDIES'` | Money type prices are in. An unknown type refuses every sale (boot error). |
 | <a id="config-dealership-hand-over" />`HAND_OVER` | `true` | Create the bought car on the dealer marker. `false` only files it. |
-| <a id="config-dealership-use-radius" />`USE_RADIUS` | `4.0` | Flat metres from a dealer within which it can be used. |
+| <a id="config-dealership-use-radius" />`USE_RADIUS` | `4.0` | Flat metres from a dealer within which it can be used. The server allows [`REACH_SLACK`](/docs/opx_infinity/core/config#config-shared-reach-slack) (1 m) more. |
 | <a id="config-dealership-marker" />`MARKER` | `garage` = cylinder/interaction/2.5, `avpad` = ring/interaction/3.5 | Marker look per kind: `{ shape, style, RADIUS }`. |
 | <a id="config-dealership-max-distance" />`MAX_DISTANCE` | `150.0` | Metres beyond which a marker is not drawn (1–500). |
 | <a id="config-dealership-ground-offset" />`GROUND_OFFSET` | `0.06` | Marker lift off Z (0–2). |
@@ -140,8 +141,8 @@ Each code is also a locale key. Codes from [`vehicles.Register`](/docs/opx_infin
 | `dealership.registerFailed` | `vehicles.Register` failed unexpectedly; the price was refunded. |
 | `dealership.noCompany` | The seller has no job or gang with an account. |
 | `dealership.noSuchBuyer` | Bad buyer id, or the seller targeted themself. |
-| `dealership.notInZone` / `dealership.buyerNotInZone` | Seller or buyer outside `ZONE_RADIUS`. |
-| `dealership.buyerCannotAfford` | The buyer cannot afford the offer. |
+| `dealership.notInZone` / `dealership.buyerNotInZone` | Seller or buyer outside `ZONE_RADIUS`. `Offer` answers `buyerNotInZone` for **any** id outside the showroom, connected or not, before reading the buyer's character. |
+| `dealership.buyerCannotAfford` | No longer answered. Since PR #93 the offer always goes out; on accept the **buyer** reads `dealership.cannotAfford` and the seller only `dealership.paymentFailed`, so offers at rising prices reveal nothing about a stranger's balance. |
 | `dealership.noOffer` | No offer waiting, or the token does not match. |
 | `dealership.offerDeclined` / `dealership.offerExpired` | The buyer said no, or did not answer in time. |
 | `dealership.sellerGone` / `dealership.buyerGone` | The other side left or walked out of the zone. |

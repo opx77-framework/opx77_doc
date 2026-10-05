@@ -11,10 +11,10 @@ Server → client. The player's whole call state, pushed on every change.
 RegisterNetEvent('opx:net:calls:state', function(state) end)
 ```
 
-- state: `table`
-  - `call?`: `{ id, founder, elapsedMs, participants = { { id, name, self } } }`
-  - `invite?`: `{ id, kind, from, fromName, expiresInMs }`
-  - `outgoing?`: `{ id, kind, to, toName, expiresInMs }`
+- state: `table` — built **per recipient**: a name is the character's only when the recipient has that character in their contacts (by citizen id), else `calls.unknown` (*Unknown caller* / *Correspondant inconnu*). There is no account-name fallback.
+  - `call?`: `{ id, founder, elapsedMs, participants = { { id, name, self } } }` — strangers on the same call get each other's server `id` and *Unknown caller*
+  - `invite?`: `{ id, kind, from, fromName, expiresInMs }` — a `contact` offer names its sender (offering your contact is choosing to be known)
+  - `outgoing?`: `{ id, kind, to, toName, expiresInMs }` — `toName` follows the contacts rule; a contact offer never names the person it was offered to
 
 ## opx:net:calls:ready [#opx-net-calls-ready]
 
@@ -92,7 +92,7 @@ RegisterNetEvent('opx:net:calls:contacts', function(list) end)
 
 - list: `table`
   - `rows`: online contacts `{ id, name, kind, refusal }`, callable ones first; `refusal` is why one cannot be called now
-  - `recent`: newest first `{ outcome, name, citizenId, atMs }`; `outcome` is `declined`, `refused`, `missed` or `unanswered`
+  - `recent`: newest first `{ outcome, name, citizenId, atMs }`; `outcome` is `declined`, `refused`, `missed` or `unanswered`; `name` follows the contacts rule
   - `onCall`: `boolean`
 
 ## opx:on:calls:view [#opx-on-calls-view]
