@@ -108,7 +108,7 @@ Not covered by OPX: `Open77.players.nearby` returns the account name to any clie
 | `ROW_CEILING` | `60` | Character rows ever created per account, deleted ones included (floor 5). Keep it well above `DEFAULT_SLOTS`. |
 | `CASCADE_TABLES` | `{}` | Extra `{ TABLE, COLUMN }` pairs whose rows are **hard-deleted** with a character. Only for tables the runtime does not own. |
 | `SELF_DELETE` | `true` | Whether players may use `/opx.delete`. Staff deletes are not affected. |
-| `NAME` | `{ MIN = 2, MAX = 32 }` | Length of each half of a name, in characters. Letters, spaces, `'` and `-`; must start with a letter. Keep `config/entry.lua` `NAME` the same. |
+| `NAME` | `{ MIN = 2, MAX = 32 }` | Length of each half of a name, in characters. Letters (any alphabet, accents included), spaces, `'` and `-`; must start with a letter. Invisible and direction-changing characters are refused (`character.nameInvisible`): zero-width characters and joiners, bidi controls and isolates, typographic and no-break spaces, line and paragraph separators, variation selectors, the BOM, Hangul fillers, C0/C1 controls. The form and the server use the same check. Keep `config/entry.lua` `NAME` the same. |
 
 ### PLAYER [#player-keys]
 
@@ -157,6 +157,8 @@ GANGS = {
 
 `unemployed` (`defaultDuty = true`, 25 per paycheck) and the gang `none` must stay: they are the defaults.
 
+**Translating labels.** The HUD and the spawn menu show a job's `label` and a grade's `name` through the locale keys `character.job.<job>` and `character.grade.<job>.<level>` (e.g. `character.grade.ncpd.0`), with en and fr for every shipped job. A job you add shows its config text until you register a line for it ([Locales](/docs/opx_infinity/concepts/locales)).
+
 ## Data [#data]
 
 Tables are created with `CREATE TABLE IF NOT EXISTS`; there are no migrations. Indexes added after a table was created are ensured on every boot through `OPX.Storage.EnsureIndex` (`M.Storage.INDEXES`, applied by `OPX.Schema.AddIndexes`): `idx_opx77_characters_seen` (`deleted_at, last_logged_out, citizen_id`, used by the staff "recent characters" view) is added to an existing `opx77_characters` automatically. A failure there is a logged warning, not a boot failure.
@@ -164,7 +166,7 @@ Tables are created with `CREATE TABLE IF NOT EXISTS`; there are no migrations. I
 | Table | Holds |
 |---|---|
 | `opx77_users` | One row per account: `user_id`, `display_name`, `created_at`, `last_seen_at`. |
-| `opx77_characters` | One row per character: `citizen_id`, `user_id`, `cid`, `name`, JSON `char_info`, `money`, `job`, `gang`, `position`, `metadata`, `appearance`, `last_logged_out`, `created_at`, `updated_at`, `deleted_at` (soft delete). |
+| `opx77_characters` | One row per character: `citizen_id`, `user_id`, `cid`, `name`, JSON `char_info`, `money`, `job`, `gang`, `position`, `metadata`, `appearance`, `last_logged_out`, `created_at`, `updated_at`, `deleted_at` (soft delete). `name` is `VARCHAR(64)`: the stored copy is cut to 64 characters; the two halves stay whole in `char_info`. |
 | `opx77_character_groups` | Job and gang memberships: `citizen_id`, `group_type`, `group_name`, `grade`, `joined_at`. |
 | `opx77_active_characters` | The lock: which character each account enters on. |
 
@@ -187,10 +189,12 @@ The code is also the locale key shown to the player.
 | `character.rowLimit` | The account reached `ROW_CEILING`. |
 | `character.deleteNotAllowed` | `SELF_DELETE` is false. |
 | `character.badName` | A name half fails length or alphabet. |
+| `character.nameInvisible` | A name holds an invisible or direction-changing character. |
 | `character.nameSet` | The character is already named. |
 | `character.badBody` / `character.bodySet` | Not `female`/`male`; body already set. |
 | `character.searchShort` | Search term under 3 bytes. |
 | `money.badType` / `money.badAmount` | Unknown type; zero, negative, NaN or infinite amount. |
+| `money.tooLarge` | The balance would pass ±(2^53−1) (9 007 199 254 740 991). Checked after the hooks. A single amount above that is `money.badAmount`. |
 | `money.insufficient` | Removal would go below zero. |
 | `money.negative` | `SetMoney` below zero on a type that does not allow it. |
 | `money.vetoed` | A hook refused it. |

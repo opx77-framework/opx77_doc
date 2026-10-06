@@ -63,10 +63,10 @@ TriggerServerEvent('opx:net:shops:share', { id = outfitId })
 
 ## opx:net:shops:redeem [#opx-net-shops-redeem]
 
-Client → server. Put on the outfit behind a code.
+Client → server. Put on the outfit behind a code, inside the open fitting room of the shop named. Refused `shops.redeemAtShop` away from that shop's counter, `shops.redeemInRoom` without its room open. The outfit is put on the room's draft and billed at the shop's prices on Save.
 
 ```lua
-TriggerServerEvent('opx:net:shops:redeem', { code = code })
+TriggerServerEvent('opx:net:shops:redeem', { code = code, shop = shopKey })
 ```
 
 ## opx:net:shops:looks [#opx-net-shops-looks]
@@ -77,11 +77,12 @@ Server → client. Looks this player may take here.
 RegisterNetEvent('opx:net:shops:looks', function(data) end)
 ```
 
-- data: `table` — `{ shop, looks = { { id, label, cost } } }`
+- data: `table` — `{ shop, looks = { { id, label, cost } }, prices, currency }`
+  - prices: `{ [slot] = price }` — the shop's slot prices, for the room's *On Save* line (display only; empty when billing is off)
 
 ## opx:net:shops:putOn [#opx-net-shops-puton]
 
-Server → client. Dress in this (already paid and checked).
+Server → client. Dress in this (checked). Nothing is paid yet: a look's `COST` and a share code's pieces are billed when the room is saved.
 
 ```lua
 RegisterNetEvent('opx:net:shops:putOn', function(data) end)

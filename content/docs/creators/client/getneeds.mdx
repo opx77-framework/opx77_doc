@@ -1,6 +1,6 @@
 ---
 title: GetNeeds
-description: Reads the local player's needs.
+description: Reads the local player's needs, as the server last sent them.
 ---
 
 <a id="export-client-getneeds" />
@@ -9,7 +9,7 @@ description: Reads the local player's needs.
 local res = exports.opx_infinity:GetNeeds()
 ```
 
-Sync.
+Sync. Read only: the server owns the needs, and a client script cannot move them. To feed or drain a need, call the server exports [`AddNeeds`](/docs/creators/server/addneeds) / [`SetNeeds`](/docs/creators/server/setneeds) from your resource's server side.
 
 **Returns**
 - `{ values, citizenId, ready }`

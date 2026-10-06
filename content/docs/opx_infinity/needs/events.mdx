@@ -3,7 +3,7 @@ title: Events
 description: Network and local events of the needs module.
 ---
 
-Client `opx:on:` events reach only handlers inside opx_infinity.
+Client `opx:on:` events reach only handlers inside opx_infinity; the server `opx:on:needs:changed` reaches every server resource.
 
 ## opx:net:needs:pull [#opx-net-needs-pull]
 
@@ -17,46 +17,41 @@ TriggerServerEvent('opx:net:needs:pull', citizenId)
 
 ## opx:net:needs:values [#opx-net-needs-values]
 
-Server → client. Answer to a pull.
+Server → client. The values the server holds: the answer to a pull, the values sent when the server loads the character, and every change after that (decay, use, staff, export).
 
 ```lua
-RegisterNetEvent('opx:net:needs:values', function(citizenId, values) end)
+RegisterNetEvent('opx:net:needs:values', function(citizenId, values, reason) end)
 ```
 
 - citizenId: `string`
 - values: `table` — `{ [needName] = number }`
+- reason: `string` — `loaded`, `decay`, `use`, `staff`, `set`, `add` or `ext:<resource>`
 
-## opx:net:needs:push [#opx-net-needs-push]
-
-Client → server. The client's current values. Clamped, held in memory and written on autosave or disconnect. Limited to 12 per 10 s.
-
-```lua
-TriggerServerEvent('opx:net:needs:push', citizenId, values)
-```
-
-- citizenId: `string`
-- values: `table`
-
-## opx:net:needs:pushed [#opx-net-needs-pushed]
-
-Server → client. Acknowledges one push.
-
-```lua
-RegisterNetEvent('opx:net:needs:pushed', function(citizenId) end)
-```
-
-- citizenId: `string`
+There is no client → server push: `opx:net:needs:push` and its acknowledgement `opx:net:needs:pushed` were removed when the server took the values over.
 
 ## opx:on:needs:changed [#opx-on-needs-changed]
 
-Client, local. A need moved.
+A need moved. Raised on **both** sides under the same name.
+
+Server, host-wide (any resource can listen):
+
+```lua
+AddEventHandler('opx:on:needs:changed', function(playerId, payload) end)
+```
+
+- playerId: `number`
+- payload: `table` — `{ citizenId, values, changed, source }`
+  - `changed`: sorted list of the keys that moved
+  - `source`: the reason — `decay`, `use`, `staff`, `set`, `add` or `ext:<resource>`
+
+Client, local (inside opx_infinity; another resource reaches it through [`Subscribe`](/docs/creators/client/subscribe)):
 
 ```lua
 AddEventHandler('opx:on:needs:changed', function(change) end)
 ```
 
 - change: `table` — `{ values, changed, source, citizenId, ready }`
-  - `source`: `loaded`, `decay`, `set`, `add` or `unloaded`
+  - `source`: `loaded` (the first values), the server's reason, or `unloaded`
 
 ## opx:on:needs:effects [#opx-on-needs-effects]
 

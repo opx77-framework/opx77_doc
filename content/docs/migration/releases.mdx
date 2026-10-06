@@ -5,6 +5,79 @@ description: What changed in opx_infinity and opx_lib, newest first, starting wi
 
 Newest first. The version is the one in each resource's `open77.lua`.
 
+## opx_infinity — PRs #96–#101 (2026-10-05) [#infinity-96-101]
+
+Merged into `main` and shipped in the manifest version `0.2.0` (PR #123). One table per theme. Before updating a running server or a resource that calls OPX, read [Upgrading from PR #95](#upgrade-96-101). (#98, a WebUI polish pass, is not covered here.)
+
+### Four rules the server keeps (PR #101) [#infinity-101]
+
+| What players see now | Before | Pages |
+|---|---|---|
+| Hunger and thirst fall on the **server's** clock and go up only by eating or drinking, staff ([`/opx.needs.set`](/docs/opx_infinity/needs#opx-needs-set)) or a server export. A modified client can no longer stay fed. | The client decayed its own needs and pushed them; the server stored whatever came. | [needs](/docs/opx_infinity/needs) |
+| Global chat needs a loaded character: on the character screen a line answers *you speak once your character is in the city*. Staff ([`STAFF_PERMISSION`](/docs/opx_infinity/chat#config-chat-staff-permission)) still can. | Any admitted connection spoke to everyone. | [chat](/docs/opx_infinity/chat) |
+| An outfit share code is typed **inside a shop's fitting room** and the pieces are billed at that shop's prices on Save. | A code dressed you for free, anywhere. | [shops](/docs/opx_infinity/shops#outfits) |
+| A give asks the receiver: an Accept / Refuse card with the item, the count and where the giver stands, never a name. 15 s to answer. | The stack moved on the giver's press alone. | [Give and drop](/docs/opx_infinity/inventory#give-drop) |
+
+### Player flows (PR #96) [#infinity-96]
+
+| Change | Pages |
+|---|---|
+| **Bandage, Bounce Back and MaxDoc heal** 15 %, 40 %, 75 % of maximum health ([`HEALING`](/docs/opx_infinity/inventory#config-inventory-healing)); refused at full health and while down; nothing is used up unless the heal goes through. | [Medical items](/docs/opx_infinity/inventory#healing) |
+| Withdrawing notes shows one toast; notes handed over are told to both players as money. Drawing a weapon closes the inventory. The give list refreshes every time a slot card opens. | [inventory](/docs/opx_infinity/inventory#give-drop) |
+| A shop uniform is billed **on Save**, not when picked; Cancel costs nothing. The fitting room shows the bill before Save (*On Save: 1,050 €$*). A long browse no longer ends in "Your outfit was not saved." (kept alive up to 30 min). | [shops](/docs/opx_infinity/shops#billing) |
+| Contacts: DELETE on each row (two presses). A full list (64) refuses new contacts instead of dropping the oldest; offline contacts show greyed. *X is calling you.* / *Calling X...* toasts are gone. | [calls](/docs/opx_infinity/calls) |
+| Garage toasts name the car (*Brought out Archer Hella · AA111AA.*, *Recalled … here.*). On foot, the garage door opens the list (*Open your garage*). | [garages](/docs/opx_infinity/garages) |
+| Getting into a car with a crate puts it down at your feet; it no longer flies back to its point. | [hauling](/docs/opx_infinity/hauling) |
+| The dealership says *You bought X* first, then where the car waits. | [dealership](/docs/opx_infinity/dealership) |
+| The spawn menu waits for a slow name form or fitting room (up to 30 min) instead of placing the player under it. | [spawn](/docs/opx_infinity/spawn#flow) |
+| Job, grade and spawn-place names are translated (`character.job.<job>`, `character.grade.<job>.<level>`, `spawn.place.<id>`); English text unchanged. | [character](/docs/opx_infinity/character#group-format), [spawn](/docs/opx_infinity/spawn#configuration) |
+
+### Edge cases and robustness (PRs #97, #100) [#infinity-97-100]
+
+| Change | Pages |
+|---|---|
+| Two staff door writes at once run one after the other; a wait over 5 s answers `doorlock.error.busy`. A numeric door code of 2^63 or more is refused. | [doorlock](/docs/opx_infinity/doorlock#codes) |
+| Two players fetching at one garage get two exits (a bay is promised while the car spawns). | [garages](/docs/opx_infinity/garages) |
+| Crafting and hauling refunds and pay go to the **character**, not the connection: leaving or switching character mid-action loses nothing and pays nobody else. | [crafting](/docs/opx_infinity/crafting#benches), [hauling](/docs/opx_infinity/hauling) |
+| Money balances stop at ±(2^53−1) (`money.tooLarge`); a staff rename can no longer break saves (name column cut to 64). | [character](/docs/opx_infinity/character#codes) |
+| Names refuse invisible and direction-changing characters (`character.nameInvisible`); accents and other alphabets still pass. | [character](/docs/opx_infinity/character#configuration) |
+| Broken UTF-8 in chat, contact names and labels is mended to `?` instead of breaking saves. | [OPX.Text.Clean](/docs/opx_infinity/core/lib#opx-text-clean) |
+| A chat config missing `MAX_LENGTH` / `RATE_MS` / `READY_MS` takes the defaults instead of silencing chat. | [chat](/docs/opx_infinity/chat#configuration) |
+| Dealership deposits and crafting placements are idempotent: a lost answer never pays twice or refunds an order that exists. | [dealership](/docs/opx_infinity/dealership), [crafting](/docs/opx_infinity/crafting#benches) |
+| Stashes opened by players are put away when idle; a lift finishes its trip when a rider leaves; two vehicle registrations for one character cannot pass the cap (`vehicle.registering`). | [inventory](/docs/opx_infinity/inventory#give-drop), [elevators](/docs/opx_infinity/elevators), [vehicles](/docs/opx_infinity/vehicles#codes) |
+
+### Hostile net events (PR #99) [#infinity-99]
+
+| Change | Pages |
+|---|---|
+| A downed player cannot craft, buy or sell at a dealer, use a garage, a shop, a fitting room, a car key or a stash (`error.incapacitated` and module codes). One check for all: [`OPX.Life.Down`](/docs/opx_infinity/core/lib#opx-life-down). | [Error codes](/docs/opx_infinity/core/error-codes) |
+| A contact offer out of reach answers only `tooFar`: it can no longer probe whether a stranger is down, loading or on a call. | [calls](/docs/opx_infinity/calls) |
+| `opx:net:vehicles:spawn` / `store` removed: no car out from anywhere, none put away from across the map. | [vehicles events](/docs/opx_infinity/vehicles/events) |
+| Refusals name back only a key the server knows; shop outfit ids must be whole numbers; the inventory spends its rate window before reading the verb; `clothing:ask` has a 1 s floor. | [garages](/docs/opx_infinity/garages/events), [inventory](/docs/opx_infinity/inventory/events) |
+
+### Upgrading from PR #95 [#upgrade-96-101]
+
+| What | Do |
+|---|---|
+| **Needs are server-owned (API change).** The client `needs` contract lost `SetNeeds` and `AddNeeds`; `opx:net:needs:push` and `opx:net:needs:pushed` are removed. The client export [`GetNeeds`](/docs/creators/client/getneeds) is read only. | Move needs from your **server** side: exports [`GetNeeds`](/docs/creators/server/getneeds), [`AddNeeds`](/docs/creators/server/addneeds), [`SetNeeds`](/docs/creators/server/setneeds) (add your resource to `SERVER.EXPORTS.WRITERS` for the two writes; all three must be awaited). Inside opx_infinity, the new [server contract](/docs/opx_infinity/needs/server). |
+| **New server event** [`opx:on:needs:changed`](/docs/creators/events#opx-on-needs-changed) `(playerId, { citizenId, values, changed, source })`. | Listen there instead of a client hook. `opx:net:needs:values` now carries a third `reason` argument. |
+| **Removed net events** `opx:net:vehicles:spawn`, `opx:net:vehicles:store`. | A client that fired them gets nothing. Use a garage, or [`vehicles.Spawn`](/docs/opx_infinity/vehicles/server#server-vehicles-spawn) / [`SetVehicleState`](/docs/creators/server/setvehiclestate) on the server. |
+| **Gives need consent.** A player give is an offer; [`opx:on:inventory:items`](/docs/creators/events#opx-on-inventory-items) fires only when the receiver accepts. New net events [`giveOffer`](/docs/opx_infinity/inventory/events#opx-net-inventory-giveoffer), [`giveAnswer`](/docs/opx_infinity/inventory/events#opx-net-inventory-giveanswer), [`giveWithdrawn`](/docs/opx_infinity/inventory/events#opx-net-inventory-givewithdrawn); new codes `give_pending`, `give_busy`, `give_gone`, `give_changed`. | A script that watched for a give must wait for the event. [`AddItem`](/docs/creators/server/additem) and staff gives ask nobody. |
+| **Chat needs a character.** `opx:net:chat:say` from a connection with no loaded character is refused `chat.notLoaded`. | Give staff accounts [`STAFF_PERMISSION`](/docs/opx_infinity/chat#config-chat-staff-permission). Server code keeps using the `chat` contract or [`BroadcastChat`](/docs/creators/server/broadcastchat). |
+| **Share codes** are redeemed only in a shop's fitting room and billed (`shops.redeemAtShop`, `shops.redeemInRoom`). | Tell players; nothing to configure. |
+| **Downed refusals.** Dealership, garages and vehicle keys answer `error.incapacitated`; crafting `crafting.downed`; shops `shops.downed`; gunsmith `gunsmith.dead`; inventory `OpenStash` (and the export) `dead`. | Handle the new codes if you branch on them. |
+| **New config** | `config/inventory.lua` [`HEALING`](/docs/opx_infinity/inventory#config-inventory-healing); `config/chat.lua` [`STAFF_PERMISSION`](/docs/opx_infinity/chat#config-chat-staff-permission). Missing keys take their defaults. |
+| **Removed config** | `config/needs.lua` `PUSH_MS`, `PUSH_DELTA`. Delete them. |
+| **New ACL** | `command.opx.needs.set` for [`/opx.needs.set`](/docs/opx_infinity/needs#opx-needs-set). |
+| **New codes** | `money.tooLarge` (from [`AddMoney`](/docs/creators/server/addmoney) / [`RemoveMoney`](/docs/creators/server/removemoney)), `character.nameInvisible`, `vehicle.registering` (from [`AddVehicle`](/docs/creators/server/addvehicle)), `doorlock.error.busy` (door write exports), `calls.error.contactsFull`, `inventory.error.full_health`, `error.incapacitated`. |
+| **Changed behaviour** | Medical items heal and are refused at full health; uniforms are billed on Save; a full contact list refuses instead of trimming; the garage door on foot opens the list; a crate is put down when its carrier gets in a car; a player-opened stash can be unloaded when idle; a lift no longer returns to floor 0 when a rider leaves. |
+| **Removed locale keys** | `calls.placed`, `calls.ringing`, `garages.prompt.driveIn`. `garages.broughtOut` / `storedAway` take `{vehicle}` instead of `{plate}`. An override of them must follow. |
+| **New in `lib/` and core** | [`OPX.Life.Down`](/docs/opx_infinity/core/lib#opx-life-down), [`OPX.Storage.EnsureColumn`](/docs/opx_infinity/core/lib#opx-storage-ensurecolumn), [`OPX.Schema.AddColumns`](/docs/opx_infinity/core/server#opx-schema-addcolumns). Ask `OPX.Life.Down` at any door a player could press from the floor. |
+| **Contracts** | appearance client [`PriceWardrobe`](/docs/opx_infinity/appearance/client#client-appearance-pricewardrobe), server [`PricedRoom`](/docs/opx_infinity/appearance/server#server-appearance-pricedroom) and the `bill` option of `AllowClothingSave`; needs [server contract](/docs/opx_infinity/needs/server). |
+| **Other new net events** | [`opx:net:appearance:roomAlive`](/docs/opx_infinity/appearance/events#opx-net-appearance-roomalive), [`opx:net:calls:forget`](/docs/opx_infinity/calls/events#opx-net-calls-forget) (page channel `calls:forget`), [`opx:net:spawn:waiting`](/docs/opx_infinity/spawn/events#opx-net-spawn-waiting). The garages, crafting, dealership and gunsmith answers echo the key only when the server knows it. |
+| **Database** | `opx77_crafting_orders.token` is added on boot by `OPX.Schema.AddColumns`; if it cannot be added, boot is degraded (`schema failed`). The database user needs `ALTER`. |
+| **Framework docs moved (PRs #121, #122)** | The framework README is now a front page; its manual is [`docs/MANUAL.md`](https://github.com/opx77-framework/opx_infinity/blob/main/docs/MANUAL.md) and the workflow [`CONTRIBUTING.md`](https://github.com/opx77-framework/opx_infinity/blob/main/CONTRIBUTING.md). New: [`docs/IN_GAME_CHECKLIST.md`](https://github.com/opx77-framework/opx_infinity/blob/main/docs/IN_GAME_CHECKLIST.md), [`docs/PLATFORM_REQUESTS.md`](https://github.com/opx77-framework/opx_infinity/blob/main/docs/PLATFORM_REQUESTS.md). |
+
 ## opx_infinity — PRs #88–#95 (2026-10-04 to 2026-10-05) [#infinity-88-95]
 
 Merged into `main`; the manifest version is still `0.1.2`. One table per theme. Before updating a running server or a resource that calls OPX, read [Upgrading from PR #87](#upgrade-88-95).

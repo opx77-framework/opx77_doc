@@ -26,7 +26,7 @@ Scope `write` · await it. It answers from memory today, but it is a write: use 
 - `integer` — the new balance
 
 **Errors**
-- `money.badType`, `money.badAmount`, `money.vetoed`, `money.insufficient`, `error.notLoggedIn`, `export.badArgument`
+- `money.badType`, `money.badAmount`, `money.tooLarge`, `money.vetoed`, `money.insufficient`, `error.notLoggedIn`, `export.badArgument`
 
 ```lua title="Example"
 CreateThread(function()

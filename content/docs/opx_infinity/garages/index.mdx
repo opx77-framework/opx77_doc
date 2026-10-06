@@ -3,7 +3,7 @@ title: garages
 description: Garage markers where a player brings out one of their own vehicles or puts the one they sit in away.
 ---
 
-Glowing markers where players fetch and park their own vehicles. On foot at a **menu point**, the key (**E** by default) opens the list of every vehicle filed under that garage. Sitting in one of your own vehicles at the **entry point**, the same key puts it away. A vehicle comes out at the first free **exit** of the location you stand at. Garages are written in `config/garages.lua`; nothing is placed in game.
+Glowing markers where players fetch and park their own vehicles. On foot at a **menu point** or at the **entry point**, the key (**E** by default) opens the list of every vehicle filed under that garage. Sitting in one of your own vehicles at the entry point, the same key puts it away. A vehicle comes out at the first free **exit** of the location you stand at. Garages are written in `config/garages.lua`; nothing is placed in game.
 
 | | |
 |---|---|
@@ -23,10 +23,12 @@ Glowing markers where players fetch and park their own vehicles. On foot at a **
 
 - A **garage** is a key (e.g. `garage1`). A vehicle's `garage` column holds that key, so a car stored at one location comes out at every location of the same garage.
 - Each **location** has one `MENU` point (opens the list), one `ENTRY` point (takes the car you sit in) and an ordered list of `EXITS`.
-- **Exits** are tried in the order written. An exit is taken when any vehicle in the same routing bucket is within `EXIT_CLEARANCE` metres (the car being fetched never blocks its own exit). All taken: `garages.noFreeExit`.
-- **Put away or bring out** is decided by the server from the host's seat assignment, never by the client. Sitting in someone else's car at the entry point is refused with `garages.notYours` ("Only your own vehicles go in here."), instead of bringing one of yours out beside you. On foot, the entry prompt reads *Take out your vehicle*.
+- **Exits** are tried in the order written. An exit is taken when any vehicle in the same routing bucket is within `EXIT_CLEARANCE` metres (the car being fetched never blocks its own exit), or when it is **promised** to another bring-out still spawning: two players fetching at once get two exits, never one car inside the other. A promise lapses after 10 s. All taken: `garages.noFreeExit`.
+- **Put away or bring out** is decided by the server from the host's seat assignment, never by the client. Sitting in someone else's car at the entry point is refused with `garages.notYours` ("Only your own vehicles go in here."), instead of bringing one of yours out beside you. On foot, the entry point opens the list and its prompt reads *Open your garage*; a player with two cars filed there picks one.
 - The list shows each car as `Villefort Cortes · 8XK2L0P`: the same name as its key ([`OPX.Vehicle.DisplayName`](/docs/opx_infinity/core/lib#opx-vehicle-displayname)), the plate as the value.
 - A refused bring-out is **one** toast that names the garage (no more three toasts and a platform notice).
+- Toasts name the car as the list does: *Brought out Archer Hella · AA111AA.*, *Put away …*, *Recalled … here.* for a car already out that was moved. The staff bring command uses the same words.
+- A player who is down is refused (`error.incapacitated`). A refusal names back the garage key only when it is a known spot or garage.
 - E is shared with doors, dealers, fitting rooms, lifts and teleports: the nearer spot acts, and only its prompt row is drawn; while the list is open, E closes it (rank `OPEN`). See [One press, one owner](/docs/opx_infinity/core/lib#key-contest).
 - A car with **passengers** is not put away: `garages.passengers` until they get out.
 - The nearest point is searched in the player's own bucket only, so an instanced copy on the same spot does not get in the way.
@@ -120,6 +122,7 @@ Each code is also a locale key. Codes from [`vehicles`](/docs/opx_infinity/vehic
 | `garages.noFreeExit` | Every exit of the location is taken. |
 | `garages.notYours` | Seated in a car that is not yours at the entry point. |
 | `garages.passengers` | Passengers are still in the car you want to put away. |
+| `error.incapacitated` | The player is down. |
 | `garages.rateLimited` | Cooldown or request window (bring-outs). |
 | `error.tooFast` | Request window (lists). |
 | `error.noPermission` | Client side only: another surface holds the keyboard. |

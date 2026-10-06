@@ -26,6 +26,7 @@ Registered in `locales/en.lua` and `locales/fr.lua`.
 | <a id="error-rpc-failed" />`error.rpc_failed` | That did not go through. | Cela n'a pas abouti. | Set by the page when Lua answered a failure with no code. |
 | <a id="error-toofast" />`error.tooFast` | Slow down. | Doucement. | A command's `cooldownMs` window, or an `OPX.Cooling` check, was still open. |
 | <a id="error-nopermission" />`error.noPermission` | You may not do that. | Vous ne pouvez pas faire cela. | An access check failed, e.g. a command alias whose full command the player may not run. |
+| <a id="error-incapacitated" />`error.incapacitated` | Not while you are down. | Pas pendant que vous êtes à terre. | [`OPX.Life.Down`](/docs/opx_infinity/core/lib#opx-life-down) said the player is down: dealership buy, offer and answer, garages, vehicle keys. |
 
 - The `character` module adds `error.notLoggedIn` ("You are not in the world yet."): the action needs a loaded character.
 - The `weather.*` keys in the same core files belong to the [weather](/docs/opx_infinity/weather#codes) module.

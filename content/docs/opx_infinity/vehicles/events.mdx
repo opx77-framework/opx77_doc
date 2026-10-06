@@ -3,27 +3,7 @@ title: Events
 description: Network events and public server events of the vehicles module.
 ---
 
-A plate that is not the caller's is answered `vehicle.notFound`, the same as a plate that does not exist.
-
-## opx:net:vehicles:spawn [#opx-net-vehicles-spawn]
-
-Client → server. Spawn one of the caller's own vehicles beside them. 3 s cooldown per player. Answers with a toast (`vehicle.spawned` or the refusal) and an `OPX.Refuse` under operation `vehicleSpawn`.
-
-```lua
-TriggerServerEvent('opx:net:vehicles:spawn', { plate = plate })
-```
-
-- plate: `string`
-
-## opx:net:vehicles:store [#opx-net-vehicles-store]
-
-Client → server. Put away one of the caller's own vehicles that is out. 3 s cooldown. Operation `vehicleStore`.
-
-```lua
-TriggerServerEvent('opx:net:vehicles:store', { plate = plate })
-```
-
-- plate: `string`
+This module has **no** client → server events. `opx:net:vehicles:spawn` and `opx:net:vehicles:store` were removed (PR #99): no client in opx_infinity sent them, and they brought an owned car out anywhere, or put one away from across the map with passengers inside. Players use a [garage](/docs/opx_infinity/garages) or a [dealer](/docs/opx_infinity/dealership); code uses the [server contract](/docs/opx_infinity/vehicles/server).
 
 ## opx:on:vehicles:spawned [#opx-on-vehicles-spawned]
 

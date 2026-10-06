@@ -260,7 +260,7 @@ OPX.Text.Span(text, maximum)
 
 ## OPX.Text.Clean [#opx-text-clean]
 
-Replaces control characters with spaces and cuts to `maximum` characters, adding `ellipsis` if cut. Numbers are converted.
+Replaces control characters with spaces, mends broken UTF-8 and cuts to `maximum` characters, adding `ellipsis` if cut. Numbers are converted. The answer is always valid UTF-8: each byte that does not start a valid sequence becomes `?` (valid text costs one native `utf8.len`); after 16 repairs the rest is dropped.
 
 ```lua
 OPX.Text.Clean(value, maximum, ellipsis)
@@ -1457,6 +1457,26 @@ Every identifier must match `^[%a_][%w_]*$`.
 local ensured = OPX.Storage.EnsureIndex('opx_thing', 'idx_opx_thing_value', { 'value' })
 ```
 
+## OPX.Storage.EnsureColumn [#opx-storage-ensurecolumn]
+
+The column twin of `EnsureIndex`: adds a column to a table that may predate it; a no-op when it is present. Asks `information_schema.COLUMNS`, then runs `ALTER TABLE … ADD COLUMN`. Usually reached through [`OPX.Schema.AddColumns`](/docs/opx_infinity/core/server#opx-schema-addcolumns).
+
+```lua
+OPX.Storage.EnsureColumn(tableName, column, definition)
+```
+
+**Parameters**
+- tableName: `string` — matches `^[%a_][%w_]*$`
+- column: `string` — matches `^[%a_][%w_]*$`
+- definition: `string` — type, size, character set, `NULL` / `NOT NULL`, a plain default; letters, digits, `_`, spaces, `(`, `)` and `,` only (no quotes, no `;`)
+
+**Returns**
+- `Result` — value `true` added, `false` already there; error `bad-column` (`detail` = column name), or a storage code
+
+```lua title="Example"
+OPX.Storage.EnsureColumn('opx77_crafting_orders', 'token', 'VARCHAR(40) CHARACTER SET ascii COLLATE ascii_bin NULL')
+```
+
 # Carry [#carry]
 
 `lib/server/storage.lua`, server only. State that survives a resource reload, kept in the host's one-value-per-resource store (`Open77.state`) and split into namespaces so modules do not overwrite each other.
@@ -1578,6 +1598,28 @@ OPX.Audit.Forget(source, citizenId)
 **Parameters**
 - source: `integer`
 - citizenId?: `string`
+
+# Life [#life]
+
+`lib/server/life.lua`, server only. The one "is this player on the floor?" question every action asks before it serves a player (crafting, dealership, garages, shops, fitting rooms, vehicle keys, `OpenStash`). The down screen is drawn by the client, so closing it proves nothing.
+
+## OPX.Life.Down [#opx-life-down]
+
+Whether a player is down: the [`downed`](/docs/opx_infinity/downed/server) contract says so, or the host's `isDead` does (which still answers when `downed` is switched off). A read that raises counts as **not** down.
+
+```lua
+OPX.Life.Down(player)
+```
+
+**Parameters**
+- player: `integer` — a server id; `nil`, `0` or less answers `false`
+
+**Returns**
+- `boolean`
+
+```lua title="Example"
+if OPX.Life.Down(source) then return OPX.Refuse(source, 'error.incapacitated', 'mymodule') end
+```
 
 # OPX.Lib [#opx-lib]
 

@@ -219,6 +219,35 @@ A `danger` row asks for a second click within 4 s. A resource that wants one cli
 
 The server allows [`REACH_SLACK`](/docs/opx_infinity/core/config#config-shared-reach-slack) (1 m) beyond the radius the client draws. Raise it (0–4) if players with high latency are still refused.
 
+## Server rules players notice [#rules]
+
+Since PRs #99 and #101 the server decides these, whatever a client sends.
+
+### My hunger doesn't change from a client script [#needs-client]
+
+Intended since PR #101: the **server owns the needs**. The client contract and the client export [`GetNeeds`](/docs/creators/client/getneeds) are read only, and the old push event is gone, so a value set on the client goes nowhere (the next server update overwrites it). Move a need from your resource's **server** side with the exports [`AddNeeds`](/docs/creators/server/addneeds) / [`SetNeeds`](/docs/creators/server/setneeds) (add your resource to `SERVER.EXPORTS.WRITERS`), or give the item a `USE.STATUS`. Staff use [`/opx.needs.set`](/docs/opx_infinity/needs#opx-needs-set). See [needs](/docs/opx_infinity/needs).
+
+### I can't chat on the character screen [#chat-not-loaded]
+
+*That message was not sent: you speak once your character is in the city.* (`chat.notLoaded`). Intended since PR #101: a line goes to every player, so only a connection with a loaded character may send one. Staff holding [`STAFF_PERMISSION`](/docs/opx_infinity/chat#config-chat-staff-permission) (`command.opx.admin` by default) still can; the console always can. Typed `/` commands are not affected.
+
+### A share code says I'm not in a fitting room [#share-code-room]
+
+Since PR #101 an outfit code is redeemed only **inside a clothing shop's fitting room**: stand at the shop's counter, open *Try clothes on*, then type the code in the room. Away from a shop it answers `shops.redeemAtShop`; at the counter without the room open, `shops.redeemInRoom` (*Open the fitting room first…*). The pieces are billed at that shop's prices when you Save; Cancel costs nothing. See [Saved outfits and share codes](/docs/opx_infinity/shops#outfits).
+
+### Give says "Waiting for an answer" [#give-waiting]
+
+Since PR #101 a give is an **offer**: the other player gets an Accept / Refuse card, and nothing moves until they accept. The offer stands 15 s; then you read *Your offer of … was not answered.* While one is open, a second give answers `give_pending` (yours) or `give_busy` (theirs). If they accept but you moved the stack, walked away or their bag is full, the give fails and you are told. See [Give and drop](/docs/opx_infinity/inventory#give-drop).
+
+### "Not while you are down" [#incapacitated]
+
+Since PR #99 a downed player cannot use a garage, dealer, shop, fitting room, crafting bench, armoury chest or car key, or open a stash: `error.incapacitated`, `shops.downed`, `crafting.downed`, `gunsmith.dead` or `dead`. Get revived first.
+
+## Reporting a problem [#report]
+
+- Something only a live server can show (doors, duo emotes, the loading cover, the give list, medical items, fitting-room prices): follow the matching section of the framework's [in-game checklist](https://github.com/opx77-framework/opx_infinity/blob/main/docs/IN_GAME_CHECKLIST.md), which lists the steps, the expected result, the log lines to watch and what to put in the issue.
+- A limit of the Open77 platform itself (prop aliases, the loading-state API, `setModel` on the server, `open77_doors` without `open77_elevators`): see [platform requests](https://github.com/opx77-framework/opx_infinity/blob/main/docs/PLATFORM_REQUESTS.md) for the current fallback before reporting it.
+
 ## Useful commands [#commands]
 
 | Command | Where | Prints |

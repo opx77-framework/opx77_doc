@@ -3,7 +3,7 @@ title: chat
 description: The in-game chat box, which carries player messages and is the only way a typed slash command reaches the host's command dispatcher.
 ---
 
-The chat box: a log of recent lines at the top of the screen and an input line that opens on a key (`T` by default). A line without `/` goes to every player, signed `Player #12` / `Joueur #12` (the server id): never a character name, account name or account id, because the line reaches the whole city. A line starting with `/` is split into arguments and sent to the host's command dispatcher, which checks the ACL and runs it; refusals come back as toasts. Without this module, commands can only be run from the server console. Checks no permission, saves nothing.
+The chat box: a log of recent lines at the top of the screen and an input line that opens on a key (`T` by default). A line without `/` goes to every player, signed `Player #12` / `Joueur #12` (the server id): never a character name, account name or account id, because the line reaches the whole city. Only a connection with a **loaded character** may send one (or one holding [`STAFF_PERMISSION`](#config-chat-staff-permission)); a player still on the character screen reads *That message was not sent: you speak once your character is in the city.* (`chat.notLoaded`, at most once per 2 s). The console speaks through the `chat` contract and is never asked. A line starting with `/` is split into arguments and sent to the host's command dispatcher, which checks the ACL and runs it; refusals come back as toasts. Without this module, commands can only be run from the server console. Checks no permission of its own beyond `STAFF_PERMISSION`, saves nothing.
 
 | | |
 |---|---|
@@ -16,7 +16,7 @@ The chat box: a log of recent lines at the top of the screen and an input line t
 
 ## Configuration
 
-`config/chat.lua` sets `OPX.Config.MODULES.chat`. Shared: both halves read the length and rate limits.
+`config/chat.lua` sets `OPX.Config.MODULES.chat`. Shared: both halves read the length and rate limits. The server reads `MAX_LENGTH`, `RATE_MS` and `READY_MS` once, within the bounds below; a missing or out-of-range value takes its default.
 
 | Key | Default | Effect |
 |---|---|---|
@@ -26,9 +26,10 @@ The chat box: a log of recent lines at the top of the screen and an input line t
 | <a id="config-chat-width" />`WIDTH` | `620` | Box width on a 1920-wide surface. |
 | <a id="config-chat-history" />`HISTORY` | `60` | Lines kept; older ones drop off. |
 | <a id="config-chat-fade-ms" />`FADE_MS` | `12000` | How long a line stays visible while the box is closed. `0` never fades. |
-| <a id="config-chat-max-length" />`MAX_LENGTH` | `240` | Longest message, in characters. |
-| <a id="config-chat-rate-ms" />`RATE_MS` | `800` | Minimum ms between two messages from one player. A faster one is not sent, and the sender reads `chat.tooFast` ("That message was not sent: wait a moment between two."), at most once per 2 s burst. |
-| <a id="config-chat-ready-ms" />`READY_MS` | `5000` | Minimum ms between two completion lists for one player. |
+| <a id="config-chat-max-length" />`MAX_LENGTH` | `240` | Longest message, in characters (1–2000). |
+| <a id="config-chat-rate-ms" />`RATE_MS` | `800` | Minimum ms between two messages from one player (0–60000). A faster one is not sent, and the sender reads `chat.tooFast` ("That message was not sent: wait a moment between two."), at most once per 2 s burst. |
+| <a id="config-chat-staff-permission" />`STAFF_PERMISSION` | `'command.opx.admin'` | ACL right that lets a connection with **no loaded character** send a line, so staff can still be reached from the character screen. |
+| <a id="config-chat-ready-ms" />`READY_MS` | `5000` | Minimum ms between two completion lists for one player (0–600000). |
 | <a id="config-chat-notify" />`NOTIFY` | `true` | Refused commands as toasts; `false` writes a red line in the box instead. |
 | <a id="config-chat-keys" />`KEYS` | `{ OPEN = 'T' }` | Default key to open the box; players rebind it in the pause menu. `false` registers none. |
 
@@ -42,5 +43,6 @@ The chat box: a log of recent lines at the top of the screen and an input line t
 | `chat.invalidScope` | Server `Broadcast`: a bad `bucket`, `radius` or `origin`. |
 | `chat.noView` | That half of the page has not reported ready yet. |
 | `chat.invalidCommand` | A suggestion with no command name. |
+| `chat.notLoaded` | A line from a connection with no loaded character and no `STAFF_PERMISSION`. |
 
 Player-facing refusals for typed commands: `chat.tooManyArgs` (more than 32 arguments), `chat.escapeAtEnd`, `chat.unterminatedQuote`, `chat.commandExpected`, `chat.commandNotSent`, `chat.messageNotSent`; from the dispatcher: `chat.command.unknown`, `chat.command.denied`, `chat.command.tooFast`, `chat.command.failed`.

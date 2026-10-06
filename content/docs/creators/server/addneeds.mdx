@@ -1,0 +1,34 @@
+---
+title: AddNeeds
+description: Adds to or takes from a connected player's needs, on the server.
+---
+
+<a id="export-server-addneeds" />
+
+```lua
+local res = exports.opx_infinity:AddNeeds(source, patch)
+```
+
+Scope `write` · must be awaited — a synchronous call answers `export.mustAwait` before touching anything.
+
+**Parameters**
+- source: `number`
+- patch: `table` — `{ [needName] = number }`, 1 to 16 entries; a negative number takes away
+
+- Each result is clamped to the need's `MIN`..`MAX` ([`NEEDS`](/docs/opx_infinity/needs#needs)). One unknown key or bad value refuses the whole patch.
+- The player's HUD is told at once, and [`opx:on:needs:changed`](/docs/creators/events#opx-on-needs-changed) is raised with `source = 'ext:<your resource>'`.
+- This is how a creator's food, drug or hospital script moves a need: a client script cannot (see [needs](/docs/opx_infinity/needs)).
+
+**Returns**
+- `{ values, changed }` — `changed` lists the keys that actually moved
+
+**Errors**
+- `not_loaded`, `unknown_need`, `invalid_need_value`, `empty_patch`, `export.badArgument`, `error.unavailable`
+
+```lua title="Example"
+CreateThread(function()
+  local pending = Open77.exports.call('opx_infinity', 'AddNeeds', source, { hunger = 30, thirst = -5 })
+  local res = pending and pending:await()
+  if not (res and res.ok) then print('refused: ' .. tostring(res and res.error)) end
+end)
+```

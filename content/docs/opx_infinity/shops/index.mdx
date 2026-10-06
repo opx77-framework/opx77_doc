@@ -3,7 +3,7 @@ title: shops
 description: Clothing shops that open the fitting room, bill per changed clothing slot, offer ready-made looks and keep saved outfits with share codes.
 ---
 
-Places clothing shops in the world. At a shop a player picks "Try clothes on" on the target eye and the `appearance` fitting room opens. When the player keeps the new clothes, they pay for each clothing slot that changed, before the look is saved. Inside the room the shop adds four groups: ready-made looks (uniforms), saved outfits, "Save outfit" and "Outfit code". Saved outfits can be shared with an 8-character code another player types in. Use it to sell clothes; it stocks no garments of its own.
+Places clothing shops in the world. At a shop a player picks "Try clothes on" on the target eye and the `appearance` fitting room opens. When the player keeps the new clothes, they pay for each clothing slot that changed, before the look is saved. Inside the room the shop adds four groups: ready-made looks (uniforms), saved outfits, "Save outfit" and "Outfit code". Saved outfits can be shared with an 8-character code another player types in a shop's fitting room, where it is billed at that shop's prices. Use it to sell clothes; it stocks no garments of its own.
 
 | | |
 |---|---|
@@ -22,8 +22,10 @@ The server cannot see the clothing catalogue (it is client-only), so it prices *
 - When the room's save arrives, the **server** compares it with the stored record and lists the slots that changed: `Head`, `Face`, `InnerChest`, `OuterChest`, `Legs`, `Feet`, `Outfit`, `UnderwearTop`, `UnderwearBottom`. Taking a garment off counts as a change. The client reports nothing.
 - The server adds up the shop's price for each changed slot and takes it from [`CURRENCY`](#config-shops-currency) **before** the look is written. A slot without a price is free. Underwear is free by default.
 - If the bill cannot be paid, the save is refused (`clothing.unpaid`) and the stored look goes back on. If the write fails after payment, the money is refunded.
-- A uniform bought inside the room is not billed again by the room's save.
-- The server re-checks reach, bucket and the job gate before opening the room, billing, or dressing.
+- **A uniform is billed on Save, not when picked.** Its `COST` rides on the save permission and is charged once, by the save that keeps it; **Cancel costs nothing**. The slots it covers are not billed again by the room. If its bill is refused, the save is refused, every charge of that save is refunded, and the uniform can still be saved later.
+- **The bill is shown before Save.** The room's status line reads *On Save: 1,050 €$*: the changed slots at this shop's prices, plus any uniform picked here. The shop's price list arrives with its looks. Display only: the server bills from its own tables.
+- A long browse does not lose the save: while the room is open it is kept alive every 2 minutes, up to 30 minutes.
+- The server re-checks reach, bucket, the job gate and that the player is not down before opening the room, billing, or dressing.
 
 ## Ready-made looks [#looks]
 
@@ -34,7 +36,8 @@ A look from [`LOOKS`](#config-shops-looks) is a partial outfit with its own `COS
 - "Save outfit" stores the clothing currently saved for the character (not the unsaved preview) under a name. If the room is open, the save happens when the room closes.
 - A character keeps up to `OUTFITS.MAX_PER_CHARACTER` outfits.
 - "Get a share code" gives the outfit a code made from `23456789ABCDEFGHJKLMNPQRSTUVWXYZ` (no `I`, `O`, `0`, `1`). Typing is case-insensitive and ignores dashes and spaces. A code is not a secret.
-- Wearing a saved or shared outfit is free. It grants one save of exactly that look, not a free room.
+- Wearing one of your **saved** outfits is free. It grants one save of exactly that look, not a free room.
+- **A share code is redeemed only inside a shop's fitting room**, at that shop's counter (reach, bucket, job gate, not down) with that shop's room open (`shops:<key>`, read through [`PricedRoom`](/docs/opx_infinity/appearance/server#server-appearance-pricedroom)). The outfit goes onto the room's draft with no free grant: on Save, the changed pieces are billed at this shop's [`PRICES`](#config-shops-prices), like rack pieces. Cancel costs nothing. Elsewhere the code answers `redeemAtShop`; at the counter without the room, `redeemInRoom`.
 - The save, list, load, delete and share doors accept one press per 750 ms per player; typing a code, one per 2 s.
 - Deleting a character deletes its saved outfits.
 
@@ -94,6 +97,9 @@ Every refusal is a toast with locale key `shops.<code>`. The bill and look purch
 | `too_far` | Out of reach, or another bucket. |
 | `position_unknown` | The server cannot read the player's position. |
 | `not_for_you` | The shop's job gate refused. |
+| `downed` | The player is down (*Nobody serves you from the floor.*). |
+| `redeemAtShop` | A share code typed away from a clothing shop's counter. |
+| `redeemInRoom` | A share code typed at the counter without that shop's fitting room open. |
 | `unavailable` | `appearance` cannot open the room or dress the player. |
 | `cannotPay` | The bill or look cost could not be taken. |
 | `noSuchLook` | No look with that key. |

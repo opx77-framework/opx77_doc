@@ -22,6 +22,9 @@ Workbenches for other modules. No recipes of its own: a module such as [gunsmith
 - Ready times use the database clock (`ready_at`): an order keeps cooking while the server is down.
 - Collecting checks the bag can carry the output first. The order is deleted, then the item given; if it cannot be given, the order is put back on the shelf.
 - A bench with a `position` is reach-checked on the server (its `reach` plus [`REACH_SLACK`](/docs/opx_infinity/core/config#config-shared-reach-slack)); without one it can be used from anywhere. This covers the gunsmith bench.
+- **Refunds and output go to the character, not the connection.** The citizen id is pinned and checked again after each yield; materials and the output go to that character's bag (loaded if absent) and the fee comes back through `AddMoneyOffline`, so a player who left or switched character mid-order loses nothing and pays nobody else. A refund that still fails is logged.
+- **A placement carries a token** (column `token`, added to an existing `opx77_crafting_orders` by [`OPX.Schema.AddColumns`](/docs/opx_infinity/core/server#opx-schema-addcolumns)). When a placement answers a failure, the order is looked up by its token before anything is refunded: found, the order stands; absent, everything is refunded; unknown after three tries, nothing is refunded and the log names the token and the amounts to settle by hand.
+- No screen, order or collect from the floor (`downed`). A refusal names back the bench key only when it could name a bench.
 - Order and collect are audited (`crafting.order`, `crafting.collect`).
 
 ## Bench definition
@@ -110,4 +113,5 @@ The toast key is `crafting.<code>`. A `canUse` gate may answer its own codes; th
 | `not_ready` | Still cooking. |
 | `no_room` | The bag cannot carry the output. |
 | `too_fast` | Rate limit. |
+| `downed` | The player is down (*Not from the floor.*). |
 | `unavailable` | Database error. |

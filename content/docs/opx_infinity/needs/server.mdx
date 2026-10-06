@@ -1,0 +1,69 @@
+---
+title: Server
+description: The needs contract on the server — the one way anything moves a character's hunger, thirst, stamina or street cred.
+---
+
+```lua
+local needs = OPX.Api.Get('needs')
+```
+
+From server code inside opx_infinity. The server owns every value: it decays them, raises them, stores them and sends them to the player's client. Every function answers a `Result` and **may yield** (the first call for a player loads the row). Codes: [Refusal codes](/docs/opx_infinity/needs#codes).
+
+- `player` is a connected server id with a loaded character.
+- `patch` is `{ [needName] = number }`. One unknown key or bad value refuses the whole patch; nothing is written.
+- `reason` (1–64 characters of letters, digits, `_ . : -`) travels with the change to the client and to [`opx:on:needs:changed`](/docs/opx_infinity/needs/events#opx-on-needs-changed). Anything else falls back to `set` / `add`.
+- Other resources use the [`GetNeeds`](/docs/creators/server/getneeds), [`AddNeeds`](/docs/creators/server/addneeds) and [`SetNeeds`](/docs/creators/server/setneeds) exports, which call these with reason `ext:<resource>`.
+
+## GetNeeds [#server-needs-getneeds]
+
+```lua
+needs.GetNeeds(player)
+```
+
+**Parameters**
+- player: `integer`
+
+**Returns**
+- `Result` — value `{ values, citizenId }`; `values` is a copy
+  - errors `bad_player`, `not_loaded`
+
+## SetNeeds [#server-needs-setneeds]
+
+Sets each named need outright, clamped to `MIN`..`MAX`.
+
+```lua
+needs.SetNeeds(player, patch, reason)
+```
+
+**Parameters**
+- player: `integer`
+- patch: `table`
+- reason?: `string` — default `set`
+
+**Returns**
+- `Result` — value `{ values, changed }`; `changed` is the sorted list of keys whose value actually moved
+  - errors `bad_player`, `not_loaded`, `spec_must_be_a_table`, `unknown_need`, `invalid_need_value`, `empty_patch`
+
+```lua title="Example"
+needs.SetNeeds(source, { hunger = 100, thirst = 100 }, 'hospital')
+```
+
+## AddNeeds [#server-needs-addneeds]
+
+Adds each delta (negative to take away), clamped.
+
+```lua
+needs.AddNeeds(player, patch, reason)
+```
+
+**Parameters**
+- player: `integer`
+- patch: `table`
+- reason?: `string` — default `add`
+
+**Returns**
+- `Result` — value `{ values, changed }`
+
+```lua title="Example"
+needs.AddNeeds(source, { hunger = 25, thirst = -5 }, 'use')
+```

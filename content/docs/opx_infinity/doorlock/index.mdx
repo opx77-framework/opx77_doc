@@ -215,8 +215,9 @@ Shown as toasts, locale key `doorlock.error.<code>`.
 | `not_pickable`, `no_lockpick`, `pick_failed`, `pick_broke`, `already_unlocked` | Lockpick. |
 | `not_permitted` | Staff: the ACL refuses that action. |
 | `not_loaded`, `save_failed`, `too_many_doors` | Staff save: doors still loading, database error, 512 doors. |
+| `busy` | Staff write: another create, edit, remove or panel save did not finish within 5 s (*Another door change is being saved. Try again in a moment.*). Writes run one at a time and re-read the doors when their turn comes; a turn held 30 s is let go. |
 | `unknown_group`, `unknown_item`, `door_taken` | Staff save: a group, grade or item nobody defined, or a leaf another door holds. |
-| `bad_door`, `bad_doors`, `bad_door_id`, `duplicate_door_id`, `bad_position`, `bad_bucket`, `bad_groups`, `bad_group`, `bad_items`, `bad_item`, `bad_characters`, `bad_character`, `bad_passcode`, `bad_autolock`, `bad_difficulty`, `bad_distance`, `bad_sound`, `bad_id` | Staff save: a malformed field. |
+| `bad_door`, `bad_doors`, `bad_door_id`, `duplicate_door_id`, `bad_position`, `bad_bucket`, `bad_groups`, `bad_group`, `bad_items`, `bad_item`, `bad_characters`, `bad_character`, `bad_passcode` (also a numeric code of 2^63 or more), `bad_autolock`, `bad_difficulty`, `bad_distance`, `bad_sound`, `bad_id` | Staff save: a malformed field. |
 | `bad_field` | Edit: a field of a different type from the stored one (`detail` names it). Replaces the per-field `bad_<field>` codes. |
 | `no_key_item`, `no_inventory`, `key_refused`, `no_player` | `/opx.doorlock.key`. |
 | `lift_door` | *Pick in world* on a lift's door. |

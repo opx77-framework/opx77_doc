@@ -42,7 +42,7 @@ Anchors: `bottom-left`, `bottom-right`, `top-left`, `top-right`, `top-center`, `
 | <a id="config-hud-money" />`MONEY` | `{ 'EDDIES', 'BANK' }` | Money lines in order. A held money type not listed is added after them, sorted. Zero amounts are not drawn. |
 | <a id="config-hud-money-separator" />`MONEY_SEPARATOR` | `' '` | Thousands separator. |
 | <a id="config-hud-info-eyebrow" />`INFO_EYEBROW` | `'hud.info.eyebrow'` | Locale key of the read-out title. |
-| <a id="config-hud-show-job" />`SHOW_JOB` | `true` | Draw the job line. |
+| <a id="config-hud-show-job" />`SHOW_JOB` | `true` | Draw the job line. The job and grade names come from the locale keys `character.job.<job>` / `character.grade.<job>.<level>` when they exist, else the config text ([Translating labels](/docs/opx_infinity/character#group-format)). |
 | <a id="config-hud-show-cred" />`SHOW_CRED` | `true` | Draw the street cred line (when cred is above 0). |
 | <a id="config-hud-voice" />`VOICE` | `{ OPEN_VOICE = 'open-voice', DRIVER = 'open77_voice', HIDE_OPEN_VOICE = true }` | Microphone block. The two names are platform voice resources read through their exports (not dependencies). `HIDE_OPEN_VOICE` hides open-voice's own HUD line. A non-table `VOICE` drops the block. |
 | <a id="config-hud-vehicle" />`VEHICLE` | `{ PASSENGER = true }` | Speed dial. `PASSENGER = false` draws it for the driver only. |

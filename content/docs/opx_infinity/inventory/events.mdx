@@ -160,6 +160,42 @@ RegisterNetEvent('opx:net:inventory:nearby', function(players) end)
   - distance: `number` — metres, one decimal
   - side?: `'ahead' | 'behind' | 'left' | 'right'` — from the giver's facing; absent on a host that cannot read it
 
+## opx:net:inventory:giveOffer [#opx-net-inventory-giveoffer]
+
+Server → client (the receiver). Somebody in reach is handing this player something and asks first. The client shows an Accept / Refuse menu card. **No name** and no server id.
+
+```lua
+RegisterNetEvent('opx:net:inventory:giveOffer', function(token, offer) end)
+```
+
+- token: `integer` — names the offer in the answer
+- offer: `table` — `{ item, count, side?, distance, expiresInMs }`
+  - item: `string` — the item's label, or the amount as money for notes
+  - side?: `'ahead' | 'behind' | 'left' | 'right'` — where the giver stands, from the receiver's facing
+  - distance: `number` — metres, one decimal
+  - expiresInMs: `integer` — `15000`
+
+## opx:net:inventory:giveAnswer [#opx-net-inventory-giveanswer]
+
+Client → server. The receiver's answer. Counts against the request window ([`RATE_LIMIT`](/docs/opx_infinity/inventory#config-inventory-rate-limit)). Only the receiver the offer was made to can answer it; an unknown, expired or replayed token moves nothing. A yes is checked again from scratch (both can act, reach, same stack, room).
+
+```lua
+TriggerServerEvent('opx:net:inventory:giveAnswer', token, accepted)
+```
+
+- token: `integer`
+- accepted: `boolean` — anything but `true` is a refusal
+
+## opx:net:inventory:giveWithdrawn [#opx-net-inventory-givewithdrawn]
+
+Server → client (the receiver). The offer was withdrawn: it expired after 15 s, or the giver left. The card is taken down.
+
+```lua
+RegisterNetEvent('opx:net:inventory:giveWithdrawn', function(token) end)
+```
+
+- token: `integer`
+
 ## opx:net:inventory:open [#opx-net-inventory-open]
 
 Server → client. Raise the screen (after `OpenStash` or a staff search).

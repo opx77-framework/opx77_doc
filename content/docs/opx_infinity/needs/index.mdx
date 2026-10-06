@@ -3,18 +3,20 @@ title: needs
 description: The character's gameplay needs (hunger, thirst, stamina, street cred) and the status-effect registry every module adds a chip to.
 ---
 
-Holds two things. The character's needs (`hunger`, `thirst`, `stamina`, `streetCred` by default): the client owns them during play, decays them over time and pushes them to the server, which stores them per character. And the status-effect registry: any module can put a chip (a short label with a tone and an optional countdown) on the player's screen. It draws nothing itself; [`hud`](/docs/opx_infinity/hud) draws both. Use it to feed or drain a need, or to show a temporary state such as "Bleeding" or "Well fed".
+Holds two things. The character's needs (`hunger`, `thirst`, `stamina`, `streetCred` by default): **the server owns them**. It decays them on its own clock while the character is loaded, raises them, stores them per character and sends every change to the player's client, which only draws them. And the status-effect registry: any module can put a chip (a short label with a tone and an optional countdown) on the player's screen. It draws nothing itself; [`hud`](/docs/opx_infinity/hud) draws both. Use it to feed or drain a need, or to show a temporary state such as "Bleeding" or "Well fed".
 
 | | |
 |---|---|
 | Side | both |
 | Requires | `character` (hard) |
-| Contract | `needs` v1 — [client](/docs/opx_infinity/needs/client) (no server contract) |
+| Contract | `needs` v1 — [server](/docs/opx_infinity/needs/server) (the values), [client](/docs/opx_infinity/needs/client) (read only, and the chips) |
 | Config | `config/needs.lua` (shared) |
 | Data | `opx77_character_status` (one row per character: `citizen_id`, `needs` JSON) |
 
 - `health`, `armor`, `isDead` and `inLastStand` are not needs. They belong to the character and the engine.
-- The server half only stores what the client pushes.
+- A need goes up only through the [server contract](/docs/opx_infinity/needs/server): an item whose `USE.STATUS` is consumed (the inventory adds it after taking the unit), the staff command [`/opx.needs.set`](#opx-needs-set), or the creator exports [`AddNeeds`](/docs/creators/server/addneeds) / [`SetNeeds`](/docs/creators/server/setneeds) (`SERVER.EXPORTS.WRITERS`). A client cannot send a value: there is no push event.
+- The values load when the character module announces the character on the server, without waiting for the client.
+- Nothing downs or kills a player whose need reaches `MIN`.
 - A character deleted through `character` also deletes its needs row (it listens to the private `opx:in:character:deleted`).
 
 ## Configuration
@@ -28,10 +30,10 @@ Holds two things. The character's needs (`hunger`, `thirst`, `stamina`, `streetC
 | <a id="config-needs-offset" />`OFFSET` | `120` | Pixels above that corner. |
 | <a id="config-needs-max-visible" />`MAX_VISIBLE` | `6` | Chips published at once. |
 | <a id="config-needs-needs" />`NEEDS` | see [NEEDS](#needs) | Every need, with bounds. A key not listed here is refused and never stored. A need added later is served at its `DEFAULT` to existing characters. |
-| <a id="config-needs-decay-ms" />`DECAY_MS` | `60000` | Milliseconds between two decay charges. |
-| <a id="config-needs-push-ms" />`PUSH_MS` | `120000` | Milliseconds between two throttled pushes to the server. |
-| <a id="config-needs-push-delta" />`PUSH_DELTA` | `5` | A move this large on any need pushes at once. |
-| <a id="config-needs-autosave-ms" />`AUTOSAVE_MS` | `300000` | Milliseconds between two server writes of the held pushes (minimum 1000). |
+| <a id="config-needs-decay-ms" />`DECAY_MS` | `60000` | Milliseconds between two decay charges, on the server (minimum 1000). Each charge sends the new values to the player, so this is also how often the gauges move. |
+| <a id="config-needs-autosave-ms" />`AUTOSAVE_MS` | `300000` | Milliseconds between two server writes of the held values (minimum 1000). |
+
+`PUSH_MS` and `PUSH_DELTA` were removed with the push event; a copy of them in your config is ignored.
 
 ### NEEDS
 
@@ -44,6 +46,12 @@ Each entry is `name = { MIN, MAX, DEFAULT, DECAY_PER_MINUTE? }`. A need without 
 | `stamina` | 0 | 100 | 100 | — |
 | `streetCred` | 0 | 100000 | 0 | — |
 
+## Commands
+
+| Command | Access | Arguments | Effect |
+|---|---|---|---|
+| <a id="opx-needs-set" />`/opx.needs.set` | ACL `command.opx.needs.set` | `<player> <need> <value>` | Sets one need of a connected player, clamped to its bounds. Audited (`needs.set`). The only way a need goes up by hand. |
+
 ## Refusal codes [#codes]
 
 Not translated; they are for the calling code.
@@ -51,7 +59,8 @@ Not translated; they are for the calling code.
 | Code | Meaning |
 |---|---|
 | `no_character` | No character is loaded on this client. |
-| `not_loaded` | A character is loaded but the server has not answered the pull yet. |
+| `not_loaded` | Client: the server has not sent the values yet. Server: no character is loaded on that player, or its row could not be read. |
+| `bad_player` | Server: not a positive integer player id. |
 | `spec_must_be_a_table` | The spec or patch is not a table. |
 | `unknown_need` | A patch key is not in `NEEDS`. |
 | `invalid_need_value` | A patch value is not a finite number. |

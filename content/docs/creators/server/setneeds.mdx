@@ -1,0 +1,33 @@
+---
+title: SetNeeds
+description: Sets a connected player's needs outright, on the server.
+---
+
+<a id="export-server-setneeds" />
+
+```lua
+local res = exports.opx_infinity:SetNeeds(source, patch)
+```
+
+Scope `write` · must be awaited — a synchronous call answers `export.mustAwait` before touching anything.
+
+**Parameters**
+- source: `number`
+- patch: `table` — `{ [needName] = number }`, 1 to 16 entries
+
+- Each value is clamped to the need's `MIN`..`MAX`. One unknown key or bad value refuses the whole patch.
+- Raises [`opx:on:needs:changed`](/docs/creators/events#opx-on-needs-changed) with `source = 'ext:<your resource>'` when something moved.
+
+**Returns**
+- `{ values, changed }`
+
+**Errors**
+- `not_loaded`, `unknown_need`, `invalid_need_value`, `empty_patch`, `export.badArgument`, `error.unavailable`
+
+```lua title="Example"
+CreateThread(function()
+  local pending = Open77.exports.call('opx_infinity', 'SetNeeds', source, { hunger = 100, thirst = 100 })
+  local res = pending and pending:await()
+  if res and res.ok then print('fed') end
+end)
+```

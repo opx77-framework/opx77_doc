@@ -17,6 +17,7 @@ Takes over lifts that already exist in the game world and gives them a floor lis
 - The key ([`KEY`](#config-elevators-key), `opx.elevators.use`) opens the floor list at the lift the player stands at. A strip row (`prompts`) names the key while within `USE_RADIUS` of a configured lift; without `prompts` the key still works. Away from any lift the key does nothing and says nothing (E is shared with other modules).
 - A lift nobody rides for 10 minutes is released on the host as well as forgotten, so it can be adopted again. After a restart, the client re-reports a lift that is still managed but not bound (every 30 s) and the server claims it back.
 - The server refuses a downed player (`downed`), not only the client panel.
+- A rider who leaves mid-trip no longer recalls the cabin: it finishes the trip it was given. An empty cabin stays where it stops.
 - With `KEY.DEFAULT = false` no key is declared and [`OpenPanel`](/docs/opx_infinity/elevators/client#client-elevators-openpanel) is the only way in. Adopted lifts are locked, so the game's own lift panel is refused either way.
 
 <Callout type="warn" title="The shipped elevators are samples">

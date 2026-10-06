@@ -5,7 +5,7 @@ description: Network and local events, host events and page channels of the chat
 
 ## opx:net:chat:say [#opx-net-chat-say]
 
-Client → server. A chat line. Dropped if blank, or within `RATE_MS` of the sender's last one (then refused with `chat.tooFast`, once per burst); cut to `MAX_LENGTH`; broadcast to **every** player.
+Client → server. A chat line. Refused with `chat.notLoaded` when the sender has no loaded character and no `STAFF_PERMISSION`. Dropped if blank, or within `RATE_MS` of the sender's last one (then refused with `chat.tooFast`, once per burst); cut to `MAX_LENGTH`; broadcast to **every** player.
 
 ```lua
 TriggerServerEvent('opx:net:chat:say', text)

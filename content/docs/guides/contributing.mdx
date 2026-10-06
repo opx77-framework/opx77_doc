@@ -3,7 +3,7 @@ title: Contributing
 description: How to change opx_infinity, opx_lib or this site — branches, checks before pushing, code conventions, text, and the documentation to update in the same change.
 ---
 
-The rules reviewers apply. In the framework, `CONTRIBUTING.md` (workflow and house style), `docs/MANUAL.md` (the design record) and `ui/README.md` are the authority when they disagree with this page.
+The rules reviewers apply. In the framework, [`CONTRIBUTING.md`](https://github.com/opx77-framework/opx_infinity/blob/main/CONTRIBUTING.md) (workflow and house style), [`docs/MANUAL.md`](https://github.com/opx77-framework/opx_infinity/blob/main/docs/MANUAL.md) (the design record, formerly the README) and `ui/README.md` are the authority when they disagree with this page. The framework's `README.md` is now only its front page.
 
 ## Branches and pull requests [#branches]
 
@@ -77,6 +77,8 @@ Say what changed and **why it was wrong before**. If a change fixes something th
 ## Deploying to the test server [#deploy]
 
 - Archive from the commit, not the working tree, then restart and read the journal in the same change. See [Install](/docs/getting-started/install#copy).
+- A change a live server must confirm (a native the stub host only imitates) gets a section in [`docs/IN_GAME_CHECKLIST.md`](https://github.com/opx77-framework/opx_infinity/blob/main/docs/IN_GAME_CHECKLIST.md): steps, expected result, log lines. Tick its boxes in a PR that edits the file, with the builds used.
+- A limit of the Open77 platform is not worked around in silence: it goes in [`docs/PLATFORM_REQUESTS.md`](https://github.com/opx77-framework/opx_infinity/blob/main/docs/PLATFORM_REQUESTS.md) with the evidence, the current fallback, the exact ask and what to change here once it lands.
 - Never `DROP DATABASE`; empty tables instead, after a `mysqldump`.
 
 ## Updating this documentation [#docs]

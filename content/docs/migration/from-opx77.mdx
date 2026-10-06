@@ -340,9 +340,8 @@ In opx_infinity: modules `vehicles` (server), `garages`, `dealership`, `hauling`
 
 | Old | New |
 |---|---|
-| `opx77:server:spawnVehicle` `{ plate }` | `opx:net:vehicles:spawn` `{ plate }` |
-| `opx77:server:storeVehicle` `{ plate }` | `opx:net:vehicles:store` `{ plate }` |
-| refusal operation `spawnVehicle` / `storeVehicle` | `vehicleSpawn` / `vehicleStore` |
+| `opx77:server:spawnVehicle` `{ plate }` | none: a player brings a car out at a [garage](/docs/opx_infinity/garages); server code calls [`vehicles.Spawn`](/docs/opx_infinity/vehicles/server#server-vehicles-spawn). (`opx:net:vehicles:spawn` existed until PR #99.) |
+| `opx77:server:storeVehicle` `{ plate }` | none: a garage puts it away; server code calls [`vehicles.Store`](/docs/opx_infinity/vehicles/server#server-vehicles-store) or [`SetVehicleState`](/docs/creators/server/setvehiclestate). (`opx:net:vehicles:store` existed until PR #99.) |
 
 **Old config -> new**
 
@@ -625,16 +624,17 @@ General: every old `Open77.exports.call("opx77_x", ...)` becomes an in-process c
 | export `removeEffect(id)` | client `needs.RemoveEffect(owner, id)` |
 | export `clearEffects()` | client `needs.ClearEffects(owner)` -> `value.removed` |
 | export `getNeeds()` | client `needs.GetNeeds()` -> `value = { values, citizenId, ready }` |
-| export `setNeeds(patch)` | client `needs.SetNeeds(patch)` |
-| export `addNeeds(patch)` | client `needs.AddNeeds(patch)` |
+| export `setNeeds(patch)` | server only since PR #101: server `needs.SetNeeds(player, patch)`, or the export [`SetNeeds`](/docs/creators/server/setneeds) from another resource |
+| export `addNeeds(patch)` | server only since PR #101: server `needs.AddNeeds(player, patch)`, or the export [`AddNeeds`](/docs/creators/server/addneeds) |
 | local event `opx77:status` | `opx:on:needs:effect` (same payload shape: status, owner, action, label, tone, data); `spec.event` still raised |
 | local event `opx77:status:effects` | `opx:on:needs:effects` |
 | local event `opx77:status:needs` | `opx:on:needs:changed` (adds source `unloaded`) |
-| net `opx77_status:pull` / `:values` / `:push` / `:pushed` | `opx:net:needs:pull` / `values` / `push` / `pushed` |
+| net `opx77_status:pull` / `:values` / `:push` / `:pushed` | `opx:net:needs:pull` / `values`; push and pushed are gone (the server owns the values since PR #101) |
 | error `export_call_required` | removed |
 | new error | `invalid_owner` (owner name malformed) |
 | config `NEEDS_EVENT` | removed (event name fixed) |
-| config `ANCHOR`, `OFFSET`, `MAX_VISIBLE`, `NEEDS`, `DECAY_MS`, `PUSH_MS`, `PUSH_DELTA`, `AUTOSAVE_MS` | same keys in `config/needs.lua` |
+| config `ANCHOR`, `OFFSET`, `MAX_VISIBLE`, `NEEDS`, `DECAY_MS`, `AUTOSAVE_MS` | same keys in `config/needs.lua` (`DECAY_MS` now runs on the server) |
+| config `PUSH_MS`, `PUSH_DELTA` | removed (PR #101) |
 | table `opx77_character_status` | same table, same schema: existing rows load unchanged |
 
 **opx77_hud -> hud**

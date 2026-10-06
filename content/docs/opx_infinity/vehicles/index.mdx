@@ -17,6 +17,7 @@ The registry of what each character owns. It draws plates, writes the rows, crea
 - **Every out vehicle is stored again** when its owner disconnects, when the owner is no longer loaded at the next save pass, when the host removes it, and when the resource stops.
 - On stop, each car's condition is read and written as `stored` (one `UPDATE` per car, at most 64 cars, best effort), then the car is removed. The save pass every `SAVE_SECONDS` stays the real guarantee.
 - Two stores of the same plate never run at once, and a save pass never writes an old row over a store that has landed. A put-away is announced once.
+- **One registration per character at a time.** A `Register` waits for the one in flight for the same character (up to 5 s, then `vehicle.registering`) and counts again, so two at once cannot pass `PER_CHARACTER`. A turn held 30 s is released.
 - A character that is deleted loses all its rows (the character delete is soft, so this module deletes them itself).
 
 ## Configuration
@@ -40,6 +41,7 @@ Each code is also a locale key (English and French) used for the toast.
 |---|---|
 | `vehicle.notFound` | No such plate, or it is not yours. |
 | `vehicle.limit` | The character already owns `PER_CHARACTER` vehicles (detail: the limit). |
+| `vehicle.registering` | Another registration for this character did not finish within 5 s. |
 | `vehicle.badRecord` | The record is longer than 256 characters. |
 | `vehicle.plateExhausted` | Five plate draws all collided. |
 | `vehicle.impounded` | The vehicle is impounded; `Spawn` refuses it until `SetState(plate, 'stored')`. |

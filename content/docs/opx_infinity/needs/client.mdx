@@ -1,6 +1,6 @@
 ---
 title: Client
-description: The needs contract on the client — read and move needs, add and remove status chips.
+description: The needs contract on the client — read the needs the server sent, add and remove status chips.
 ---
 
 ```lua
@@ -9,10 +9,12 @@ local needs = OPX.Api.Get('needs')
 
 From client code inside opx_infinity. Every function answers a `Result` (`{ ok = true, value }` or `{ ok = false, error, detail }`). None yields. Codes: [Refusal codes](/docs/opx_infinity/needs#codes).
 
-- `patch` (`SetNeeds`, `AddNeeds`) is `{ [needName] = number }`. One unknown key or bad value refuses the whole patch; nothing is written.
+- The needs are **read only** here: the client draws what the server sends. To move one, use the [server contract](/docs/opx_infinity/needs/server) (or, from another resource, the server exports [`AddNeeds`](/docs/creators/server/addneeds) / [`SetNeeds`](/docs/creators/server/setneeds)). `SetNeeds` and `AddNeeds` are no longer on the client contract.
 - `owner` is the caller's own name (1–64 characters of letters, digits, `_ : - .`). It groups chips and lets the module drop them when the owner stops. If `owner` names a running Open77 resource, its chips are dropped when that resource stops or reloads. A module name inside opx_infinity is never swept this way.
 
 ## GetNeeds [#client-needs-getneeds]
+
+The values as the server last sent them.
 
 ```lua
 needs.GetNeeds()
@@ -21,42 +23,6 @@ needs.GetNeeds()
 **Returns**
 - `Result` — value `{ values, citizenId, ready = true }`; `values` is a copy
   - errors `no_character`, `not_loaded` (`detail` = the citizen id)
-
-## SetNeeds [#client-needs-setneeds]
-
-Sets each named need outright, clamped to `MIN`..`MAX`.
-
-```lua
-needs.SetNeeds(patch)
-```
-
-**Parameters**
-- patch: `table` — `{ [needName] = number }`
-
-**Returns**
-- `Result` — value `{ values, changed }`; `changed` is the sorted list of keys whose value actually moved
-
-```lua title="Example"
-needs.SetNeeds({ hunger = 100, thirst = 100 })
-```
-
-## AddNeeds [#client-needs-addneeds]
-
-Adds each delta (negative to take away), clamped.
-
-```lua
-needs.AddNeeds(patch)
-```
-
-**Parameters**
-- patch: `table` — `{ [needName] = number }`
-
-**Returns**
-- `Result` — value `{ values, changed }`
-
-```lua title="Example"
-needs.AddNeeds({ hunger = 25, thirst = -5 })
-```
 
 ## AddEffect [#client-needs-addeffect]
 

@@ -135,7 +135,7 @@ AddEventHandler('opx:on:inventory:used', function(playerId, payload) end)
 
 ## opx:on:inventory:items [#opx-on-inventory-items]
 
-Server, host-wide. What a player's bag gained and lost, **by item name**: a give, a pickup, a drop, a craft, a use, an export call. A drag inside the bag moves nothing in or out and raises nothing.
+Server, host-wide. What a player's bag gained and lost, **by item name**: a give (raised when the receiver **accepts**; an offer that is refused or expires moves nothing and raises nothing), a pickup, a drop, a craft, a use, an export call. A drag inside the bag moves nothing in or out and raises nothing.
 
 ```lua
 AddEventHandler('opx:on:inventory:items', function(playerId, payload)
@@ -163,6 +163,24 @@ AddEventHandler('opx:on:downed:changed', function(playerId, payload) end)
   - restored: `boolean` — the down state came back after a reconnect
 - payload when up: `{ citizenId, down = false, reason, kept }`
   - kept: `boolean` — the character left the world still down; the state returns with them
+
+<a id="needs" />
+
+## opx:on:needs:changed [#opx-on-needs-changed]
+
+Server, host-wide. A player's needs moved on the server: decay, an item used, staff, or an export.
+
+```lua
+AddEventHandler('opx:on:needs:changed', function(playerId, payload) end)
+```
+
+- payload: `table`
+  - citizenId: `string`
+  - values: `table` — every need after the change
+  - changed: `string[]` — the keys that moved, sorted
+  - source: `string` — `decay`, `use`, `staff`, `set`, `add` or `ext:<resource>` (an [`AddNeeds`](/docs/creators/server/addneeds) / [`SetNeeds`](/docs/creators/server/setneeds) call)
+
+The first load of a character raises nothing here; read it with [`GetNeeds`](/docs/creators/server/getneeds).
 
 <a id="vehicles" />
 

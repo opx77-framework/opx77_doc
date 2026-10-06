@@ -80,7 +80,7 @@ Your resource cannot hear `opx_infinity`'s client events directly. [`Subscribe`]
 | `opx:on:inventory:used` | `{ name, slot, label, close, status?, animation? }` |
 | `opx:on:inventory:opened` | `{}` |
 | `opx:on:inventory:closed` | `{}` |
-| `opx:on:needs:changed` | `{ values, changed, source, citizenId, ready }` |
+| `opx:on:needs:changed` | `{ values, changed, source, citizenId, ready }` — `source` is `loaded`, the server's reason (`decay`, `use`, `staff`, `ext:<resource>`…) or `unloaded` |
 | `opx:on:progress:state` | `{ open, owner?, label? }`. `owner` is your resource name for your bar; a bar drawn by **another** resource has no `owner`. |
 
 No other event can be subscribed to (`export.notSubscribable`).

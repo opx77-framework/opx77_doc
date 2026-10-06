@@ -20,6 +20,7 @@ Shows a menu of places when a character enters the world and puts the character 
 2. `Offer` answers `false` (character places the body itself, at once) when the module is off, the policy is `'never'`, no location is usable, a choice is already open, or the policy is `'first'` and the character already has a stored position.
 3. Otherwise it sends `opx:net:spawn:offer`. The client opens the menu as soon as `entry` reports itself idle (name form and fitting room done) and reports `opx:net:spawn:opened`.
 4. The player's window (`TIMEOUT_SECONDS`) starts at that report. Before it, only `HOLD_MAX_SECONDS` can end the offer.
+   - While the name form or the fitting room is up, the client tells the server every 30 s ([`opx:net:spawn:waiting`](/docs/opx_infinity/spawn/events#opx-net-spawn-waiting)). Each report pushes the hold a full `HOLD_MAX_SECONDS` on, **never past 30 minutes from the offer**, and stops once the menu is on screen. A slow new player is no longer placed under an open modal.
 5. A character whose row holds a position gets a first card, **Where I left off** (*Là où j'étais*, id `resume`): choosing it places the character with no target, so the stored position decides. A character that has never stood anywhere does not get it.
 6. A click sends the place id. The server looks it up in its own list and calls `character.PlaceCharacter`. A timeout places the character with no target (stored position, then `DEFAULT_SPAWN`). The menu goes down at once; "Spawned at …" is said only once the body has moved, and a refused placement says "You could not be moved there."
 
@@ -44,6 +45,7 @@ Shows a menu of places when a character enters the world and puts the character 
 - `id`: 1–32 characters of letters, digits, `_ : - .`; unique. Sent on the wire, so **do not rename** one. `resume` is reserved for the *Where I left off* card: an entry with that id is dropped with a warning.
 - `label`: 1–48 characters, shown on the card.
 - `district`: up to 32 characters, the hint line. Optional.
+- Both are translatable: the menu and the *Spawned at* toast show the locale lines `spawn.place.<id>` and `spawn.place.<id>.district` when they exist (en and fr ship for every shipped place), else this config text.
 - `x`, `y`, `z`: finite numbers. Copy them from the game; a guessed coordinate can drop the player through the world.
 - `heading`: degrees; missing means `0.0` (north).
 - A bad entry is dropped with a warning at start. At most 64 entries are used.
