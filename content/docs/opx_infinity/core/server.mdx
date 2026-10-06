@@ -581,6 +581,27 @@ OPX.Schema.Add(list)
 **Parameters**
 - list: `string[]`
 
+## OPX.Schema.AddColumns [#opx-schema-addcolumns]
+
+Adds columns a table that already exists may be missing (a column in a `CREATE TABLE` only reaches a fresh install). Applied by `OPX.Schema.Apply` after every table and before the indexes, through [`OPX.Storage.EnsureColumn`](/docs/opx_infinity/core/lib#opx-storage-ensurecolumn). Unlike an index, a column that cannot be added **fails the schema**. Call from `Init`.
+
+```lua
+OPX.Schema.AddColumns(list)
+```
+
+**Parameters**
+- list: `table[]`
+  - TABLE: `string`
+  - COLUMN: `string`
+  - DEFINITION: `string` — SQL type and options
+
+```lua title="Example"
+OPX.Schema.AddColumns({
+	{ TABLE = 'opx77_crafting_orders', COLUMN = 'token',
+		DEFINITION = 'VARCHAR(40) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL' },
+}) -- what crafting does, from M.Storage.COLUMNS
+```
+
 ## OPX.Schema.AddIndexes [#opx-schema-addindexes]
 
 Adds indexes a table that already exists may be missing. Applied by `OPX.Schema.Apply` after every table, through [`OPX.Storage.EnsureIndex`](/docs/opx_infinity/core/lib#opx-storage-ensureindex). A failure is a logged warning, not a boot failure. Call from `Init`.
@@ -603,7 +624,7 @@ OPX.Schema.AddIndexes({
 
 ## OPX.Schema.Apply [#opx-schema-apply]
 
-Runs every statement through [`OPX.Storage.ApplySchema`](/docs/opx_infinity/core/lib#opx-storage-applyschema), stopping at the first failure, then ensures every index. Boot calls it before `Start` (not at all with no database); a failure sets `OPX.BootError`.
+Runs every statement through [`OPX.Storage.ApplySchema`](/docs/opx_infinity/core/lib#opx-storage-applyschema), stopping at the first failure, then ensures every column (a failure stops it) and every index. Boot calls it before `Start` (not at all with no database); a failure sets `OPX.BootError`.
 
 ```lua
 OPX.Schema.Apply()

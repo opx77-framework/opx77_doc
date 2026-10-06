@@ -16,16 +16,21 @@ A player presses `H` to open a centred hologram with their contacts and recent c
 
 - **Contacts only.** A call or a join needs the target's citizen id in the caller's contacts; anyone else is refused `notContact`, checked before anything about the target, so the refusal says nothing about who that id is or what they are doing. Strangers swap contacts face to face first.
 - Offering your contact to the same player again is refused for 30 s (`contactTooSoon`); the floor is cleared when either player leaves.
+- **Reach first for a contact offer.** Out of [`CONTACT_RANGE`](#config-calls-contact-range) the only answer is `tooFar`, before anything is said about the target (down, loading, on a call), so an offer cannot probe a stranger from across the map.
+- **Contacts can be deleted.** Each contact row in the hologram has DELETE, which takes two presses (*SURE?*); *Contact deleted.* The row names a reference the server made for that list (`k1`, `k2`…), never a citizen id.
+- **A full list is refused, not trimmed.** At [`MAX_CONTACTS`](#config-calls-max-contacts), sending a contact offer or accepting one is refused with `contactsFull` (*Your contact list is full. Delete a contact to make room.*). The offer stays open, so the player can delete a contact and then accept.
+- **Offline contacts are listed greyed** as `offline`, with no server id to call.
 - One player is in at most one call, with at most one invite out and one waiting.
 - An invite has a `kind`, decided by the server: `call` (start a call), `join` (the sender is in a call; accepting adds you) or `contact` (swap contact rows; no call).
 - `invite`, `accept`, `decline` and `hangup` are each limited to one per `REQUEST_MS` per player; a refusal is shown as a toast.
 - A call is dropped when a participant disconnects, leaves the world or is no longer alive (checked every `SCAN_MS` and on life-state changes). When one of three leaves, the other two are told who hung up. A failed host read no longer ends live calls.
 - **Names only for contacts.** Every card, toast ("X joined / hung up / declined / did not answer") and recent-call row names a person only to a viewer who has them in their contacts; anyone else reads *Unknown caller*. A contact offer names its sender, never the person it was offered to. See [Privacy](/docs/opx_infinity/character#privacy).
 - A contact offer tells its sender *offered*, *declined* or *not answered*, without the other person's name; the panel says *Offering your contact...*.
+- No toast repeats the hologram: *X is calling you.* and *Calling X...* are gone. The outcomes (answered, declined, no answer) are still toasts.
 - An invite that rings out, or is answered just as it dies, updates the caller's screen and files a missed call on both sides. A disconnect while ringing: the callee gets a missed call, the caller reads "The call could not go through" and an unanswered row.
 - Going down closes the hologram.
 - Hanging up (and stopping the module) puts the voice route back to proximity.
-- Audit entries: `calls.invite`, `calls.accept`, `calls.decline`, `calls.cancel`, `calls.hangUp`, `calls.contact`, `calls.unanswered`, `calls.eyes`, `calls.voice`.
+- Audit entries: `calls.invite`, `calls.accept`, `calls.decline`, `calls.cancel`, `calls.hangUp`, `calls.contact`, `calls.forget`, `calls.unanswered`, `calls.eyes`, `calls.voice`.
 - No commands.
 
 ## Key bindings [#keys]
@@ -53,7 +58,7 @@ A player presses `H` to open a centred hologram with their contacts and recent c
 | <a id="config-calls-invite-ttl-s" />`INVITE_TTL_S` | `30` | Seconds an unanswered invite rings, 5–300. Holds both players' invite slots meanwhile. |
 | <a id="config-calls-request-ms" />`REQUEST_MS` | `1500` | Minimum ms between two requests of one kind from one player, 0–60000. |
 | <a id="config-calls-contact-range" />`CONTACT_RANGE` | `6.0` | Metres between the two players for a contact swap, same bucket, 0.5–50. Calls have no range. |
-| <a id="config-calls-max-contacts" />`MAX_CONTACTS` | `64` | Contact rows per character, 1–512. The oldest is dropped past it. |
+| <a id="config-calls-max-contacts" />`MAX_CONTACTS` | `64` | Contact rows per character, 1–512. A full list refuses new contacts (`contactsFull`); nothing is dropped. |
 | <a id="config-calls-eyes" />`EYES` | `{ LEASE_MS = 30000, RENEW_MS = 10000 }` | Eye-glow lease in ms (1000–600000), renewed every `RENEW_MS` (clamped 250..`LEASE_MS`/2), not on every `SCAN_MS` pass. |
 | <a id="config-calls-scan-ms" />`SCAN_MS` | `2000` | Ms between sweeps: expire invites, drop unreachable participants, renew due leases (250–30000). |
 | <a id="config-calls-sound" />`SOUND` | game `ui_phone_*` events | `INCOMING`, `INCOMING_STOP`, `ACCEPTED`, `DECLINED`, `OUTGOING`, `OUTGOING_STOP`, `HANG_UP`: Wwise events played with `Open77.sfx.play2d`. `''` switches one off. |
@@ -84,5 +89,7 @@ Shown to the player as `calls.error.<code>`.
 | `alreadyParticipant` | They are already on this call. |
 | `noSuchInvite` | No such invite waiting (or nothing to withdraw). |
 | `expired` | The invite rang out. |
-| `tooFar` | Contact swap outside `CONTACT_RANGE`. |
+| `tooFar` | Contact swap outside `CONTACT_RANGE`. Checked first for a contact offer. |
+| `contactsFull` | Your contact list is at `MAX_CONTACTS`: delete one first. |
+| `offline` | Shown on a contact row: that person is not connected. |
 | `unreadable` | A host read failed. |

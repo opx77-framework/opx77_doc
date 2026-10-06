@@ -24,7 +24,7 @@ RegisterNetEvent('opx:net:garages:sync', function(payload) end)
 
 ## opx:net:garages:list [#opx-net-garages-list]
 
-Client → server. Asks for the list behind a menu point. Counts against the request window.
+Client → server. Asks for the list behind a menu point, or behind the entry point on foot. Counts against the request window.
 
 ```lua
 TriggerServerEvent('opx:net:garages:list', key)
@@ -44,7 +44,7 @@ RegisterNetEvent('opx:net:garages:vehicles', function(list) end)
 
 ## opx:net:garages:request [#opx-net-garages-request]
 
-Client → server. The key at an entry point, or a row picked in the list. Runs [`Use`](/docs/opx_infinity/garages/server#server-garages-use). Cooldown `COOLDOWN_MS` plus the request window.
+Client → server. The key at an entry point while seated (put away), or a row picked in the list. Runs [`Use`](/docs/opx_infinity/garages/server#server-garages-use). Cooldown `COOLDOWN_MS` plus the request window.
 
 ```lua
 TriggerServerEvent('opx:net:garages:request', key, plate)
@@ -61,7 +61,7 @@ Server → client. The verdict.
 RegisterNetEvent('opx:net:garages:answer', function(key, ok, error, plate, action) end)
 ```
 
-- key: `string`
+- key?: `string` — the key asked about, only if it names a known spot or garage; otherwise `nil`
 - ok: `boolean`
 - error?: `string`
 - plate?: `string`

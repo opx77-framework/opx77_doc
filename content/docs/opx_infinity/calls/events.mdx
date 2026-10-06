@@ -82,6 +82,16 @@ Client → server. Ask for the hologram list. 1 per second.
 TriggerServerEvent('opx:net:calls:roster')
 ```
 
+## opx:net:calls:forget [#opx-net-calls-forget]
+
+Client → server. Delete one contact. Names the row's `ref` from the last list the server sent, never a citizen id. One per `REQUEST_MS`; an unknown `ref` is `badRequest`. Audit `calls.forget`. The server answers with a fresh list.
+
+```lua
+TriggerServerEvent('opx:net:calls:forget', ref)
+```
+
+- ref: `string` — up to 8 characters, e.g. `'k3'`
+
 ## opx:net:calls:contacts [#opx-net-calls-contacts]
 
 Server → client. The hologram list.
@@ -91,7 +101,7 @@ RegisterNetEvent('opx:net:calls:contacts', function(list) end)
 ```
 
 - list: `table`
-  - `rows`: online contacts `{ id, name, kind, refusal }`, callable ones first; `refusal` is why one cannot be called now
+  - `rows`: every contact `{ id, ref, name, kind, refusal }`, callable ones first; `refusal` is why one cannot be called now; an offline contact has `id = 0` and `refusal = 'offline'`; `ref` names the row for [`forget`](#opx-net-calls-forget)
   - `recent`: newest first `{ outcome, name, citizenId, atMs }`; `outcome` is `declined`, `refused`, `missed` or `unanswered`; `name` follows the contacts rule
   - `onCall`: `boolean`
 
@@ -120,5 +130,6 @@ The hologram is on the `interactive` surface and takes keyboard and cursor while
 | <a id="page-calls-decline" />`calls:decline` | page → Lua | `{}` | Refuse the waiting invite. |
 | <a id="page-calls-hangup" />`calls:hangUp` | page → Lua | `{}` | Hang up the live call; with no call, withdraw what you are ringing. |
 | <a id="page-calls-withdraw" />`calls:withdraw` | page → Lua | `{}` | The *Cancel* button: withdraw the invite you sent, leaving any live call alone. Calls `M.Withdraw()`. |
+| <a id="page-calls-forget" />`calls:forget` | page → Lua | `{ ref }` | The second press on a contact's DELETE. Forwarded as [`opx:net:calls:forget`](#opx-net-calls-forget). |
 | <a id="page-calls-diag" />`calls:diag` | page → Lua | `{ detail }` | A view-side message, relayed with `OPX.Note`. Not sent by the shipped page. |
 | `calls:holo` | Lua → page | `{ open, rows, recent, call, invite, outgoing, anchor, answerKey, declineKey }` | The hologram. Sent on open/close and on every state change, also while closed (`open = false`), so the page can show a ringing call without taking focus. |

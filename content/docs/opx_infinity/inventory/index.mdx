@@ -39,12 +39,17 @@ A container is a `(kind, owner)` pair. Positive id: a database row. Negative id:
 ## Give and drop [#give-drop]
 
 - **Count.** Give or Drop on a stack of more than one opens the count dialog (*Give how many?* / *Drop how many?*), starting at 1; its button says *Give* or *Drop* and is the confirm step. A single item goes in one click.
-- **Who.** The give list shows people within arm's reach as **where they stand and how far**, `To your left · 1.2 m` / `À votre gauche · 1,2 m`, with their server id (`#12`). **Never a name**: in roleplay a name is learnt by meeting someone ([`opx:net:inventory:nearby`](/docs/opx_infinity/inventory/events#opx-net-inventory-nearby)). Only the giver sees the list; it is fetched when the bag opens.
-- **Receiving.** The receiver reads only their bag's own `+2 Water` line (no second server toast); a staff give the same.
+- **Who.** The give list shows people within arm's reach as **where they stand and how far**, `To your left · 1.2 m` / `À votre gauche · 1,2 m`, with their server id (`#12`). **Never a name**: in roleplay a name is learnt by meeting someone ([`opx:net:inventory:nearby`](/docs/opx_infinity/inventory/events#opx-net-inventory-nearby)). Only the giver sees the list; it is fetched again every time a bag slot's card opens.
+- **The receiver says yes first.** Give makes an **offer**; nothing moves yet. The giver reads *You offered 2x Water. Waiting for an answer.* The receiver gets a menu card (*SOMEBODY HANDS YOU SOMETHING*) with the item, the count and where the giver stands (*To your left · 1.2 m*, never a name), and picks **Accept** or **Refuse**; closing the card is a refusal.
+  - The offer stands **15 s**. Unanswered, it is withdrawn from the receiver's screen and the giver reads *Your offer of … was not answered.*
+  - On Accept the server checks everything again: both players can act, they are still in reach, the same stack is still in the giver's slot, the receiver has room. Only then does the stack move: *You were handed 2x Water.* / the giver's success line. Notes handed over are told to both as money.
+  - One offer out per giver (`give_pending`), one in per receiver (`give_busy`), 3 s between two offers from one giver. The answer counts against [`RATE_LIMIT`](#config-inventory-rate-limit). Only the receiver can answer an offer, and a replayed answer moves nothing.
+  - A staff give (`/opx.inventory.give`) asks nobody.
 - **Refusals.** A refused move, split, sort or drop toasts the server's reason (full trunk, no room…) once; the page's own "That did not work." is only for a timeout or a request that did not get through. The cooldown stays silent.
 - **Secondary panel.** Its Close button closes it on the server too. A trunk shut by its lock says "That vehicle is locked."
-- **Money notes.** *You took 1,000,000 €$ out as notes.* / *You put 4,500 €$ in notes back in your wallet.*, formatted with [`OPX.Locale.Money`](/docs/opx_infinity/core/lib#opx-locale-money); `/withdraw` adds no second toast.
-- A stash loaded by name (by the [stash functions](/docs/opx_infinity/inventory/server#server-inventory-addtostash)) and not opened by a player is saved and put away after `SERVER.EXPORTS.STASHES.IDLE_MS` (60 s) without use; a sweep runs every 15 s.
+- **Money notes.** *You took 1,000,000 €$ out as notes.* / *You put 4,500 €$ in notes back in your wallet.*, formatted with [`OPX.Locale.Money`](/docs/opx_infinity/core/lib#opx-locale-money); `/withdraw` adds no second toast (the bag's `+N` line leaves notes out).
+- **Weapons.** Drawing a weapon from the bag closes the screen, as eating does; putting it away leaves it open.
+- A stash loaded by name (by the [stash functions](/docs/opx_infinity/inventory/server#server-inventory-addtostash)) or opened by a player is saved and put away after `SERVER.EXPORTS.STASHES.IDLE_MS` (60 s) without use; a sweep runs every 15 s. A stash is never put away while someone has it open; its idle time counts from the last sweep that saw it open.
 - Deleting a character deletes all its containers and their items.
 
 ### Weight and slots
@@ -54,6 +59,14 @@ A container is a `(kind, owner)` pair. Positive id: a database row. Negative id:
 - A non-stackable item and every weapon hold one per slot.
 - Two stacks merge only when their metadata is equal.
 - A stored item the catalogue no longer has weighs [`DEFAULT_ITEM_WEIGHT`](#config-inventory-default-item-weight) per unit.
+
+## Medical items [#healing]
+
+An item named in [`HEALING`](#config-inventory-healing) heals on use: the server reads the player's health and raises it by that share of the maximum, capped at the maximum.
+
+- Refused at full health (`full_health`, *You are already at full health.*) and while down (`dead`): none of them revives.
+- The unit is consumed only when the heal went through; nothing is used up otherwise.
+- A use handler registered for the item ([`RegisterUsableItem`](/docs/creators/server/registerusableitem)) replaces the heal.
 
 ## Eddies as an item [#currency]
 
@@ -117,6 +130,7 @@ Players rebind them in Pause → Settings → KEY BINDINGS.
 | <a id="config-inventory-tabs" />`TABS` | `all`, `weapons` (weapon, ammo), `food` (food, drink), `medical`, `materials` (material, tool), `misc` (`REST = true`) | Category tabs over the grid. `REST` takes every category no other tab names. |
 | <a id="config-inventory-currency" />`CURRENCY` | `{ ENABLED = true, ITEM = 'eddies', MONEY_TYPE = 'EDDIES', MAX_WITHDRAW = 1000000 }` | The money bridge. `MAX_WITHDRAW` caps one withdraw. |
 | <a id="config-inventory-max-command-count" />`MAX_COMMAND_COUNT` | `10000` | Largest count a staff command accepts. |
+| <a id="config-inventory-healing" />`HEALING` | `{ bandage = 15, bounce_back = 40, maxdoc = 75 }` | What a medical item heals, in percent of the player's maximum health (above 0, at most 100), applied at once by the server. See [Medical items](#healing). |
 
 Live tunables (operator panel): `INVENTORY_SAVE_DELAY_MS` (2000), `INVENTORY_RATE_REQUESTS` (20), `INVENTORY_DROP_LIFETIME_MIN` (30), `INVENTORY_USE_COOLDOWN_MS` (750).
 
@@ -153,6 +167,11 @@ Toasted to the player as locale `inventory.error.<code>` (commands use `inventor
 | `hands_full` | The player is carrying a `hauling` crate; no use or draw. |
 | `too_far` | Out of reach. A give checks reach **first**: any id out of reach answers `too_far`, whether that player exists, is joining or is loaded. |
 | `target_unavailable` | The player to hand to (within reach) cannot receive. |
+| `give_pending` | You are already offering something; wait for an answer. |
+| `give_busy` | The receiver is already considering an offer. |
+| `give_gone` | The offer is no longer there (answered, withdrawn or expired). Not toasted. |
+| `give_changed` | On Accept: the offered stack is no longer in the giver's slot. |
+| `full_health` | A medical item at full health. |
 | `drops_disabled` | Piles are switched off. |
 | `drop_limit` | Too many piles on the server or for this character. |
 | `no_drop` | The item has `DROP = false`. |

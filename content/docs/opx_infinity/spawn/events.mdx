@@ -22,6 +22,14 @@ Client → server. The menu is on screen; the player's window starts now. Only t
 TriggerServerEvent('opx:net:spawn:opened', {})
 ```
 
+## opx:net:spawn:waiting [#opx-net-spawn-waiting]
+
+Client → server. The join is still busy ahead of the menu (name form or fitting room up, an offer waiting). Sent every 30 s; the server takes one per 5 s. Pushes the hold on by `HOLD_MAX_SECONDS`, up to 30 minutes from the offer. Ignored once the menu has opened.
+
+```lua
+TriggerServerEvent('opx:net:spawn:waiting')
+```
+
 ## opx:net:spawn:choose [#opx-net-spawn-choose]
 
 Client → server. The place clicked. Unknown ids are refused (`spawn.noChoice`) and the menu stays up. `id = 'resume'` keeps the row's position; it is refused the same way when the offer had no `resume`. Cooldown `CHOOSE_COOLDOWN_MS`.
@@ -44,7 +52,8 @@ RegisterNetEvent('opx:net:spawn:close', function(result) end)
   - `reason`: `string` — `'chosen'`, `'resumed'` or `'timeout'`
   - `result`?: `true` — on the second message only
   - `placed`?: `boolean` — second message: whether the body was moved
-  - `place`?: `string` — second message: the label chosen
+  - `place`?: `string` — second message: the label chosen (config text)
+  - `placeId`?: `string` — second message: its id; the client shows `spawn.place.<id>` when the catalogue has it
 
 ## opx:on:spawn:state [#opx-on-spawn-state]
 

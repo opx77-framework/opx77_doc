@@ -1,4 +1,4 @@
 {
   "title": "needs",
-  "pages": ["index", "client", "events"]
+  "pages": ["index", "server", "client", "events"]
 }

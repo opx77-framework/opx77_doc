@@ -28,7 +28,7 @@ Scope `write` · must be awaited.
 - `integer` — the container id
 
 **Errors**
-- `stash_namespace`, `stash_cap`, `too_far`, `not_ready`, `not_loaded`, `export.badArgument`, `export.callerDenied`
+- `stash_namespace`, `stash_cap`, `too_far`, `not_ready`, `dead` (the player is down), `not_loaded`, `export.badArgument`, `export.callerDenied`
 
 ```lua title="Example"
 CreateThread(function()

@@ -37,7 +37,7 @@ water = {
 |---|---|---|
 | `CONSUME` | `1` | Units removed per use. A [use handler](/docs/opx_infinity/inventory/server#server-inventory-registerusable) can override it. |
 | `CLOSE` | `true` | `false` keeps the screen open after a use. |
-| `STATUS` | none | `{ needName = amount }`, passed to the `needs` contract on the client. |
+| `STATUS` | none | `{ needName = amount }`, added by the server through the [`needs` contract](/docs/opx_infinity/needs/server#server-needs-addneeds) (reason `use`) after the unit is consumed. |
 | `ANIMATION` | none | `{ NAME, VARIANT?, DURATION_MS? }`. With `DURATION_MS` a non-cancellable `progress` bar plays it; without, `animations` plays it once. |
 
 An item with neither `USE` nor a registered use handler cannot be used (`not_usable`).
@@ -66,7 +66,7 @@ WEAPONS = { weapon_chao = { RECORD = 'Items.Preset_Chao_Default', CLASS = 'handg
 
 ## Shipped items
 
-- Drinks, food, medical items, materials (`scrap_metal`, `electronics`), `lockpick`, `hauling_crate` (10 kg, used by [`hauling`](/docs/opx_infinity/hauling)), `phone`, `id_card`, `shard`, `vehicle_key`, `eddies`, four ammunition types and 189 weapons.
+- Drinks, food, medical items (they heal: [`HEALING`](/docs/opx_infinity/inventory#healing)), materials (`scrap_metal`, `electronics`), `lockpick`, `hauling_crate` (10 kg, used by [`hauling`](/docs/opx_infinity/hauling)), `phone`, `id_card`, `shard`, `vehicle_key`, `eddies`, four ammunition types and 189 weapons.
 - `vehicle_key` is non-stackable and carries metadata `{ plate, label }`, written by [vehiclekeys](/docs/opx_infinity/vehiclekeys). The screen and the hotbar show a stack's own `metadata.label` when it has one. Use [`CountWhere`](/docs/opx_infinity/inventory/server#server-inventory-countwhere) to find a key by plate.
 - `door_key` is non-stackable, has no `USE` and carries metadata `{ type, label }`, cut by [doorlock](/docs/opx_infinity/doorlock). A door that lists `{ name = 'door_key', metadata = '<type>' }` opens for a key of that type.
 

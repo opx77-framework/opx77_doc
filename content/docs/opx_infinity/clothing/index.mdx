@@ -16,6 +16,7 @@ A store is a marker: the player stands on it, presses **E**, and the `appearance
 
 - Without `appearance`: markers still draw and the key answers `clothing.noWardrobe`.
 - Without `prompts`: only the hint row is missing.
+- A player who is down cannot open a store's room; the server ignores the press. The store-list request (`opx:net:clothing:ask`) is taken once per second per player.
 
 ## Commands
 

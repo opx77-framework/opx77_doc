@@ -1,0 +1,31 @@
+---
+title: GetNeeds
+description: Reads a connected player's needs, as the server holds them.
+---
+
+<a id="export-server-getneeds" />
+
+```lua
+local res = exports.opx_infinity:GetNeeds(source)
+```
+
+Scope `read` · must be awaited — the first read for a player loads the row; a synchronous call answers `export.mustAwait`.
+
+**Parameters**
+- source: `number`
+
+- The server owns the needs: this is the value the player's HUD shows, not a copy a client sent.
+
+**Returns**
+- `{ values, citizenId }` — `values` is `{ [needName] = number }`, a copy
+
+**Errors**
+- `not_loaded`, `bad_player`, `export.badArgument`, `error.unavailable`
+
+```lua title="Example"
+CreateThread(function()
+  local pending = Open77.exports.call('opx_infinity', 'GetNeeds', source)
+  local res = pending and pending:await()
+  if res and res.ok then print(res.value.values.hunger) end
+end)
+```

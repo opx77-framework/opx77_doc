@@ -1,6 +1,6 @@
 ---
 title: Server exports
-description: What a server script of another resource can call on opx_infinity — players, money, jobs, metadata, items, stashes, chat, vehicles, doors, toasts, bars and crafting benches.
+description: What a server script of another resource can call on opx_infinity — players, money, jobs, metadata, needs, items, stashes, chat, vehicles, doors, toasts, bars and crafting benches.
 ---
 
 Defined in `core/server/exports.lua`. Read [For creators](/docs/creators) first: every export answers `{ ok, value | error }`, the operator decides who may call it, and writes must be **awaited**.
@@ -59,6 +59,13 @@ Your resource's own space on a character (`ext.<your resource>.<key>`). A player
 
 - [`IsDown`](/docs/creators/server/isdown) — read · sync
 - [`Revive`](/docs/creators/server/revive) — write · sync
+
+## Needs [#needs]
+
+The server owns hunger, thirst, stamina and street cred; a client cannot move them. Your resource moves them here.
+
+- [`GetNeeds`](/docs/creators/server/getneeds) — read · must be awaited
+- [`AddNeeds`](/docs/creators/server/addneeds), [`SetNeeds`](/docs/creators/server/setneeds) — write · must be awaited
 
 ## Items [#items]
 

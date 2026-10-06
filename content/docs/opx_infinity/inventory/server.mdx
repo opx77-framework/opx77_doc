@@ -273,7 +273,7 @@ inventory.CountInStash(name, item, metadata)
 
 ## OpenStash [#server-inventory-openstash]
 
-Opens a stash beside the player's bag and raises their screen. Yields. The caller decides who may open it; this only checks reach, and only when `position` is given.
+Opens a stash beside the player's bag and raises their screen. Yields. The caller decides who may open it; this checks that the player can act (not down: `dead`; past the readiness gate: `not_ready`) and reach, the latter only when `position` is given.
 
 ```lua
 inventory.OpenStash(playerId, name, options)

@@ -26,7 +26,7 @@ vehicles.Register(citizenId, record, options)
   - `appearance`, `garage`, `paint`, `metadata`
 
 **Returns**
-- `Result` — the vehicle; errors `vehicle.limit` (at `PER_CHARACTER`), `vehicle.badRecord` (over 256 characters), `vehicle.plateExhausted` (after 5 colliding draws)
+- `Result` — the vehicle; errors `vehicle.limit` (at `PER_CHARACTER`), `vehicle.registering` (another registration for this character held the turn over 5 s), `vehicle.badRecord` (over 256 characters), `vehicle.plateExhausted` (after 5 colliding draws)
 
 ```lua title="Example"
 CreateThread(function()

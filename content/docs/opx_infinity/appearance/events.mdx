@@ -79,6 +79,14 @@ Server → client. Opens the appearance panel. The client listens; nothing in op
 RegisterNetEvent('opx:net:appearance:openPanel', function() end)
 ```
 
+## opx:net:appearance:roomAlive [#opx-net-appearance-roomalive]
+
+Client → server. The fitting room is still open; sent every 2 minutes while it is. The server pushes the room's open or priced grant on by a full 10 minutes, never past 30 minutes from the grant. It grants nothing the player did not already hold.
+
+```lua
+TriggerServerEvent('opx:net:appearance:roomAlive')
+```
+
 ## opx:net:appearance:present [#opx-net-appearance-present]
 
 Client → server. This player's look, for the others. Floor 2 s per player; a change inside the floor is neither sent nor acknowledged. A look identical to the last one sent (same length and hash) is acknowledged but not sent to anyone again; a look coming back after a withdrawal is sent.

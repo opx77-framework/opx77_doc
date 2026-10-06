@@ -52,7 +52,10 @@ A player stands on a dealer marker and presses the key (**E** by default): a cen
 - The seller's **company** receives the price minus the commission; the seller receives `SELLER_CUT_PERCENT` (rounded down). A commission that cannot be paid to the seller goes to the company.
 - The company is the seller's job (when `COMPANY.JOBS` is on and the job is not in `EXCLUDED`), otherwise their gang (when `COMPANY.GANGS` is on). Neither: refused `dealership.noCompany`.
 - Balances live in `opx77_company_accounts` (`kind` = `job` or `gang`, `group_key`, `balance`). Deposits only; no withdraw path. Read one with [`Balance`](/docs/opx_infinity/dealership/server#server-dealership-balance).
-- A company deposit that fails is written to `opx77_company_pending` (`id`, `token` UNIQUE, `kind`, `group_key`, `amount`, `plate`, `created_at`) and the sale reports `pending = true`. A sweep (at boot, then every 60 s, 32 rows per pass) pays each row in and deletes it in one transaction, so a retry never pays twice. If even the ledger write fails, the deposit is held in memory and retried; a restart in that window loses it (logged as an error, settle by hand).
+- **Every company deposit goes through the ledger** `opx77_company_pending` (`id`, `token` UNIQUE, `kind`, `group_key`, `amount`, `plate`, `created_at`) under its own token, then is settled at once. A settlement is one transaction: it locks the row, deposits it as an `INSERT … SELECT` of that row, then deletes it. A row already gone pays nothing, so a deposit whose answer was lost after commit, a retry, or the sweep racing a sale never pays twice. A deposit not settled at once leaves the row and the sale reports `pending = true`; the sweep (at boot, then every 60 s, 32 rows per pass) settles it. If even the ledger write fails, the deposit is held in memory and retried; a restart in that window loses it (logged as an error, settle by hand).
+- A token carries a tag drawn once per boot, so a debt written after a restart can never take the token of a row still owed from before.
+- **Message order.** The buyer reads *You bought …* first, then, if the car was not handed over, where it waits.
+- A player who is down cannot buy, offer or accept an offer (`error.incapacitated`); a no still goes through. A refusal names back a stock key only when it is a row of the stock.
 
 ### Showroom previews
 
@@ -144,6 +147,7 @@ Each code is also a locale key. Codes from [`vehicles.Register`](/docs/opx_infin
 | `dealership.notInZone` / `dealership.buyerNotInZone` | Seller or buyer outside `ZONE_RADIUS`. `Offer` answers `buyerNotInZone` for **any** id outside the showroom, connected or not, before reading the buyer's character. |
 | `dealership.buyerCannotAfford` | No longer answered. Since PR #93 the offer always goes out; on accept the **buyer** reads `dealership.cannotAfford` and the seller only `dealership.paymentFailed`, so offers at rising prices reveal nothing about a stranger's balance. |
 | `dealership.noOffer` | No offer waiting, or the token does not match. |
+| `error.incapacitated` | The player is down: no buy, offer or yes from the floor. |
 | `dealership.offerDeclined` / `dealership.offerExpired` | The buyer said no, or did not answer in time. |
 | `dealership.sellerGone` / `dealership.buyerGone` | The other side left or walked out of the zone. |
 | `dealership.sellerNoCompany` | At accept, the seller no longer sells for that company. |

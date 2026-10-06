@@ -197,6 +197,27 @@ appearance.OfferWardrobeGroups(owner, groups)
 appearance.OfferWardrobeGroups('shops', { { id = 'buy', label = 'Buy' } })
 ```
 
+## PriceWardrobe [#client-appearance-pricewardrobe]
+
+Prices the open room: the room's status line shows what `fn` answers, e.g. *On Save: 1,050 €$*. Display only; the server bills from its own tables. The pricer goes when the room closes.
+
+```lua
+appearance.PriceWardrobe(owner, fn)
+```
+
+**Parameters**
+- owner: `string`
+- fn?: `function(slots, draft)` — answers the sentence, or `nil` for none; `nil` instead of a function takes the caller's price down
+
+**Returns**
+- `Result` — `true`; errors `no_wardrobe_open`, `invalid_caller`, `invalid_pricer`
+
+```lua title="Example"
+appearance.PriceWardrobe('shops', function(slots)
+  return #slots > 0 and ('On Save: %d €$'):format(50 * #slots) or nil
+end)
+```
+
 ## DressWardrobe [#client-appearance-dresswardrobe]
 
 Puts a look on the open room's draft. Slots this body's catalogue lacks are skipped.
