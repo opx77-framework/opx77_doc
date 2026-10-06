@@ -1,0 +1,72 @@
+---
+title: Events
+description: Network and local events of the fuel module.
+---
+
+A client names what it wants and how it pays, nothing more: the server finds the pump, the vehicle, the tank and the money itself. Every request shares one `REQUEST_MS` floor per player.
+
+## opx:net:fuel:refuel [#opx-net-fuel-refuel]
+
+Client → server. Fill the vehicle beside the pump the player stands at. See [the refuel flow](/docs/opx_infinity/fuel#refuel-flow).
+
+```lua
+TriggerServerEvent('opx:net:fuel:refuel', { method = 'EDDIES' })
+```
+
+- method: `string` — one of [`PAYMENT`](/docs/opx_infinity/fuel#config-fuel-payment)
+
+## opx:net:fuel:canBuy [#opx-net-fuel-canbuy]
+
+Client → server. Buy a can, or refill the emptiest one in the bag, at a pump.
+
+```lua
+TriggerServerEvent('opx:net:fuel:canBuy', { method = 'BANK', refill = false })
+```
+
+- method: `string`
+- refill?: `boolean`
+
+## opx:net:fuel:canPour [#opx-net-fuel-canpour]
+
+Client → server. Pour the fullest can into a vehicle (the eye's row). Using the item from the bag reaches the same session with no vehicle named.
+
+```lua
+TriggerServerEvent('opx:net:fuel:canPour', { vehicleId = '4097' })
+```
+
+- vehicleId?: `string | integer` — a hint, re-measured; a decimal string keeps ids above 2^53 exact
+
+## opx:net:fuel:answer [#opx-net-fuel-answer]
+
+Server → client, to the player who asked. Shown as a toast; `refuelling` and `pouring` show nothing (the bar says it).
+
+```lua
+RegisterNetEvent('opx:net:fuel:answer', function(payload) end)
+```
+
+- payload: `{ ok, code, ... }`
+  - `code`: a success or a [refusal code](/docs/opx_infinity/fuel#codes)
+  - `refuelling`: `{ station, price, method }`
+  - `refuelled`, `poured`: `{ litres, cost, method?, percent, stopped? }` — `stopped`: why a partial pour ended
+  - `can_bought`, `can_refilled`: `{ cost, method }`
+  - `not_enough_money`: `{ price }`
+
+## opx:on:fuel:changed [#opx-on-fuel-changed]
+
+Server, local. A tank moved for any reason but driving. Published with `OPX.Publish`, so other server resources can listen too. Driving is not announced: the bag replicates it.
+
+```lua
+AddEventHandler('opx:on:fuel:changed', function(source, data) end)
+```
+
+- source: `number?` — the player who poured, the driver for `empty`, the staff member; nil for an export
+- data: `{ vehicleId, vehicleKey, litres, previous?, percent, capacity, reason }`
+  - `vehicleKey`: `string` — the id as text (an id can pass 2^53)
+  - `litres`, `previous`: litres, to the millilitre
+  - `reason`: `'refuel' | 'can' | 'staff' | 'empty' | 'ext:<resource>'`
+
+```lua title="Example"
+AddEventHandler('opx:on:fuel:changed', function(source, data)
+  if data.reason == 'empty' then print(('vehicle %s ran dry'):format(data.vehicleKey)) end
+end)
+```

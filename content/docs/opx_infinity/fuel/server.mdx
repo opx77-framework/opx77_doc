@@ -1,0 +1,179 @@
+---
+title: Server
+description: The fuel contract on the server — read and write a tank, the stations, and the refuel and can sessions.
+---
+
+```lua
+local fuel = OPX.Api.Get('fuel')
+```
+
+From server code inside opx_infinity. Other resources use the [fuel exports](/docs/creators/server#fuel). `vehicleId` is a live vehicle id, as an integer or its decimal text. A write with a `reason` is announced on [`opx:on:fuel:changed`](/docs/opx_infinity/fuel/events#opx-on-fuel-changed). Never yields.
+
+## Get [#server-fuel-get]
+
+ox's `state.fuel`, read: one vehicle's tank.
+
+```lua
+fuel.Get(vehicleId)
+```
+
+**Parameters**
+- vehicleId: `integer | string`
+
+**Returns**
+- `Result` — `{ litres?, capacity, percent?, usesFuel }`; error `fuel.noVehicle`
+  - `litres`, `percent`: nil when nobody has written the tank yet
+  - `usesFuel`: `false` for a class with `USAGE = 0`
+
+```lua title="Example"
+local tank = fuel.Get(vehicleId)
+if tank.ok and tank.value.percent and tank.value.percent < 10 then print('nearly empty') end
+```
+
+## Set [#server-fuel-set]
+
+ox's `state:set('fuel', percent)`.
+
+```lua
+fuel.Set(vehicleId, percent, reason, source)
+```
+
+**Parameters**
+- vehicleId: `integer | string`
+- percent: `number` — 0..100
+- reason?: `string` — for the event; default `'staff'`, exports pass `'ext:<resource>'`
+- source?: `integer` — the player it is about, for the event
+
+**Returns**
+- `Result` — `{ litres, percent }`; errors `fuel.noVehicle`, `fuel.badAmount`, `fuel.busy` (a pour holds the tank), `fuel.refused`
+
+## SetLitres [#server-fuel-setlitres]
+
+`Set` in litres, `open77_fuel`'s unit. Clamped to the tank.
+
+```lua
+fuel.SetLitres(vehicleId, litres, reason, source)
+```
+
+**Parameters**
+- vehicleId: `integer | string`
+- litres: `number` — 0 or more
+- reason?: `string` — default `'staff'`
+- source?: `integer`
+
+**Returns**
+- `Result` — `{ litres }`; errors as [Set](#server-fuel-set)
+
+## Restore [#server-fuel-restore]
+
+Puts back the tank a stored car comes out with. Written, not announced. Used by `vehicles`.
+
+```lua
+fuel.Restore(vehicleId, litres)
+```
+
+**Parameters**
+- vehicleId: `integer | string`
+- litres: `number`
+
+**Returns**
+- `boolean` — written
+
+## Capacity [#server-fuel-capacity]
+
+Litres in a full tank: `CAPACITY`, or `open77_fuel`'s `capacity()` while standing down.
+
+```lua
+fuel.Capacity()
+```
+
+**Returns**
+- `number`
+
+## StandingDown [#server-fuel-standingdown]
+
+Whether `open77_fuel` runs and this module has stopped burning for it. Re-asked every 10 s.
+
+```lua
+fuel.StandingDown()
+```
+
+**Returns**
+- `boolean`
+
+## Stations [#server-fuel-stations]
+
+Every open station, as the config built it. Placeholders and refused stations are not in it.
+
+```lua
+fuel.Stations()
+```
+
+**Returns**
+- `table` — key → `{ key, label, x, y, z, bucket, price, pumps }`
+  - `pumps`: `{ x, y, z }[]`
+
+## Session [#server-fuel-session]
+
+The session a player is in.
+
+```lua
+fuel.Session(player)
+```
+
+**Parameters**
+- player: `integer`
+
+**Returns**
+- `{ kind, vehicleId?, station?, method? }?` — `kind`: `'pump' | 'can' | 'buy' | 'refill'`; nil when none
+
+## Refuel [#server-fuel-refuel]
+
+ox's `startFueling` at a pump, as [`opx:net:fuel:refuel`](/docs/opx_infinity/fuel/events#opx-net-fuel-refuel) runs it. Every check of the [refuel flow](/docs/opx_infinity/fuel#refuel-flow); the player gets the answer.
+
+```lua
+fuel.Refuel(player, payload)
+```
+
+**Parameters**
+- player: `integer`
+- payload: `{ method }` — `'EDDIES' | 'BANK'`
+
+**Returns**
+- `boolean` ok, `string` code — `'refuelling'` or a [refusal code](/docs/opx_infinity/fuel#codes)
+
+## CanBuy [#server-fuel-canbuy]
+
+Buys a can, or refills the emptiest one, at a pump: a bar, then the charge.
+
+```lua
+fuel.CanBuy(player, payload)
+```
+
+**Parameters**
+- player: `integer`
+- payload: `{ method, refill? }`
+
+**Returns**
+- `boolean` ok, `string` code — `'buy'`, `'refill'` or a refusal code
+
+## CanPour [#server-fuel-canpour]
+
+Pours a can into a vehicle. The vehicle is re-measured.
+
+```lua
+fuel.CanPour(player, vehicleId, slot)
+```
+
+**Parameters**
+- player: `integer`
+- vehicleId?: `integer | string` — a hint; nil takes the nearest within `CAN.REACH`
+- slot?: `integer` — the can; nil takes the fullest in the bag
+
+**Returns**
+- `boolean` ok, `string` code — `'pouring'` or a refusal code
+
+```lua title="Example"
+local ok, code = fuel.CanPour(source)
+if not ok then print('no pour: ' .. code) end
+```

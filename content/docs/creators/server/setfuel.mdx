@@ -1,0 +1,29 @@
+---
+title: SetFuel
+description: Sets a vehicle's tank in percent, ox_fuel's state:set('fuel', ...).
+---
+
+<a id="export-server-setfuel" />
+
+```lua
+local res = exports.opx_infinity:SetFuel(vehicleId, percent)
+```
+
+Scope `write` · sync — answers from memory, safe called either way.
+
+**Parameters**
+- vehicleId: `integer | string`
+- percent: `number` — 0..100
+
+- Raises [`opx:on:fuel:changed`](/docs/opx_infinity/fuel/events#opx-on-fuel-changed) with `reason = 'ext:<your resource>'`. While `open77_fuel` runs, the write goes through its `set` export.
+
+**Returns**
+- `{ litres, percent }`
+
+**Errors**
+- `fuel.noVehicle`, `fuel.badAmount`, `fuel.busy` (a pump or can is pouring into it), `fuel.refused`, `export.badArgument`, `error.unavailable`
+
+```lua title="Example"
+local res = exports.opx_infinity:SetFuel(vehicleId, 100)
+if not res.ok then print('refused: ' .. res.error) end
+```

@@ -1,4 +1,4 @@
 {
   "title": "opx_infinity",
-  "pages": ["index", "concepts", "core", "---Modules---", "admin", "animations", "appearance", "blips", "calls", "character", "chat", "clothing", "crafting", "dealership", "diagnostics", "doorlock", "downed", "elevators", "entry", "form", "garages", "gunsmith", "hauling", "hud", "inventory", "loading", "menu", "needs", "panel", "progress", "prompts", "shops", "spawn", "target", "teleports", "theme", "vehiclekeys", "vehicles", "weather"]
+  "pages": ["index", "concepts", "core", "---Modules---", "admin", "animations", "appearance", "blips", "calls", "character", "chat", "clothing", "crafting", "dealership", "diagnostics", "doorlock", "downed", "elevators", "entry", "form", "fuel", "garages", "gunsmith", "hauling", "hud", "inventory", "loading", "menu", "needs", "panel", "progress", "prompts", "shops", "spawn", "target", "teleports", "theme", "vehiclekeys", "vehicles", "weather"]
 }

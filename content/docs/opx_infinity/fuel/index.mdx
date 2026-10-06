@@ -1,0 +1,221 @@
+---
+title: fuel
+description: A tank per vehicle that the server burns, pumps that fill it for money, and a jerry can — a port of ox_fuel onto Open77's fuel bag field.
+---
+
+A port of [ox_fuel](https://github.com/overextended/ox_fuel). Cyberpunk has no fuel model: REDengine 2.31 has no fuel level, consumption rate or petrol tank. The tank is a field of the vehicle's replicated state bag, **`fuel`, in litres** — the field and unit of the platform's sample `open77_fuel`, so a resource written for either reads the other's tank. `fuelCapacity` sits next to it so a gauge can draw a percentage. The server burns every tank, times every refuel and bills what its own clock poured.
+
+| | |
+|---|---|
+| Side | both |
+| Requires | none |
+| Optional | `character` (paying), `inventory` (the can), `progress` (the bar; without it no refuel), `target` (eye rows), `prompts` (key row), `menu` (the pump menu), `downed` |
+| Contract | `fuel` v1 — [server](/docs/opx_infinity/fuel/server), [client](/docs/opx_infinity/fuel/client) |
+| Exports | [Fuel](/docs/creators/server#fuel) — `GetFuel`, `GetFuelState`, `SetFuel` |
+| Config | `config/fuel.lua` (shared) |
+| Data | `opx77_vehicles.fuel` (litres, `FLOAT NULL`) |
+
+- Without `character` nobody can pay and no pump sells. Without `inventory` there is no can. Without `progress` there is no refuel. The burn needs nothing but the host.
+
+## Driving [#driving]
+
+| What | How |
+|---|---|
+| The gauge | The vehicle dial shows *FUEL* and a thin bar under the speed, toned at the HUD's `TONE_WARN` (33) and `TONE_BAD` (15). A car whose tank was never written shows nothing. [`VEHICLE.FUEL = false`](/docs/opx_infinity/hud#config-hud-vehicle) leaves it off. |
+| The burn | Every [`CONSUMPTION.TICK_MS`](#config-fuel-consumption) the server burns every vehicle whose engine runs: the distance covered (litres per 100 km × `MULTIPLIER` × class usage × speed curve), or the idle rate when it stands. An engine that is off burns nothing. |
+| What is billed | The larger of the reported speed × time and the distance the server saw the car move. A jump faster than `MAX_SPEED_KPH` is a teleport (garage recall, staff move) and is not billed. |
+| Empty | At 0 the server cuts the engine (`Open77.vehicles.setEngine(id, false)`) and cuts it again on every tick it is found running. Announced once on [`opx:on:fuel:changed`](/docs/opx_infinity/fuel/events#opx-on-fuel-changed) with `reason = 'empty'`. |
+| No tank | A class with `USAGE = 0` (AVs by default) is never burned, never cut and never filled. |
+| A garage | An owned car keeps its litres when it is put away and comes out with them. A car never measured comes out at [`INITIAL_PERCENT`](#config-fuel-initial-percent). |
+
+## At a pump [#pump]
+
+| What | How |
+|---|---|
+| Open the pump | On foot within [`USE_RADIUS`](#config-fuel-use-radius) of a pump, press **E** ([`KEY`](#config-fuel-key)) — the strip reads *Refuel (`price`/L)* — or the eye row *Use the pump*. From a seat it reads *Leave the vehicle to be able to start fueling*. Away from a pump E does nothing. E is shared: the nearer spot wins ([key contest](/docs/opx_infinity/core/lib#key-contest)). |
+| The menu | *Start fueling*, *Buy a fuel can*, *Refill a fuel can* (when one is in the bag), each with *Pay cash* (`EDDIES`) or *Pay by bank* (`BANK`) — [`PAYMENT`](#config-fuel-payment). |
+| Refuel | The nearest vehicle within [`VEHICLE_REACH`](#config-fuel-vehicle-reach) of the player is filled at `REFILL.LITRES_PER_SECOND` behind a cancelable bar; the gauge rises while it runs. Done: *Fueled to `percent`% - `cost`*. |
+| Price | Per litre, rounded up: [`PRICE_PER_LITRE`](#config-fuel-price-per-litre), or the station's own `PRICE`. |
+
+### The refuel flow [#refuel-flow]
+
+The client sends only the payment method. Everything else is the server's:
+
+1. The request floor ([`REQUEST_MS`](#config-fuel-request-ms)); the player loaded, not down, on foot, no other session.
+2. The nearest surveyed pump to where the host says the player stands.
+3. The nearest vehicle within reach, a tank (`usage > 0`), at least one tick of room.
+4. What the account can pay for: the pour is capped at that many litres.
+5. A cancelable `progress` bar the server starts and times (capped at the progress module's `MAX_MS`, 60 s).
+6. Every `REFILL.TICK_MS` the gauge moves and the session is checked: the player at the pump, the car within [`MOVE_TOLERANCE`](#config-fuel-move-tolerance) and below [`STOP_SPEED`](#config-fuel-stop-speed), the money still there.
+7. However it ends, the bill is the litres the **server's clock** poured. A cancelled or stopped bar is a partial refuel. An account that ran short pours only what it can pay for. A disconnect pours and charges nothing.
+
+Audit events `fuel.refuel`, `fuel.can`, `fuel.buy`, `fuel.refill`.
+
+## The jerry can [#can]
+
+| What | How |
+|---|---|
+| The item | `petrolcan` ([`CAN.ITEM`](#config-fuel-can)). Not stackable; `metadata.durability` is the fill, 0..100, drawn as the wear bar. |
+| Buy | *Buy a fuel can* at a pump: a `CAN.DURATION_MS` bar, then `CAN.PRICE` is charged and a full can added. Refunded if the bag refuses it. |
+| Refill | *Refill a fuel can*: the emptiest can in the bag, for `CAN.REFILL_PRICE`. |
+| Pour | Anywhere: use the can from the bag (nearest vehicle within `CAN.REACH`), or the eye row *Refuel with the fuel can* on a vehicle. `CAN.LITRES_PER_SECOND` behind a cancelable bar; the can in that slot is drained by what went in. A can moved out of its slot mid-pour pours nothing. |
+
+## Stations and surveying [#stations]
+
+ox's stations are Los Santos. The five shipped Night City stations — `badlands_sunset`, `badlands_rocky_ridge`, `santo_domingo_arroyo`, `watson_northside`, `heywood_wellsprings` — are **placeholders at `0, 0, 0` and disabled at boot**: no blip, no eye row, no key. A station whose centre or any pump is at exactly `0, 0, 0` is disabled whole, and the boot log names it:
+
+```text
+[fuel] 5 station(s) disabled until surveyed (/opx.fuel.capture): badlands_rocky_ridge, ...
+[fuel] no station is open: every tank still burns, and only a can or staff fills one
+```
+
+To make one real:
+
+1. Stand on the forecourt (where the blip goes): `/opx.fuel.capture <key> [label]`.
+2. Stand at each pump: `/opx.fuel.capture <key> pump`.
+3. Paste the printed lines into [`STATIONS`](#config-fuel-stations) in `config/fuel.lua` and restart. Nothing is stored in the database: the file is the city.
+4. `/opx.fuel.stations` lists open, unsurveyed and refused stations.
+
+```text title="What capture prints"
+paste into STATIONS in config/fuel.lua, then restart:
+  watson_northside = { LABEL = "Northside gas station", X = -1234.56, Y = 456.78, Z = 12.00, BUCKET = 0, PUMPS = { } },
+paste into STATIONS in config/fuel.lua, then restart:
+  watson_northside.PUMPS += { X = -1236.10, Y = 452.33, Z = 12.01 },
+```
+
+`+=` is a hint, not Lua: put each pump row inside the station's `PUMPS`.
+
+```lua title="config/fuel.lua — one surveyed station"
+STATIONS = {
+  watson_northside = {
+    LABEL = 'Northside gas station',
+    X = -1234.56, Y = 456.78, Z = 12.00,   -- the centre: the blip
+    BUCKET = 0,
+    PRICE = 5,                             -- optional, else PRICE_PER_LITRE
+    PUMPS = {
+      { X = -1236.10, Y = 452.33, Z = 12.01 },
+      { X = -1231.80, Y = 452.40, Z = 12.01 },
+    },
+  },
+},
+```
+
+- Key: 1 to 48 letters, digits, `_` or `-`. At most [`MAX_PUMPS`](#config-fuel-max-pumps) pumps.
+- A refused station (no pumps, too many, a non-finite coordinate, a bad `BUCKET` or `LABEL`) logs `[fuel] config: STATIONS.<key> ...`.
+- The map pin is the [blips](/docs/opx_infinity/blips) `fuel` category: one pin per open station, sprite `drop_point` (2.31 has no fuel sprite).
+
+## open77_fuel [#open77-fuel]
+
+With [`STAND_DOWN`](#config-fuel-stand-down) on (the default) and `open77_fuel` running, this module stops burning and cutting engines (two burns would empty a tank twice as fast). Refuels, cans and staff writes go through `open77_fuel`'s `set` export and the capacity is its `capacity()`. Stations, cans, persistence and the gauge keep working. Checked every 10 s, so either can start later. `/opx.fuel.stations` ends with `burning: open77_fuel` or `burning: this module`.
+
+## Commands
+
+All restricted: the host checks `command.<name>`.
+
+| Command | Access | Arguments | Effect |
+|---|---|---|---|
+| <a id="opx-fuel-set" />`/opx.fuel.set` | ACL `command.opx.fuel.set` | `<vehicleId\|near> <0-100>` | Sets a tank in percent. `near`: the seat, else the nearest vehicle within [`STAFF_REACH`](#config-fuel-staff-reach) in your bucket. A typed id must be within `STAFF_REACH` unless you hold `opx.admin.vehicle.anywhere`. |
+| <a id="opx-fuel-capture" />`/opx.fuel.capture` | ACL `command.opx.fuel.capture` | `<station> [pump\|label]` | Prints the config line for a station centre, or a `pump` row, where you stand. Not from the console. |
+| <a id="opx-fuel-stations" />`/opx.fuel.stations` | ACL `command.opx.fuel.stations` | — | Open stations (position, bucket, pumps, price), unsurveyed and refused ones, and who burns. |
+
+Grant `command.opx.fuel.*` to an operator role. `opx.admin.vehicle.anywhere` is a [raw right](/docs/opx_infinity/admin#raw-rights), not carried by `command.*`. Audit events: `fuel.set`, `fuel.capture`.
+
+## Configuration
+
+`config/fuel.lua` sets `OPX.Config.MODULES.fuel`. Shared script. Every number is clamped; a bad one takes the default.
+
+| Key | Default | Effect |
+|---|---|---|
+| <a id="config-fuel-enabled" />`enabled` | `true` | `false` switches the module off. |
+| <a id="config-fuel-capacity" />`CAPACITY` | `60.0` | Litres in a full tank, every vehicle. |
+| <a id="config-fuel-initial-percent" />`INITIAL_PERCENT` | `100` | How full a tank the server has never seen starts (staff spawn, dealer car, a car from before this module). |
+| <a id="config-fuel-consumption" />`CONSUMPTION` | see below | The burn. |
+| <a id="config-fuel-stand-down" />`STAND_DOWN` | `true` | Stop burning while `open77_fuel` runs. See [open77_fuel](#open77-fuel). |
+| <a id="config-fuel-price-per-litre" />`PRICE_PER_LITRE` | `4` | Eddies per litre, rounded up. A station's `PRICE` overrides it. |
+| <a id="config-fuel-payment" />`PAYMENT` | `{ 'EDDIES', 'BANK' }` | Accounts the pump offers. |
+| <a id="config-fuel-refill" />`REFILL` | `{ LITRES_PER_SECOND = 1.2, TICK_MS = 500 }` | Pump rate, and how often the session is checked and the gauge moved. 1.2 L/s fills 60 L in 50 s. |
+| <a id="config-fuel-use-radius" />`USE_RADIUS` | `2.5` | Metres from a pump (plus the server's `REACH_SLACK`). |
+| <a id="config-fuel-vehicle-reach" />`VEHICLE_REACH` | `4.0` | Metres from the player to the vehicle a pump fills. |
+| <a id="config-fuel-move-tolerance" />`MOVE_TOLERANCE` | `1.0` | Metres the car may move before a pour stops. |
+| <a id="config-fuel-stop-speed" />`STOP_SPEED` | `0.5` | m/s above which a pour stops. |
+| <a id="config-fuel-animation" />`ANIMATION` | `''` | A progress animation name for the bar; `''` plays none. |
+| <a id="config-fuel-scan-ms" />`SCAN_MS` | `500` | How often the client looks for the nearest pump (100..5000). |
+| <a id="config-fuel-request-ms" />`REQUEST_MS` | `800` | Floor between two fuel requests from one player. |
+| <a id="config-fuel-key" />`KEY` | `{ ID = 'opx.fuel.use', NAME = 'fuel.key.use', DEFAULT = 'E' }` | The pump key, rebindable. `DEFAULT = false` declares none (the eye row stays). |
+| <a id="config-fuel-can" />`CAN` | see below | The jerry can. |
+| <a id="config-fuel-stations" />`STATIONS` | five placeholders | See [Stations and surveying](#stations). |
+| <a id="config-fuel-max-pumps" />`MAX_PUMPS` | `16` | Most pumps per station (1..32). |
+| <a id="config-fuel-staff-reach" />`STAFF_REACH` | `100.0` | Metres for `/opx.fuel.set` (`near`, and a typed id). |
+
+```lua title="config/fuel.lua — CONSUMPTION"
+CONSUMPTION = {
+  TICK_MS = 1000,                 -- one burn pass over every vehicle
+  LITRES_PER_100KM = 9.0,         -- open77_fuel's numbers
+  IDLE_LITRES_PER_MINUTE = 0.05,
+  MULTIPLIER = 12.0,              -- ox's globalFuelConsumptionRate: ~55 km on a full 60 L tank
+  MAX_SPEED_KPH = 350,            -- faster is clamped; a longer jump is a teleport
+  SPEED_CURVE = { { 0, 1.3 }, { 50, 1.0 }, { 90, 0.9 }, { 130, 1.15 }, { 180, 1.5 }, { 250, 2.0 } },
+  CLASSES = {                     -- substring of the TweakDB record, first match wins
+    { MATCH = 'vehicle.av_', USAGE = 0 },   -- 0: no tank at all
+    { MATCH = '_sportbike', USAGE = 0.55 },
+    { MATCH = 'v_sport2_', USAGE = 1.5 },
+    -- ...
+  },
+  DEFAULT_USAGE = 1.0,
+  LEAK = { BELOW_HEALTH = 0.25, LITRES_PER_MINUTE = 0.5 },  -- 0 turns it off
+},
+```
+
+- `SPEED_CURVE`: `{ km/h, factor }` pairs, straight lines between them, flat past the ends. Road speed, not RPM: the server is not sent an RPM.
+- `LEAK`: below that share of vehicle health (0..1) a running engine loses that much more. Cyberpunk has one health pool.
+- A tick that comes late is billed as five ticks at most.
+
+```lua title="config/fuel.lua — CAN"
+CAN = {
+  ENABLED = true,
+  ITEM = 'petrolcan',
+  CAPACITY = 10.0,            -- litres in a full can
+  DURATION_MS = 5000,         -- the buy / refill bar
+  PRICE = 100, REFILL_PRICE = 60,
+  LITRES_PER_SECOND = 0.8,
+  REACH = 3.0,                -- metres to the vehicle poured into
+},
+```
+
+## Refusal codes [#codes]
+
+Sent on [`opx:net:fuel:answer`](/docs/opx_infinity/fuel/events#opx-net-fuel-answer) and shown as toasts, locale key `fuel.error.<code>`.
+
+| Code | Meaning |
+|---|---|
+| `too_fast` | Under `REQUEST_MS` since the last request. |
+| `bad_method` | Not one of `PAYMENT`. |
+| `player_down`, `no_character`, `no_position` | You are down, not loaded, or the server could not read you. |
+| `busy` | You or that vehicle are already in a session, or the bar is taken. |
+| `no_pump` | Not within `USE_RADIUS` of an open station's pump. |
+| `leave_vehicle` | Seated. |
+| `vehicle_far` | No vehicle within reach. |
+| `no_tank` | The vehicle's class has `USAGE = 0`. |
+| `tank_full` | Less than one tick of room. |
+| `not_enough_money` | Not even one tick, or the can's price (`price` in the answer). Mid-pour: the money ran out. |
+| `no_bar` | No `progress` module. |
+| `no_menu` | No `menu` module (client toast). |
+| `no_can_sold`, `no_inventory`, `no_can`, `can_full`, `cannot_carry` | Buying or refilling a can. |
+| `petrolcan_not_equipped`, `petrolcan_not_enough_fuel` | Pouring: no can (in that slot), or less than one tick in it. |
+| `cancelled` | The bar ended and nothing went in. |
+| `moved_away`, `vehicle_moved`, `vehicle_gone` | The pour stopped. |
+| `bad_amount`, `no_vehicle`, `out_of_reach`, `refused` | `/opx.fuel.set`. |
+
+Successes (`fuel.answer.<code>`): `refuelled`, `poured`, `can_bought`, `can_refilled`. `refuelling` and `pouring` start a bar and show nothing.
+
+Contract and export errors: `fuel.noVehicle`, `fuel.badAmount`, `fuel.busy` (a pour holds the tank), `fuel.refused`.
+
+## Platform limits [#limits]
+
+- **No fuel in the engine.** The bag field is the whole tank; an engine cut is the only "won't start". A driver restarting gets cut again within a tick.
+- **No pump entities.** A Night City pump is part of the map: a pump is a surveyed position and the eye row a sphere round it (four spheres per row).
+- **No RPM on the server.** Consumption follows road speed through `SPEED_CURVE`.
+- **One health pool.** The leak reads vehicle health, not a tank's.
+- **No fuel blip sprite** in 2.31: the pin is `drop_point`.
+- **Not ported:** `setPaymentMethod` / `setMoneyCheck` (a function cannot cross a resource; the pump offers both accounts), the nozzle prop and the gardener animation (no assets), RPM-based consumption.
+- Not yet verified on a live client: the engine cut against a restarting driver, the eye spheres on real pumps, the `drop_point` pin on the big map ([`docs/IN_GAME_CHECKLIST.md` §7](https://github.com/opx77-framework/opx_infinity/blob/main/docs/IN_GAME_CHECKLIST.md)).

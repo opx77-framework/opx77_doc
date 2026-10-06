@@ -1,0 +1,28 @@
+---
+title: GetFuel
+description: A vehicle's tank in percent, ox_fuel's state.fuel.
+---
+
+<a id="export-server-getfuel" />
+
+```lua
+local res = exports.opx_infinity:GetFuel(vehicleId)
+```
+
+Scope `read` · sync.
+
+**Parameters**
+- vehicleId: `integer | string` — a live vehicle id, or its decimal text
+
+**Returns**
+- `number?` — 0..100; `nil` before anybody wrote the tank
+
+- ox's `Entity(vehicle).state.fuel` is a percentage. Here the bag field `fuel` holds **litres** (the platform's `open77_fuel` field), so a port of an ox consumer asks this export instead. See [fuel](/docs/opx_infinity/fuel).
+
+**Errors**
+- `fuel.noVehicle`, `export.badArgument`, `error.unavailable`
+
+```lua title="Example"
+local res = exports.opx_infinity:GetFuel(vehicleId)
+if res.ok and res.value and res.value < 10 then print('nearly empty') end
+```

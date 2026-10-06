@@ -275,6 +275,36 @@ AddEventHandler('opx:on:doorlock:changed', function(playerId, payload) end)
 
 See [doorlock](/docs/opx_infinity/doorlock).
 
+<a id="fuel" />
+
+## opx:on:fuel:changed [#opx-on-fuel-changed]
+
+Server, host-wide. A tank moved for any reason but driving: a refuel, a can, staff, an export, or a tank that just ran empty.
+
+```lua
+AddEventHandler('opx:on:fuel:changed', function(playerId, payload) end)
+```
+
+- playerId: `number?` — who poured, the driver for `empty`, the staff member; `nil` for an export
+- payload: `table`
+  - vehicleId: `integer` — the live vehicle id
+  - vehicleKey: `string` — the same id as text (exact above 2^53)
+  - litres: `number` — the tank now, in litres
+  - previous?: `number` — before, in litres
+  - percent: `number` — 0..100
+  - capacity: `number` — litres in a full tank
+  - reason: `'refuel' | 'can' | 'staff' | 'empty' | 'ext:<resource>'`
+
+Driving is not announced: it moves every tank every second, and the bag replicates it. See [fuel](/docs/opx_infinity/fuel).
+
+```lua title="Example"
+AddEventHandler('opx:on:fuel:changed', function(playerId, payload)
+  if payload.reason == 'refuel' then
+    print(('%s filled %s to %d%%'):format(tostring(playerId), payload.vehicleKey, math.floor(payload.percent)))
+  end
+end)
+```
+
 <a id="crafting" />
 
 ## opx:on:crafting:ordered [#opx-on-crafting-ordered]

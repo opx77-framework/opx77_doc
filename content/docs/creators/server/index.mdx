@@ -1,6 +1,6 @@
 ---
 title: Server exports
-description: What a server script of another resource can call on opx_infinity — players, money, jobs, metadata, needs, items, stashes, chat, vehicles, doors, toasts, bars and crafting benches.
+description: What a server script of another resource can call on opx_infinity — players, money, jobs, metadata, needs, items, stashes, chat, vehicles, doors, fuel, toasts, bars and crafting benches.
 ---
 
 Defined in `core/server/exports.lua`. Read [For creators](/docs/creators) first: every export answers `{ ok, value | error }`, the operator decides who may call it, and writes must be **awaited**.
@@ -114,6 +114,13 @@ ox_doorlock's server exports under their ox meaning (see [doorlock](/docs/opx_in
 
 - [`GetDoor`](/docs/creators/server/getdoor), [`GetDoorFromName`](/docs/creators/server/getdoorfromname), [`GetAllDoors`](/docs/creators/server/getalldoors) — read · sync
 - [`SetDoorState`](/docs/creators/server/setdoorstate), [`SetDoorLocked`](/docs/creators/server/setdoorlocked), [`CreateDoor`](/docs/creators/server/createdoor), [`EditDoor`](/docs/creators/server/editdoor), [`RemoveDoor`](/docs/creators/server/removedoor) — write · must be awaited
+
+## Fuel [#fuel]
+
+ox_fuel's tank in ox's unit, a percentage (see [fuel](/docs/opx_infinity/fuel)). The vehicle's bag field `fuel` holds litres; read these instead of `Entity(vehicle).state.fuel`.
+
+- [`GetFuel`](/docs/creators/server/getfuel), [`GetFuelState`](/docs/creators/server/getfuelstate) — read · sync
+- [`SetFuel`](/docs/creators/server/setfuel) — write · sync
 
 ## Examples [#examples]
 

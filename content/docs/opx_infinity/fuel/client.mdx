@@ -1,0 +1,77 @@
+---
+title: Client
+description: The fuel contract on the client — read a tank off its bag, the open stations, and the pump menu.
+---
+
+```lua
+local fuel = OPX.Api.Get('fuel')
+```
+
+From client code inside opx_infinity. Every read comes off the vehicle's state bag (`fuel`, `fuelCapacity`); nothing here writes a tank — a client cannot.
+
+## Level [#client-fuel-level]
+
+The litres in a vehicle's tank and its capacity.
+
+```lua
+fuel.Level(vehicleId)
+```
+
+**Parameters**
+- vehicleId: `integer`
+
+**Returns**
+- `number?` litres — nil when nobody has written the tank
+- `number` capacity — the bag's `fuelCapacity`, else `CAPACITY`
+
+## Percent [#client-fuel-percent]
+
+ox's `state.fuel`: the tank in percent.
+
+```lua
+fuel.Percent(vehicleId)
+```
+
+**Parameters**
+- vehicleId: `integer`
+
+**Returns**
+- `number?` — 0..100; nil when nobody has written the tank
+
+## Current [#client-fuel-current]
+
+The tank of the vehicle the local player sits in.
+
+```lua
+fuel.Current()
+```
+
+**Returns**
+- `{ vehicleId, litres, capacity, percent }?` — nil on foot or with an unwritten tank
+
+```lua title="Example"
+local tank = fuel.Current()
+if tank and tank.percent < 15 then print(('low fuel: %.1f L'):format(tank.litres)) end
+```
+
+## Stations [#client-fuel-stations]
+
+The open stations, as the blips module reads them.
+
+```lua
+fuel.Stations()
+```
+
+**Returns**
+- `table` — key → `{ key, label, x, y, z }`
+
+## OpenPump [#client-fuel-openpump]
+
+Opens the menu of the pump the player stands at. The choice is sent to the server, which decides.
+
+```lua
+fuel.OpenPump()
+```
+
+**Returns**
+- `boolean` — whether a menu opened (false away from a pump, or with no `menu` module)

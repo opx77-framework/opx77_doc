@@ -1,6 +1,6 @@
 ---
 title: blips
-description: Map pins for garages, dealers, clothing shops, teleports and job sites, read from the modules that own those places.
+description: Map pins for garages, dealers, clothing shops, teleports, job sites and gas stations, read from the modules that own those places.
 ---
 
 Pins on the fullscreen map and the minimap. The module holds no coordinates of its own: every few seconds it reads the lists other modules already have on the client and turns them into pins, so a pin moves when the place moves. Categories are switched, re-sprited or ranged in `config/blips.lua`.
@@ -9,7 +9,7 @@ Pins on the fullscreen map and the minimap. The module holds no coordinates of i
 |---|---|
 | Side | client only |
 | Requires | none |
-| Optional | `garages`, `dealership`, `teleports`, `shops`, `hud` |
+| Optional | `garages`, `dealership`, `teleports`, `shops`, `hud`, `fuel` |
 | Contract | none |
 | Config | `config/blips.lua` (shared) |
 | Data | none |
@@ -25,6 +25,7 @@ The manifest must declare `ui.vanilla.map`; without `Open77.blips` the module sa
 | `shops` | `SHOPS` in the shops config | One per shop. |
 | `teleports` | [`teleports`](/docs/opx_infinity/teleports) client entrance list | One per entrance (both ends of a two-way). Locked ones too. |
 | `jobs` | gunsmith `ARMOURIES` and hauling `SITES` configs | Each armoury `BENCH`; each hauling site once (its `BLIP`, else its first real point) and each of its `DROPOFFS`. Not pinned when the player fails its `JOBS` gate. |
+| `fuel` | [`fuel`](/docs/opx_infinity/fuel) client `Stations()` | One per **open** station, at its centre (never per pump). A station not yet surveyed is not pinned. |
 
 - Garage and dealer spots are the ones the server sent this client: `GARAGES` in `config/garages.lua` and `SPOTS` in `config/dealership.lua`, plus legacy database rows the server adopts at boot, filtered to the player's own bucket. The config files are not read directly.
 - A point at exactly `0, 0, 0` is a placeholder: skipped and counted in the boot note.
@@ -60,5 +61,6 @@ garages = { SHOW = true, SPRITE = 'vehicle', LABEL = 'Garage', RANGE = 0, WALLS 
 | `shops` | `clothes` | `Clothing Shop` | `400` |
 | `teleports` | `fast_travel` | `Shortcut` | `0` |
 | `jobs` | `guns` | `Job Site` | `0` |
+| `fuel` | `drop_point` | `Gas Station` | `0` |
 
-All default to `SHOW = true`, `WALLS = false`. A category name outside these five is reported at boot. `COLOR`, `COLOUR`, `ALPHA`, `OPACITY`, `SCALE`, `CATEGORY`, `SHORTRANGE` or `SHORT_RANGE` in a category is reported at boot with the setting to use instead, because the engine refuses those options.
+All default to `SHOW = true`, `WALLS = false`. A category name outside these six is reported at boot. `COLOR`, `COLOUR`, `ALPHA`, `OPACITY`, `SCALE`, `CATEGORY`, `SHORTRANGE` or `SHORT_RANGE` in a category is reported at boot with the setting to use instead, because the engine refuses those options.
