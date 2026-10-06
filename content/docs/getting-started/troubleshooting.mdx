@@ -153,6 +153,36 @@ A door in `config/doorlock.lua` is invalid and was skipped. Also `saved door #<i
 
 By design since PR #86. Grant `opx.doorlock.bypass` **and** set [`STAFF_BYPASS = true`](/docs/opx_infinity/doorlock#config-doorlock-staff-bypass), or grant one door with the right `doorlock.<id>`. Staff holding `command.opx.doorlock.save` can read the code in the panel.
 
+## Fuel [#fuel]
+
+### My car won't start: empty tank [#fuel-empty]
+
+At 0 litres the server cuts the engine, and cuts it again on every tick it is found running: starting it only works for a second.
+
+- Fill it at a pump, pour a [fuel can](/docs/opx_infinity/fuel#can), or as staff [`/opx.fuel.set near 100`](/docs/opx_infinity/fuel#opx-fuel-set).
+- Check the dial's *FUEL* line, or [`GetFuelState`](/docs/creators/server/getfuelstate) from a script.
+- An AV is never cut (`USAGE = 0`).
+
+### No fuel station on the map: stations are disabled until surveyed [#fuel-no-station]
+
+Every shipped station is a placeholder at `0, 0, 0`. The log says:
+
+```text
+[fuel] 5 station(s) disabled until surveyed (/opx.fuel.capture): ...
+[fuel] no station is open: every tank still burns, and only a can or staff fills one
+```
+
+- Survey each station with [`/opx.fuel.capture`](/docs/opx_infinity/fuel#stations), paste the lines into `config/fuel.lua`, restart. `/opx.fuel.stations` lists what is open.
+- A station with a single unsurveyed pump stays disabled whole.
+
+### `[fuel] config: STATIONS.<key> ...`
+
+A station was refused for its shape (no `PUMPS`, over `MAX_PUMPS`, a non-finite coordinate, a bad `BUCKET` or `LABEL`). Fix the block.
+
+### Tanks empty twice as fast
+
+Both this module and `open77_fuel` burn. Set [`STAND_DOWN = true`](/docs/opx_infinity/fuel#config-fuel-stand-down) (the default); `/opx.fuel.stations` should end `burning: open77_fuel`.
+
 ## Staff immunity does nothing [#immune]
 
 `opx.admin.immune`, `opx.admin.override` and `opx.admin.vehicle.anywhere` are raw rights, not `command.*` names: a role granted `command.*` does not hold them.

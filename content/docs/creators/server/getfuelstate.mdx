@@ -1,0 +1,31 @@
+---
+title: GetFuelState
+description: A vehicle's whole tank — litres, capacity, percent and whether it takes fuel.
+---
+
+<a id="export-server-getfuelstate" />
+
+```lua
+local res = exports.opx_infinity:GetFuelState(vehicleId)
+```
+
+Scope `read` · sync.
+
+**Parameters**
+- vehicleId: `integer | string`
+
+**Returns**
+- `{ litres?, capacity, percent?, usesFuel }`
+  - `litres`, `percent`: `nil` before anybody wrote the tank
+  - `capacity`: litres in a full tank (`open77_fuel`'s while the module [stands down](/docs/opx_infinity/fuel#open77-fuel))
+  - `usesFuel`: `false` for a class with `USAGE = 0` (AVs)
+
+**Errors**
+- `fuel.noVehicle`, `export.badArgument`, `error.unavailable`
+
+```lua title="Example"
+local res = exports.opx_infinity:GetFuelState(vehicleId)
+if res.ok and res.value.usesFuel then
+  print(('%.1f / %.0f L'):format(res.value.litres or 0, res.value.capacity))
+end
+```

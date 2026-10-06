@@ -1,6 +1,6 @@
 ---
 title: Overview
-description: opx_infinity is the whole OPX//77 framework in one Open77 resource — a small core runtime and 33 modules — next to the client library opx_lib.
+description: opx_infinity is the whole OPX//77 framework in one Open77 resource — a small core runtime and 36 modules — next to the client library opx_lib.
 ---
 
 OPX//77 is a roleplay framework for Open77, the multiplayer platform for Cyberpunk 2077. Since September 2026 it ships as **one resource**, `opx_infinity`, plus a small client library resource, `opx_lib`. Read this page first if you want to change the framework or write code against it.
@@ -104,6 +104,7 @@ Each module runs on the server, the client or both, and may **require** other mo
 | [vehiclekeys](/docs/opx_infinity/vehiclekeys) | both | — | Vehicle keys as inventory items, and the lock a key turns. |
 | [garages](/docs/opx_infinity/garages) | both | character | Markers where a player brings out their own vehicles or puts one away. |
 | [dealership](/docs/opx_infinity/dealership) | both | character | Dealers that sell vehicles, locked showroom cars, and player-to-player sales paid into a company account. |
+| [fuel](/docs/opx_infinity/fuel) | both | — | A tank per vehicle the server burns, pumps that fill it for money and a jerry can (an ox_fuel port on the platform's `fuel` bag field). |
 
 ### World [#world]
 
@@ -112,7 +113,7 @@ Each module runs on the server, the client or both, and may **require** other mo
 | [weather](/docs/opx_infinity/weather) | both | — | One server authority for time of day and weather, synced to every client. |
 | [elevators](/docs/opx_infinity/elevators) | both | character | Job-gated floor lists on the game's lifts; the server re-checks every move. |
 | [teleports](/docs/opx_infinity/teleports) | both | character | Operator-placed teleport pads, one- or two-way, optionally job-locked. |
-| [blips](/docs/opx_infinity/blips) | client | — | Map pins for garages, dealers, shops, teleports and job sites. |
+| [blips](/docs/opx_infinity/blips) | client | — | Map pins for garages, dealers, shops, teleports, job sites and gas stations. |
 | [doorlock](/docs/opx_infinity/doorlock) | both | — | Locked doors opened by job, gang, grade, key item, character or code (an ox_doorlock port), with a staff panel. |
 
 ### Screens and input [#screens]

@@ -5,6 +5,31 @@ description: What changed in opx_infinity and opx_lib, newest first, starting wi
 
 Newest first. The version is the one in each resource's `open77.lua`.
 
+## opx_infinity — Unreleased [#unreleased]
+
+Merged into `main` after `0.2.0`; the manifest still says `0.2.0`. Planned for the next 0.2.x.
+
+### Fuel (PR #124) [#infinity-124]
+
+| What players see now | Pages |
+|---|---|
+| Vehicles burn fuel while the engine runs; at 0 the engine is cut and will not stay started. The vehicle dial shows a *FUEL* line. AVs take no fuel. | [fuel](/docs/opx_infinity/fuel#driving) |
+| Pumps at surveyed stations: **E** or the eye opens a menu, pay cash or bank, a cancelable bar fills the car; a cut-short bar bills what went in. | [At a pump](/docs/opx_infinity/fuel#pump) |
+| A *Fuel can* (`petrolcan`) bought and refilled at a pump and poured anywhere. | [The jerry can](/docs/opx_infinity/fuel#can) |
+| An owned car keeps its tank through a garage. | [vehicles](/docs/opx_infinity/vehicles) |
+| A *Gas Station* pin (`drop_point`) per open station. | [blips](/docs/opx_infinity/blips) |
+
+| Upgrading | Do |
+|---|---|
+| **No station is open out of the box.** The five shipped Night City stations are placeholders, disabled at boot. | Survey them with [`/opx.fuel.capture`](/docs/opx_infinity/fuel#opx-fuel-capture) and paste the lines into `config/fuel.lua`. Until then only a can or staff fills a tank. |
+| **New config** | `config/fuel.lua` (new module); `config/blips.lua` category `fuel`; `config/hud.lua` `VEHICLE.FUEL`. Missing keys take their defaults. |
+| **New item** | `petrolcan`. |
+| **Database** | `opx77_vehicles.fuel` (`FLOAT NULL`) is added on boot by `OPX.Schema.AddColumns`; the database user needs `ALTER`. Existing cars come out at `INITIAL_PERCENT`. |
+| **New ACL** | `command.opx.fuel.set`, `command.opx.fuel.capture`, `command.opx.fuel.stations` — grant `command.opx.fuel.*`. |
+| **New exports** | [`GetFuel`](/docs/creators/server/getfuel), [`GetFuelState`](/docs/creators/server/getfuelstate) (read), [`SetFuel`](/docs/creators/server/setfuel) (write: add your resource to `SERVER.EXPORTS.WRITERS`). A resource reading `Entity(vehicle).state.fuel` the ox way gets **litres**, not a percentage. |
+| **New event** | [`opx:on:fuel:changed`](/docs/creators/events#opx-on-fuel-changed). Net events [`opx:net:fuel:*`](/docs/opx_infinity/fuel/events). |
+| **open77_fuel** | Keep it if you like: with `STAND_DOWN = true` this module stops burning while it runs. See [open77_fuel](/docs/opx_infinity/fuel#open77-fuel). |
+
 ## opx_infinity — PRs #96–#101 (2026-10-05) [#infinity-96-101]
 
 Merged into `main` and shipped in the manifest version `0.2.0` (PR #123). One table per theme. Before updating a running server or a resource that calls OPX, read [Upgrading from PR #95](#upgrade-96-101). (#98, a WebUI polish pass, is not covered here.)

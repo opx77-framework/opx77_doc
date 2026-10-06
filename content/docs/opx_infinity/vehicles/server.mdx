@@ -9,7 +9,7 @@ local vehicles = OPX.Api.Get('vehicles')
 
 From server code inside opx_infinity. Every function that reads the database **yields**: call it from a `CreateThread`.
 
-A **vehicle** table has `plate`, `citizenId`, `record`, `appearance`, `garage`, `state` (`0` out, `1` stored, `2` impounded), `health`, `damage`, `paint`, `metadata`.
+A **vehicle** table has `plate`, `citizenId`, `record`, `appearance`, `garage`, `state` (`0` out, `1` stored, `2` impounded), `health`, `damage`, `paint`, `metadata`, `fuel` (litres; `nil` for a car never measured).
 
 ## Register [#server-vehicles-register]
 

@@ -1,0 +1,4 @@
+{
+  "title": "fuel",
+  "pages": ["index", "server", "client", "events"]
+}
