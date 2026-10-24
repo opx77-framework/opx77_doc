@@ -123,7 +123,7 @@ OPX.Command.Aliases()
 
 ## OPX.Notify [#opx-notify]
 
-Sends a toast through `Open77.notifications.send` (the platform's `open77_notifications` package), titled [`SERVER_NAME`](/docs/opx_infinity/core/config#config-shared-server-name), at [`NOTIFY_POSITION`](/docs/opx_infinity/core/config#config-shared-notify-position). Takes no icon.
+Sends a toast through OPX's own client overlay, using the configured theme. The platform `open77_notifications` resource is not required. Takes no icon.
 
 ```lua
 OPX.Notify(source, message, kind, durationMs)

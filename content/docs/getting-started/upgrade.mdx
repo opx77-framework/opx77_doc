@@ -1,0 +1,53 @@
+---
+title: Upgrade safely
+description: Upgrade matching OPX resources while preserving local configuration, database receipts, client assets and a usable rollback.
+---
+
+Do not unpack a new framework archive over a live installation: it can replace your Fivemanage key, surveyed points, server settings and economy configuration. Keep a record of the current commits and upgrade all required resources together.
+
+## Prepare a recoverable update [#prepare]
+
+1. Read the changes between your deployed commits and the target release. Check dependency versions and whether the preload ZIP changed.
+2. Announce downtime and stop new player activity before taking a consistent backup.
+3. Back up the SQL database and the full existing resource directories **on your server**, alongside `server.jsonc`, ACL files and protected service environment files. Restrict access: these files contain credentials. Verify that the SQL backup can be restored to a separate test database.
+4. Obtain the target commits in a **staging directory outside the live resource tree**. Keep the existing live installation untouched until the staged files and configuration are ready.
+5. Compare old and new `config/` files. Carry your values into the new files while retaining newly introduced keys and table structure. Do not simply discard new config files or blindly overwrite your existing ones.
+
+Preserve at least your image API key, locations and enabled flags, economy/job catalogues, spawn behaviour and resource export allow-lists. Preserve the host's licensing, authentication, download endpoints, ACL and SQL credentials too. Never commit production secrets back to Git.
+
+For a source-controlled staging checkout, this comparison shows configuration changes between two known deployed versions:
+
+```bash
+git diff OLD_COMMIT NEW_COMMIT -- config/
+```
+
+Replace both placeholders with actual commits. This inspects configuration; it does not apply your operator settings automatically.
+
+## Apply and verify [#apply]
+
+1. Stop the dedicated server using your normal service/panel controls.
+2. Install the prepared matching resources as a unit. Keep the previous version available outside the active resource directory, and ensure the service user can read the replacement files.
+3. Validate the preserved host configuration with the same launch environment and `--check-config`.
+4. Start the dedicated server. Read the **new process's** journal for database readiness, schema errors, missing dependencies, failed modules and the OPX version line.
+5. Connect with a test identity. Check character load, inventory, balances, staff ACL and reconnect persistence. For money-changing activities, test the relevant handover with two clients before reopening the server.
+6. If the asset preload changed, ask every player to fully exit Cyberpunk and launch again. A resource restart cannot remount cooked archives in an already-running game.
+
+Changing `database.*`, `http.*`, game-build checks or listener settings requires restarting the dedicated server. A Lua-only update can be activated by restarting the resource, but connected clients still need the updated resource set; use a controlled reconnect rather than assuming hot reload updated every client.
+
+For Cyberpunk 2.5, check that the host's `simulation.expectedGameBuild` is `25000`. An updated binary with a preserved `23100` setting still rejects 2.5 clients. Do not confuse that number with the Lua runtime version or appearance catalogue identifiers.
+
+## Database and economy migration [#economy]
+
+OPX creates/applies its schema on boot. There is no general SQL import or table reset step for upgrades. **Do not drop the database, empty tables, delete payment receipts or reset wallets to make an upgrade start.**
+
+Wallet changes now complete durably before success is returned. A lost database response can return `money.pending`: the runtime retains affected wallet/container locks and reconciles the **original operation ID**. Do not manually refund it or create a replacement operation because a response was delayed. `money.opIdConflict` means an ID was reused for a different movement.
+
+Inventory trades, company transfers, crafting, vehicle ownership and payout obligations use durable transaction/receipt boundaries. Vehicle/company payouts retain their original recipients. Invoice and contract recovery retains stable payment IDs. Outfit saves commit their quoted price with the outfit; cancelling a fitting room does not charge it.
+
+Existing invoice/contract phases and laundering batches without the newer durable evidence remain legacy/version-zero records for **administrator review**. Do not mark them version one or delete the records to force automatic collection. Read the framework's [economic persistence notes](https://github.com/opx77-framework/opx_infinity/blob/main/docs/MANUAL.md#economic-persistence) before resolving historical escrow or pending payments.
+
+Fuel also has an operator-facing default: `CONSUMPTION.REQUIRE_OPEN_STATION = true` pauses **OPX's own** consumption until at least one enabled station has surveyed points. Configure/survey stations before enabling the fuel economy, and check for another platform fuel loop running alongside it.
+
+## Rollback [#rollback]
+
+If verification fails, stop the service and retain the failed version's logs and database state. Restore a matching resource/configuration set. A code rollback alone does not reverse committed transactions or schema changes: assess whether the database needs its matching pre-update backup before accepting players again. Do not overwrite post-update player progress with an old backup while the server remains open.

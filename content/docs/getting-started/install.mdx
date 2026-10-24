@@ -1,88 +1,170 @@
 ---
 title: Install
-description: Install opx_lib and opx_infinity on an Open77 dedicated server, connect the database, grant staff rights and check the boot log.
+description: Install the three required OPX resources, connect MySQL, grant your staff identity and verify a complete first connection.
 ---
 
-OPX//77 is two resources: `opx_lib` (a client library) and `opx_infinity` (the framework).
+This guide follows `opx_infinity` [594b9b2](https://github.com/opx77-framework/opx_infinity/commit/594b9b2665bb8c10e82746c07256c57bab8e909f) and `opx_pool_assets` 0.3.1. Start with a working Open77 dedicated server; OPX is a resource framework, not a replacement server binary.
 
 ## What you need [#needs]
 
-| Need | Why |
+| Component | Required setup |
 |---|---|
-| An Open77 dedicated server | `opx_infinity` declares `open77_version ">=0.0.1"`. |
-| A MySQL database | Characters, inventories, vehicles… Without it the server boots but nobody can load a character. |
-| `opx_lib` | `opx_infinity` declares `dependency "opx_lib"`; the platform will not start it without `opx_lib` running. |
-| The platform's `open77_notifications` (recommended) | Server toasts sent with `OPX.Notify` go through `Open77.notifications.send`, drawn by that package on the client (shipped load lists start it). Without it those toasts are not shown. Refusals and command answers are drawn by `opx_infinity` itself. |
+| Open77 dedicated server and clients | Use matching current platform builds. The full-rack pool renderer needs **op77.152 or newer**. For Cyberpunk 2077 2.5, `simulation.expectedGameBuild` is **25000**. The manifest's runtime version `0.0.1` is a separate number. |
+| MySQL or MariaDB | Create the database and a dedicated account before starting OPX. OPX creates its own tables; no SQL dump or oxmysql resource is needed. |
+| `opx_lib` | Required client library resource. |
+| `opx_pool_assets` **0.3.1 or newer** | Required manifest dependency, including when the pool table is disabled. Contains the committed preload ZIP and recorded audio. |
+| `opx_infinity` | Framework, configuration and prebuilt WebUI. **Node, npm and a UI rebuild are not needed to install it.** |
+| `opx_images` and a Fivemanage key | Required to display inventory and clothing pictures. This is an upload repository, **not** an Open77 resource. See [Images](/docs/getting-started/images). |
+| Compatible ArchiveXL on each player's client | Required for pool mesh links and table-decoration cleanup. Follow [Pool assets](/docs/getting-started/pool-assets). |
+
+First complete the platform's [dedicated-server setup](https://open2077.net/docs/host-a-server) and confirm a client can connect. Keep its licensing, authentication, resource download URL and network settings. Use the platform [startup guide](https://open2077.net/docs/server-startup) for a host, container or panel installation.
 
 ## Installation
 
-### Copy the two resources [step] [#copy]
+### Copy the three resources [step] [#copy]
 
-One folder per repository under the server's resource root. The folder name **must** equal the resource name.
+Run these commands **inside the resources directory configured by your dedicated server**. Windows Git uses the same clone commands.
+
+```bash
+git clone https://github.com/opx77-framework/opx_lib.git opx_lib
+git clone https://github.com/opx77-framework/opx_pool_assets.git opx_pool_assets
+git clone https://github.com/opx77-framework/opx_infinity.git opx_infinity
+```
+
+For ZIP downloads, rename the extracted folders: `opx_infinity-main` is not the resource name. Do not leave an extra nested directory.
 
 ```text
 resources/
-  opx_lib/          open77.lua, init.lua, pure/, client/, boot/
-  opx_infinity/     open77.lua, config/, core/, lib/, locales/, modules/, web/
+  opx_lib/
+    open77.lua
+  opx_pool_assets/
+    open77.lua
+    dist/opx_pool_assets.zip
+  opx_infinity/
+    open77.lua
+    config/  core/  lib/  locales/  modules/  web/
 ```
 
-- The server only needs `open77.lua config core lib locales modules web` of `opx_infinity`; the built page is `web/index.html`.
-- `ui/`, `tests/` and `tools/` are for development.
-
-To deploy a commit rather than a working tree:
-
-```bash
-git archive --format=tar HEAD open77.lua config core lib locales modules web \
-  | gzip | ssh root@<host> 'cd /opt/open77-server/resources/opx_infinity && tar xzf -'
-```
+Keep the complete `opx_lib` and `opx_pool_assets` repositories, including `dist/` and audio. Infinity's runtime files are `open77.lua config core lib locales modules web`; its `ui/`, `tests/` and `tools/` directories are development files. `web/index.html` is already built.
 
 ### Load them in order [step] [#load]
 
-`opx_lib` **before** `opx_infinity` in `resources.load`.
+Merge these names into the existing `resources.load` array in the **configuration file your process actually launches**. Keep the platform resources needed by your features.
 
-```jsonc title="server.jsonc"
+```jsonc title="server.jsonc — merge into the existing resources object"
 "resources": {
   "load": [
-    // ... the platform's own resources ...
+    // Keep your platform resources here, then:
+    "opx_pool_assets",
     "opx_lib",
     "opx_infinity"
   ]
 }
 ```
 
+Do not load the old `opx77_*` framework alongside Infinity. Remove competing player placers such as `freeroam`, `pursuit`, `race` and `open77_playerstate` from the active load list when OPX owns character placement. OPX draws its own server toasts and does not require `open77_notifications`. Optional features may need `open77_animations`, `open77_player_interactions` or the networked-door resources described on their module pages. Do not remove every platform resource wholesale.
+
 ### Connect the database [step] [#database]
 
-```jsonc title="server.jsonc"
-"database": { "enabled": true, "connectionString": "Server=...;Database=...;User ID=...;Password=..." }
+Use an existing MySQL/MariaDB service or install one first. For Debian/Ubuntu:
+
+```bash
+sudo apt update
+sudo apt install mariadb-server mariadb-client
+sudo systemctl enable --now mariadb
+sudo mariadb
 ```
 
-- Or put the string in the environment variable named by `database.connectionStringEnvironmentVariable` (`OP77_DATABASE_CONNECTION` by default). See the platform's *Configure a SQL database* guide.
-- The tables are created at the first boot; there is nothing to import.
+In the administrative SQL session, replace the password and run this once for a **new** database:
+
+```sql
+CREATE DATABASE open77 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'open77'@'127.0.0.1' IDENTIFIED BY 'REPLACE_WITH_A_UNIQUE_PASSWORD';
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX
+    ON open77.* TO 'open77'@'127.0.0.1';
+```
+
+Exit SQL and test the dedicated account from the game-server machine; the client prompts for the password:
+
+```bash
+mariadb --protocol=TCP --host=127.0.0.1 --port=3306 --user=open77 --password open77
+```
+
+Inside that session, `SELECT DATABASE(), CURRENT_USER();` should identify the expected database/account. Keep local SQL on loopback; players do not need public access to port 3306. On Windows or for remote/container SQL, follow the platform's [SQL setup guide](https://open2077.net/docs/database) for service, account-host and TLS details.
+
+Merge this block into your server configuration:
+
+```json title="server.jsonc — database section"
+{
+  "database": {
+    "enabled": true,
+    "connectionString": "",
+    "connectionStringEnvironmentVariable": "OP77_DATABASE_CONNECTION"
+  }
+}
+```
+
+Set `OP77_DATABASE_CONNECTION` in the **environment of the server process**, for example through your service's protected environment file or your hosting panel:
+
+```text
+Server=127.0.0.1;Port=3306;Database=open77;User ID=open77;Password=REPLACE_WITH_YOUR_PASSWORD;
+```
+
+The value above is a connection string, not a `mysql://` URL. A nonempty `database.connectionString` overrides the environment value. Exporting a variable in your SSH shell does not update an existing systemd service, and Open77 does not automatically load an arbitrary `.env` file. For containers, the SQL hostname may be a service name rather than `127.0.0.1`.
+
+For manual launch syntax, Linux uses `export OP77_DATABASE_CONNECTION='...'`; PowerShell uses `$env:OP77_DATABASE_CONNECTION = '...'`. Substitute the complete connection string and keep real secrets out of shared logs/history.
+
+Restart the **dedicated server** after database configuration changes. OPX creates tables at boot; wait for SQL readiness and the schema result before connecting. A successful configuration check alone does not test the SQL password.
 
 ### Grant staff rights [step] [#acl]
 
-Staff commands are restricted. Add rights to the ACL file named by `accessControl.file` in `server.jsonc` (usually `acl.jsonc`). A staff role typically needs:
+1. In your Open77 game terminal, run `identity.dump`.
+2. Open the public export file reported by that command and copy its `aclPrincipal`. It contains your authenticated public identity; do not copy private identity files.
+3. Add that principal to the existing `principals` array in the file named by `accessControl.file`, usually `acl.jsonc`. Preserve other entries. Keep the exported `userId` and `publicKey`; replace or extend its permission list as needed.
 
-```text
-command.opx.admin          open the staff menu (F9)
-command.opx.admin.*        use the rows inside it
-command.opx.garages.*      garage staff commands
-command.opx.dealership.*   dealer staff commands
-command.opx.clothing.*     wardrobe store commands
-command.opx.weather.*      weather controls
-command.opx.time           the clock
-command.opx.time.*
+```json title="acl.jsonc — example principal, replace identity placeholders"
+{
+  "version": 1,
+  "principals": [
+    {
+      "name": "opx-staff",
+      "userId": "COPY_USER_ID_FROM_IDENTITY_EXPORT",
+      "publicKey": "COPY_PUBLIC_KEY_FROM_IDENTITY_EXPORT",
+      "permissions": [
+        "command.opx.admin",
+        "command.opx.admin.*",
+        "command.opx.modules",
+        "command.opx.version",
+        "command.opx.garages.*",
+        "command.opx.dealership.*",
+        "command.opx.clothing.*",
+        "command.opx.weather.*",
+        "command.opx.time",
+        "command.opx.time.*"
+      ]
+    }
+  ]
+}
 ```
 
-<Callout type="info">
+Run `acl.reload` in the **server administration console**, or restart the server. Use `acl.list` to confirm which file is loaded and `acl.check <playerId> command.opx.admin` to check your connected session. Your nickname and temporary player ID do not identify the persisted principal. See the platform's [identity and ACL guide](https://open2077.net/docs/server-acl).
 
-Both `command.opx.admin` and `command.opx.admin.*` are needed: see [Permissions](/docs/opx_infinity/concepts/permissions#acl). Each [module page](/docs/opx_infinity) lists its commands.
+Both `command.opx.admin` and `command.opx.admin.*` are needed. Other modules' commands need their own grants; raw rights such as `opx.admin.immune` are separate. See [Permissions](/docs/opx_infinity/concepts/permissions#acl).
 
-</Callout>
+### Configure pictures and pool assets [step] [#assets]
+
+Complete [Images and Fivemanage](/docs/getting-started/images) and [Pool assets and ArchiveXL](/docs/getting-started/pool-assets). They solve different problems: CDN pictures are public WebUI images; pool archives are game assets mounted before the client starts.
 
 ### Start and read the log [step] [#check]
 
-Restart the server and read the journal. A healthy boot ends with one line per module and a version line:
+Validate using your usual launch command and environment with `--check-config`, then start the dedicated server normally. On Linux, substitute your real service name:
+
+```bash
+sudo systemctl restart open77.service
+sudo journalctl -u open77.service -n 120 --no-pager
+```
+
+On Windows or a hosting panel, read the dedicated server console instead. Expected OPX output includes:
 
 ```text
 [storage] schema ready: N table(s)
@@ -92,15 +174,15 @@ Restart the server and read the journal. A healthy boot ends with one line per m
 opx_infinity 0.2.0 up
 ```
 
-| If you see | It means | Fix |
-|---|---|---|
-| `no database: nobody will be able to connect until this is fixed.` | The database is not reachable. | Check the connection string, restart. |
-| `opx_infinity ... up -- degraded: <reason>` | Boot finished with a problem. | Read the reason; see [Troubleshooting](/docs/getting-started/troubleshooting). |
-| `[module] <id> unavailable requires "<other>", ...` | A required module is off or failed. | Fix or enable `<other>`. |
-| `[boot] <name> is running and also places players` | Another resource also places players. | Remove it, or accept the conflict (see [`CONFLICTING_PLACERS`](/docs/opx_infinity/core/config#config-server-conflicting-placers)). |
+The exact module count can change. A line ending in `-- degraded: ...` needs attention even if the service is running. Review [Troubleshooting](/docs/getting-started/troubleshooting) for missing dependencies, SQL, resource activation and client failures.
 
-Later: `/opx.modules` (staff) or `/opx.version` for the same report, `/opx.client` in a game client's console for the client side.
+## First-connection checklist [#next]
 
-## Next [#next]
+- Connect with a supported game build and finish character creation and spawning.
+- Open inventory and confirm the HUD responds; pictures require the completed CDN setup.
+- Reconnect and confirm the same character, location and balance are restored.
+- With your staff identity, open F9 and run `/opx.modules` and `/opx.version`. Use `/opx.client` in the game console for client module failures.
+- Configure and survey the gameplay locations you intend to open. Disabled placeholders are not automatically ready-to-use businesses. See [Configure](/docs/getting-started/configure#places).
+- If enabling pool, test after a full game exit and launcher start, then follow its asset checklist.
 
-[Configure the server](/docs/getting-started/configure).
+Keep a record of the three deployed commits. For an existing server, follow [Upgrade safely](/docs/getting-started/upgrade) instead of extracting a new archive over your live configuration.

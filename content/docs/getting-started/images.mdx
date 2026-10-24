@@ -1,0 +1,106 @@
+---
+title: Images and Fivemanage
+description: Upload every image from opx_images, configure the server-only API key and let OPX resolve existing image names through the CDN.
+---
+
+Inventory and clothing pictures now live in [opx_images](https://github.com/opx77-framework/opx_images), outside Infinity. Fivemanage serves the files; Infinity keeps logical image names and receives a public name-to-URL catalogue. This removes the picture library from framework downloads and lets you update pictures without rebuilding the WebUI.
+
+**Fivemanage setup is required for pictures.** Without it, OPX displays text monograms. There is no local image mode and no manual URL replacement step.
+
+## 1. Download the image repository [#download]
+
+On the machine you will use to upload, install Python **3.10 or newer**, then clone or download:
+
+```bash
+git clone https://github.com/opx77-framework/opx_images.git opx_images
+cd opx_images
+```
+
+This directory belongs on your upload machine. Do not put it in `resources.load` or treat it as a fourth Open77 resource.
+
+```text
+opx_images/
+  images/
+    water.png
+    clothing/
+      ...
+  upload-images.sh
+  upload-images.bat
+```
+
+Keep all pictures under `images/`; the upload scripts scan **every subdirectory recursively**. Keep non-image files outside that directory. Each file must be at most 16 MiB.
+
+## 2. Upload with your Fivemanage account key [#upload]
+
+Create an API key in your Fivemanage account with the permissions needed to upload and list files. Run the script **from `opx_images`**, not Infinity:
+
+```bash title="Linux"
+bash upload-images.sh
+```
+
+```bat title="Windows"
+upload-images.bat
+```
+
+Paste the key when prompted. The scripts do not store it; automation can supply `FIVEMANAGE_API_KEY` instead. Uploads record the logical name, content hash and upload timestamp in metadata. The uploader reuses unchanged content and can resume an interrupted run. Old CDN uploads are not deleted automatically; your account's storage and bandwidth limits apply.
+
+Use these scripts for the OPX image library: a manual dashboard upload without the OPX metadata will not become a named catalogue entry.
+
+## 3. Put the key in Infinity too [#key]
+
+On the **game server**, edit this server-only file:
+
+```lua title="resources/opx_infinity/config/images.lua"
+OPX.Config.MODULES.images = {
+	API_KEY = 'YOUR_FIVEMANAGE_API_KEY',
+}
+```
+
+Use a key for the **same Fivemanage account** as the uploader. `opx_images` needs it to upload; `opx_infinity` needs it independently to list that account's files. Setting `FIVEMANAGE_API_KEY` for the upload script does not configure Infinity. Do not put the key in `shared.lua`, item definitions, the WebUI or a client script. Keep this file out of public configuration backups.
+
+## 4. Enable outbound HTTP [#http]
+
+Merge this section into the Open77 configuration used by your dedicated server. Preserve other hosts already allowed for your resources.
+
+```json title="server.jsonc — HTTP section"
+{
+  "http": {
+    "enabled": true,
+    "allowedHosts": ["api.fivemanage.com"],
+    "timeoutSeconds": 10,
+    "maxResponseBytes": 1048576
+  }
+}
+```
+
+Restart the dedicated server after changing the HTTP configuration. Infinity's shipped manifest already declares its HTTP permission.
+
+## 5. Check the result [#verify]
+
+Look for this server message, with your own image count:
+
+```text
+[images] N public image URLs loaded
+```
+
+Open inventory in game. The existing item configuration stays a name:
+
+```lua
+IMAGE = 'water.png'
+-- An image under images/clothing/ uses its relative name:
+-- IMAGE = 'clothing/example.webp'
+```
+
+There is no per-item API call. Infinity lists the account at startup and every **five minutes**, then sends players a cached public mapping in bounded packets. A failed refresh keeps the previous complete catalogue. Duplicate logical names select the newest upload timestamp. Players receive URLs, never the API key.
+
+For a new or replaced picture, keep its logical name, rerun the uploader and wait for the next catalogue refresh. No URL edit or framework rebuild is necessary.
+
+| Symptom | Check |
+|---|---|
+| `Fivemanage key missing; pictures disabled` | Set `API_KEY` in the server's `config/images.lua`, then restart OPX. |
+| `HTTP bridge unavailable; no pictures loaded` | Enable HTTP in the launched server configuration and restart the dedicated server. |
+| `catalogue refresh refused (HTTP ...)` | Check key/account access, host allow-list and outbound connectivity. Do not publish the key or response bodies. |
+| Zero named pictures despite account uploads | Use the uploader from this repository; confirm uploads have OPX metadata and belong to the configured account. |
+| One monogram among working pictures | Check the exact relative name, file extension and whether the public CDN URL loads. |
+
+Keep attribution from [the asset repository](https://github.com/opx77-framework/opx_images) when replacing or redistributing pictures.
