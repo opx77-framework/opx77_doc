@@ -20,7 +20,7 @@
 
 OPX//77 is **one resource, [`opx_infinity`](https://github.com/opx77-framework/opx_infinity)**,
 plus the client library **[`opx_lib`](https://github.com/opx77-framework/opx_lib)**. This
-site documents both, and the exports other resources may call.
+site documents the framework and library, the required `opx_pool_assets` resource, the separate `opx_images`/Fivemanage setup, and the exports other resources may call.
 
 | Section | What is in it |
 |---|---|

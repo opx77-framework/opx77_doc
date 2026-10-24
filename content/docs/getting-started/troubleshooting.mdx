@@ -5,6 +5,22 @@ description: The log lines opx_infinity prints when something is wrong, what eac
 
 Start with the server journal. `opx_infinity` names every problem it can see there, client-side module failures included (forwarded to the server as `client module: ...` lines). Search the journal for the quoted text.
 
+## Connection and setup checks [#connection]
+
+| Symptom | First checks |
+|---|---|
+| Dependency missing / Infinity never starts | Exact resource folder names, `opx_lib`, `opx_pool_assets >=0.3.1`, their manifests and load order. See [Install](/docs/getting-started/install#copy). |
+| Server requires build 23100, verified game is 25000 | For Cyberpunk 2.5, update `simulation.expectedGameBuild` to 25000 in the configuration actually launched, with matching supported server/client builds; restart the dedicated server. |
+| `resource_activation_failed`, even with HTTP 200 | HTTP 200 proves a download, not successful activation. Check client dependency/manifest errors, correct asset version and permissions, plus server resource logs. |
+| World requires mods that cannot be installed | Check the required-mod catalogue IDs, compatible client loader and package approval. Do not invent an `archivexl` indexed ID or weaken the secured-world policy. See [Pool assets](/docs/getting-started/pool-assets#archivexl). |
+| Resource downloads time out | Test the advertised public resource URL externally and its TCP firewall/NAT mapping. The game UDP port and resource HTTP port are separate. Preserve the platform's configured addresses. |
+| Inventory has initials instead of pictures | Complete the uploader, server-only API key and HTTP allow-list steps in [Images](/docs/getting-started/images). |
+| No pool Alt target, balls or clean cloth | Follow the [pool diagnosis table](/docs/getting-started/pool-assets#troubleshooting); check client logs as well as server health. |
+| Configuration edits appear ignored | Confirm `--config`, service working directory and environment/CLI overrides; editing a different JSONC file cannot affect the running instance. |
+| A new business has no interaction | Check enabled/surveyed locations and job/gang/duty/bucket/proximity rules before changing the target system. |
+
+A configuration check validates configuration structure; it does not prove public reachability, SQL authentication, successful resource activation or in-game rendering.
+
 ## Boot [#boot]
 
 ### `no database: nobody will be able to connect until this is fixed.`
@@ -273,7 +289,14 @@ Since PR #101 a give is an **offer**: the other player gets an Accept / Refuse c
 
 Since PR #99 a downed player cannot use a garage, dealer, shop, fitting room, crafting bench, armoury chest or car key, or open a stash: `error.incapacitated`, `shops.downed`, `crafting.downed`, `gunsmith.dead` or `dead`. Get revived first.
 
+## Economy pending or legacy records [#economy]
+
+`money.pending` means an uncertain database response is being reconciled under its original receipt. Do not issue a second payment/refund or delete the ledger to force completion. Preserve the relevant logs and operation ID. Historical invoice, contract or laundering records may need manual review rather than automatic payout after an upgrade. See [database and economy migration](/docs/getting-started/upgrade#economy).
+
 ## Reporting a problem [#report]
+
+Include the deployed framework/library/asset commits, Open77 and game builds, UTC time, exact error, relevant redacted server/client log lines and reproduction steps. For resource-install failures keep the launcher's reason, stage and download ID. Never post API keys, database strings, private identity files or a complete unredacted config.
+
 
 - Something only a live server can show (doors, duo emotes, the loading cover, the give list, medical items, fitting-room prices): follow the matching section of the framework's [in-game checklist](https://github.com/opx77-framework/opx_infinity/blob/main/docs/IN_GAME_CHECKLIST.md), which lists the steps, the expected result, the log lines to watch and what to put in the issue.
 - A limit of the Open77 platform itself (prop aliases, the loading-state API, `setModel` on the server, `open77_doors` without `open77_elevators`): see [platform requests](https://github.com/opx77-framework/opx_infinity/blob/main/docs/PLATFORM_REQUESTS.md) for the current fallback before reporting it.

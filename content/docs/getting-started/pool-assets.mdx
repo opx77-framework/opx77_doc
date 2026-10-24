@@ -1,0 +1,87 @@
+---
+title: Pool assets and ArchiveXL
+description: Install the required pool resource and compatible client ArchiveXL, activate one table and diagnose missing balls, decoration or interactions.
+---
+
+The current framework requires [opx_pool_assets](https://github.com/opx77-framework/opx_pool_assets) **0.3.1 or newer**. Keep its `dist/opx_pool_assets.zip` and audio files. Load the resource before Infinity as shown in [Install](/docs/getting-started/install#load), even if you leave the table disabled. The committed pack is ready to use; Python is only needed to rebuild it.
+
+Pool uses game assets, separately from the [Fivemanage pictures](/docs/getting-started/images). The server publishes the inert preload pack through its Open77 resource-download endpoint. Each player also needs a compatible ArchiveXL loader for the namespaced ball mesh links and decoration cleanup.
+
+## Install ArchiveXL on the client [#archivexl]
+
+For the documented Cyberpunk 2.5 setup, use the [Open2077 ArchiveXL port](https://github.com/Open2077/archive-xl/blob/open77/cyberpunk-2.5/OPEN77-2.5.md), known compatible release [**1.27.5-open77.6**](https://github.com/Open2077/archive-xl/releases/tag/v1.27.5-open77.6), and its installation instructions. Do not substitute an older 2.31 plugin.
+
+1. Fully close Cyberpunk before installing.
+2. Extract the compatible release into the **actual Cyberpunk 2077 game root**, preserving its directories and required loader files.
+3. The plugin belongs at `red4ext/plugins/ArchiveXL/ArchiveXL.dll`, beside the `Open77` plugin directory. It does **not** go inside `red4ext/plugins/Open77/` or into the server's resources directory.
+4. Enable it in the Open77 launcher/profile used to join the server. A plugin enabled only for a separate single-player profile does not prove it is active in Open77.
+5. Start the game through the launcher and check the current `red4ext/plugins/ArchiveXL/ArchiveXL.log` for successful loading and OPX archive/patch entries.
+
+The pool asset download does not install this loader for you. Do not add a guessed `archivexl` package ID to `requiredMods.packages`: the platform catalogue checked on 2026-10-24 has no standalone entry by that name. Hosted DLL distribution needs the platform's executable approval process; a GitHub release alone is not that approval. Keep the existing secured-world policy, including `requiredMods.unsecured: false`.
+
+**After changing the preload pack, fully quit the game and launch it again.** Reconnecting inside the same running game cannot mount a newly downloaded archive. Lua-only framework updates normally require reconnection, without a new archive installation.
+
+## Enable one table [#table]
+
+The shipped configuration intentionally has `TABLE.enabled = false`. In `config/pool.lua`, change that existing block to:
+
+```lua
+TABLE = { enabled = true, preset = 'el_coyote_cojo' },
+```
+
+Keep the surrounding module configuration. Restart OPX after changing it. Ten measured placement presets exist, but **only one table is active at a time**. Verify its cloth alignment and ball-centre height in game before opening it to players; selecting a different preset does not guarantee that its supplied cleanup patch matches your installed game sector.
+
+Stop loading the old `nc_pool` resource and its preload. The pack globally reserves `recreation.tent` for the white ball, `recreation.sleeping_bag` for the legacy yellow object and `recreation.gym_equipment` for the cue. Other resources must not use those aliases as their original objects on this world.
+
+## Modes and controls [#play]
+
+A rack has **15 object balls, including the black ball, plus the white cue ball**. These are practice and points rules, not a complete eight-ball ruleset with groups and black-last wins.
+
+| Mode | Behaviour |
+|---|---|
+| Practice | Solo, unlimited shots; clearing the rack starts another. |
+| Challenge | Solo, clear the rack within `SOLO_SHOTS` (default 10). |
+| Duel | Wait for a second player; first to `DUEL_TARGET` points (default 5). Pocketing keeps your turn, misses pass, scratches pass and deduct one point down to zero. |
+
+Use the **Alt target interaction** on the active table, choose a mode and enter aim. A duel waits for a second player to join. The table menu offers reset; in a duel both players must agree within the request window.
+
+| Control | Action |
+|---|---|
+| Mouse | Aim |
+| Hold/release left mouse | Charge/shoot |
+| Right mouse | Cancel/resume aim |
+| Middle mouse | Switch between cue and side views |
+| Shift | Fine aim |
+| Mouse wheel | Adjust cue height |
+| E | Table options |
+| R | Request/reset rack |
+| Backspace | Leave |
+
+V remains the inventory binding. The preview and side cameras belong to the pool session; leaving restores the normal view.
+
+## Optical trajectory assistance [#optics]
+
+`AIM_GUIDE` is the master switch. `TRAJECTORY` in `config/pool.lua` controls the optional estimate. By default `BASE_LEVEL = 0`: players need working **Kiroshi optics installed through OPX's ripperdoc**, not an implant lying in their bag.
+
+| Installed tier | Assistance |
+|---|---|
+| 1 | Estimated first impact |
+| 2 | Cue-ball and first object-ball directions |
+| 3 | Adds bounded rail rebounds |
+
+Set `TRAJECTORY.ENABLED = false` to disable assistance, or deliberately raise `BASE_LEVEL` to grant a minimum level to everyone. The server checks implant slot, tier and condition. The overlay is an estimate with bounded distance and rebounds, not a guaranteed result or full collision simulation.
+
+## Troubleshooting [#troubleshooting]
+
+| Symptom | Check |
+|---|---|
+| Pool dependency fails before Infinity starts | Folder names, load order, asset version at least 0.3.1 and committed `dist/` ZIP. |
+| No table interaction and no balls | `TABLE.enabled`, preset/bucket and client module logs. Look for a pool renderer initialization failure; a healthy server alone does not prove the client started. |
+| `permission_denied:props.register` | Restore the matching Infinity manifest with **both** `props.register` and `world.props`; do not copy individual old pool files over a new version. |
+| `invalid_model_paths` | Install matching framework/assets versions. Registered mesh/host paths must use the resource namespace. See [model contract](https://github.com/opx77-framework/opx_infinity/blob/main/docs/POOL_MODELS.md). |
+| Cylinders, missing coloured balls or black ball | Verify Open77 op77.152+, asset pack 0.3.1+, ArchiveXL enabled in the correct profile, then fully restart the game. |
+| Decorative balls/debris still on the cloth | Check the current ArchiveXL log. Cleanup patches have sector/node guards; loader activity alone does not prove a patch matched the table. |
+| No action after choosing duel | A second player must join the table before play begins. If solo modes also do nothing, capture client module logs. |
+| No trajectory line | Check `AIM_GUIDE`, `TRAJECTORY`, installed optics tier/condition and whose turn it is. No optics means no overlay by default. |
+
+Before opening the activity, test all 16 balls, cue/side cameras, pocket/reset behaviour, sounds and a second player's view after a fresh launcher boot. Automated checks and a successful package download do not verify visual alignment in game.

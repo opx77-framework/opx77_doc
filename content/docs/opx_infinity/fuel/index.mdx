@@ -149,6 +149,7 @@ Grant `command.opx.fuel.*` to an operator role. `opx.admin.vehicle.anywhere` is 
 
 ```lua title="config/fuel.lua — CONSUMPTION"
 CONSUMPTION = {
+  REQUIRE_OPEN_STATION = true,   -- pause OPX burn until an enabled station is surveyed
   TICK_MS = 1000,                 -- one burn pass over every vehicle
   LITRES_PER_100KM = 9.0,         -- open77_fuel's numbers
   IDLE_LITRES_PER_MINUTE = 0.05,
@@ -166,6 +167,7 @@ CONSUMPTION = {
 },
 ```
 
+- `REQUIRE_OPEN_STATION`: defaults to `true`; OPX pauses its own consumption until one enabled station has surveyed points. Other resources' fuel loops are independent.
 - `SPEED_CURVE`: `{ km/h, factor }` pairs, straight lines between them, flat past the ends. Road speed, not RPM: the server is not sent an RPM.
 - `LEAK`: below that share of vehicle health (0..1) a running engine loses that much more. Cyberpunk has one health pool.
 - A tick that comes late is billed as five ticks at most.

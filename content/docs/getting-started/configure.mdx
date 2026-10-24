@@ -17,7 +17,7 @@ Every key: [Core configuration](/docs/opx_infinity/core/config).
 
 ## Module files [#module-files]
 
-Each `config/<id>.lua` sets `OPX.Config.MODULES.<id>`. Most are **shared scripts**: every connecting player downloads them. Server only: `config/vehicles.lua` and `config/theme.lua` (the client is sent its colours over the network).
+Each `config/<id>.lua` sets `OPX.Config.MODULES.<id>`. Most are **shared scripts**: every connecting player downloads them. Server only: `config/vehicles.lua`, `config/theme.lua` and **`config/images.lua`** (the image API key). Theme colours and public image URLs are sent separately; credentials stay on the server.
 
 <Callout type="warn" title="Never put a secret in a shared config file">
 
@@ -36,6 +36,20 @@ OPX.Config.MODULES.calls = {
 
 - The module is reported `disabled`; every module that **requires** it is reported `unavailable`.
 - Check the [module list](/docs/opx_infinity) for dependencies first.
+
+## First settings to review [#first-settings]
+
+| Setting | File | Operator action |
+|---|---|---|
+| `LOCALE`, `SERVER_NAME` | `config/shared.lua` | Choose English/French and your server name. |
+| Starting balances and default spawn | `config/character.lua` | Review the economy and a safe spawn before accepting new characters. |
+| `OFFER_POLICY` | `config/spawn.lua` | Default `'first'` asks for a spawn only on the character's first entry; returning characters resume. |
+| Image `API_KEY` | `config/images.lua` | Configure the same Fivemanage account used by the uploader. See [Images](/docs/getting-started/images). |
+| `TABLE.enabled` / `preset` | `config/pool.lua` | Disabled by default. Enable and visually check one table after [installing assets](/docs/getting-started/pool-assets). |
+| Business and activity locations | Each module's config | Survey and enable only the places you intend to open. |
+| `EXPORTS.WRITERS` | `config/server.lua` | Add only trusted custom resources that need write exports; leave it empty without such integrations. |
+
+Keep the shipped manifest permissions and dependencies when editing settings. Disabling a module does not remove a resource-level dependency from `open77.lua`.
 
 ## Language [#language]
 
@@ -69,4 +83,19 @@ With no tunables panel on the host, the defaults are used and the log says `[tun
 
 ## Places in the world [#places]
 
-Garages, dealers, clothing stores, teleports, elevators, shops, crafting benches, armouries and hauling sites are **written in their config file**, with coordinates. To capture a position, stand on the spot and run `/opx.admin.self.pos` (alias `pos`): it copies the position and your facing to the clipboard. Each module page gives the format.
+Garages, dealers, clothing stores, teleports, elevators, shops, crafting benches, armouries and hauling sites are **written in their config file**, with coordinates. To capture a position, stand on the spot and run `/opx.admin.self.pos` (alias `pos`): it copies the position and your facing to the clipboard. Each module page gives the format. Not every shipped activity is enabled: an empty list, disabled row or placeholder coordinate must be configured before an interaction can appear.
+
+Fuel has a dedicated `/opx.fuel.capture` command and `/opx.fuel.stations` status report. Unsurveyed stations stay closed; `CONSUMPTION.REQUIRE_OPEN_STATION = true` pauses OPX fuel burn until one enabled station is surveyed. Another resource's fuel loop is independent.
+
+After editing locations, restart OPX and inspect validation warnings. Test the interaction with a normal player as well as staff: ACL, job, gang, duty, bucket and proximity rules can change what is offered. A successful module boot does not verify a position is usable in the world.
+
+## Which restart is needed? [#restart]
+
+| Change | Apply it with |
+|---|---|
+| Module Lua settings, image key, locale or location | Restart OPX; reconnect the test client to verify the new configuration. |
+| Database bridge, outbound HTTP, host load list or network settings | Restart the dedicated server with its service environment. |
+| Pool preload ZIP or another cooked archive | Restart the server, then fully exit and relaunch each client through the launcher. |
+| Public picture contents | Rerun the image uploader; wait for the five-minute catalogue refresh. |
+
+Use [Upgrade safely](/docs/getting-started/upgrade) when replacing resource files. Keep a private copy of your operator changes and review new configuration keys on every upgrade.

@@ -1,18 +1,19 @@
 ---
 title: Overview
-description: opx_infinity is the whole OPX//77 framework in one Open77 resource — a small core runtime and 36 modules — next to the client library opx_lib.
+description: opx_infinity is the whole OPX//77 framework in one Open77 resource — a core runtime and gameplay modules, with the opx_lib and opx_pool_assets dependencies.
 ---
 
-OPX//77 is a roleplay framework for Open77, the multiplayer platform for Cyberpunk 2077. Since September 2026 it ships as **one resource**, `opx_infinity`, plus a small client library resource, `opx_lib`. Read this page first if you want to change the framework or write code against it.
+OPX//77 is a roleplay framework for Open77, the multiplayer platform for Cyberpunk 2077. Since September 2026 it ships as **one resource**, `opx_infinity`, with the client library `opx_lib` and required game pack `opx_pool_assets`. Read this page first if you want to change the framework or write code against it.
 
-## Two resources [#two-resources]
+## Framework resources [#two-resources]
 
 | Resource | What it is | Runs code on |
 |---|---|---|
 | `opx_infinity` | The whole framework: core runtime, every module, the WebUI page. | server and client |
+| `opx_pool_assets` | Cooked pool hosts, cleanup sidecar, preload ZIP and recorded audio; version 0.3.1 or newer. | client |
 | `opx_lib` | A client library. Other resources load it with `require('@opx_lib')`; `opx_infinity` reaches it as `OPX.Lib`. | client only (see [opx_lib](/docs/opx_lib)) |
 
-`opx_infinity` declares `dependency "opx_lib"`: the platform refuses to start it unless `opx_lib` is running.
+`opx_infinity` declares dependencies on `opx_lib` and `opx_pool_assets >=0.3.1`; load both first. See [Install](/docs/getting-started/install), [Images](/docs/getting-started/images) and [Pool assets](/docs/getting-started/pool-assets) for the separate resource, CDN and client-loader setup.
 
 ## What is inside opx_infinity [#layout]
 
