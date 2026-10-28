@@ -14,6 +14,14 @@ The chat box: a log of recent lines at the top of the screen and an input line t
 | Config | `config/chat.lua` (shared) |
 | Data | none |
 
+## From another resource [#from-another-resource]
+
+<Callout type="warn" title="Open77.chat sends nothing here">
+The platform's `Open77.chat.send` and `Open77.chat.broadcast` hand the line to `open77_chat`, the platform's chat authority. This module replaces that package and asks you to drop it from `resources.load`, and with no authority running those calls still return `true`: the line is lost without an error.
+</Callout>
+
+Put a line in the box through the creator exports [`SendChat`](/docs/creators/server/sendchat) (one player) and [`BroadcastChat`](/docs/creators/server/broadcastchat) (everyone, or a bucket or radius). They are write exports, refused with [`export.callerDenied`](/docs/opx_infinity/core/error-codes#export-callerdenied) until the operator adds your resource to [`SERVER.EXPORTS.WRITERS`](/docs/opx_infinity/core/config).
+
 ## Configuration
 
 `config/chat.lua` sets `OPX.Config.MODULES.chat`. Shared: both halves read the length and rate limits. The server reads `MAX_LENGTH`, `RATE_MS` and `READY_MS` once, within the bounds below; a missing or out-of-range value takes its default.
